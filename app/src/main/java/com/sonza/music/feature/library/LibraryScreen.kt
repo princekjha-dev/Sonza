@@ -91,7 +91,7 @@ fun LibraryScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "Library",
@@ -217,7 +217,7 @@ fun LibraryScreen(
                         ) {
                             Row(
                                 modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 AsyncImage(
                                     model = artist.artworkUri,
@@ -266,7 +266,7 @@ fun LibraryScreen(
                             ) {
                                 Row(
                                     modifier = Modifier.padding(12.dp),
-                                    verticalAlignment = Alignment.Alignment.CenterVertically
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Box(
                                         modifier = Modifier
@@ -338,7 +338,7 @@ fun TrackRowItem(track: Track, onClick: () -> Unit) {
     ) {
         Row(
             modifier = Modifier.padding(10.dp),
-            verticalAlignment = Alignment.Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
                 model = track.artworkUri,

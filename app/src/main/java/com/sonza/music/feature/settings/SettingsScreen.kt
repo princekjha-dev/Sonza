@@ -122,7 +122,7 @@ fun SettingsScreen(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Default.Close, contentDescription = "Close", tint = SonzaTextPrimary)
@@ -153,7 +153,7 @@ fun SettingsScreen(
                                 .fillMaxWidth()
                                 .padding(vertical = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = "Gapless Playback", style = MaterialTheme.typography.titleMedium, color = SonzaTextPrimary)
@@ -243,7 +243,7 @@ fun SettingsScreen(
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = "Reduce Motion", style = MaterialTheme.typography.titleMedium, color = SonzaTextPrimary)
@@ -320,7 +320,7 @@ fun SettingsSection(
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
-            Row(verticalAlignment = Alignment.Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(imageVector = icon, contentDescription = null, tint = SonzaCyanAccent, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(

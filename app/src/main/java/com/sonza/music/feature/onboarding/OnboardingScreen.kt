@@ -213,7 +213,7 @@ fun OnboardingScreen(
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                                        verticalAlignment = Alignment.Alignment.CenterVertically
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         if (isSelected) {
                                             Icon(
@@ -278,7 +278,7 @@ fun OnboardingScreen(
                             ) {
                                 Row(
                                     modifier = Modifier.padding(16.dp),
-                                    verticalAlignment = Alignment.Alignment.CenterVertically
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Headphones,
@@ -336,7 +336,7 @@ fun OnboardingScreen(
                                     .clickable { selectedQuality = title }
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(verticalAlignment = Alignment.Alignment.CenterVertically) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(
                                             imageVector = Icons.Default.HighQuality,
                                             contentDescription = null,
@@ -406,7 +406,7 @@ fun OnboardingScreen(
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically
         ) {
             // Page Indicator Dots
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {

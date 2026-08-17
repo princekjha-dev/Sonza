@@ -203,7 +203,7 @@ fun SearchScreen(
                     ) {
                         Row(
                             modifier = Modifier.padding(10.dp),
-                            verticalAlignment = Alignment.Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             AsyncImage(
                                 model = track.artworkUri,

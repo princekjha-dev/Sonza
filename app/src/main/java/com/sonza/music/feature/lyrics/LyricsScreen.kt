@@ -118,7 +118,7 @@ fun LyricsScreen(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Default.Close, contentDescription = "Close", tint = SonzaTextPrimary)

@@ -120,7 +120,7 @@ fun ListeningRoomScreen(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Default.Close, contentDescription = "Close", tint = SonzaTextPrimary)
@@ -272,7 +272,7 @@ fun ListeningRoomScreen(
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
                                 Text(
@@ -296,7 +296,7 @@ fun ListeningRoomScreen(
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.Alignment.CenterVertically
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Wifi,
@@ -339,7 +339,7 @@ fun ListeningRoomScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(12.dp),
-                                        verticalAlignment = Alignment.Alignment.CenterVertically
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Person,
