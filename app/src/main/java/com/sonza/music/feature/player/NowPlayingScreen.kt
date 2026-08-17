@@ -165,7 +165,7 @@ fun MiniPlayer(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertAlignment
+                verticalAlignment = Alignment.Alignment.CenterVertically
             ) {
                 AsyncImage(
                     model = track.artworkUri,
@@ -279,7 +279,7 @@ fun NowPlayingScreen(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertAlignment
+                verticalAlignment = Alignment.Alignment.CenterVertically
             ) {
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Default.Close, contentDescription = "Close", tint = SonzaTextPrimary)
@@ -335,7 +335,7 @@ fun NowPlayingScreen(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertAlignment
+                verticalAlignment = Alignment.Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -427,7 +427,7 @@ fun NowPlayingScreen(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertAlignment
+                verticalAlignment = Alignment.Alignment.CenterVertically
             ) {
                 IconButton(onClick = onToggleShuffle) {
                     Icon(
@@ -488,7 +488,7 @@ fun NowPlayingScreen(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertAlignment
+                verticalAlignment = Alignment.Alignment.CenterVertically
             ) {
                 Surface(
                     shape = RoundedCornerShape(20.dp),
@@ -497,7 +497,7 @@ fun NowPlayingScreen(
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertAlignment
+                        verticalAlignment = Alignment.Alignment.CenterVertically
                     ) {
                         Icon(Icons.Default.Subtitles, contentDescription = null, tint = SonzaCyanAccent, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
@@ -512,7 +512,7 @@ fun NowPlayingScreen(
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertAlignment
+                        verticalAlignment = Alignment.Alignment.CenterVertically
                     ) {
                         Icon(Icons.Default.Equalizer, contentDescription = null, tint = SonzaCyanAccent, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
@@ -527,7 +527,7 @@ fun NowPlayingScreen(
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertAlignment
+                        verticalAlignment = Alignment.Alignment.CenterVertically
                     ) {
                         Icon(Icons.Default.QueueMusic, contentDescription = null, tint = SonzaCyanAccent, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))

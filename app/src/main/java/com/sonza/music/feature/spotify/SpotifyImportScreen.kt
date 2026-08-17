@@ -137,7 +137,7 @@ fun SpotifyImportScreen(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertAlignment
+                verticalAlignment = Alignment.Alignment.CenterVertically
             ) {
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Default.Close, contentDescription = "Close", tint = SonzaTextPrimary)
@@ -211,7 +211,7 @@ fun SpotifyImportScreen(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertAlignment
+                    verticalAlignment = Alignment.Alignment.CenterVertically
                 ) {
                     Text(
                         text = "${report.totalTracksCount} tracks: ${report.matchedCount} matched, ${report.unresolvedCount} unresolved",
@@ -246,7 +246,7 @@ fun SpotifyImportScreen(
                         ) {
                             Row(
                                 modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertAlignment
+                                verticalAlignment = Alignment.Alignment.CenterVertically
                             ) {
                                 Icon(
                                     imageVector = if (match.isResolved) Icons.Default.CheckCircle else Icons.Default.HelpOutline,

@@ -92,7 +92,7 @@ fun StatsScreen(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertAlignment
+                verticalAlignment = Alignment.Alignment.CenterVertically
             ) {
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Default.Close, contentDescription = "Close", tint = SonzaTextPrimary)
@@ -233,7 +233,7 @@ fun StatsScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertAlignment
+                                    verticalAlignment = Alignment.Alignment.CenterVertically
                                 ) {
                                     Text(
                                         text = "#${idx + 1}",

@@ -135,7 +135,7 @@ fun EqualizerScreen(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertAlignment
+                verticalAlignment = Alignment.Alignment.CenterVertically
             ) {
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Default.Close, contentDescription = "Close", tint = SonzaTextPrimary)
@@ -213,7 +213,7 @@ fun EqualizerScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertAlignment
+                    verticalAlignment = Alignment.Alignment.CenterVertically
                 ) {
                     Text(
                         text = band.label,
@@ -257,9 +257,9 @@ fun EqualizerScreen(
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertAlignment
+                        verticalAlignment = Alignment.Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertAlignment) {
+                        Row(verticalAlignment = Alignment.Alignment.CenterVertically) {
                             Icon(Icons.Default.SurroundSound, contentDescription = null, tint = SonzaCyanAccent)
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(

@@ -1,6 +1,7 @@
 package com.sonza.music.feature.listeningroom
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -119,7 +120,7 @@ fun ListeningRoomScreen(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertAlignment
+                verticalAlignment = Alignment.Alignment.CenterVertically
             ) {
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Default.Close, contentDescription = "Close", tint = SonzaTextPrimary)
@@ -271,7 +272,7 @@ fun ListeningRoomScreen(
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertAlignment
+                            verticalAlignment = Alignment.Alignment.CenterVertically
                         ) {
                             Column {
                                 Text(
@@ -295,7 +296,7 @@ fun ListeningRoomScreen(
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertAlignment
+                                    verticalAlignment = Alignment.Alignment.CenterVertically
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Wifi,
@@ -338,7 +339,7 @@ fun ListeningRoomScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(12.dp),
-                                        verticalAlignment = Alignment.CenterVertAlignment
+                                        verticalAlignment = Alignment.Alignment.CenterVertically
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Person,

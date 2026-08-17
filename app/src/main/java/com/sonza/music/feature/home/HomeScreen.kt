@@ -126,7 +126,7 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 20.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertAlignment
+                verticalAlignment = Alignment.Alignment.CenterVertically
             ) {
                 Column {
                     Text(
@@ -193,7 +193,7 @@ fun HomeScreen(
                 ) {
                     Row(
                         modifier = Modifier.padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertAlignment
+                        verticalAlignment = Alignment.Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Default.Group,
@@ -228,7 +228,7 @@ fun HomeScreen(
                 ) {
                     Row(
                         modifier = Modifier.padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertAlignment
+                        verticalAlignment = Alignment.Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Default.SyncAlt,
@@ -279,7 +279,7 @@ fun HomeScreen(
                     ) {
                         Row(
                             modifier = Modifier.padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertAlignment
+                            verticalAlignment = Alignment.Alignment.CenterVertically
                         ) {
                             Box(modifier = Modifier.size(80.dp)) {
                                 AsyncImage(
