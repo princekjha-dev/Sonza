@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.65"
+        android:scaleY="0.65"
+        android:translateX="18.9"
+        android:translateY="18.9">
+        <!-- SONZA Stylized S + Acoustic Sound Wave -->
+        <path
+            android:fillColor="#00E5FF"
+            android:pathData="M54,14 C31.9,14 14,31.9 14,54 C14,76.1 31.9,94 54,94 C76.1,94 94,76.1 94,54 C94,31.9 76.1,14 54,14 Z M54,22 C71.7,22 86,36.3 86,54 C86,71.7 71.7,86 54,86 C36.3,86 22,71.7 22,54 C22,36.3 36.3,22 54,22 Z" />
+        <path
+            android:fillColor="#00E5FF"
+            android:pathData="M32,46 L38,46 L38,62 L32,62 Z M44,36 L50,36 L50,72 L44,72 Z M56,28 L62,28 L62,80 L56,80 Z M68,42 L74,42 L74,66 L68,66 Z" />
+    </group>
+</vector>
