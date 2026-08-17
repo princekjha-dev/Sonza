@@ -1,0 +1,3307 @@
+package com.sonza.app.data
+
+import android.content.Context
+import android.net.Uri
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import com.sonza.app.R
+import com.sonza.app.core.model.Album
+import com.sonza.app.core.model.AppTheme
+import com.sonza.app.core.model.Artist
+import com.sonza.app.core.model.AudioQuality
+import com.sonza.app.core.model.VideoQuality
+import com.sonza.app.core.model.DownloadQuality
+import com.sonza.app.core.model.HapticsIntensity
+import com.sonza.app.core.model.HapticsMode
+import com.sonza.app.core.model.ArtworkSize
+import com.sonza.app.core.model.HomeItem
+import com.sonza.app.core.model.HomeSection
+import com.sonza.app.core.model.HomeSectionType
+import com.sonza.app.core.model.MiniPlayerStyle
+import com.sonza.app.core.model.MusicSource
+import com.sonza.app.core.model.Playlist
+import com.sonza.app.core.model.PlaylistDisplayItem
+import com.sonza.app.core.model.RecentSearchItem
+import com.sonza.app.core.model.RecentlyPlayed
+import com.sonza.app.core.model.Song
+import com.sonza.app.core.model.SongSource
+import com.sonza.app.core.model.SponsorCategory
+import com.sonza.app.core.model.ThemeMode
+import com.sonza.app.core.model.UpdateChannel
+import com.sonza.app.core.model.LyricsAnimationType
+import com.sonza.app.providers.lyrics.LyricsProviderType
+import com.sonza.app.core.model.LyricsTextPosition
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
+import javax.inject.Inject
+import javax.inject.Singleton
+
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "suvmusic_session")
+
+/**
+ * Manages session data for YouTube Music authentication.
+ */
+@Suppress("DEPRECATION")
+@Singleton
+class SessionManager @Inject constructor(
+    @param:ApplicationContext private val context: Context
+) {
+    @Suppress("DEPRECATION")
+    private val masterKey by lazy {
+        MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+    }
+
+    companion object {
+        private val COOKIES_KEY = stringPreferencesKey("cookies")
+        private val USER_NAME_KEY = stringPreferencesKey("user_name")
+        private val USER_AVATAR_KEY = stringPreferencesKey("user_avatar")
+        private val AUDIO_QUALITY_KEY = stringPreferencesKey("audio_quality")
+        private val WIFI_AUDIO_QUALITY_KEY = stringPreferencesKey("wifi_audio_quality")
+        private val MOBILE_AUDIO_QUALITY_KEY = stringPreferencesKey("mobile_audio_quality")
+        private val GAPLESS_PLAYBACK_KEY = booleanPreferencesKey("gapless_playback")
+        private val AUTOMIX_KEY = booleanPreferencesKey("automix")
+        private val DOWNLOAD_QUALITY_KEY = stringPreferencesKey("download_quality")
+        private val VIDEO_QUALITY_KEY = stringPreferencesKey("video_quality")
+        private val PREFER_VIDEO_MODE_KEY = booleanPreferencesKey("prefer_video_mode")
+        private val ONBOARDING_COMPLETED_KEY = booleanPreferencesKey("onboarding_completed")
+        // Highest app versionCode for which the one-time "What's new" screen has been shown.
+        private val WHATS_NEW_SEEN_VERSION_KEY = intPreferencesKey("whats_new_seen_version")
+        private val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
+        private val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
+        
+        private val LAST_SONG_ID_KEY = stringPreferencesKey("last_song_id")
+        private val LAST_POSITION_KEY = longPreferencesKey("last_position")
+        private val LAST_QUEUE_KEY = stringPreferencesKey("last_queue")
+        private val LAST_INDEX_KEY = intPreferencesKey("last_index")
+        
+        private val RECENT_SEARCHES_KEY = stringPreferencesKey("recent_searches")
+        private const val MAX_RECENT_SEARCHES = 20
+        
+        private val RECENTLY_PLAYED_KEY = stringPreferencesKey("recently_played")
+        private const val MAX_RECENTLY_PLAYED = 50
+        
+        private val HOME_CACHE_KEY = stringPreferencesKey("home_cache")
+        private val REMOTE_HOME_CACHE_KEY = stringPreferencesKey("remote_home_cache")
+        private val QUICK_PICKS_CACHE_KEY = stringPreferencesKey("quick_picks_cache")
+        private val LAST_FETCH_TIME_YOUTUBE_KEY = longPreferencesKey("last_fetch_time_youtube")
+        private val LAST_FETCH_TIME_REMOTE_KEY = longPreferencesKey("last_fetch_time_remote")
+        
+        private val LIBRARY_PLAYLISTS_CACHE_KEY = stringPreferencesKey("library_playlists_cache")
+        private val LIBRARY_LIKED_SONGS_CACHE_KEY = stringPreferencesKey("library_liked_songs_cache")
+        
+        private val MUSIC_SOURCE_KEY = stringPreferencesKey("music_source")
+        // Hybrid playback: keep YouTube for browsing/metadata but stream the
+        // actual audio from RemoteAudio (HQ 320 kbps) when a matching track exists.
+        private val PREFER_REMOTE_AUDIO_KEY = booleanPreferencesKey("prefer_remote_audio")
+        private val DEV_MODE_KEY = stringPreferencesKey("_dx_mode")
+        private val DYNAMIC_ISLAND_ENABLED_KEY = booleanPreferencesKey("dynamic_island_enabled")
+        
+        private val SEEKBAR_STYLE_KEY = stringPreferencesKey("seekbar_style")
+        private val ARTWORK_SHAPE_KEY = stringPreferencesKey("artwork_shape")
+        private val ARTWORK_SIZE_KEY = stringPreferencesKey("artwork_size")
+        
+        private val APP_THEME_KEY = stringPreferencesKey("app_theme")
+        private val LOGO_VARIANT_KEY = stringPreferencesKey("logo_variant")
+        private val ENDLESS_QUEUE_ENABLED_KEY = booleanPreferencesKey("endless_queue_enabled")
+        private val VOLUME_SLIDER_ENABLED_KEY = booleanPreferencesKey("volume_slider_enabled")
+        private val VOLUME_NORMALIZATION_ENABLED_KEY = booleanPreferencesKey("volume_normalization_enabled")
+        private val MINI_PLAYER_ALPHA_KEY = floatPreferencesKey("mini_player_alpha")
+        private val NAV_BAR_ALPHA_KEY = floatPreferencesKey("nav_bar_alpha")
+        private val NAV_BAR_BLUR_KEY = floatPreferencesKey("nav_bar_blur")
+        private val DOUBLE_TAP_SEEK_SECONDS_KEY = intPreferencesKey("double_tap_seek_seconds")
+
+        private val OPENAI_API_KEY = stringPreferencesKey("openai_api_key")
+        private val OPENAI_MODEL_KEY = stringPreferencesKey("openai_model")
+        private val ANTHROPIC_API_KEY = stringPreferencesKey("anthropic_api_key")
+        private val ANTHROPIC_MODEL_KEY = stringPreferencesKey("anthropic_model")
+        private val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
+        private val GEMINI_MODEL_KEY = stringPreferencesKey("gemini_model")
+        private val CHAT_PROXY_MODEL_KEY = stringPreferencesKey("chat_proxy_model")
+        private val SELECTED_AI_PROVIDER_KEY = stringPreferencesKey("selected_ai_provider")
+        private val AUTO_AI_ENABLED_KEY = booleanPreferencesKey("auto_ai_enabled")
+        private val PERSISTED_AI_STATE_KEY = stringPreferencesKey("persisted_ai_state")
+
+        // AI EQ Persistence
+        private val AI_PROMPT_HISTORY_KEY = stringPreferencesKey("ai_prompt_history")
+        // Per-song AI settings keys (dynamic)
+        private const val AI_SONG_SETTINGS_PREFIX = "ai_song_settings_"
+
+        private val ENABLE_BETTER_LYRICS_KEY = booleanPreferencesKey("enable_better_lyrics")
+        private val ENABLE_SIMPMUSIC_KEY = booleanPreferencesKey("enable_simpmusic")
+        private val ENABLE_KUGOU_KEY = booleanPreferencesKey("enable_kugou")
+        private val PREFERRED_LYRICS_PROVIDER_KEY = stringPreferencesKey("preferred_lyrics_provider")
+        private val LYRICS_TEXT_POSITION_KEY = stringPreferencesKey("lyrics_text_position")
+        private val LYRICS_ANIMATION_TYPE_KEY = stringPreferencesKey("lyrics_animation_type")
+        private val LYRICS_LINE_SPACING_KEY = floatPreferencesKey("lyrics_line_spacing")
+        private val LYRICS_FONT_SIZE_KEY = floatPreferencesKey("lyrics_font_size")
+        private val LYRICS_BLUR_KEY = floatPreferencesKey("lyrics_blur")
+
+        private val PLAYER_CACHE_LIMIT_KEY = longPreferencesKey("player_cache_limit")
+        private val PLAYER_CACHE_AUTO_CLEAR_INTERVAL_KEY = intPreferencesKey("player_cache_auto_clear_interval")
+        private val PLAYER_CACHE_LAST_CLEARED_TIMESTAMP_KEY = longPreferencesKey("player_cache_last_cleared_timestamp")
+        
+        private val MUSIC_HAPTICS_ENABLED_KEY = booleanPreferencesKey("music_haptics_enabled")
+        private val HAPTICS_MODE_KEY = stringPreferencesKey("haptics_mode")
+        private val HAPTICS_INTENSITY_KEY = stringPreferencesKey("haptics_intensity")
+
+        private val STOP_MUSIC_ON_TASK_CLEAR_KEY = booleanPreferencesKey("stop_music_on_task_clear")
+        private val PAUSE_MUSIC_ON_MEDIA_MUTED_KEY = booleanPreferencesKey("pause_music_on_media_muted")
+        private val KEEP_SCREEN_ON_KEY = booleanPreferencesKey("keep_screen_on")
+        private val PURE_BLACK_KEY = booleanPreferencesKey("pure_black_enabled")
+        private val MINI_PLAYER_STYLE_KEY = stringPreferencesKey("mini_player_style")
+        private val PLAYER_STYLE_KEY = stringPreferencesKey("player_style")
+        private val PLAYER_BACKGROUND_STYLE_KEY = stringPreferencesKey("player_background_style")
+        private val UPDATE_CHANNEL_KEY = stringPreferencesKey("update_channel")
+        private val PENDING_UPDATE_VERSION_CODE_KEY = intPreferencesKey("pending_update_version_code")
+        private val PENDING_UPDATE_VERSION_NAME_KEY = stringPreferencesKey("pending_update_version_name")
+        private val SWIPE_DOWN_TO_DISMISS_ENABLED_KEY = booleanPreferencesKey("swipe_down_to_dismiss_enabled")
+        private val PLAYER_ANIMATED_BACKGROUND_KEY = booleanPreferencesKey("player_animated_background")
+        private val AUDIO_OFFLOAD_ENABLED_KEY = booleanPreferencesKey("audio_offload_enabled")
+        private val VOLUME_BOOST_ENABLED_KEY = booleanPreferencesKey("volume_boost_enabled")
+        private val VOLUME_BOOST_AMOUNT_KEY = intPreferencesKey("volume_boost_amount")
+        // JSON map of {songId -> measured RMS amplitude (0..1)} used for
+        // Spotify-style perceptual loudness normalization.
+        private val LOUDNESS_CACHE_KEY = stringPreferencesKey("loudness_cache_v1")
+        // Spatial audio strength 0..100. Drives how aggressively spatial
+        // panning + crossfeed apply.
+        private val SPATIAL_STRENGTH_KEY = intPreferencesKey("spatial_audio_strength")
+        private val SPONSOR_BLOCK_ENABLED_KEY = booleanPreferencesKey("sponsor_block_enabled")
+        private val HISTORY_SYNC_MIGRATED_KEY = booleanPreferencesKey("history_sync_migrated")
+        private val SPONSOR_BLOCK_CATEGORIES_KEY = stringSetPreferencesKey("sponsor_block_categories_v2")
+
+        private val AUTH_USER_INDEX_KEY = intPreferencesKey("auth_user_index")
+        
+        private val LAST_FM_SESSION_KEY = stringPreferencesKey("last_fm_session_key")
+        private val LAST_FM_USERNAME_KEY = stringPreferencesKey("last_fm_username")
+        private val LAST_FM_SCROBBLING_ENABLED_KEY = booleanPreferencesKey("last_fm_scrobbling_enabled")
+        private val LAST_FM_RECOMMENDATIONS_ENABLED_KEY = booleanPreferencesKey("last_fm_recommendations_enabled")
+        private val LAST_FM_USE_NOW_PLAYING_KEY = booleanPreferencesKey("last_fm_use_now_playing")
+        private val LAST_FM_SEND_LIKES_KEY = booleanPreferencesKey("last_fm_send_likes")
+        
+        private val SCROBBLE_DELAY_PERCENT_KEY = floatPreferencesKey("scrobble_delay_percent")
+        private val SCROBBLE_MIN_DURATION_KEY = intPreferencesKey("scrobble_min_duration")
+        private val SCROBBLE_DELAY_SECONDS_KEY = intPreferencesKey("scrobble_delay_seconds")
+        private val PREFERRED_LANGUAGES_KEY = stringSetPreferencesKey("preferred_languages")
+        private val YOUTUBE_HISTORY_SYNC_ENABLED_KEY = booleanPreferencesKey("youtube_history_sync_enabled")
+        private val IGNORE_AUDIO_FOCUS_DURING_CALLS_KEY = booleanPreferencesKey("ignore_audio_focus_during_calls")
+        private val INCOGNITO_MODE_KEY = booleanPreferencesKey("incognito_mode_enabled")
+        private val AUTORESUME_AFTER_CALL_KEY = booleanPreferencesKey("autoresume_after_call")
+        
+        private val BLUETOOTH_AUTOPLAY_ENABLED_KEY = booleanPreferencesKey("bluetooth_autoplay_enabled")
+        private val SPEAK_SONG_DETAILS_ENABLED_KEY = booleanPreferencesKey("speak_song_details_enabled")
+        // 0..100. Volume of the TTS announcement itself, expressed as a
+        // percentage of the system media volume.
+        private val ANNOUNCE_TTS_VOLUME_KEY = intPreferencesKey("announce_tts_volume")
+        // 0..100. How much to duck the music while the announcement is
+        // speaking. 0 = mute, 100 = no ducking. Default: 30.
+        private val ANNOUNCE_DUCK_VOLUME_KEY = intPreferencesKey("announce_duck_volume")
+        // When false, announce on every output (incl. phone speaker / wired).
+        private val ANNOUNCE_BLUETOOTH_ONLY_KEY = booleanPreferencesKey("announce_bluetooth_only")
+        
+        private val DISCORD_RPC_ENABLED_KEY = booleanPreferencesKey("discord_rpc_enabled")
+        private val DISCORD_TOKEN_KEY = stringPreferencesKey("discord_token")
+        private val DISCORD_USE_DETAILS_KEY = booleanPreferencesKey("discord_use_details")
+        
+        // Audio AR
+        private val AUDIO_AR_ENABLED_KEY = booleanPreferencesKey("audio_ar_enabled")
+        private val AUDIO_AR_SENSITIVITY_KEY = floatPreferencesKey("audio_ar_sensitivity")
+        private val AUDIO_AR_AUTO_CALIBRATE_KEY = booleanPreferencesKey("audio_ar_auto_calibrate")
+        
+        // Next Song Preloading
+        private val NEXT_SONG_PRELOADING_ENABLED_KEY = booleanPreferencesKey("next_song_preloading_enabled")
+        private val NEXT_SONG_PRELOAD_DELAY_KEY = intPreferencesKey("next_song_preload_delay")
+
+        // Crossfeed
+        private val CROSSFEED_ENABLED_KEY = booleanPreferencesKey("crossfeed_enabled")
+
+        // Equalizer
+        private val EQ_ENABLED_KEY = booleanPreferencesKey("eq_enabled")
+        private val EQ_BANDS_KEY = stringPreferencesKey("eq_bands") // Store as comma-separated floats
+        private val EQ_PREAMP_KEY = floatPreferencesKey("eq_preamp")
+        private val BASS_BOOST_KEY = floatPreferencesKey("bass_boost")
+        private val VIRTUALIZER_KEY = floatPreferencesKey("virtualizer")
+
+        private val FORCE_MAX_REFRESH_RATE_KEY = booleanPreferencesKey("force_max_refresh_rate")
+        private val IOS_LIQUID_GLASS_ENABLED_KEY = booleanPreferencesKey("ios_liquid_glass_enabled")
+        private val PLAYER_GLASS_BLUR_KEY = floatPreferencesKey("player_glass_blur")
+        private val PLAYER_GLASS_INTENSITY_KEY = floatPreferencesKey("player_glass_intensity")
+        private val MINI_PLAYER_GLASS_BLUR_KEY = floatPreferencesKey("mini_player_glass_blur")
+        private val CROSSFADE_MS_KEY = intPreferencesKey("crossfade_ms")
+        private val DOWNLOAD_LOCATION_KEY = stringPreferencesKey("download_location")
+        private val LOGGING_ENABLED_KEY = booleanPreferencesKey("logging_enabled")
+        private val FOR_YOU_BANNER_DISMISSED_AT_KEY = longPreferencesKey("for_you_banner_dismissed_at")
+        
+        private val ALBUM_ART_DYNAMIC_COLORS_KEY = booleanPreferencesKey("album_art_dynamic_colors")
+        private val ROTATING_VINYL_ANIMATION_KEY = booleanPreferencesKey("rotating_vinyl_animation")
+        private val ALBUM_ART_COLOR_FLASHING_KEY = booleanPreferencesKey("album_art_color_flashing")
+        
+        private val PLAYLIST_SORT_TYPE_KEY = stringPreferencesKey("playlist_sort_type")
+        private val PLAYLIST_SORT_ORDER_KEY = booleanPreferencesKey("playlist_sort_order")
+        private val HOME_SECTIONS_VISIBILITY_KEY = stringSetPreferencesKey("home_sections_visibility")
+        private val LIBRARY_VIEW_MODE_KEY = stringPreferencesKey("library_view_mode")
+        
+        private val FILTER_LOCAL_BY_DURATION_ENABLED_KEY = booleanPreferencesKey("filter_local_by_duration_enabled")
+        private val LOCAL_DURATION_FILTER_THRESHOLD_KEY = intPreferencesKey("local_duration_filter_threshold")
+
+        val DEFAULT_HOME_SECTIONS = setOf(
+            "greeting",
+            "mood_chips",
+            "for_you_banner",
+            "recommendations",
+            "quick_picks",
+            "youtube_sections",
+            "personalized",
+            "genres",
+            "contextual",
+            "mood_banner",
+            "create_mix"
+        )
+    }
+
+    // --- Home Configuration ---
+
+    val homeSectionsVisibilityFlow: Flow<Set<String>> = context.dataStore.data.map { preferences ->
+        preferences[HOME_SECTIONS_VISIBILITY_KEY] ?: DEFAULT_HOME_SECTIONS
+    }
+
+    suspend fun getHomeSectionsVisibility(): Set<String> =
+        context.dataStore.data.first()[HOME_SECTIONS_VISIBILITY_KEY] ?: DEFAULT_HOME_SECTIONS
+
+    suspend fun setHomeSectionsVisibility(sections: Set<String>) {
+        val finalSections = if (sections.isEmpty()) DEFAULT_HOME_SECTIONS else sections
+        context.dataStore.edit { preferences ->
+            preferences[HOME_SECTIONS_VISIBILITY_KEY] = finalSections
+        }
+    }
+
+    /**
+     * Get all settings from DataStore as a Map of string-key to value.
+     */
+    suspend fun getAllSettings(): Map<String, Any?> {
+        val prefs = context.dataStore.data.first()
+        return prefs.asMap().mapKeys { it.key.name }
+    }
+
+    /**
+     * Restore all settings from a Map.
+     */
+    suspend fun restoreSettings(settings: Map<String, Any?>) {
+        context.dataStore.edit { prefs ->
+            settings.forEach { (keyName, value) ->
+                if (value == null) return@forEach
+                
+                when (value) {
+                    is Boolean -> prefs[booleanPreferencesKey(keyName)] = value
+                    is Number -> {
+                        // Gson often deserializes all numbers as Double. 
+                        // Map by known key name or just try to find the key in prefs?
+                        // Prefs keys are private, so we'll try to match by name or common conventions.
+                        
+                        // Check if key is already in prefs to infer type
+                        // But prefs might be empty. Let's use name-based inference or just try all.
+                        
+                        // Better: DataStore is type-strict. We'll use the value's likely target.
+                        // Long is used for timestamps and positions.
+                        // Int is used for offsets, quality levels, etc.
+                        // Float is used for alpha/spacing.
+                        
+                        val doubleVal = value.toDouble()
+
+                        // Heuristic: if it's a whole number, it might be Int or Long
+                        if (doubleVal == doubleVal.toLong().toDouble()) {
+                             val longVal = value.toLong()
+                             // Use Long for known time-ish keys OR any value that won't fit
+                             // in an Int — the latter guards against a timestamp/position
+                             // silently overflowing when forced through toInt().
+                             if (keyName.contains("timestamp") || keyName.contains("time") ||
+                                 keyName.contains("position") || keyName.contains("at") ||
+                                 keyName.contains("limit") ||
+                                 longVal > Int.MAX_VALUE || longVal < Int.MIN_VALUE) {
+                                 prefs[longPreferencesKey(keyName)] = longVal
+                             } else {
+                                 // Default to Int for small whole numbers
+                                 prefs[intPreferencesKey(keyName)] = longVal.toInt()
+                             }
+                        } else {
+                             // Float for fractional values
+                             prefs[floatPreferencesKey(keyName)] = value.toFloat()
+                        }
+                    }
+                    is String -> prefs[stringPreferencesKey(keyName)] = value
+                    is List<*> -> {
+                        // Gson deserializes stringSet as List
+                        val set = value.filterIsInstance<String>().toSet()
+                        prefs[stringSetPreferencesKey(keyName)] = set
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Get all encrypted settings as a Map.
+     */
+    fun getAllEncryptedSettings(): Map<String, Any?> {
+        return encryptedPrefs.all
+    }
+
+    /**
+     * Restore all encrypted settings from a Map.
+     */
+    fun restoreEncryptedSettings(settings: Map<String, Any?>) {
+        val editor = encryptedPrefs.edit()
+        settings.forEach { (key, value) ->
+            if (value == null) return@forEach
+            when (value) {
+                is Boolean -> editor.putBoolean(key, value)
+                is Float -> editor.putFloat(key, value)
+                is Number -> {
+                    // Try to restore as Long for whole numbers, else Float
+                    val doubleVal = value.toDouble()
+                    if (doubleVal == doubleVal.toLong().toDouble()) {
+                        editor.putLong(key, value.toLong())
+                    } else {
+                        editor.putFloat(key, value.toFloat())
+                    }
+                }
+                is String -> editor.putString(key, value)
+                is List<*> -> {
+                    val set = value.filterIsInstance<String>().toSet()
+                    editor.putStringSet(key, set)
+                }
+            }
+        }
+        editor.apply()
+    }
+
+    // --- Appearance Settings ---
+
+    suspend fun isAlbumArtDynamicColorsEnabled(): Boolean =
+        context.dataStore.data.first()[ALBUM_ART_DYNAMIC_COLORS_KEY] ?: true
+
+    val albumArtDynamicColorsEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[ALBUM_ART_DYNAMIC_COLORS_KEY] ?: true
+    }
+
+    suspend fun setAlbumArtDynamicColorsEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[ALBUM_ART_DYNAMIC_COLORS_KEY] = enabled
+        }
+    }
+
+    suspend fun isRotatingVinylAnimationEnabled(): Boolean =
+        context.dataStore.data.first()[ROTATING_VINYL_ANIMATION_KEY] ?: true
+
+    val rotatingVinylAnimationEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[ROTATING_VINYL_ANIMATION_KEY] ?: true
+    }
+
+    suspend fun setRotatingVinylAnimationEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[ROTATING_VINYL_ANIMATION_KEY] = enabled
+        }
+    }
+
+    val albumArtColorFlashingEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[ALBUM_ART_COLOR_FLASHING_KEY] ?: false
+    }
+
+    suspend fun setAlbumArtColorFlashingEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[ALBUM_ART_COLOR_FLASHING_KEY] = enabled
+        }
+    }
+
+    suspend fun getPlaylistSortType(): String =
+        context.dataStore.data.first()[PLAYLIST_SORT_TYPE_KEY] ?: "CUSTOM"
+
+    suspend fun setPlaylistSortType(type: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PLAYLIST_SORT_TYPE_KEY] = type
+        }
+    }
+
+    suspend fun getPlaylistSortOrder(): Boolean =
+        context.dataStore.data.first()[PLAYLIST_SORT_ORDER_KEY] ?: true
+
+    suspend fun setPlaylistSortOrder(ascending: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PLAYLIST_SORT_ORDER_KEY] = ascending
+        }
+    }
+
+    // --- Home Screen Preferences ---
+    suspend fun getForYouBannerDismissedAt(): Long =
+        context.dataStore.data.first()[FOR_YOU_BANNER_DISMISSED_AT_KEY] ?: 0L
+
+    val forYouBannerDismissedAtFlow: Flow<Long> = context.dataStore.data.map { preferences ->
+        preferences[FOR_YOU_BANNER_DISMISSED_AT_KEY] ?: 0L
+    }
+
+    suspend fun setForYouBannerDismissedAt(timestamp: Long) {
+        context.dataStore.edit { preferences ->
+            preferences[FOR_YOU_BANNER_DISMISSED_AT_KEY] = timestamp
+        }
+    }
+    
+    // --- Logging ---
+    
+    suspend fun isLoggingEnabled(): Boolean = 
+        context.dataStore.data.first()[LOGGING_ENABLED_KEY] ?: false
+    
+    val loggingEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[LOGGING_ENABLED_KEY] ?: false
+    }
+    
+    suspend fun setLoggingEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[LOGGING_ENABLED_KEY] = enabled
+        }
+    }
+    
+    // --- Download Location ---
+    
+    suspend fun getDownloadLocation(): String? = 
+        context.dataStore.data.first()[DOWNLOAD_LOCATION_KEY]
+    
+    val downloadLocationFlow: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[DOWNLOAD_LOCATION_KEY]
+    }
+    
+    suspend fun setDownloadLocation(uri: String?) {
+        context.dataStore.edit { preferences ->
+            if (uri == null) preferences.remove(DOWNLOAD_LOCATION_KEY)
+            else preferences[DOWNLOAD_LOCATION_KEY] = uri
+        }
+    }
+    
+    // --- Developer Mode (Hidden) ---
+    
+    suspend fun isDeveloperMode(): Boolean = 
+        context.dataStore.data.first()[DEV_MODE_KEY] == "unlocked"
+    
+    val developerModeFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[DEV_MODE_KEY] == "unlocked"
+    }
+    
+    suspend fun enableDeveloperMode() {
+        context.dataStore.edit { preferences ->
+            preferences[DEV_MODE_KEY] = "unlocked"
+        }
+    }
+    
+    suspend fun disableDeveloperMode() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(DEV_MODE_KEY)
+        }
+    }
+
+    val sponsorBlockCategoriesFlow: Flow<Set<String>> = context.dataStore.data.map { preferences ->
+        preferences[SPONSOR_BLOCK_CATEGORIES_KEY] ?: SponsorCategory.entries.map { it.key }.toSet()
+    }
+
+    suspend fun getEnabledSponsorCategories(): Set<String> {
+        return context.dataStore.data.first()[SPONSOR_BLOCK_CATEGORIES_KEY]
+            ?: SponsorCategory.entries.map { it.key }.toSet()
+    }
+
+    suspend fun toggleSponsorCategory(categoryKey: String, isEnabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            val currentSet = preferences[SPONSOR_BLOCK_CATEGORIES_KEY]
+                ?: SponsorCategory.entries.map { it.key }.toSet()
+
+            val newSet = if (isEnabled) {
+                currentSet + categoryKey
+            } else {
+                currentSet - categoryKey
+            }
+            preferences[SPONSOR_BLOCK_CATEGORIES_KEY] = newSet
+        }
+    }
+
+    // --- Floating Player ---
+    
+    suspend fun isDynamicIslandEnabled(): Boolean = 
+        context.dataStore.data.first()[DYNAMIC_ISLAND_ENABLED_KEY] ?: false
+
+    suspend fun isSponsorBlockEnabled(): Boolean =
+        context.dataStore.data.first()[SPONSOR_BLOCK_ENABLED_KEY] ?: false
+
+    val sponsorBlockEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[SPONSOR_BLOCK_ENABLED_KEY] ?: false
+    }
+
+    suspend fun setSponsorBlockEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SPONSOR_BLOCK_ENABLED_KEY] = enabled
+        }
+    }
+    
+    // --- Last.fm ---
+
+    suspend fun setLastFmSession(sessionKey: String, username: String) {
+        withContext(Dispatchers.IO) {
+            encryptedPrefs.edit()
+                .putString("last_fm_session", sessionKey)
+                .putString("last_fm_username", username)
+                .apply()
+        }
+        context.dataStore.edit { it.remove(LAST_FM_USERNAME_KEY) }
+    }
+
+    fun getLastFmSessionKey(): String? {
+        return encryptedPrefs.getString("last_fm_session", null)
+    }
+
+    suspend fun getLastFmUsername(): String? = withContext(Dispatchers.IO) {
+        return@withContext encryptedPrefs.getString("last_fm_username", null)
+    }
+
+    /** Mark the start of a Last.fm auth handshake so the deep-link callback can
+     *  verify the flow was actually initiated from inside the app (CSRF guard). */
+    fun markLastFmAuthStarted() {
+        encryptedPrefs.edit()
+            .putLong("last_fm_auth_started_at", System.currentTimeMillis())
+            .apply()
+    }
+
+    /** True if markLastFmAuthStarted() was called within [windowMs]. */
+    fun isLastFmAuthPending(windowMs: Long = 5 * 60 * 1000L): Boolean {
+        val ts = encryptedPrefs.getLong("last_fm_auth_started_at", 0L)
+        return ts > 0 && System.currentTimeMillis() - ts <= windowMs
+    }
+
+    fun clearLastFmAuthPending() {
+        encryptedPrefs.edit().remove("last_fm_auth_started_at").apply()
+    }
+
+    suspend fun clearLastFmSession() {
+        withContext(Dispatchers.IO) {
+            encryptedPrefs.edit()
+                .remove("last_fm_session")
+                .remove("last_fm_username")
+                .apply()
+        }
+        context.dataStore.edit { it.remove(LAST_FM_USERNAME_KEY) }
+    }
+
+    val lastFmUsernameFlow: Flow<String?> = context.dataStore.data.map {
+        encryptedPrefs.getString("last_fm_username", null)
+    }
+
+    suspend fun isLastFmScrobblingEnabled(): Boolean = 
+        context.dataStore.data.first()[LAST_FM_SCROBBLING_ENABLED_KEY] ?: false
+
+    val lastFmScrobblingEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[LAST_FM_SCROBBLING_ENABLED_KEY] ?: false
+    }
+
+    suspend fun setLastFmScrobblingEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[LAST_FM_SCROBBLING_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun isLastFmRecommendationsEnabled(): Boolean = 
+        context.dataStore.data.first()[LAST_FM_RECOMMENDATIONS_ENABLED_KEY] ?: true
+
+    val lastFmRecommendationsEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[LAST_FM_RECOMMENDATIONS_ENABLED_KEY] ?: true
+    }
+
+    suspend fun setLastFmRecommendationsEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[LAST_FM_RECOMMENDATIONS_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun isLastFmUseNowPlayingEnabled(): Boolean = 
+        context.dataStore.data.first()[LAST_FM_USE_NOW_PLAYING_KEY] ?: true
+
+    val lastFmUseNowPlayingFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[LAST_FM_USE_NOW_PLAYING_KEY] ?: true
+    }
+
+    suspend fun setLastFmUseNowPlaying(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[LAST_FM_USE_NOW_PLAYING_KEY] = enabled
+        }
+    }
+
+    suspend fun isLastFmSendLikesEnabled(): Boolean = 
+        context.dataStore.data.first()[LAST_FM_SEND_LIKES_KEY] ?: false
+        
+    val lastFmSendLikesFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[LAST_FM_SEND_LIKES_KEY] ?: false
+    }
+
+    suspend fun setLastFmSendLikes(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[LAST_FM_SEND_LIKES_KEY] = enabled
+        }
+    }
+
+    suspend fun getScrobbleDelayPercent(): Float = 
+        context.dataStore.data.first()[SCROBBLE_DELAY_PERCENT_KEY] ?: 0.5f
+
+    suspend fun setScrobbleDelayPercent(percent: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[SCROBBLE_DELAY_PERCENT_KEY] = percent
+        }
+    }
+
+    suspend fun getScrobbleMinDuration(): Int = 
+        context.dataStore.data.first()[SCROBBLE_MIN_DURATION_KEY] ?: 30
+
+    suspend fun setScrobbleMinDuration(seconds: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[SCROBBLE_MIN_DURATION_KEY] = seconds
+        }
+    }
+
+    suspend fun getScrobbleDelaySeconds(): Int = 
+        context.dataStore.data.first()[SCROBBLE_DELAY_SECONDS_KEY] ?: 180
+
+    suspend fun setScrobbleDelaySeconds(seconds: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[SCROBBLE_DELAY_SECONDS_KEY] = seconds
+        }
+    }
+
+    val dynamicIslandEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[DYNAMIC_ISLAND_ENABLED_KEY] ?: false
+    }
+    
+    suspend fun setDynamicIslandEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[DYNAMIC_ISLAND_ENABLED_KEY] = enabled
+        }
+    }
+    
+    suspend fun getSeekbarStyle(): String =
+        context.dataStore.data.first()[SEEKBAR_STYLE_KEY] ?: "M3E_WAVY"
+
+    val seekbarStyleFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[SEEKBAR_STYLE_KEY] ?: "M3E_WAVY"
+    }
+    
+    suspend fun setSeekbarStyle(style: String) {
+        context.dataStore.edit { preferences ->
+            preferences[SEEKBAR_STYLE_KEY] = style
+        }
+    }
+    
+    suspend fun getArtworkShape(): String = 
+        context.dataStore.data.first()[ARTWORK_SHAPE_KEY] ?: "ROUNDED_SQUARE"
+    
+    val artworkShapeFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[ARTWORK_SHAPE_KEY] ?: "ROUNDED_SQUARE"
+    }
+    
+    suspend fun setArtworkShape(shape: String) {
+        context.dataStore.edit { preferences ->
+            preferences[ARTWORK_SHAPE_KEY] = shape
+        }
+    }
+    
+    suspend fun getArtworkSize(): String = 
+        context.dataStore.data.first()[ARTWORK_SIZE_KEY] ?: ArtworkSize.FULL.name
+    
+    val artworkSizeFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[ARTWORK_SIZE_KEY] ?: ArtworkSize.FULL.name
+    }
+    
+    suspend fun setArtworkSize(size: String) {
+        context.dataStore.edit { preferences ->
+            preferences[ARTWORK_SIZE_KEY] = size
+        }
+    }
+    
+    suspend fun isEndlessQueueEnabled(): Boolean = 
+        context.dataStore.data.first()[ENDLESS_QUEUE_ENABLED_KEY] ?: true
+    
+    val endlessQueueFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[ENDLESS_QUEUE_ENABLED_KEY] ?: true
+    }
+    
+    suspend fun setEndlessQueue(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[ENDLESS_QUEUE_ENABLED_KEY] = enabled
+        }
+    }
+    
+    suspend fun isVolumeSliderEnabled(): Boolean = 
+        context.dataStore.data.first()[VOLUME_SLIDER_ENABLED_KEY] ?: false
+    
+    val volumeSliderEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[VOLUME_SLIDER_ENABLED_KEY] ?: false
+    }
+    
+    suspend fun setVolumeSliderEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[VOLUME_SLIDER_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun getMiniPlayerAlpha(): Float = 
+        context.dataStore.data.first()[MINI_PLAYER_ALPHA_KEY] ?: 0f
+
+    val miniPlayerAlphaFlow: Flow<Float> = context.dataStore.data.map { preferences ->
+        preferences[MINI_PLAYER_ALPHA_KEY] ?: 0f
+    }
+
+    suspend fun setMiniPlayerAlpha(alpha: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[MINI_PLAYER_ALPHA_KEY] = alpha
+        }
+    }
+
+    suspend fun getNavBarAlpha(): Float = 
+        context.dataStore.data.first()[NAV_BAR_ALPHA_KEY] ?: 1.0f
+
+    val navBarAlphaFlow: Flow<Float> = context.dataStore.data.map { preferences ->
+        preferences[NAV_BAR_ALPHA_KEY] ?: 1.0f
+    }
+
+    suspend fun setNavBarAlpha(alpha: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[NAV_BAR_ALPHA_KEY] = alpha
+        }
+    }
+
+    suspend fun getNavBarBlur(): Float =
+        context.dataStore.data.first()[NAV_BAR_BLUR_KEY] ?: 60.0f
+
+    val navBarBlurFlow: Flow<Float> = context.dataStore.data.map { preferences ->
+        preferences[NAV_BAR_BLUR_KEY] ?: 60.0f
+    }
+
+    suspend fun setNavBarBlur(blur: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[NAV_BAR_BLUR_KEY] = blur
+        }
+    }
+    
+    // Liquid Glass mini-player style is retired — migrate any stored value to
+    // YT Music so existing users land on the supported style.
+    private fun MiniPlayerStyle.migrated(): MiniPlayerStyle =
+        if (this == MiniPlayerStyle.LIQUID_GLASS) MiniPlayerStyle.YT_MUSIC else this
+
+    suspend fun getMiniPlayerStyle(): MiniPlayerStyle {
+        val styleName = context.dataStore.data.first()[MINI_PLAYER_STYLE_KEY]
+        return styleName?.let {
+            try { MiniPlayerStyle.valueOf(it).migrated() } catch (e: Exception) { MiniPlayerStyle.YT_MUSIC }
+        } ?: MiniPlayerStyle.YT_MUSIC
+    }
+
+    val miniPlayerStyleFlow: Flow<MiniPlayerStyle> = context.dataStore.data.map { preferences ->
+        preferences[MINI_PLAYER_STYLE_KEY]?.let {
+            try { MiniPlayerStyle.valueOf(it).migrated() } catch (e: Exception) { MiniPlayerStyle.YT_MUSIC }
+        } ?: MiniPlayerStyle.YT_MUSIC
+    }
+    
+    suspend fun setMiniPlayerStyle(style: MiniPlayerStyle) {
+        context.dataStore.edit { preferences ->
+            preferences[MINI_PLAYER_STYLE_KEY] = style.name
+        }
+    }
+
+    // The Liquid Glass (iOS) player style has been retired — anyone still on it
+    // is transparently migrated to the YT Music style.
+    private fun com.sonza.app.core.model.PlayerStyle.migrated(): com.sonza.app.core.model.PlayerStyle =
+        if (this == com.sonza.app.core.model.PlayerStyle.LIQUID_GLASS)
+            com.sonza.app.core.model.PlayerStyle.YT_MUSIC else this
+
+    suspend fun getPlayerStyle(): com.sonza.app.core.model.PlayerStyle {
+        val styleName = context.dataStore.data.first()[PLAYER_STYLE_KEY]
+        return styleName?.let {
+            try { com.sonza.app.core.model.PlayerStyle.valueOf(it).migrated() } catch (e: Exception) { com.sonza.app.core.model.PlayerStyle.YT_MUSIC }
+        } ?: com.sonza.app.core.model.PlayerStyle.YT_MUSIC
+    }
+
+    val playerStyleFlow: Flow<com.sonza.app.core.model.PlayerStyle> = context.dataStore.data.map { preferences ->
+        preferences[PLAYER_STYLE_KEY]?.let {
+            try { com.sonza.app.core.model.PlayerStyle.valueOf(it).migrated() } catch (e: Exception) { com.sonza.app.core.model.PlayerStyle.YT_MUSIC }
+        } ?: com.sonza.app.core.model.PlayerStyle.YT_MUSIC
+    }
+
+    suspend fun setPlayerStyle(style: com.sonza.app.core.model.PlayerStyle) {
+        context.dataStore.edit { preferences ->
+            preferences[PLAYER_STYLE_KEY] = style.name
+        }
+    }
+
+    val playerBackgroundStyleFlow: Flow<com.sonza.app.core.model.PlayerBackgroundStyle> =
+        context.dataStore.data.map { preferences ->
+            preferences[PLAYER_BACKGROUND_STYLE_KEY]?.let {
+                try {
+                    com.sonza.app.core.model.PlayerBackgroundStyle.valueOf(it)
+                } catch (e: Exception) {
+                    com.sonza.app.core.model.PlayerBackgroundStyle.AMBIENT
+                }
+            } ?: com.sonza.app.core.model.PlayerBackgroundStyle.AMBIENT
+        }
+
+    suspend fun setPlayerBackgroundStyle(style: com.sonza.app.core.model.PlayerBackgroundStyle) {
+        context.dataStore.edit { preferences ->
+            preferences[PLAYER_BACKGROUND_STYLE_KEY] = style.name
+        }
+    }
+
+    suspend fun getUpdateChannel(): UpdateChannel {
+        val channelName = context.dataStore.data.first()[UPDATE_CHANNEL_KEY]
+        return channelName?.let {
+            try { UpdateChannel.valueOf(it) } catch (e: Exception) { UpdateChannel.STABLE }
+        } ?: UpdateChannel.STABLE
+    }
+
+    val updateChannelFlow: Flow<UpdateChannel> = context.dataStore.data.map { preferences ->
+        preferences[UPDATE_CHANNEL_KEY]?.let {
+            try { UpdateChannel.valueOf(it) } catch (e: Exception) { UpdateChannel.STABLE }
+        } ?: UpdateChannel.STABLE
+    }
+
+    suspend fun setUpdateChannel(channel: UpdateChannel) {
+        context.dataStore.edit { preferences ->
+            preferences[UPDATE_CHANNEL_KEY] = channel.name
+        }
+    }
+
+    suspend fun setPendingUpdateInfo(versionCode: Int, versionName: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PENDING_UPDATE_VERSION_CODE_KEY] = versionCode
+            preferences[PENDING_UPDATE_VERSION_NAME_KEY] = versionName
+        }
+    }
+
+    suspend fun clearPendingUpdateInfo() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(PENDING_UPDATE_VERSION_CODE_KEY)
+            preferences.remove(PENDING_UPDATE_VERSION_NAME_KEY)
+        }
+    }
+
+    suspend fun getPendingUpdateVersionCode(): Int? =
+        context.dataStore.data.first()[PENDING_UPDATE_VERSION_CODE_KEY]
+
+    suspend fun getPendingUpdateVersionName(): String? =
+        context.dataStore.data.first()[PENDING_UPDATE_VERSION_NAME_KEY]
+    
+    suspend fun getDoubleTapSeekSeconds(): Int = 
+        context.dataStore.data.first()[DOUBLE_TAP_SEEK_SECONDS_KEY] ?: 10
+    
+    val doubleTapSeekSecondsFlow: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[DOUBLE_TAP_SEEK_SECONDS_KEY] ?: 10
+    }
+
+    // Encrypted-prefs keys for AI API tokens — these are billable user secrets,
+    // they live in EncryptedSharedPreferences, not the plaintext DataStore.
+    private val OPENAI_API_KEY_ENC = "openai_api_key_enc"
+    private val ANTHROPIC_API_KEY_ENC = "anthropic_api_key_enc"
+    private val GEMINI_API_KEY_ENC = "gemini_api_key_enc"
+
+    private fun getOpenAiApiKeyBlocking(): String =
+        encryptedPrefs.getString(OPENAI_API_KEY_ENC, null) ?: ""
+    private fun getAnthropicApiKeyBlocking(): String =
+        encryptedPrefs.getString(ANTHROPIC_API_KEY_ENC, null) ?: ""
+    private fun getGeminiApiKeyBlocking(): String =
+        encryptedPrefs.getString(GEMINI_API_KEY_ENC, null) ?: ""
+
+    val openaiApiKeyFlow: Flow<String> = context.dataStore.data.map { getOpenAiApiKeyBlocking() }
+    val openaiModelFlow: Flow<String> = context.dataStore.data.map { it[OPENAI_MODEL_KEY] ?: "gpt-4o" }
+    val anthropicApiKeyFlow: Flow<String> = context.dataStore.data.map { getAnthropicApiKeyBlocking() }
+    val anthropicModelFlow: Flow<String> = context.dataStore.data.map { it[ANTHROPIC_MODEL_KEY] ?: "claude-3-5-sonnet-20240620" }
+    val geminiApiKeyFlow: Flow<String> = context.dataStore.data.map { getGeminiApiKeyBlocking() }
+    val geminiModelFlow: Flow<String> = context.dataStore.data.map { it[GEMINI_MODEL_KEY] ?: "gemini-1.5-pro" }
+    val chatProxyModelFlow: Flow<String> = context.dataStore.data.map { it[CHAT_PROXY_MODEL_KEY] ?: "gpt-5" }
+    val selectedAiProviderFlow: Flow<String> = context.dataStore.data.map { it[SELECTED_AI_PROVIDER_KEY] ?: "CHAT_PROXY" }
+
+    suspend fun setOpenAiApiKey(apiKey: String) {
+        encryptedPrefs.edit().putString(OPENAI_API_KEY_ENC, apiKey).apply()
+        // Nudge DataStore listeners so the openaiApiKeyFlow re-emits.
+        context.dataStore.edit { it[OPENAI_API_KEY] = if (apiKey.isBlank()) "" else "stored" }
+    }
+    suspend fun setOpenAiModel(model: String) = context.dataStore.edit { it[OPENAI_MODEL_KEY] = model }
+    suspend fun setAnthropicApiKey(apiKey: String) {
+        encryptedPrefs.edit().putString(ANTHROPIC_API_KEY_ENC, apiKey).apply()
+        context.dataStore.edit { it[ANTHROPIC_API_KEY] = if (apiKey.isBlank()) "" else "stored" }
+    }
+    suspend fun setAnthropicModel(model: String) = context.dataStore.edit { it[ANTHROPIC_MODEL_KEY] = model }
+    suspend fun setGeminiApiKey(apiKey: String) {
+        encryptedPrefs.edit().putString(GEMINI_API_KEY_ENC, apiKey).apply()
+        context.dataStore.edit { it[GEMINI_API_KEY] = if (apiKey.isBlank()) "" else "stored" }
+    }
+    suspend fun setGeminiModel(model: String) = context.dataStore.edit { it[GEMINI_MODEL_KEY] = model }
+    suspend fun setChatProxyModel(model: String) = context.dataStore.edit { it[CHAT_PROXY_MODEL_KEY] = model }
+    suspend fun setSelectedAiProvider(provider: String) = context.dataStore.edit { it[SELECTED_AI_PROVIDER_KEY] = provider }
+
+    suspend fun isAutoAIEnabled(): Boolean = context.dataStore.data.first()[AUTO_AI_ENABLED_KEY] ?: false
+    suspend fun setAutoAIEnabled(enabled: Boolean) = context.dataStore.edit { it[AUTO_AI_ENABLED_KEY] = enabled }
+
+    suspend fun getPersistedAIState(): String? = context.dataStore.data.first()[PERSISTED_AI_STATE_KEY]
+    suspend fun savePersistedAIState(json: String?) = context.dataStore.edit { preferences ->
+        if (json == null) {
+            preferences.remove(PERSISTED_AI_STATE_KEY)
+        } else {
+            preferences[PERSISTED_AI_STATE_KEY] = json
+        }
+    }
+
+    // AI EQ Persistence Methods
+    suspend fun getAIPromptHistory(): com.sonza.app.ai.AIPromptHistory {
+        return context.dataStore.data.first()[AI_PROMPT_HISTORY_KEY]?.let {
+            com.sonza.app.ai.AIPromptHistory.fromJson(it)
+        } ?: com.sonza.app.ai.AIPromptHistory()
+    }
+
+    suspend fun saveAIPromptHistory(prompt: String, songId: String?, songTitle: String?) {
+        context.dataStore.edit { preferences ->
+            val history = preferences[AI_PROMPT_HISTORY_KEY]?.let {
+                com.sonza.app.ai.AIPromptHistory.fromJson(it)
+            } ?: com.sonza.app.ai.AIPromptHistory()
+            preferences[AI_PROMPT_HISTORY_KEY] = history.addEntry(prompt, songId, songTitle).toJson()
+        }
+    }
+
+    suspend fun clearAIPromptHistory() {
+        context.dataStore.edit { preferences ->
+            preferences[AI_PROMPT_HISTORY_KEY] = com.sonza.app.ai.AIPromptHistory().toJson()
+        }
+    }
+
+    suspend fun saveSongAISettings(songId: String, settings: com.sonza.app.ai.SongAISettings) {
+        val key = stringPreferencesKey("${AI_SONG_SETTINGS_PREFIX}$songId")
+        context.dataStore.edit { preferences ->
+            preferences[key] = settings.toJson()
+        }
+    }
+
+    suspend fun getSongAISettings(songId: String): com.sonza.app.ai.SongAISettings? {
+        val key = stringPreferencesKey("${AI_SONG_SETTINGS_PREFIX}$songId")
+        return context.dataStore.data.first()[key]?.let {
+            com.sonza.app.ai.SongAISettings.fromJson(it)
+        }
+    }
+
+    suspend fun clearSongAISettings(songId: String) {
+        val key = stringPreferencesKey("${AI_SONG_SETTINGS_PREFIX}$songId")
+        context.dataStore.edit { preferences ->
+            preferences.remove(key)
+        }
+    }
+
+    suspend fun setDoubleTapSeekSeconds(seconds: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[DOUBLE_TAP_SEEK_SECONDS_KEY] = seconds
+        }
+    }
+
+    suspend fun getVideoQuality(): VideoQuality {
+        val qualityName = context.dataStore.data.first()[VIDEO_QUALITY_KEY]
+        return qualityName?.let {
+            try { VideoQuality.valueOf(it) } catch (e: Exception) { VideoQuality.MEDIUM }
+        } ?: VideoQuality.MEDIUM
+    }
+
+    val videoQualityFlow: Flow<VideoQuality> = context.dataStore.data.map { preferences ->
+        preferences[VIDEO_QUALITY_KEY]?.let {
+            try { VideoQuality.valueOf(it) } catch (e: Exception) { VideoQuality.MEDIUM }
+        } ?: VideoQuality.MEDIUM
+    }
+
+    suspend fun setVideoQuality(quality: VideoQuality) {
+        context.dataStore.edit { preferences ->
+            preferences[VIDEO_QUALITY_KEY] = quality.name
+        }
+    }
+    
+    suspend fun doesEnableBetterLyrics(): Boolean = 
+            context.dataStore.data.first()[ENABLE_BETTER_LYRICS_KEY] ?: true
+    
+    val enableBetterLyricsFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[ENABLE_BETTER_LYRICS_KEY] ?: true
+    }
+    
+    suspend fun setEnableBetterLyrics(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[ENABLE_BETTER_LYRICS_KEY] = enabled
+        }
+    }
+    
+    suspend fun doesEnableSimpMusic(): Boolean = 
+            context.dataStore.data.first()[ENABLE_SIMPMUSIC_KEY] ?: true
+    
+    val enableSimpMusicFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[ENABLE_SIMPMUSIC_KEY] ?: true
+    }
+    
+    suspend fun setEnableSimpMusic(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[ENABLE_SIMPMUSIC_KEY] = enabled
+        }
+    }
+    
+    suspend fun doesEnableKuGou(): Boolean = 
+            context.dataStore.data.first()[ENABLE_KUGOU_KEY] ?: true
+    
+    val enableKuGouFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[ENABLE_KUGOU_KEY] ?: true
+    }
+    
+    suspend fun setEnableKuGou(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[ENABLE_KUGOU_KEY] = enabled
+        }
+    }
+    
+    suspend fun getPreferredLyricsProvider(): String = 
+        context.dataStore.data.first()[PREFERRED_LYRICS_PROVIDER_KEY] ?: "BetterLyrics"
+    
+    val preferredLyricsProviderFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[PREFERRED_LYRICS_PROVIDER_KEY] ?: "BetterLyrics"
+    }
+    
+    suspend fun setPreferredLyricsProvider(provider: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PREFERRED_LYRICS_PROVIDER_KEY] = provider
+        }
+    }
+    suspend fun getLyricsTextPosition(): LyricsTextPosition {
+        return context.dataStore.data.map { preferences ->
+            preferences[LYRICS_TEXT_POSITION_KEY]?.let {
+                try { LyricsTextPosition.valueOf(it) } catch (e: Exception) { LyricsTextPosition.CENTER }
+            } ?: LyricsTextPosition.CENTER
+        }.first()
+    }
+    
+    val lyricsTextPositionFlow: Flow<LyricsTextPosition> = context.dataStore.data.map { preferences ->
+        preferences[LYRICS_TEXT_POSITION_KEY]?.let {
+            try { LyricsTextPosition.valueOf(it) } catch (e: Exception) { LyricsTextPosition.CENTER }
+        } ?: LyricsTextPosition.CENTER
+    }
+    suspend fun setLyricsTextPosition(position: LyricsTextPosition) {
+        context.dataStore.edit { preferences ->
+            preferences[LYRICS_TEXT_POSITION_KEY] = position.name
+        }
+    }
+    suspend fun getLyricsAnimationType(): LyricsAnimationType {
+        return context.dataStore.data.map { preferences ->
+            preferences[LYRICS_ANIMATION_TYPE_KEY]?.let {
+                try { LyricsAnimationType.valueOf(it) } catch (e: Exception) { LyricsAnimationType.WORD }
+            } ?: LyricsAnimationType.WORD
+        }.first()
+    }
+    
+    val lyricsAnimationTypeFlow: Flow<LyricsAnimationType> = context.dataStore.data.map { preferences ->
+        preferences[LYRICS_ANIMATION_TYPE_KEY]?.let {
+            try { LyricsAnimationType.valueOf(it) } catch (e: Exception) { LyricsAnimationType.WORD }
+        } ?: LyricsAnimationType.WORD
+    }
+    suspend fun setLyricsAnimationType(type: LyricsAnimationType) {
+        context.dataStore.edit { preferences ->
+            preferences[LYRICS_ANIMATION_TYPE_KEY] = type.name
+        }
+    }
+
+    suspend fun getLyricsLineSpacing(): Float = 
+        context.dataStore.data.first()[LYRICS_LINE_SPACING_KEY] ?: 1.5f
+
+    val lyricsLineSpacingFlow: Flow<Float> = context.dataStore.data.map { preferences ->
+        preferences[LYRICS_LINE_SPACING_KEY] ?: 1.5f
+    }
+
+    suspend fun setLyricsLineSpacing(multiplier: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[LYRICS_LINE_SPACING_KEY] = multiplier
+        }
+    }
+
+    suspend fun getLyricsFontSize(): Float = 
+        context.dataStore.data.first()[LYRICS_FONT_SIZE_KEY] ?: 26f
+
+    val lyricsFontSizeFlow: Flow<Float> = context.dataStore.data.map { preferences ->
+        preferences[LYRICS_FONT_SIZE_KEY] ?: 26f
+    }
+
+    suspend fun setLyricsFontSize(size: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[LYRICS_FONT_SIZE_KEY] = size
+        }
+    }
+
+    suspend fun getLyricsBlur(): Float =
+        context.dataStore.data.first()[LYRICS_BLUR_KEY] ?: 2.5f
+
+    val lyricsBlurFlow: Flow<Float> = context.dataStore.data.map { preferences ->
+        preferences[LYRICS_BLUR_KEY] ?: 2.5f
+    }
+
+    suspend fun setLyricsBlur(blur: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[LYRICS_BLUR_KEY] = blur
+        }
+    }
+
+    fun getPlayerCacheLimit(): Long {
+        return encryptedPrefs.getLong("player_cache_limit", -1L)
+    }
+
+    val playerCacheLimitFlow: Flow<Long> = context.dataStore.data.map { preferences ->
+        getPlayerCacheLimit()
+    }
+
+    suspend fun setPlayerCacheLimit(limitBytes: Long) {
+        encryptedPrefs.edit().putLong("player_cache_limit", limitBytes).apply()
+        // Trigger datastore update for flow listeners
+        context.dataStore.edit { preferences ->
+            preferences[PLAYER_CACHE_LIMIT_KEY] = limitBytes
+        }
+    }
+    
+    suspend fun getPlayerCacheAutoClearInterval(): Int = 
+        context.dataStore.data.first()[PLAYER_CACHE_AUTO_CLEAR_INTERVAL_KEY] ?: 5
+
+    val playerCacheAutoClearIntervalFlow: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[PLAYER_CACHE_AUTO_CLEAR_INTERVAL_KEY] ?: 5
+    }
+
+    suspend fun setPlayerCacheAutoClearInterval(days: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[PLAYER_CACHE_AUTO_CLEAR_INTERVAL_KEY] = days
+        }
+    }
+
+    suspend fun getLastCacheClearedTimestamp(): Long = 
+        context.dataStore.data.first()[PLAYER_CACHE_LAST_CLEARED_TIMESTAMP_KEY] ?: 0L
+
+    suspend fun updateLastCacheClearedTimestamp() {
+        context.dataStore.edit { preferences ->
+            preferences[PLAYER_CACHE_LAST_CLEARED_TIMESTAMP_KEY] = System.currentTimeMillis()
+        }
+    }
+    
+    suspend fun isMusicHapticsEnabled(): Boolean = 
+        context.dataStore.data.first()[MUSIC_HAPTICS_ENABLED_KEY] ?: false
+    
+    val musicHapticsEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[MUSIC_HAPTICS_ENABLED_KEY] ?: false
+    }
+    
+    suspend fun setMusicHapticsEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[MUSIC_HAPTICS_ENABLED_KEY] = enabled
+        }
+    }
+    
+    suspend fun getHapticsMode(): HapticsMode {
+        val modeName = context.dataStore.data.first()[HAPTICS_MODE_KEY]
+        return modeName?.let {
+            try { HapticsMode.valueOf(it) } catch (e: Exception) { HapticsMode.BASIC }
+        } ?: HapticsMode.BASIC
+    }
+    
+    val hapticsModeFlow: Flow<HapticsMode> = context.dataStore.data.map { preferences ->
+        preferences[HAPTICS_MODE_KEY]?.let {
+            try { HapticsMode.valueOf(it) } catch (e: Exception) { HapticsMode.BASIC }
+        } ?: HapticsMode.BASIC
+    }
+    
+    suspend fun setHapticsMode(mode: HapticsMode) {
+        context.dataStore.edit { preferences ->
+            preferences[HAPTICS_MODE_KEY] = mode.name
+        }
+    }
+    
+    suspend fun getHapticsIntensity(): HapticsIntensity {
+        val intensityName = context.dataStore.data.first()[HAPTICS_INTENSITY_KEY]
+        return intensityName?.let {
+            try { HapticsIntensity.valueOf(it) } catch (e: Exception) { HapticsIntensity.MEDIUM }
+        } ?: HapticsIntensity.MEDIUM
+    }
+    
+    val hapticsIntensityFlow: Flow<HapticsIntensity> = context.dataStore.data.map { preferences ->
+        preferences[HAPTICS_INTENSITY_KEY]?.let {
+            try { HapticsIntensity.valueOf(it) } catch (e: Exception) { HapticsIntensity.MEDIUM }
+        } ?: HapticsIntensity.MEDIUM
+    }
+    
+    suspend fun setHapticsIntensity(intensity: HapticsIntensity) {
+        context.dataStore.edit { preferences ->
+            preferences[HAPTICS_INTENSITY_KEY] = intensity.name
+        }
+    }
+
+    suspend fun isStopMusicOnTaskClearEnabled(): Boolean = 
+        context.dataStore.data.first()[STOP_MUSIC_ON_TASK_CLEAR_KEY] ?: false
+
+    val stopMusicOnTaskClearEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[STOP_MUSIC_ON_TASK_CLEAR_KEY] ?: false
+    }
+
+    suspend fun setStopMusicOnTaskClearEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[STOP_MUSIC_ON_TASK_CLEAR_KEY] = enabled
+        }
+    }
+
+    suspend fun isPauseMusicOnMediaMutedEnabled(): Boolean = 
+        context.dataStore.data.first()[PAUSE_MUSIC_ON_MEDIA_MUTED_KEY] ?: false
+
+    val pauseMusicOnMediaMutedEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PAUSE_MUSIC_ON_MEDIA_MUTED_KEY] ?: false
+    }
+
+    suspend fun setPauseMusicOnMediaMutedEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PAUSE_MUSIC_ON_MEDIA_MUTED_KEY] = enabled
+        }
+    }
+
+    suspend fun isKeepScreenOnEnabled(): Boolean =
+        context.dataStore.data.first()[KEEP_SCREEN_ON_KEY] ?: false
+
+    val keepScreenOnEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[KEEP_SCREEN_ON_KEY] ?: false
+    }
+
+    suspend fun setKeepScreenOnEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[KEEP_SCREEN_ON_KEY] = enabled
+        }
+    }
+
+    suspend fun isSwipeDownToDismissEnabled(): Boolean =
+        context.dataStore.data.first()[SWIPE_DOWN_TO_DISMISS_ENABLED_KEY] ?: true
+
+    val swipeDownToDismissEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[SWIPE_DOWN_TO_DISMISS_ENABLED_KEY] ?: true
+    }
+
+    suspend fun setSwipeDownToDismissEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SWIPE_DOWN_TO_DISMISS_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun isPureBlackEnabled(): Boolean = 
+        context.dataStore.data.first()[PURE_BLACK_KEY] ?: false
+
+    val pureBlackEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PURE_BLACK_KEY] ?: false
+    }
+
+    suspend fun setPureBlackEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PURE_BLACK_KEY] = enabled
+        }
+    }
+
+    suspend fun isPlayerAnimatedBackgroundEnabled(): Boolean =
+        context.dataStore.data.first()[PLAYER_ANIMATED_BACKGROUND_KEY] ?: false
+
+    val playerAnimatedBackgroundFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PLAYER_ANIMATED_BACKGROUND_KEY] ?: false
+    }
+
+    suspend fun setPlayerAnimatedBackground(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PLAYER_ANIMATED_BACKGROUND_KEY] = enabled
+        }
+    }
+
+    // --- Content Preferences ---
+
+    suspend fun getPreferredLanguages(): Set<String> =
+        context.dataStore.data.first()[PREFERRED_LANGUAGES_KEY] ?: emptySet()
+
+    val preferredLanguagesFlow: Flow<Set<String>> = context.dataStore.data.map { preferences ->
+        preferences[PREFERRED_LANGUAGES_KEY] ?: emptySet()
+    }
+
+    suspend fun setPreferredLanguages(languages: Set<String>) {
+        context.dataStore.edit { preferences ->
+            preferences[PREFERRED_LANGUAGES_KEY] = languages
+        }
+    }
+    
+    // --- History Sync ---
+
+    suspend fun isYouTubeHistorySyncEnabled(): Boolean {
+        val prefs = context.dataStore.data.first()
+        return prefs[YOUTUBE_HISTORY_SYNC_ENABLED_KEY] ?: isLoggedIn()
+    }
+
+    val youtubeHistorySyncEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[YOUTUBE_HISTORY_SYNC_ENABLED_KEY] ?: isLoggedIn()
+    }
+
+    suspend fun setYouTubeHistorySyncEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[YOUTUBE_HISTORY_SYNC_ENABLED_KEY] = enabled
+        }
+    }
+
+    // --- Incognito Mode ---
+
+    suspend fun isIncognitoModeEnabled(): Boolean =
+        context.dataStore.data.first()[INCOGNITO_MODE_KEY] ?: false
+
+    val incognitoModeEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[INCOGNITO_MODE_KEY] ?: false
+    }
+
+    suspend fun setIncognitoModeEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[INCOGNITO_MODE_KEY] = enabled
+        }
+    }
+
+    suspend fun isIgnoreAudioFocusDuringCallsEnabled(): Boolean =
+        context.dataStore.data.first()[IGNORE_AUDIO_FOCUS_DURING_CALLS_KEY] ?: false
+
+    val ignoreAudioFocusDuringCallsFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[IGNORE_AUDIO_FOCUS_DURING_CALLS_KEY] ?: false
+    }
+
+    suspend fun setIgnoreAudioFocusDuringCallsEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[IGNORE_AUDIO_FOCUS_DURING_CALLS_KEY] = enabled
+        }
+    }
+
+    suspend fun isAutoResumeAfterCallEnabled(): Boolean =
+        context.dataStore.data.first()[AUTORESUME_AFTER_CALL_KEY] ?: true // Default to true
+
+    val autoresumeAfterCallFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[AUTORESUME_AFTER_CALL_KEY] ?: true
+    }
+
+    suspend fun setAutoResumeAfterCallEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[AUTORESUME_AFTER_CALL_KEY] = enabled
+        }
+    }
+    // --- Bluetooth & Hands-Free ---
+
+    suspend fun isBluetoothAutoplayEnabled(): Boolean =
+        context.dataStore.data.first()[BLUETOOTH_AUTOPLAY_ENABLED_KEY] ?: false
+
+    val bluetoothAutoplayEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[BLUETOOTH_AUTOPLAY_ENABLED_KEY] ?: false
+    }
+
+    suspend fun setBluetoothAutoplayEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[BLUETOOTH_AUTOPLAY_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun isSpeakSongDetailsEnabled(): Boolean =
+        context.dataStore.data.first()[SPEAK_SONG_DETAILS_ENABLED_KEY] ?: false
+
+    val speakSongDetailsEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[SPEAK_SONG_DETAILS_ENABLED_KEY] ?: false
+    }
+
+    suspend fun setSpeakSongDetailsEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SPEAK_SONG_DETAILS_ENABLED_KEY] = enabled
+        }
+    }
+
+    // Announce volume — percentage 0..100. Default 100% (full TTS engine volume).
+    suspend fun getAnnounceTtsVolume(): Int =
+        context.dataStore.data.first()[ANNOUNCE_TTS_VOLUME_KEY] ?: 100
+
+    val announceTtsVolumeFlow: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[ANNOUNCE_TTS_VOLUME_KEY] ?: 100
+    }
+
+    suspend fun setAnnounceTtsVolume(percent: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[ANNOUNCE_TTS_VOLUME_KEY] = percent.coerceIn(0, 100)
+        }
+    }
+
+    // How much music is ducked while the announcement plays. 30% by default.
+    suspend fun getAnnounceDuckVolume(): Int =
+        context.dataStore.data.first()[ANNOUNCE_DUCK_VOLUME_KEY] ?: 30
+
+    val announceDuckVolumeFlow: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[ANNOUNCE_DUCK_VOLUME_KEY] ?: 30
+    }
+
+    suspend fun setAnnounceDuckVolume(percent: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[ANNOUNCE_DUCK_VOLUME_KEY] = percent.coerceIn(0, 100)
+        }
+    }
+
+    suspend fun isAnnounceBluetoothOnly(): Boolean =
+        context.dataStore.data.first()[ANNOUNCE_BLUETOOTH_ONLY_KEY] ?: true
+
+    val announceBluetoothOnlyFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[ANNOUNCE_BLUETOOTH_ONLY_KEY] ?: true
+    }
+
+    suspend fun setAnnounceBluetoothOnly(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[ANNOUNCE_BLUETOOTH_ONLY_KEY] = enabled
+        }
+    }
+
+    // --- Next Song Preloading ---
+    
+    suspend fun isNextSongPreloadingEnabled(): Boolean =
+        context.dataStore.data.first()[NEXT_SONG_PRELOADING_ENABLED_KEY] ?: true
+
+    val nextSongPreloadingEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[NEXT_SONG_PRELOADING_ENABLED_KEY] ?: true
+    }
+
+    suspend fun setNextSongPreloadingEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[NEXT_SONG_PRELOADING_ENABLED_KEY] = enabled
+        }
+    }
+    
+    suspend fun getNextSongPreloadDelay(): Int =
+        context.dataStore.data.first()[NEXT_SONG_PRELOAD_DELAY_KEY] ?: 1
+
+    val nextSongPreloadDelayFlow: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[NEXT_SONG_PRELOAD_DELAY_KEY] ?: 1
+    }
+    
+    suspend fun setNextSongPreloadDelay(seconds: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[NEXT_SONG_PRELOAD_DELAY_KEY] = seconds
+        }
+    }
+
+    // --- Crossfeed ---
+
+    suspend fun isCrossfeedEnabled(): Boolean =
+        context.dataStore.data.first()[CROSSFEED_ENABLED_KEY] ?: false
+
+    val crossfeedEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[CROSSFEED_ENABLED_KEY] ?: false
+    }
+
+    suspend fun setCrossfeedEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[CROSSFEED_ENABLED_KEY] = enabled
+        }
+    }
+
+    // --- Equalizer ---
+
+    suspend fun isEqEnabled(): Boolean =
+        context.dataStore.data.first()[EQ_ENABLED_KEY] ?: false
+
+    val eqEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[EQ_ENABLED_KEY] ?: false
+    }
+
+    suspend fun setEqEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[EQ_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun getEqBands(): FloatArray {
+        val bandsStr = context.dataStore.data.first()[EQ_BANDS_KEY] ?: return FloatArray(10) { 0f }
+        return try {
+            bandsStr.split(",").map { it.toFloat() }.toFloatArray()
+        } catch (e: Exception) {
+            FloatArray(10) { 0f }
+        }
+    }
+
+    val eqBandsFlow: Flow<FloatArray> = context.dataStore.data.map { preferences ->
+        val bandsStr = preferences[EQ_BANDS_KEY] ?: return@map FloatArray(10) { 0f }
+        try {
+            bandsStr.split(",").map { it.toFloat() }.toFloatArray()
+        } catch (e: Exception) {
+            FloatArray(10) { 0f }
+        }
+    }
+
+    suspend fun setEqBand(index: Int, gain: Float) {
+        context.dataStore.edit { preferences ->
+            val bandsStr = preferences[EQ_BANDS_KEY] ?: "0,0,0,0,0,0,0,0,0,0"
+            val bands = bandsStr.split(",").map { it.toFloatOrNull() ?: 0f }.toMutableList()
+            if (index in bands.indices) {
+                bands[index] = gain
+                preferences[EQ_BANDS_KEY] = bands.joinToString(",")
+            }
+        }
+    }
+
+    suspend fun setEqBands(bands: FloatArray) {
+        val bandsStr = bands.joinToString(",")
+        context.dataStore.edit { preferences ->
+            preferences[EQ_BANDS_KEY] = bandsStr
+        }
+    }
+
+    suspend fun resetEqBands() {
+        context.dataStore.edit { preferences ->
+            preferences[EQ_BANDS_KEY] = "0,0,0,0,0,0,0,0,0,0"
+        }
+    }
+
+    val eqPreampFlow: Flow<Float> = context.dataStore.data.map { preferences ->
+        preferences[EQ_PREAMP_KEY] ?: 0f
+    }
+
+    suspend fun setEqPreamp(gain: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[EQ_PREAMP_KEY] = gain
+        }
+    }
+
+    val bassBoostFlow: Flow<Float> = context.dataStore.data.map { preferences ->
+        preferences[BASS_BOOST_KEY] ?: 0f
+    }
+
+    suspend fun setBassBoost(strength: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[BASS_BOOST_KEY] = strength
+        }
+    }
+
+    val virtualizerFlow: Flow<Float> = context.dataStore.data.map { preferences ->
+        preferences[VIRTUALIZER_KEY] ?: 0f
+    }
+
+    suspend fun setVirtualizer(strength: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[VIRTUALIZER_KEY] = strength
+        }
+    }
+
+    val forceMaxRefreshRateFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[FORCE_MAX_REFRESH_RATE_KEY] ?: true
+    }
+
+    suspend fun setForceMaxRefreshRate(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[FORCE_MAX_REFRESH_RATE_KEY] = enabled
+        }
+    }
+
+    // iOS Liquid Glass has been retired from Appearance. The frosted-glass nav
+    // bar / sheets effect is now always off regardless of any stored value, so
+    // existing users who had it enabled fall back to the standard YT Music chrome.
+    val iosLiquidGlassEnabledFlow: Flow<Boolean> = context.dataStore.data.map { false }
+
+    suspend fun isIosLiquidGlassEnabled(): Boolean = false
+
+    suspend fun setIosLiquidGlassEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[IOS_LIQUID_GLASS_ENABLED_KEY] = enabled
+        }
+    }
+
+    // --- Liquid Glass (Player + MiniPlayer) ---
+
+    val playerGlassBlurFlow: Flow<Float> = context.dataStore.data.map { preferences ->
+        preferences[PLAYER_GLASS_BLUR_KEY] ?: 60f
+    }
+
+    suspend fun setPlayerGlassBlur(value: Float) {
+        context.dataStore.edit { it[PLAYER_GLASS_BLUR_KEY] = value }
+    }
+
+    val playerGlassIntensityFlow: Flow<Float> = context.dataStore.data.map { preferences ->
+        preferences[PLAYER_GLASS_INTENSITY_KEY] ?: 1f
+    }
+
+    suspend fun setPlayerGlassIntensity(value: Float) {
+        context.dataStore.edit { it[PLAYER_GLASS_INTENSITY_KEY] = value }
+    }
+
+    val miniPlayerGlassBlurFlow: Flow<Float> = context.dataStore.data.map { preferences ->
+        preferences[MINI_PLAYER_GLASS_BLUR_KEY] ?: 50f
+    }
+
+    suspend fun setMiniPlayerGlassBlur(value: Float) {
+        context.dataStore.edit { it[MINI_PLAYER_GLASS_BLUR_KEY] = value }
+    }
+
+    // --- Crossfade ---
+
+    val crossfadeMsFlow: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[CROSSFADE_MS_KEY] ?: 0
+    }
+
+    suspend fun getCrossfadeMs(): Int =
+        context.dataStore.data.first()[CROSSFADE_MS_KEY] ?: 0
+
+    suspend fun setCrossfadeMs(value: Int) {
+        context.dataStore.edit { it[CROSSFADE_MS_KEY] = value.coerceIn(0, 12000) }
+    }
+
+    // --- Library Settings ---
+
+    suspend fun isFilterLocalByDurationEnabled(): Boolean = 
+        context.dataStore.data.first()[FILTER_LOCAL_BY_DURATION_ENABLED_KEY] ?: false
+
+    val libraryViewModeFlow: kotlinx.coroutines.flow.Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[LIBRARY_VIEW_MODE_KEY] ?: "GRID"
+    }
+
+    suspend fun setLibraryViewMode(mode: String) {
+        context.dataStore.edit { preferences ->
+            preferences[LIBRARY_VIEW_MODE_KEY] = mode
+        }
+    }
+    val filterLocalByDurationEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[FILTER_LOCAL_BY_DURATION_ENABLED_KEY] ?: false
+    }
+
+    suspend fun setFilterLocalByDurationEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[FILTER_LOCAL_BY_DURATION_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun getLocalDurationFilterThreshold(): Int =
+        context.dataStore.data.first()[LOCAL_DURATION_FILTER_THRESHOLD_KEY] ?: 30
+
+    val localDurationFilterThresholdFlow: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[LOCAL_DURATION_FILTER_THRESHOLD_KEY] ?: 30
+    }
+
+    suspend fun setLocalDurationFilterThreshold(seconds: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[LOCAL_DURATION_FILTER_THRESHOLD_KEY] = seconds
+        }
+    }
+
+
+    // --- Audio AR ---
+
+    val audioArEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[AUDIO_AR_ENABLED_KEY] ?: false
+    }
+
+    suspend fun isAudioArEnabled(): Boolean =
+        context.dataStore.data.first()[AUDIO_AR_ENABLED_KEY] ?: false
+
+    suspend fun setAudioArEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[AUDIO_AR_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun getAudioArSensitivity(): Float =
+        context.dataStore.data.first()[AUDIO_AR_SENSITIVITY_KEY] ?: 1.0f
+
+    val audioArSensitivityFlow: Flow<Float> = context.dataStore.data.map { preferences ->
+        preferences[AUDIO_AR_SENSITIVITY_KEY] ?: 1.0f
+    }
+
+    suspend fun setAudioArSensitivity(sensitivity: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[AUDIO_AR_SENSITIVITY_KEY] = sensitivity
+        }
+    }
+
+    suspend fun isAudioArAutoCalibrateEnabled(): Boolean =
+        context.dataStore.data.first()[AUDIO_AR_AUTO_CALIBRATE_KEY] ?: true
+
+    val audioArAutoCalibrateFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[AUDIO_AR_AUTO_CALIBRATE_KEY] ?: true
+    }
+
+    suspend fun setAudioArAutoCalibrate(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[AUDIO_AR_AUTO_CALIBRATE_KEY] = enabled
+        }
+    }
+
+    // --- Discord RPC ---
+
+    suspend fun isDiscordRpcEnabled(): Boolean =
+        context.dataStore.data.first()[DISCORD_RPC_ENABLED_KEY] ?: false
+
+    val discordRpcEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[DISCORD_RPC_ENABLED_KEY] ?: false
+    }
+
+    suspend fun setDiscordRpcEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[DISCORD_RPC_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun getDiscordToken(): String =
+        encryptedPrefs.getString("discord_token_enc", null) ?: ""
+
+    val discordTokenFlow: Flow<String> = context.dataStore.data.map { 
+        getDiscordToken() // This might not be reactive for encrypted prefs change, but usually fine
+    }
+
+    suspend fun setDiscordToken(token: String) {
+        encryptedPrefs.edit().putString("discord_token_enc", token).apply()
+        // We trigger a datastore update to notify listeners, even if we store in encrypted prefs
+        context.dataStore.edit { preferences ->
+            preferences[DISCORD_TOKEN_KEY] = "stored" 
+        }
+    }
+    
+    suspend fun isDiscordUseDetailsEnabled(): Boolean =
+        context.dataStore.data.first()[DISCORD_USE_DETAILS_KEY] ?: false
+
+    val discordUseDetailsFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[DISCORD_USE_DETAILS_KEY] ?: false
+    }
+
+    suspend fun setDiscordUseDetails(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[DISCORD_USE_DETAILS_KEY] = enabled
+        }
+    }
+    
+    // --- User Accounts ---
+    
+    data class StoredAccount(
+        val name: String,
+        val email: String,
+        val avatarUrl: String,
+        val cookies: String,
+        val authUserIndex: Int = 0
+    )
+    
+    private val SAVED_ACCOUNTS_KEY = "saved_accounts"
+    
+    fun getStoredAccounts(): List<StoredAccount> {
+        val json = encryptedPrefs.getString(SAVED_ACCOUNTS_KEY, null) ?: return emptyList()
+        return try {
+            val array = JSONArray(json)
+            (0 until array.length()).mapNotNull { i ->
+                val obj = array.optJSONObject(i) ?: return@mapNotNull null
+                StoredAccount(
+                    name = obj.optString("name"),
+                    email = obj.optString("email"),
+                    avatarUrl = obj.optString("avatarUrl"),
+                    cookies = obj.optString("cookies"),
+                    authUserIndex = obj.optInt("authUserIndex", 0)
+                )
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+    
+    private fun saveStoredAccounts(accounts: List<StoredAccount>) {
+        val array = JSONArray()
+        accounts.forEach { account ->
+            array.put(JSONObject().apply {
+                put("name", account.name)
+                put("email", account.email)
+                put("avatarUrl", account.avatarUrl)
+                put("cookies", account.cookies)
+                put("authUserIndex", account.authUserIndex)
+            })
+        }
+        encryptedPrefs.edit().putString(SAVED_ACCOUNTS_KEY, array.toString()).apply()
+    }
+    
+    suspend fun saveCurrentAccountToHistory(name: String, email: String, avatarUrl: String, authUserIndex: Int = 0) {
+        val currentCookies = getCookies() ?: return
+        val newAccount = StoredAccount(name, email, avatarUrl, currentCookies, authUserIndex)
+        
+        val accounts = getStoredAccounts().toMutableList()
+        accounts.removeAll { it.email == email }
+        accounts.add(0, newAccount)
+        
+        saveStoredAccounts(accounts)
+        saveUserAvatar(avatarUrl)
+        saveUserName(name)
+    }
+    
+    suspend fun switchAccount(account: StoredAccount) {
+        encryptedPrefs.edit().putString("cookies", account.cookies).apply()
+        saveUserAvatar(account.avatarUrl)
+        saveUserName(account.name)
+        setAuthUserIndex(account.authUserIndex)
+        saveCurrentAccountToHistory(account.name, account.email, account.avatarUrl, account.authUserIndex)
+        _isLoggedInFlow.value = isLoggedIn()
+    }
+    
+    fun removeAccount(email: String) {
+        val accounts = getStoredAccounts().toMutableList()
+        accounts.removeAll { it.email == email }
+        saveStoredAccounts(accounts)
+    }
+    
+    private val migrationScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    private val _isLoggedInFlow = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val isLoggedInFlow: Flow<Boolean> = _isLoggedInFlow
+
+    @Volatile
+    private var _encryptedPrefs: android.content.SharedPreferences? = null
+    private val encryptedPrefs: android.content.SharedPreferences
+        get() {
+            val existing = _encryptedPrefs
+            if (existing != null) return existing
+            return synchronized(this) {
+                val existingLocked = _encryptedPrefs
+                if (existingLocked != null) existingLocked
+                else {
+                    val created = createEncryptedPrefs()
+                    _encryptedPrefs = created
+                    created
+                }
+            }
+        }
+
+    private fun createEncryptedPrefs(): android.content.SharedPreferences {
+        return try {
+            EncryptedSharedPreferences.create(
+                context,
+                "sonza_secure_session",
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            // Happens after restoring backup on different device or OS reinstall
+            // where Keystore keys are lost but the preference file remains.
+            // Clearing the file and retrying creates a fresh Keystore-bound key.
+            // If that ALSO fails, the device's Keystore is broken — we must still
+            // return a prefs instance so the app can launch and prompt re-auth,
+            // but we clear any lingering secrets first and do NOT silently write
+            // new secrets to plaintext.
+            try {
+                context.deleteSharedPreferences("sonza_secure_session")
+                EncryptedSharedPreferences.create(
+                    context,
+                    "sonza_secure_session",
+                    masterKey,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                )
+            } catch (e2: Exception) {
+                android.util.Log.e(
+                    "SessionManager",
+                    "Keystore unavailable; session storage running in degraded mode",
+                    e2
+                )
+                // Wipe any stale plaintext fallback file so we never persist
+                // secrets unencrypted on disk.
+                try {
+                    context.deleteSharedPreferences("sonza_secure_session_fallback")
+                } catch (_: Exception) {}
+                context.getSharedPreferences("sonza_secure_session_fallback", Context.MODE_PRIVATE)
+            }
+        }
+    }
+
+    init {
+        migrationScope.launch {
+            // Warm up encrypted prefs on background thread
+            val prefs = encryptedPrefs
+            migrateSensitiveData()
+
+            // Mirror the canonical DataStore-stored account info into encrypted
+            // prefs so the next launch can render the Settings header
+            // synchronously. One-time backfill for users who upgraded before
+            // this cache was added.
+            try {
+                if (encryptedPrefs.getString(ACCOUNT_NAME_PREF, null) == null) {
+                    context.dataStore.data.first()[USER_NAME_KEY]?.let {
+                        encryptedPrefs.edit().putString(ACCOUNT_NAME_PREF, it).apply()
+                    }
+                }
+                if (encryptedPrefs.getString(ACCOUNT_AVATAR_PREF, null) == null) {
+                    context.dataStore.data.first()[USER_AVATAR_KEY]?.let {
+                        encryptedPrefs.edit().putString(ACCOUNT_AVATAR_PREF, it).apply()
+                    }
+                }
+            } catch (_: Exception) { /* best-effort backfill */ }
+
+            // Auto-enable history sync if logged in (one-time migration or first login)
+            if (isLoggedIn()) {
+                val currentPrefs = context.dataStore.data.first()
+                if (currentPrefs[HISTORY_SYNC_MIGRATED_KEY] != true) {
+                    setYouTubeHistorySyncEnabled(true)
+                    context.dataStore.edit { it[HISTORY_SYNC_MIGRATED_KEY] = true }
+                }
+            }
+
+            // Initial login check on background thread
+            _isLoggedInFlow.value = isLoggedIn()
+
+            // Seed the synchronous logo-variant mirror used by MainActivity to
+            // pick the splash screen theme. Existing users who selected a
+            // variant before this code shipped have it stored only in DataStore
+            // and need the SP mirror populated; new installs land here with no
+            // selection yet so the mirror falls back to the in-app default
+            // (PULSE), which matches what About / Home would render.
+            val brandingPrefs = context.getSharedPreferences(
+                "suvmusic_branding",
+                Context.MODE_PRIVATE,
+            )
+            if (brandingPrefs.getString("logo_variant", null) == null) {
+                val current = getLogoVariant()
+                brandingPrefs.edit()
+                    .putString("logo_variant", current.name)
+                    .apply()
+            }
+        }
+    }
+    private suspend fun migrateSensitiveData() {
+        val dataStore = context.dataStore.data.first()
+        val edit = encryptedPrefs.edit()
+        var changed = false
+
+        val keysToMigrate = listOf(
+            kotlin.Pair(COOKIES_KEY, "cookies"),
+            kotlin.Pair(RECENT_SEARCHES_KEY, "recent_searches"),
+            kotlin.Pair(RECENTLY_PLAYED_KEY, "recently_played"),
+            kotlin.Pair(LAST_FM_USERNAME_KEY, "last_fm_username"),
+            kotlin.Pair(HOME_CACHE_KEY, "home_cache"),
+            kotlin.Pair(REMOTE_HOME_CACHE_KEY, "remote_home_cache"),
+            kotlin.Pair(LIBRARY_PLAYLISTS_CACHE_KEY, "library_playlists_cache"),
+            kotlin.Pair(LIBRARY_LIKED_SONGS_CACHE_KEY, "library_liked_songs_cache")
+        )
+
+        keysToMigrate.forEach { (dsKey, prefKey) ->
+            dataStore[dsKey]?.let { value ->
+                edit.putString(prefKey, value)
+                context.dataStore.edit { prefs -> prefs.remove(dsKey) }
+                changed = true
+                if (prefKey == "cookies") _isLoggedInFlow.value = true
+            }
+        }
+
+        // Migrate AI API keys from plaintext DataStore to EncryptedSharedPreferences.
+        // Previously stored as raw stringPreferencesKey; user-billable secrets that
+        // shouldn't sit in plaintext DataStore. After migration, the DataStore entry
+        // becomes a "stored" sentinel used only to nudge listener flows.
+        val aiKeysToMigrate = listOf(
+            Triple(OPENAI_API_KEY, OPENAI_API_KEY_ENC, "openai"),
+            Triple(ANTHROPIC_API_KEY, ANTHROPIC_API_KEY_ENC, "anthropic"),
+            Triple(GEMINI_API_KEY, GEMINI_API_KEY_ENC, "gemini"),
+        )
+        aiKeysToMigrate.forEach { (dsKey, encKey, label) ->
+            val plain = dataStore[dsKey]
+            if (!plain.isNullOrBlank() && plain != "stored") {
+                edit.putString(encKey, plain)
+                context.dataStore.edit { it[dsKey] = "stored" }
+                changed = true
+                android.util.Log.i(
+                    "SessionManager",
+                    "Migrated $label API key from plaintext DataStore to encrypted prefs",
+                )
+            }
+        }
+
+        if (changed) edit.apply()
+    }
+    
+    fun getCookies(): String? {
+        return try {
+            encryptedPrefs.getString("cookies", null)
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+    suspend fun saveCookies(cookies: String) {
+        withContext(Dispatchers.IO) {
+            encryptedPrefs.edit().putString("cookies", cookies).apply()
+        }
+        context.dataStore.edit { it.remove(COOKIES_KEY) }
+        _isLoggedInFlow.value = true
+        
+        // Enable history sync by default on login
+        setYouTubeHistorySyncEnabled(true)
+        context.dataStore.edit { it[HISTORY_SYNC_MIGRATED_KEY] = true }
+    }
+    
+    suspend fun clearCookies() {
+        withContext(Dispatchers.IO) {
+            encryptedPrefs.edit()
+                .remove("cookies")
+                .remove(ACCOUNT_NAME_PREF)
+                .remove(ACCOUNT_AVATAR_PREF)
+                .apply()
+        }
+        context.dataStore.edit { preferences ->
+            preferences.remove(COOKIES_KEY)
+            preferences.remove(USER_NAME_KEY)
+            preferences.remove(USER_AVATAR_KEY)
+        }
+        _isLoggedInFlow.value = false
+    }
+    
+    fun isLoggedIn(): Boolean = !getCookies().isNullOrBlank()
+
+    // visitorData: an account-independent "visitor" session id YouTube uses to
+    // bind requests (sent as X-Goog-Visitor-Id + context.client.visitorData and
+    // as the streaming-poToken session id). Persisted like cookies so it stays
+    // stable across launches; not cleared on logout since it isn't account-bound.
+    fun getVisitorData(): String? =
+        try { encryptedPrefs.getString("visitor_data", null) } catch (e: Exception) { null }
+
+    suspend fun saveVisitorData(visitorData: String) {
+        withContext(Dispatchers.IO) {
+            encryptedPrefs.edit().putString("visitor_data", visitorData).apply()
+        }
+    }
+
+    // Account-info snapshot mirrored into encryptedPrefs so the Settings screen
+    // can render the avatar + name synchronously on entry instead of waiting for
+    // a DataStore read on a coroutine.
+    private val ACCOUNT_NAME_PREF = "cached_user_name"
+    private val ACCOUNT_AVATAR_PREF = "cached_user_avatar"
+
+    fun getCachedUserName(): String? =
+        try { encryptedPrefs.getString(ACCOUNT_NAME_PREF, null) } catch (e: Exception) { null }
+            ?: getStoredAccounts().firstOrNull()?.name
+
+    fun getCachedUserAvatar(): String? =
+        try { encryptedPrefs.getString(ACCOUNT_AVATAR_PREF, null) } catch (e: Exception) { null }
+            ?: getStoredAccounts().firstOrNull()?.avatarUrl
+
+    suspend fun getUserAvatar(): String? =
+        context.dataStore.data.first()[USER_AVATAR_KEY] ?: getCachedUserAvatar()
+
+    suspend fun saveUserAvatar(url: String) {
+        context.dataStore.edit { preferences ->
+            preferences[USER_AVATAR_KEY] = url
+        }
+        try { encryptedPrefs.edit().putString(ACCOUNT_AVATAR_PREF, url).apply() } catch (_: Exception) {}
+    }
+
+    val userAvatarFlow: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[USER_AVATAR_KEY]
+    }
+
+    suspend fun getUserName(): String? =
+        context.dataStore.data.first()[USER_NAME_KEY] ?: getCachedUserName()
+
+    suspend fun saveUserName(name: String) {
+        context.dataStore.edit { preferences ->
+            preferences[USER_NAME_KEY] = name
+        }
+        try { encryptedPrefs.edit().putString(ACCOUNT_NAME_PREF, name).apply() } catch (_: Exception) {}
+    }
+
+    val userNameFlow: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[USER_NAME_KEY]
+    }
+
+    suspend fun getAuthUserIndex(): Int =
+        context.dataStore.data.first()[AUTH_USER_INDEX_KEY] ?: 0
+
+    val authUserIndexFlow: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[AUTH_USER_INDEX_KEY] ?: 0
+    }
+
+    suspend fun setAuthUserIndex(index: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[AUTH_USER_INDEX_KEY] = index
+        }
+    }
+    
+    private val connectivityManager by lazy {
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    }
+
+    private fun isOnWifi(): Boolean {
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+    }
+
+    suspend fun getWifiAudioQuality(): AudioQuality {
+        val qualityName = context.dataStore.data.first()[WIFI_AUDIO_QUALITY_KEY]
+            ?: context.dataStore.data.first()[AUDIO_QUALITY_KEY]
+        return qualityName?.let {
+            try { AudioQuality.valueOf(it) } catch (e: Exception) { AudioQuality.HIGH }
+        } ?: AudioQuality.HIGH
+    }
+
+    val wifiAudioQualityFlow: Flow<AudioQuality> = context.dataStore.data.map { preferences ->
+        val qualityName = preferences[WIFI_AUDIO_QUALITY_KEY] ?: preferences[AUDIO_QUALITY_KEY]
+        qualityName?.let {
+            try { AudioQuality.valueOf(it) } catch (e: Exception) { AudioQuality.HIGH }
+        } ?: AudioQuality.HIGH
+    }
+
+    suspend fun setWifiAudioQuality(quality: AudioQuality) {
+        context.dataStore.edit { preferences ->
+            preferences[WIFI_AUDIO_QUALITY_KEY] = quality.name
+        }
+    }
+
+    // Default mobile streaming quality is High (320 kbps under HQ Audio) — the
+    // same default as Wi-Fi, so both networks stream at the highest quality
+    // out of the box.
+    suspend fun getMobileAudioQuality(): AudioQuality {
+        val qualityName = context.dataStore.data.first()[MOBILE_AUDIO_QUALITY_KEY]
+            ?: context.dataStore.data.first()[AUDIO_QUALITY_KEY]
+        return qualityName?.let {
+            try { AudioQuality.valueOf(it) } catch (e: Exception) { AudioQuality.HIGH }
+        } ?: AudioQuality.HIGH
+    }
+
+    val mobileAudioQualityFlow: Flow<AudioQuality> = context.dataStore.data.map { preferences ->
+        val qualityName = preferences[MOBILE_AUDIO_QUALITY_KEY] ?: preferences[AUDIO_QUALITY_KEY]
+        qualityName?.let {
+            try { AudioQuality.valueOf(it) } catch (e: Exception) { AudioQuality.HIGH }
+        } ?: AudioQuality.HIGH
+    }
+
+    suspend fun setMobileAudioQuality(quality: AudioQuality) {
+        context.dataStore.edit { preferences ->
+            preferences[MOBILE_AUDIO_QUALITY_KEY] = quality.name
+        }
+    }
+
+    suspend fun getAudioQuality(): AudioQuality {
+        return if (isOnWifi()) {
+            getWifiAudioQuality()
+        } else {
+            getMobileAudioQuality()
+        }
+    }
+
+    val audioQualityFlow: Flow<AudioQuality> = context.dataStore.data.map { preferences ->
+        val key = if (isOnWifi()) WIFI_AUDIO_QUALITY_KEY else MOBILE_AUDIO_QUALITY_KEY
+        val fallbackKey = AUDIO_QUALITY_KEY
+        val qualityName = preferences[key] ?: preferences[fallbackKey]
+        qualityName?.let {
+            try { AudioQuality.valueOf(it) } catch (e: Exception) { AudioQuality.HIGH }
+        } ?: AudioQuality.HIGH
+    }
+
+    suspend fun setAudioQuality(quality: AudioQuality) {
+        if (isOnWifi()) {
+            setWifiAudioQuality(quality)
+        } else {
+            setMobileAudioQuality(quality)
+        }
+    }
+    
+    suspend fun isGaplessPlaybackEnabled(): Boolean = 
+        context.dataStore.data.first()[GAPLESS_PLAYBACK_KEY] ?: true
+    
+    suspend fun setGaplessPlayback(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[GAPLESS_PLAYBACK_KEY] = enabled
+        }
+    }
+    
+    suspend fun isAutomixEnabled(): Boolean =
+        context.dataStore.data.first()[AUTOMIX_KEY] ?: true
+
+    val automixEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[AUTOMIX_KEY] ?: true
+    }
+
+    suspend fun setAutomix(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[AUTOMIX_KEY] = enabled
+        }
+    }
+
+    suspend fun isVolumeNormalizationEnabled(): Boolean =
+        context.dataStore.data.first()[VOLUME_NORMALIZATION_ENABLED_KEY] ?: false
+
+    val volumeNormalizationEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[VOLUME_NORMALIZATION_ENABLED_KEY] ?: false
+    }
+
+    suspend fun setVolumeNormalizationEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[VOLUME_NORMALIZATION_ENABLED_KEY] = enabled
+        }
+    }
+    
+    suspend fun getDownloadQuality(): DownloadQuality {
+        val qualityName = context.dataStore.data.first()[DOWNLOAD_QUALITY_KEY]
+        return qualityName?.let { 
+            try { DownloadQuality.valueOf(it) } catch (e: Exception) { DownloadQuality.HIGH }
+        } ?: DownloadQuality.HIGH
+    }
+    
+    val downloadQualityFlow: Flow<DownloadQuality> = context.dataStore.data.map { preferences ->
+        preferences[DOWNLOAD_QUALITY_KEY]?.let {
+            try { DownloadQuality.valueOf(it) } catch (e: Exception) { DownloadQuality.HIGH }
+        } ?: DownloadQuality.HIGH
+    }
+    
+    suspend fun setDownloadQuality(quality: DownloadQuality) {
+        context.dataStore.edit { preferences ->
+            preferences[DOWNLOAD_QUALITY_KEY] = quality.name
+        }
+    }
+
+    // ----- Per-track loudness cache (volume normalization) -----
+    //
+    // We persist a map {songId -> RMS amplitude (0..1)} measured the first
+    // time a track plays. On subsequent plays we apply a per-track gain to
+    // bring the song to a target perceived loudness, similar to Spotify's
+    // -14 LUFS reference. Cap entries to keep the JSON small.
+    private val MAX_LOUDNESS_CACHE_ENTRIES = 5_000
+
+    suspend fun getLoudnessCache(): Map<String, Float> {
+        val raw = context.dataStore.data.first()[LOUDNESS_CACHE_KEY] ?: return emptyMap()
+        return parseLoudnessJson(raw)
+    }
+
+    fun getLoudnessCacheBlocking(): Map<String, Float> {
+        return try {
+            val raw = encryptedPrefs.getString("loudness_cache_mirror", null) ?: return emptyMap()
+            parseLoudnessJson(raw)
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
+
+    suspend fun setLoudnessForSong(songId: String, rms: Float) {
+        if (songId.isBlank() || rms.isNaN() || rms <= 0f) return
+        val current = getLoudnessCache().toMutableMap()
+        current[songId] = rms.coerceIn(0.0001f, 1f)
+        // Trim oldest entries if we exceed the cap (LinkedHashMap preserves
+        // insertion order, but we re-key into a fresh map of the most recent
+        // N entries).
+        val pruned = if (current.size > MAX_LOUDNESS_CACHE_ENTRIES) {
+            current.entries.toList()
+                .takeLast(MAX_LOUDNESS_CACHE_ENTRIES)
+                .associate { it.key to it.value }
+        } else current
+        val json = serializeLoudnessJson(pruned)
+        context.dataStore.edit { it[LOUDNESS_CACHE_KEY] = json }
+        try { encryptedPrefs.edit().putString("loudness_cache_mirror", json).apply() } catch (_: Exception) {}
+    }
+
+    suspend fun clearLoudnessCache() {
+        context.dataStore.edit { it.remove(LOUDNESS_CACHE_KEY) }
+        try { encryptedPrefs.edit().remove("loudness_cache_mirror").apply() } catch (_: Exception) {}
+    }
+
+    private fun parseLoudnessJson(raw: String): Map<String, Float> {
+        return try {
+            val obj = org.json.JSONObject(raw)
+            val out = mutableMapOf<String, Float>()
+            obj.keys().forEach { k ->
+                val v = obj.optDouble(k, Double.NaN).toFloat()
+                if (!v.isNaN() && v > 0f) out[k] = v
+            }
+            out
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
+
+    private fun serializeLoudnessJson(map: Map<String, Float>): String {
+        val obj = org.json.JSONObject()
+        map.forEach { (k, v) -> obj.put(k, v.toDouble()) }
+        return obj.toString()
+    }
+
+    // ----- Spatial audio strength -----
+
+    suspend fun getSpatialAudioStrength(): Int =
+        context.dataStore.data.first()[SPATIAL_STRENGTH_KEY] ?: 70
+
+    val spatialAudioStrengthFlow: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[SPATIAL_STRENGTH_KEY] ?: 70
+    }
+
+    suspend fun setSpatialAudioStrength(value: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[SPATIAL_STRENGTH_KEY] = value.coerceIn(0, 100)
+        }
+    }
+
+    suspend fun isAudioOffloadEnabled(): Boolean =
+        context.dataStore.data.first()[AUDIO_OFFLOAD_ENABLED_KEY] ?: false
+
+    val audioOffloadEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[AUDIO_OFFLOAD_ENABLED_KEY] ?: false
+    }
+
+    suspend fun setAudioOffloadEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[AUDIO_OFFLOAD_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun isVolumeBoostEnabled(): Boolean = 
+        context.dataStore.data.first()[VOLUME_BOOST_ENABLED_KEY] ?: false
+
+    val volumeBoostEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[VOLUME_BOOST_ENABLED_KEY] ?: false
+    }
+
+    suspend fun setVolumeBoostEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[VOLUME_BOOST_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun getVolumeBoostAmount(): Int = 
+        context.dataStore.data.first()[VOLUME_BOOST_AMOUNT_KEY] ?: 0
+
+    val volumeBoostAmountFlow: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[VOLUME_BOOST_AMOUNT_KEY] ?: 0
+    }
+
+    suspend fun setVolumeBoostAmount(amount: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[VOLUME_BOOST_AMOUNT_KEY] = amount
+        }
+    }
+
+    suspend fun isOnboardingCompleted(): Boolean = 
+        context.dataStore.data.first()[ONBOARDING_COMPLETED_KEY] ?: false
+        
+    val onboardingCompletedFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[ONBOARDING_COMPLETED_KEY] ?: false
+    }
+
+    suspend fun setOnboardingCompleted(completed: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[ONBOARDING_COMPLETED_KEY] = completed
+        }
+    }
+
+    // One-time "What's new" screen: gated by app versionCode so it appears at most
+    // once per release. Returns the highest version already acknowledged (0 if never).
+    suspend fun getWhatsNewSeenVersion(): Int =
+        context.dataStore.data.first()[WHATS_NEW_SEEN_VERSION_KEY] ?: 0
+
+    suspend fun setWhatsNewSeenVersion(versionCode: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[WHATS_NEW_SEEN_VERSION_KEY] = versionCode
+        }
+    }
+
+    suspend fun getThemeMode(): ThemeMode {
+        val modeName = context.dataStore.data.first()[THEME_MODE_KEY]
+        return modeName?.let { 
+            try { ThemeMode.valueOf(it) } catch (e: Exception) { ThemeMode.SYSTEM }
+        } ?: ThemeMode.SYSTEM
+    }
+    
+    val themeModeFlow: Flow<ThemeMode> = context.dataStore.data.map { preferences ->
+        preferences[THEME_MODE_KEY]?.let {
+            try { ThemeMode.valueOf(it) } catch (e: Exception) { ThemeMode.SYSTEM }
+        } ?: ThemeMode.SYSTEM
+    }
+    
+    suspend fun setThemeMode(mode: ThemeMode) {
+        context.dataStore.edit { preferences ->
+            preferences[THEME_MODE_KEY] = mode.name
+        }
+    }
+
+    suspend fun getAppTheme(): AppTheme {
+        val themeName = context.dataStore.data.first()[APP_THEME_KEY]
+        return themeName?.let {
+            try { AppTheme.valueOf(it) } catch (e: Exception) { AppTheme.DEFAULT }
+        } ?: AppTheme.DEFAULT
+    }
+
+    val appThemeFlow: Flow<AppTheme> = context.dataStore.data.map { preferences ->
+        preferences[APP_THEME_KEY]?.let {
+            try { AppTheme.valueOf(it) } catch (e: Exception) { AppTheme.DEFAULT }
+        } ?: AppTheme.DEFAULT
+    }
+
+    suspend fun setAppTheme(theme: AppTheme) {
+        context.dataStore.edit { preferences ->
+            preferences[APP_THEME_KEY] = theme.name
+        }
+    }
+
+    suspend fun getLogoVariant(): com.sonza.app.core.model.LogoVariant {
+        val name = context.dataStore.data.first()[LOGO_VARIANT_KEY]
+        return name?.let {
+            try { com.sonza.app.core.model.LogoVariant.valueOf(it) }
+            catch (e: Exception) { com.sonza.app.core.model.LogoVariant.DEFAULT }
+        } ?: com.sonza.app.core.model.LogoVariant.DEFAULT
+    }
+
+    val logoVariantFlow: Flow<com.sonza.app.core.model.LogoVariant> = context.dataStore.data.map { preferences ->
+        preferences[LOGO_VARIANT_KEY]?.let {
+            try { com.sonza.app.core.model.LogoVariant.valueOf(it) }
+            catch (e: Exception) { com.sonza.app.core.model.LogoVariant.DEFAULT }
+        } ?: com.sonza.app.core.model.LogoVariant.DEFAULT
+    }
+
+    suspend fun setLogoVariant(variant: com.sonza.app.core.model.LogoVariant) {
+        context.dataStore.edit { preferences ->
+            preferences[LOGO_VARIANT_KEY] = variant.name
+        }
+        // Mirror to a separate SharedPreferences file so MainActivity can read
+        // the variant SYNCHRONOUSLY before installSplashScreen(). DataStore is
+        // async-only and would race the splash window initialisation, leaving
+        // the splash showing the previous variant's drawable for one launch
+        // after a switch.
+        //
+        // commit() (not apply()) because applyLauncherAlias() schedules a
+        // Process.killProcess() 600 ms later, and apply()'s async fsync isn't
+        // guaranteed to flush before the kill — when it didn't, the next
+        // launch read a stale/empty mirror and the splash fell back to the
+        // PULSE default (or, for fresh installs, the Classic activity-alias
+        // theme), so the splash icon failed to match the variant the user
+        // had just selected.
+        context.getSharedPreferences("suvmusic_branding", Context.MODE_PRIVATE)
+            .edit()
+            .putString("logo_variant", variant.name)
+            .commit()
+        applyLauncherAlias(variant)
+    }
+
+    /**
+     * Switch the launcher icon to match the chosen [variant] by enabling
+     * exactly one of the activity-alias entries declared in the manifest
+     * and disabling the others. The launcher reads the alias state and
+     * shows the corresponding icon.
+     *
+     * Caveat: changing the enabled state of the *currently active* alias
+     * causes Android to terminate the app process so the launcher can
+     * re-bind. The Appearance settings UI surfaces this with a confirmation
+     * toast before calling setLogoVariant().
+     *
+     * Some launchers (notably Pixel Launcher pre-Android 13) cache icons
+     * aggressively and may take a few seconds — or a re-launch of the
+     * launcher itself — to pick up the new alias. There's no API fix for
+     * that; it's a launcher-side behaviour.
+     */
+    private fun applyLauncherAlias(variant: com.sonza.app.core.model.LogoVariant) {
+        val pkg = context.packageName
+        val pm = context.packageManager
+        // Each LogoVariant maps to its own activity-alias so the launcher
+        // icon updates per variant — picking "Pulse · Monochrome" enables
+        // LauncherPulseMono, etc. Sub-styles within a concept share the
+        // same splash theme (defined on each alias's android:theme) but
+        // have distinct launcher icons.
+        val targetAliasName = "$pkg." + when (variant) {
+            com.sonza.app.core.model.LogoVariant.PULSE -> "LauncherPulse"
+            com.sonza.app.core.model.LogoVariant.PULSE_APP_ICON -> "LauncherPulseAppIcon"
+            com.sonza.app.core.model.LogoVariant.PULSE_MONO -> "LauncherPulseMono"
+            com.sonza.app.core.model.LogoVariant.PULSE_LIGHT -> "LauncherPulseLight"
+            com.sonza.app.core.model.LogoVariant.PULSE_TONE -> "LauncherPulseTone"
+            com.sonza.app.core.model.LogoVariant.RESONANCE -> "LauncherResonance"
+            com.sonza.app.core.model.LogoVariant.RESONANCE_APP_ICON -> "LauncherResonanceAppIcon"
+            com.sonza.app.core.model.LogoVariant.RESONANCE_MONO -> "LauncherResonanceMono"
+            com.sonza.app.core.model.LogoVariant.RESONANCE_LIGHT -> "LauncherResonanceLight"
+            com.sonza.app.core.model.LogoVariant.RESONANCE_TONE -> "LauncherResonanceTone"
+            com.sonza.app.core.model.LogoVariant.AETHER -> "LauncherAether"
+            com.sonza.app.core.model.LogoVariant.AETHER_APP_ICON -> "LauncherAetherAppIcon"
+            com.sonza.app.core.model.LogoVariant.AETHER_MONO -> "LauncherAetherMono"
+            com.sonza.app.core.model.LogoVariant.AETHER_LIGHT -> "LauncherAetherLight"
+            com.sonza.app.core.model.LogoVariant.AETHER_TONE -> "LauncherAetherTone"
+            com.sonza.app.core.model.LogoVariant.CLASSIC -> "LauncherClassic"
+        }
+        val allAliases = listOf(
+            "$pkg.LauncherClassic",
+            "$pkg.LauncherPulse",
+            "$pkg.LauncherPulseAppIcon",
+            "$pkg.LauncherPulseMono",
+            "$pkg.LauncherPulseLight",
+            "$pkg.LauncherPulseTone",
+            "$pkg.LauncherResonance",
+            "$pkg.LauncherResonanceAppIcon",
+            "$pkg.LauncherResonanceMono",
+            "$pkg.LauncherResonanceLight",
+            "$pkg.LauncherResonanceTone",
+            "$pkg.LauncherAether",
+            "$pkg.LauncherAetherAppIcon",
+            "$pkg.LauncherAetherMono",
+            "$pkg.LauncherAetherLight",
+            "$pkg.LauncherAetherTone",
+        )
+
+        // Pass 1: flip every alias with DONT_KILL_APP so all four
+        // setComponentEnabledSetting calls actually complete. The previous
+        // implementation passed flags=0 inside the loop, which schedules an
+        // immediate process kill — on the first flip that affected the
+        // currently-active alias, Android terminated the app before the
+        // remaining flips could run, leaving the alias state inconsistent
+        // (e.g. LauncherPulse still enabled even though we just picked
+        // Resonance). Track whether anything actually changed so we know
+        // whether the launcher needs to refresh.
+        var anyChanged = false
+        for (alias in allAliases) {
+            val component = android.content.ComponentName(pkg, alias)
+            val desired = if (alias == targetAliasName) {
+                android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            } else {
+                android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            }
+            val current = try {
+                pm.getComponentEnabledSetting(component)
+            } catch (e: IllegalArgumentException) {
+                android.util.Log.w("SessionManager", "Launcher alias missing in manifest: $alias")
+                continue
+            }
+            if (current == desired) continue
+            try {
+                pm.setComponentEnabledSetting(
+                    component,
+                    desired,
+                    android.content.pm.PackageManager.DONT_KILL_APP,
+                )
+                anyChanged = true
+                android.util.Log.i(
+                    "SessionManager",
+                    "Launcher alias flipped: $alias -> ${if (desired == 1) "ENABLED" else "DISABLED"}",
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("SessionManager", "Failed to flip launcher alias $alias", e)
+            }
+        }
+
+        // Pass 2: if we actually changed an alias, kill the app process so
+        // the launcher rebinds to the new component. Without this the
+        // launcher keeps showing the previous icon until the app is
+        // force-stopped or rebooted. Posting to the main handler with a
+        // small delay gives the picker UI a beat to dismiss its bottom
+        // sheet and toast before the kill.
+        if (anyChanged) {
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                android.os.Process.killProcess(android.os.Process.myPid())
+            }, 600L)
+        }
+    }
+
+    suspend fun isDynamicColorEnabled(): Boolean =
+        context.dataStore.data.first()[DYNAMIC_COLOR_KEY] ?: true
+    
+    val dynamicColorFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[DYNAMIC_COLOR_KEY] ?: true
+    }
+    
+    suspend fun setDynamicColor(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[DYNAMIC_COLOR_KEY] = enabled
+        }
+    }
+    
+    // Default source is HQ Audio (RemoteAudio, 320 kbps) — the VPS-hosted
+    // catalogue is the out-of-the-box experience. Users who prefer YouTube
+    // Music can switch back in Playback settings at any time.
+    suspend fun getMusicSource(): MusicSource {
+        val sourceName = context.dataStore.data.first()[MUSIC_SOURCE_KEY]
+        return sourceName?.let {
+            try { MusicSource.valueOf(it) } catch (e: Exception) { MusicSource.REMOTE }
+        } ?: MusicSource.REMOTE
+    }
+
+    val musicSourceFlow: Flow<MusicSource> = context.dataStore.data.map { preferences ->
+        preferences[MUSIC_SOURCE_KEY]?.let {
+            try { MusicSource.valueOf(it) } catch (e: Exception) { MusicSource.REMOTE }
+        } ?: MusicSource.REMOTE
+    }
+    
+    suspend fun setMusicSource(source: MusicSource) {
+        context.dataStore.edit { preferences ->
+            preferences[MUSIC_SOURCE_KEY] = source.name
+        }
+    }
+
+    /**
+     * When enabled, YouTube/YouTube Music songs are streamed from the remote
+     * HQ catalogue (320 kbps) when a confident title+artist match is found.
+     * Browsing/metadata stays on YouTube; only the audio stream is swapped.
+     * Falls back to the original YouTube stream when no match exists.
+     *
+     * Default: ON. Home + recommendations stay on YouTube while playback
+     * upgrades to HQ audio whenever a match exists — this is the intended
+     * out-of-the-box experience.
+     */
+    suspend fun isPreferRemoteAudio(): Boolean =
+        context.dataStore.data.first()[PREFER_REMOTE_AUDIO_KEY] ?: true
+
+    val preferRemoteAudioFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PREFER_REMOTE_AUDIO_KEY] ?: true
+    }
+
+    suspend fun setPreferRemoteAudio(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PREFER_REMOTE_AUDIO_KEY] = enabled
+        }
+    }
+    
+    suspend fun savePlaybackState(songId: String, position: Long, queueJson: String, index: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[LAST_SONG_ID_KEY] = songId
+            preferences[LAST_POSITION_KEY] = position
+            preferences[LAST_QUEUE_KEY] = queueJson
+            preferences[LAST_INDEX_KEY] = index
+        }
+    }
+    
+    suspend fun getLastPlaybackState(): LastPlaybackState? = withContext(Dispatchers.IO) {
+        val prefs = context.dataStore.data.first()
+        val songId = prefs[LAST_SONG_ID_KEY]
+        val position = prefs[LAST_POSITION_KEY]
+        val queueJson = prefs[LAST_QUEUE_KEY]
+        val index = prefs[LAST_INDEX_KEY]
+        
+        if (songId != null && position != null && queueJson != null && index != null) {
+            LastPlaybackState(songId, position, queueJson, index)
+        } else null
+    }
+    
+    suspend fun clearPlaybackState() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(LAST_SONG_ID_KEY)
+            preferences.remove(LAST_POSITION_KEY)
+            preferences.remove(LAST_QUEUE_KEY)
+            preferences.remove(LAST_INDEX_KEY)
+        }
+    }
+    
+    suspend fun getRecentSearches(): List<RecentSearchItem> = withContext(Dispatchers.IO) {
+        val json = encryptedPrefs.getString("recent_searches", null) ?: return@withContext emptyList()
+        withContext(Dispatchers.Default) {
+            parseRecentSearchesJson(json)
+        }
+    }
+
+    val recentSearchesFlow: Flow<List<RecentSearchItem>> = context.dataStore.data.map {
+        val json = encryptedPrefs.getString("recent_searches", null) ?: return@map emptyList()
+        parseRecentSearchesJson(json)
+    }
+
+    private fun parseRecentSearchesJson(json: String): List<RecentSearchItem> {
+        return try {
+            val jsonArray = JSONArray(json)
+            val items = mutableListOf<RecentSearchItem>()
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                val type = obj.optString("item_type", "SONG") // Default to SONG for backward compatibility
+
+                when (type) {
+                    "SONG" -> {
+                        val song = Song(
+                            id = obj.getString("id"),
+                            title = obj.getString("title"),
+                            artist = obj.getString("artist"),
+                            album = obj.optString("album", ""),
+                            thumbnailUrl = obj.optString("thumbnailUrl").takeIf { it.isNotEmpty() },
+                            duration = obj.optLong("duration", 0L),
+                            source = try {
+                                SongSource.valueOf(obj.optString("source", "YOUTUBE"))
+                            } catch (e: Exception) {
+                                SongSource.YOUTUBE
+                            }
+                        )
+                        items.add(RecentSearchItem.SongItem(song))
+                    }
+                    "ALBUM" -> {
+                        val album = Album(
+                            id = obj.getString("id"),
+                            title = obj.getString("title"),
+                            artist = obj.getString("artist"),
+                            thumbnailUrl = obj.optString("thumbnailUrl").takeIf { it.isNotEmpty() },
+                            description = obj.optString("description").takeIf { it.isNotEmpty() },
+                            year = obj.optString("year").takeIf { it.isNotEmpty() }
+                        )
+                        items.add(RecentSearchItem.AlbumItem(album))
+                    }
+                    "PLAYLIST" -> {
+                        val playlist = Playlist(
+                            id = obj.getString("id"),
+                            title = obj.getString("title"),
+                            author = obj.getString("author"),
+                            thumbnailUrl = obj.optString("thumbnailUrl").takeIf { it.isNotEmpty() },
+                            songs = emptyList<Song>(), // Don't persist songs for recent searches
+                            description = obj.optString("description").takeIf { it.isNotEmpty() }
+                        )
+                        items.add(RecentSearchItem.PlaylistItem(playlist))
+                    }
+                    "QUERY" -> {
+                        val query = obj.getString("query")
+                        items.add(RecentSearchItem.QueryItem(query))
+                    }
+                }
+            }
+            items
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun addRecentSearch(item: RecentSearchItem) = withContext(Dispatchers.IO) {
+        val currentSearches = getRecentSearches().toMutableList()
+        currentSearches.removeAll { it.id == item.id }
+        currentSearches.add(0, item)
+        val trimmed = currentSearches.take(MAX_RECENT_SEARCHES)
+
+        val jsonArray = JSONArray()
+        trimmed.forEach { searchItem ->
+            val obj = JSONObject()
+            when (searchItem) {
+                is RecentSearchItem.SongItem -> {
+                    val s = searchItem.song
+                    obj.put("item_type", "SONG")
+                    obj.put("id", s.id)
+                    obj.put("title", s.title)
+                    obj.put("artist", s.artist)
+                    obj.put("album", s.album)
+                    obj.put("thumbnailUrl", s.thumbnailUrl ?: "")
+                    obj.put("duration", s.duration)
+                    obj.put("source", s.source.name)
+                }
+                is RecentSearchItem.AlbumItem -> {
+                    val a = searchItem.album
+                    obj.put("item_type", "ALBUM")
+                    obj.put("id", a.id)
+                    obj.put("title", a.title)
+                    obj.put("artist", a.artist)
+                    obj.put("thumbnailUrl", a.thumbnailUrl ?: "")
+                    obj.put("description", a.description ?: "")
+                    obj.put("year", a.year ?: "")
+                }
+                is RecentSearchItem.PlaylistItem -> {
+                    val p = searchItem.playlist
+                    obj.put("item_type", "PLAYLIST")
+                    obj.put("id", p.id)
+                    obj.put("title", p.title)
+                    obj.put("author", p.author)
+                    obj.put("thumbnailUrl", p.thumbnailUrl ?: "")
+                    obj.put("description", p.description ?: "")
+                }
+                is RecentSearchItem.QueryItem -> {
+                    obj.put("item_type", "QUERY")
+                    obj.put("query", searchItem.query)
+                }
+            }
+            jsonArray.put(obj)
+        }
+
+        encryptedPrefs.edit().putString("recent_searches", jsonArray.toString()).apply()
+        context.dataStore.edit { it.remove(RECENT_SEARCHES_KEY) }
+    }
+
+    suspend fun clearRecentSearches() {
+        withContext(Dispatchers.IO) {
+            encryptedPrefs.edit().remove("recent_searches").apply()
+        }
+        context.dataStore.edit { preferences ->
+            preferences.remove(RECENT_SEARCHES_KEY)
+        }
+    }
+
+    val recentlyPlayedFlow: Flow<List<RecentlyPlayed>> = context.dataStore.data.map {
+        parseRecentlyPlayed(encryptedPrefs.getString("recently_played", null))
+    }
+
+    suspend fun addToRecentlyPlayed(song: Song) = withContext(Dispatchers.IO) {
+        val existing = parseRecentlyPlayed(encryptedPrefs.getString("recently_played", null)).toMutableList()
+        existing.removeAll { it.song.id == song.id }
+        existing.add(0, RecentlyPlayed(song, System.currentTimeMillis()))
+        val limited = existing.take(MAX_RECENTLY_PLAYED)
+        encryptedPrefs.edit().putString("recently_played", serializeRecentlyPlayed(limited)).apply()
+        context.dataStore.edit { it.remove(RECENTLY_PLAYED_KEY) }
+    }
+
+    suspend fun clearRecentlyPlayed() {
+        withContext(Dispatchers.IO) {
+            encryptedPrefs.edit().remove("recently_played").apply()
+        }
+        context.dataStore.edit { preferences ->
+            preferences.remove(RECENTLY_PLAYED_KEY)
+        }
+    }
+    private fun parseRecentlyPlayed(json: String?): List<RecentlyPlayed> {
+        if (json.isNullOrBlank()) return emptyList()
+        return try {
+            val array = JSONArray(json)
+            (0 until array.length()).mapNotNull { i ->
+                val obj = array.optJSONObject(i) ?: return@mapNotNull null
+                val songObj = obj.optJSONObject("song") ?: return@mapNotNull null
+                val playedAt = obj.optLong("playedAt", System.currentTimeMillis())
+                
+                val song = jsonToSong(songObj) ?: return@mapNotNull null
+                RecentlyPlayed(song, playedAt)
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+    
+    private fun serializeRecentlyPlayed(list: List<RecentlyPlayed>): String {
+        val array = JSONArray()
+        list.forEach { recent ->
+            val songObj = songToJson(recent.song)
+            val obj = JSONObject().apply {
+                put("song", songObj)
+                put("playedAt", recent.playedAt)
+            }
+            array.put(obj)
+        }
+        return array.toString()
+    }
+    
+    suspend fun saveHomeCache(sections: List<HomeSection>) {
+        val json = withContext(Dispatchers.Default) {
+            serializeHomeSections(sections)
+        }
+        withContext(Dispatchers.IO) {
+            encryptedPrefs.edit().putString("home_cache", json).apply()
+        }
+        context.dataStore.edit { it.remove(HOME_CACHE_KEY) }
+    }
+
+    fun getCachedHomeSections(): Flow<List<HomeSection>> = context.dataStore.data
+        .map { encryptedPrefs.getString("home_cache", null) }
+        .flowOn(Dispatchers.IO)
+        .map { json -> 
+            withContext(Dispatchers.Default) {
+                parseHomeSections(json)
+            }
+        }
+
+    suspend fun getCachedHomeSectionsSync(): List<HomeSection> = withContext(Dispatchers.IO) {
+        val json = encryptedPrefs.getString("home_cache", null)
+        withContext(Dispatchers.Default) {
+            parseHomeSections(json)
+        }
+    }
+
+    suspend fun saveRemoteAudioHomeCache(sections: List<HomeSection>) {
+        val json = withContext(Dispatchers.Default) {
+            serializeHomeSections(sections)
+        }
+        withContext(Dispatchers.IO) {
+            encryptedPrefs.edit().putString("remote_home_cache", json).apply()
+        }
+        context.dataStore.edit { it.remove(REMOTE_HOME_CACHE_KEY) }
+    }
+
+    fun getCachedRemoteAudioHomeSections(): Flow<List<HomeSection>> = context.dataStore.data
+        .map { encryptedPrefs.getString("remote_home_cache", null) }
+        .flowOn(Dispatchers.IO)
+        .map { json ->
+            withContext(Dispatchers.Default) {
+                parseHomeSections(json)
+            }
+        }
+
+    suspend fun getCachedRemoteAudioHomeSectionsSync(): List<HomeSection> = withContext(Dispatchers.IO) {
+        val json = encryptedPrefs.getString("remote_home_cache", null)
+        withContext(Dispatchers.Default) {
+            parseHomeSections(json)
+        }
+    }
+
+    suspend fun saveQuickPicksCache(songs: List<Song>) {
+        val json = withContext(Dispatchers.Default) {
+            val array = JSONArray()
+            songs.forEach { song -> array.put(songToJson(song)) }
+            array.toString()
+        }
+        withContext(Dispatchers.IO) {
+            encryptedPrefs.edit().putString("quick_picks_cache", json).apply()
+        }
+        context.dataStore.edit { it.remove(QUICK_PICKS_CACHE_KEY) }
+    }
+
+    fun getCachedQuickPicks(): Flow<List<Song>> = context.dataStore.data
+        .map { encryptedPrefs.getString("quick_picks_cache", null) }
+        .flowOn(Dispatchers.IO)
+        .map { json ->
+            withContext(Dispatchers.Default) {
+                if (json == null) return@withContext emptyList()
+                try {
+                    val array = JSONArray(json)
+                    (0 until array.length()).mapNotNull { i ->
+                        jsonToSong(array.optJSONObject(i) ?: return@mapNotNull null)
+                    }
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            }
+        }
+
+    suspend fun getCachedQuickPicksSync(): List<Song> = withContext(Dispatchers.IO) {
+        val json = encryptedPrefs.getString("quick_picks_cache", null) ?: return@withContext emptyList()
+        withContext(Dispatchers.Default) {
+            try {
+                val array = JSONArray(json)
+                (0 until array.length()).mapNotNull { i ->
+                    jsonToSong(array.optJSONObject(i) ?: return@mapNotNull null)
+                }
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+    }
+
+    suspend fun getLastHomeFetchTime(source: MusicSource): Long {
+        val key = if (source == MusicSource.REMOTE) LAST_FETCH_TIME_REMOTE_KEY else LAST_FETCH_TIME_YOUTUBE_KEY
+        return context.dataStore.data.first()[key] ?: 0L
+    }
+
+    suspend fun updateLastHomeFetchTime(source: MusicSource) {
+        val key = if (source == MusicSource.REMOTE) LAST_FETCH_TIME_REMOTE_KEY else LAST_FETCH_TIME_YOUTUBE_KEY
+        context.dataStore.edit { preferences ->
+            preferences[key] = System.currentTimeMillis()
+        }
+    }
+    
+    suspend fun saveLibraryPlaylistsCache(playlists: List<PlaylistDisplayItem>) {
+        val json = withContext(Dispatchers.Default) {
+             val array = JSONArray()
+             playlists.forEach { playlist ->
+                 array.put(JSONObject().apply {
+                     put("id", playlist.id)
+                     put("name", playlist.name)
+                     put("url", playlist.url)
+                     put("uploaderName", playlist.uploaderName)
+                     put("thumbnailUrl", playlist.thumbnailUrl ?: "")
+                     put("songCount", playlist.songCount)
+                 })
+             }
+             array.toString()
+        }
+        withContext(Dispatchers.IO) {
+            encryptedPrefs.edit().putString("library_playlists_cache", json).apply()
+        }
+        context.dataStore.edit { it.remove(LIBRARY_PLAYLISTS_CACHE_KEY) }
+    }
+
+    suspend fun getCachedLibraryPlaylistsSync(): List<PlaylistDisplayItem> = withContext(Dispatchers.IO) {
+        val json = encryptedPrefs.getString("library_playlists_cache", null) ?: return@withContext emptyList()
+        withContext(Dispatchers.Default) {
+            try {
+                val array = JSONArray(json)
+                (0 until array.length()).mapNotNull { i ->
+                    val obj = array.optJSONObject(i) ?: return@mapNotNull null
+                    PlaylistDisplayItem(
+                        id = obj.optString("id"),
+                        name = obj.optString("name"),
+                        url = obj.optString("url"),
+                        uploaderName = obj.optString("uploaderName"),
+                        thumbnailUrl = obj.optString("thumbnailUrl").takeIf { it.isNotBlank() },
+                        songCount = obj.optInt("songCount", 0)
+                    )
+                }
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+    }
+
+    suspend fun saveLibraryLikedSongsCache(songs: List<Song>) {
+        val json = withContext(Dispatchers.Default) {
+            val array = JSONArray()
+            songs.forEach { song -> array.put(songToJson(song)) }
+            array.toString()
+        }
+        withContext(Dispatchers.IO) {
+            encryptedPrefs.edit().putString("library_liked_songs_cache", json).apply()
+        }
+        context.dataStore.edit { it.remove(LIBRARY_LIKED_SONGS_CACHE_KEY) }
+    }
+    
+    suspend fun getCachedLibraryLikedSongsSync(): List<Song> = withContext(Dispatchers.IO) {
+        val json = encryptedPrefs.getString("library_liked_songs_cache", null) ?: return@withContext emptyList()
+        withContext(Dispatchers.Default) {
+            try {
+                val array = JSONArray(json)
+                (0 until array.length()).mapNotNull { i ->
+                    jsonToSong(array.optJSONObject(i) ?: return@mapNotNull null)
+                }
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+    }
+    
+    private fun parseHomeSections(json: String?): List<HomeSection> {
+        if (json.isNullOrBlank()) return emptyList()
+        return try {
+            val array = JSONArray(json)
+            (0 until array.length()).mapNotNull { i ->
+                val obj = array.optJSONObject(i) ?: return@mapNotNull null
+                val title = obj.optString("title")
+                val typeStr = obj.optString("type")
+                val type = try {
+                    if (typeStr.isNotEmpty()) HomeSectionType.valueOf(typeStr)
+                    else HomeSectionType.HorizontalCarousel
+                } catch (e: Exception) {
+                    HomeSectionType.HorizontalCarousel
+                }
+                
+                val itemsArray = obj.optJSONArray("items") ?: JSONArray()
+                val items = (0 until itemsArray.length()).mapNotNull { j ->
+                    parseHomeItem(itemsArray.optJSONObject(j))
+                }
+                
+                HomeSection(title, items, type)
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+    
+    private fun serializeHomeSections(sections: List<HomeSection>): String {
+        val array = JSONArray()
+        sections.forEach { section ->
+            val obj = JSONObject().apply {
+                put("title", section.title)
+                put("type", section.type.name)
+                val itemsArray = JSONArray()
+                section.items.forEach { item ->
+                    itemsArray.put(serializeHomeItem(item))
+                }
+                put("items", itemsArray)
+            }
+            array.put(obj)
+        }
+        return array.toString()
+    }
+    
+    private fun parseHomeItem(obj: JSONObject?): HomeItem? {
+        if (obj == null) return null
+        val type = obj.optString("type")
+        val data = obj.optJSONObject("data") ?: return null
+        
+        return when (type) {
+            "song" -> {
+                val song = jsonToSong(data) ?: return null
+                HomeItem.SongItem(song)
+            }
+            "playlist" -> {
+                val playlist = PlaylistDisplayItem(
+                    id = data.optString("id"),
+                    name = data.optString("name"),
+                    url = data.optString("url"),
+                    uploaderName = data.optString("uploaderName"),
+                    thumbnailUrl = data.optString("thumbnailUrl").takeIf { it.isNotBlank() },
+                    songCount = data.optInt("songCount", 0)
+                )
+                HomeItem.PlaylistItem(playlist)
+            }
+            "album" -> {
+                val album = Album(
+                    id = data.optString("id"),
+                    title = data.optString("title"),
+                    artist = data.optString("artist"),
+                    year = data.optString("year").takeIf { it.isNotBlank() },
+                    thumbnailUrl = data.optString("thumbnailUrl").takeIf { it.isNotBlank() },
+                    description = data.optString("description").takeIf { it.isNotBlank() }
+                )
+                HomeItem.AlbumItem(album)
+            }
+            "artist" -> {
+                val artist = Artist(
+                    id = data.optString("id"),
+                    name = data.optString("name"),
+                    thumbnailUrl = data.optString("thumbnailUrl").takeIf { it.isNotBlank() },
+                    description = data.optString("description").takeIf { it.isNotBlank() },
+                    subscribers = data.optString("subscribers").takeIf { it.isNotBlank() }
+                )
+                HomeItem.ArtistItem(artist)
+            }
+            "explore" -> {
+                val browseId = data.optString("browseId", "")
+                HomeItem.ExploreItem(
+                    title = data.optString("title"),
+                    // Never trust persisted iconRes — R.drawable IDs are reassigned by R8
+                    // across builds, so a cached value from a prior install will point at
+                    // a missing resource and crash painterResource. Derive from browseId.
+                    iconRes = exploreIconForBrowseId(browseId),
+                    browseId = browseId
+                )
+            }
+            else -> null
+        }
+    }
+    
+    private fun serializeHomeItem(item: HomeItem): JSONObject {
+        val obj = JSONObject()
+        when (item) {
+            is HomeItem.SongItem -> {
+                obj.put("type", "song")
+                obj.put("data", songToJson(item.song))
+            }
+            is HomeItem.PlaylistItem -> {
+                obj.put("type", "playlist")
+                val data = JSONObject().apply {
+                    put("id", item.playlist.id)
+                    put("name", item.playlist.name)
+                    put("url", item.playlist.url)
+                    put("uploaderName", item.playlist.uploaderName)
+                    put("thumbnailUrl", item.playlist.thumbnailUrl ?: "")
+                    put("songCount", item.playlist.songCount)
+                }
+                obj.put("data", data)
+            }
+            is HomeItem.AlbumItem -> {
+                obj.put("type", "album")
+                val data = JSONObject().apply {
+                    put("id", item.album.id)
+                    put("title", item.album.title)
+                    put("artist", item.album.artist)
+                    put("year", item.album.year ?: "")
+                    put("thumbnailUrl", item.album.thumbnailUrl ?: "")
+                    put("description", item.album.description ?: "")
+                }
+                obj.put("data", data)
+            }
+            is HomeItem.ArtistItem -> {
+                obj.put("type", "artist")
+                val data = JSONObject().apply {
+                    put("id", item.artist.id)
+                    put("name", item.artist.name)
+                    put("thumbnailUrl", item.artist.thumbnailUrl ?: "")
+                    put("description", item.artist.description ?: "")
+                    put("subscribers", item.artist.subscribers ?: "")
+                }
+                obj.put("data", data)
+            }
+            is HomeItem.ExploreItem -> {
+                obj.put("type", "explore")
+                val data = JSONObject().apply {
+                    put("title", item.title)
+                    // iconRes deliberately omitted — re-derived from browseId on read.
+                    put("browseId", item.browseId)
+                }
+                obj.put("data", data)
+            }
+        }
+        return obj
+    }
+
+    // Single source of truth for explore-tile icons. Keep in sync with
+    // YouTubeRepository.getExploreSection(). Persisted JSON only carries
+    // browseId; iconRes is resolved here on read so a build with reassigned
+    // R.drawable IDs doesn't crash painterResource on stale cached data.
+    private fun exploreIconForBrowseId(browseId: String): Int = when (browseId) {
+        "FEmusic_new_releases" -> R.drawable.ic_music_note
+        "FEmusic_charts" -> R.drawable.ic_waveform
+        "FEmusic_moods_and_genres" -> R.drawable.ic_play
+        "FEmusic_podcasts" -> R.drawable.ic_launcher_monochrome
+        else -> R.drawable.ic_music_note
+    }
+
+    private fun jsonToSong(songObj: JSONObject): Song? {
+        return try {
+            Song(
+                id = songObj.optString("id"),
+                title = songObj.optString("title"),
+                artist = songObj.optString("artist"),
+                album = songObj.optString("album"),
+                thumbnailUrl = songObj.optString("thumbnailUrl").takeIf { it.isNotBlank() },
+                duration = songObj.optLong("duration"),
+                source = try { 
+                    SongSource.valueOf(songObj.optString("source", "YOUTUBE")) 
+                } catch (e: Exception) { 
+                    SongSource.YOUTUBE 
+                },
+                localUri = songObj.optString("localUri").takeIf { it.isNotBlank() }
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun songToJson(song: Song): JSONObject {
+        return JSONObject().apply {
+            put("id", song.id)
+            put("title", song.title)
+            put("artist", song.artist)
+            put("album", song.album)
+            put("thumbnailUrl", song.thumbnailUrl ?: "")
+            put("duration", song.duration)
+            put("source", song.source.name)
+            put("localUri", song.localUri ?: "")
+        }
+    }
+
+    private val matchedRemoteSongIds = java.util.Collections.synchronizedMap(
+        object : java.util.LinkedHashMap<String, String>(16, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>): Boolean = size > 200
+        }
+    )
+
+    fun putMatchedRemoteSongId(ytSongId: String, remoteSongId: String) {
+        matchedRemoteSongIds[ytSongId] = remoteSongId
+    }
+
+    fun getMatchedRemoteSongId(ytSongId: String): String? {
+        return matchedRemoteSongIds[ytSongId]
+    }
+
+    // --- Listen Together: what a song actually resolved to at play time ---
+    // When this device hosts a Listen Together room, guests must resolve the same
+    // track from the same backend (and quality) as the host instead of guessing
+    // from the id format — otherwise an HQ (RemoteAudio) host silently degrades to
+    // YouTube on guests. MusicPlayer records the real outcome here after each
+    // resolve; ListenTogetherManager reads it when broadcasting the track.
+    private val resolvedPlaybackInfo = java.util.Collections.synchronizedMap(
+        object : java.util.LinkedHashMap<String, ResolvedPlaybackInfo>(16, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ResolvedPlaybackInfo>): Boolean = size > 200
+        }
+    )
+
+    fun putResolvedPlaybackInfo(songId: String, source: String, sourceTrackId: String, quality: String) {
+        resolvedPlaybackInfo[songId] = ResolvedPlaybackInfo(source, sourceTrackId, quality)
+    }
+
+    fun getResolvedPlaybackInfo(songId: String): ResolvedPlaybackInfo? = resolvedPlaybackInfo[songId]
+
+}
+
+/**
+ * The backend + quality a song actually resolved to at play time, used to keep
+ * Listen Together guests on the same audio source as the host.
+ */
+data class ResolvedPlaybackInfo(
+    val source: String,        // "remote_audio" (HQ) or "youtube"
+    val sourceTrackId: String, // backend-specific id guests should resolve with
+    val quality: String        // "auto" / "low" / "medium" / "high"
+)
+
+/**
+ * Data class for last playback state.
+ */
+data class LastPlaybackState(
+    val songId: String,
+    val position: Long,
+    val queueJson: String,
+    val index: Int
+)
+
+// MusicSource enum moved to :core:model — see com.sonza.app.core.model.MusicSource

@@ -1,0 +1,393 @@
+package com.sonza.app.service
+
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.os.IBinder
+import android.util.Log
+import androidx.core.app.NotificationCompat
+import com.sonza.app.MainActivity
+import com.sonza.app.R
+import com.sonza.app.core.model.Song
+import com.sonza.app.data.repository.DownloadRepository
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+/**
+ * Foreground service for downloading songs with real-time progress notifications.
+ * Supports background downloads even when app is closed.
+ */
+@AndroidEntryPoint
+class DownloadService : Service() {
+
+    companion object {
+        private const val TAG = "DownloadService"
+        // Dedicated logcat tag shared with DownloadRepository for an
+        // end-to-end trace of any one download: enqueue -> stream URL ->
+        // open -> copy -> tag -> save -> persist (or any failure stage).
+        // adb logcat -s DownloadTrace:V DownloadService:V
+        private const val DL_TAG = "DownloadTrace"
+        private const val CHANNEL_ID = "download_channel"
+        private const val NOTIFICATION_ID = 2001
+        private const val COMPLETE_NOTIFICATION_ID = 2002
+        
+        private const val ACTION_START_DOWNLOAD = "com.sonza.app.START_DOWNLOAD"
+        private const val ACTION_PROCESS_QUEUE = "com.sonza.app.PROCESS_QUEUE"
+        private const val ACTION_CANCEL_DOWNLOAD = "com.sonza.app.CANCEL_DOWNLOAD"
+        private const val EXTRA_SONG_JSON = "song_json"
+        
+        fun startDownload(context: Context, song: Song) {
+            // For single download, we just add to queue and start batch processing
+            // preventing parallel logic issues.
+            // However, we need to access repository which we can't from static context easily
+            // except via the Service instance or if caller uses repository.
+            
+            // To be safe and minimal change for existing calls not using repository directly (if any):
+            val intent = Intent(context, DownloadService::class.java).apply {
+                action = ACTION_START_DOWNLOAD
+                putExtra(EXTRA_SONG_JSON, songToJson(song))
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }
+        
+        fun startBatchDownload(context: Context) {
+            val intent = Intent(context, DownloadService::class.java).apply {
+                action = ACTION_PROCESS_QUEUE
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }
+        
+        fun cancelDownload(context: Context, songId: String) {
+            val intent = Intent(context, DownloadService::class.java).apply {
+                action = ACTION_CANCEL_DOWNLOAD
+                putExtra("song_id", songId)
+            }
+            // Android 8+: bare startService() throws IllegalStateException
+            // when the app is in the background and the service isn't
+            // already running. Cancel often arrives at exactly that moment
+            // (user closes app, then dismisses a queued download from a
+            // resumed activity). startForegroundService keeps us legal —
+            // onStartCommand promotes us immediately.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }
+        
+        private fun songToJson(song: Song): String {
+            return com.google.gson.Gson().toJson(song)
+        }
+        
+        private fun jsonToSong(json: String): Song? {
+            return try {
+                com.google.gson.Gson().fromJson(json, Song::class.java)
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+    
+    @Inject
+    lateinit var downloadRepository: DownloadRepository
+    
+    // var (not val) so we can re-create after a cancellation if a new
+    // startService intent arrives between stopSelf() and onDestroy(). On a
+    // fresh service instance Android always allocates a new scope here, but
+    // re-entering an in-flight teardown otherwise produced silent no-op
+    // launches and downloads stuck in queue forever.
+    private var serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var batchJob: Job? = null
+
+    private fun ensureScopeAlive() {
+        if (!serviceScope.isActive) {
+            serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        }
+    }
+    
+    // Track active downloads: ID -> Title
+    private val activeDownloads = java.util.concurrent.ConcurrentHashMap<String, String>()
+    
+    // The song currently being displayed in the notification
+    private var primaryNotificationSongId: String? = null
+    
+    private val notificationManager by lazy {
+        getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    }
+    
+    override fun onCreate() {
+        super.onCreate()
+        createNotificationChannel()
+        observeDownloadProgress()
+        // Reset batch counters every time the service spins up. If a prior
+        // run crashed mid-batch (currentDone=2, currentTotal=5), the
+        // persisted-in-memory pair would stick around and the next batch
+        // would extend it to (2, 5+N) — notifications start at "(2/N)".
+        // A fresh service instance starts with a clean slate.
+        downloadRepository.updateBatchProgress(0, 0)
+    }
+    
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Fix for Android 12+ ForegroundServiceDidNotStartInTimeException
+        // We must call startForeground immediately
+        startForeground(NOTIFICATION_ID, createProgressNotification("Starting service...", 0, 0, 0))
+        ensureScopeAlive()
+
+        when (intent?.action) {
+            ACTION_START_DOWNLOAD -> {
+                val songJson = intent.getStringExtra(EXTRA_SONG_JSON)
+                val song = songJson?.let { jsonToSong(it) }
+                if (song != null) {
+                    // Treat single download as adding to queue
+                    downloadRepository.downloadSongToQueue(song)
+                    processQueue()
+                } else {
+                }
+            }
+            ACTION_PROCESS_QUEUE -> {
+                processQueue()
+            }
+            ACTION_CANCEL_DOWNLOAD -> {
+                val songId = intent.getStringExtra("song_id")
+                if (songId != null) {
+                    cancelDownload(songId)
+                }
+            }
+        }
+        return START_NOT_STICKY
+    }
+    
+    override fun onBind(intent: Intent?): IBinder? = null
+    
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "Downloads",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Song download progress"
+                setShowBadge(false)
+                enableVibration(false)
+                setSound(null, null)
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun processQueue() {
+        if (batchJob?.isActive == true) {
+            return
+        }
+
+        batchJob = serviceScope.launch {
+            android.util.Log.i(
+                DL_TAG,
+                "[SVC] batch start queueSize=${downloadRepository.queueState.value.size}",
+            )
+
+            while (true) {
+                val song = downloadRepository.popFromQueue()
+                if (song == null) {
+                    // Race fix: a startBatchDownload() that arrived between
+                    // our last popFromQueue() and now would have called
+                    // processQueue() and bailed early because batchJob was
+                    // still active (we're inside it). Re-check the queue
+                    // before we tear down — if a new item slipped in, keep
+                    // looping; otherwise stop for real.
+                    if (downloadRepository.queueState.value.isNotEmpty()) {
+                        continue
+                    }
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                    break
+                }
+
+                // Atomic increment so a concurrent caller-thread call to
+                // downloadSongs() resizing the batch can't produce
+                // "(5/3)" or "(7/3)" notification counters.
+                downloadRepository.incrementBatchDone()
+                val (newDone, total) = downloadRepository.batchProgress.value
+
+                activeDownloads[song.id] = song.title
+                primaryNotificationSongId = song.id
+                updateForegroundNotification(song.title, 0, newDone, total)
+
+                try {
+                    android.util.Log.i(
+                        DL_TAG,
+                        "[SVC] start id=${song.id} ($newDone/$total) title=${song.title}",
+                    )
+                    // Tri-state result: SKIPPED for already-downloaded/
+                    // in-flight songs gets no completion toast (the old
+                    // Boolean returned `true` for skipped, so the user saw
+                    // "Download complete" for songs they'd already saved).
+                    when (downloadRepository.downloadSong(song)) {
+                        com.sonza.app.core.model.DownloadResult.SUCCESS ->
+                            showCompleteNotification(song, true)
+                        com.sonza.app.core.model.DownloadResult.FAILED ->
+                            showCompleteNotification(song, false, downloadRepository.failureReason(song.id))
+                        com.sonza.app.core.model.DownloadResult.SKIPPED -> {
+                            /* no notification — silent skip */
+                        }
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    // The user cancelled THIS song (cancelDownload routes
+                    // through the per-song job). We must not propagate the
+                    // exception — that would tear down the batchJob and
+                    // strand the rest of the queue. Re-check whether the
+                    // parent scope is still active; if it's also being
+                    // cancelled (e.g. service shutdown), the next
+                    // suspending call below will throw and exit the loop
+                    // for us. Otherwise carry on with the next song.
+                    if (!isActive) throw e
+                } catch (e: Exception) {
+                    Log.e(TAG, "Download error", e)
+                    showCompleteNotification(song, false, e.message)
+                } finally {
+                    activeDownloads.remove(song.id)
+                    if (primaryNotificationSongId == song.id) {
+                        primaryNotificationSongId = null
+                    }
+                }
+            }
+        }
+    }
+    
+    private fun observeDownloadProgress() {
+        serviceScope.launch {
+            downloadRepository.downloadProgress.collectLatest { progressMap ->
+                val primaryId = primaryNotificationSongId ?: return@collectLatest
+                val title = activeDownloads[primaryId] ?: return@collectLatest
+                val progress = progressMap[primaryId] ?: 0f
+                
+                val (done, total) = downloadRepository.batchProgress.value
+                // done is the one we are working on (1-based index roughly for UI if we treat done as 'current index')
+                // Actually done includes the one we just finished? 
+                // In loop: we grabbed popFromQueue, then incremented done. So done is "current song number".
+                
+                val progressPercent = (progress * 100).toInt()
+                updateForegroundNotification(title, progressPercent, done, total)
+            }
+        }
+    }
+    
+    private fun cancelDownload(songId: String) {
+        // Fix: Broken Download Cancellation -> Delegate to Repository
+        downloadRepository.cancelDownload(songId)
+    }
+    
+    private fun createProgressNotification(songTitle: String, progress: Int, current: Int, total: Int): Notification {
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        
+        val contentText = if (total > 1) {
+            "($current/$total) $songTitle"
+        } else {
+            songTitle
+        }
+        
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("Downloading")
+            .setContentText(contentText)
+            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setProgress(100, progress, progress == 0)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
+    }
+    
+    private fun updateForegroundNotification(title: String, progress: Int, current: Int, total: Int) {
+        try {
+            val notification = createProgressNotification(title, progress, current, total)
+            startForeground(NOTIFICATION_ID, notification)
+        } catch (e: Exception) {
+            // Service restart/foreground issues
+        }
+    }
+    
+    private fun showCompleteNotification(song: Song, success: Boolean, reason: String? = null) {
+        val requestCode = song.id.hashCode()
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            requestCode,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle(if (success) "Download complete" else "Download failed")
+            .setContentText(
+                if (success || reason.isNullOrBlank()) song.title else "${song.title} — $reason"
+            )
+            .setStyle(
+                NotificationCompat.BigTextStyle().bigText(
+                    if (success || reason.isNullOrBlank()) song.title else "${song.title}\n$reason"
+                )
+            )
+            .setSmallIcon(
+                if (success) android.R.drawable.stat_sys_download_done
+                else android.R.drawable.stat_notify_error
+            )
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+
+        if (!success) {
+            // Retry straight from the shade — otherwise a failed download means
+            // reopening the app and hunting for the song again.
+            val retryIntent = Intent(this, DownloadService::class.java).apply {
+                action = ACTION_START_DOWNLOAD
+                putExtra(EXTRA_SONG_JSON, songToJson(song))
+            }
+            builder.addAction(
+                android.R.drawable.stat_notify_sync,
+                "Retry",
+                PendingIntent.getForegroundService(
+                    this,
+                    requestCode,
+                    retryIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+            )
+        }
+
+        // A per-song id so a batch's results don't overwrite one another — the old
+        // shared id meant only the last song's outcome was ever visible.
+        notificationManager.notify(COMPLETE_NOTIFICATION_ID + (requestCode and 0xFFFF), builder.build())
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        batchJob?.cancel()
+        serviceScope.cancel()
+    }
+}

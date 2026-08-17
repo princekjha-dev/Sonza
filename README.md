@@ -104,6 +104,23 @@ python3 server/verify_algorithms.py
 
 ---
 
+## 👨‍💻 Developer
+
+* **Lead Developer**: **Prince Kumar Jha**
+* **GitHub**: [princekjha-dev](https://github.com/princekjha-dev)
+* **Repository**: [princekjha-dev/Sonza](https://github.com/princekjha-dev/Sonza)
+
+---
+
+## 🎖️ Acknowledgments
+
+* **NewPipe Extractor**: Lightweight media extraction engine.
+* **SimpMusic & InnerTune**: Open-source inspiration for modern music streaming UX.
+* **kaif-00z**: Concepts in custom audio packaging.
+
+---
+
 ## 📄 License
 
-Apache License 2.0.
+GPL-3.0 License.
+

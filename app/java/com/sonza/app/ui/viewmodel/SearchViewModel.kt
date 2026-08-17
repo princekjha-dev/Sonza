@@ -1,0 +1,566 @@
+package com.sonza.app.ui.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.sonza.app.data.SessionManager
+import com.sonza.app.data.error.toUserFriendlyMessage
+import com.sonza.app.core.model.Album
+import com.sonza.app.core.model.Artist
+import com.sonza.app.core.model.BrowseCategory
+import com.sonza.app.core.model.Playlist
+import com.sonza.app.core.model.RecentSearchItem
+import com.sonza.app.core.model.Song
+import com.sonza.app.data.repository.RemoteAudioRepository
+import com.sonza.app.data.repository.YouTubeRepository
+import com.sonza.app.core.model.MusicSource
+import com.sonza.app.player.MusicPlayer
+import com.sonza.app.data.repository.DownloadRepository
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import javax.inject.Inject
+
+sealed class SearchEvent {
+    data class ShowAddToPlaylistSheet(val song: Song) : SearchEvent()
+}
+
+enum class SearchTab {
+    YOUTUBE_MUSIC,
+    REMOTE
+}
+
+enum class ResultFilter {
+    ALL,
+    SONGS,
+    VIDEOS,
+    ALBUMS,
+    ARTISTS,
+    COMMUNITY_PLAYLISTS,
+    FEATURED_PLAYLISTS
+}
+
+data class SearchUiState(
+    val query: String = "",
+    val filter: String = YouTubeRepository.FILTER_SONGS,
+    val results: List<Song> = emptyList(),
+    val artistResults: List<Artist> = emptyList(),
+    val albumResults: List<Album> = emptyList(),
+    val playlistResults: List<Playlist> = emptyList(),
+    val suggestions: List<String> = emptyList(),
+    val browseCategories: List<BrowseCategory> = emptyList(),
+    val selectedCategory: BrowseCategory? = null,
+    val recentSearches: List<RecentSearchItem> = emptyList(),
+    val selectedTab: SearchTab = SearchTab.YOUTUBE_MUSIC,
+    val showSuggestions: Boolean = false,
+    val isLoading: Boolean = false,
+    val isCategoriesLoading: Boolean = true,
+    val isSuggestionsLoading: Boolean = false,
+    val isSearchActive: Boolean = false,
+    val error: String? = null,
+    val currentSource: MusicSource = MusicSource.YOUTUBE,
+    val resultFilter: ResultFilter = ResultFilter.ALL,
+    val trendingSearches: List<String> = listOf(
+        "Arijit Singh",
+        "Trending ${java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)}",
+        "Lo-fi beats", 
+        "Workout music",
+        "Party songs",
+        "Bollywood hits",
+        "English songs"
+    )
+)
+
+@OptIn(FlowPreview::class)
+class SearchViewModel @Inject constructor(
+    private val youTubeRepository: YouTubeRepository,
+    private val remoteAudioRepository: RemoteAudioRepository,
+    private val sessionManager: SessionManager,
+    private val musicPlayer: MusicPlayer,
+    private val downloadRepository: DownloadRepository
+) : ViewModel() {
+    
+    private val _uiState = MutableStateFlow(SearchUiState())
+    val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
+
+    private val _events = MutableSharedFlow<SearchEvent>()
+    val events: SharedFlow<SearchEvent> = _events.asSharedFlow()
+    
+    // Developer mode - shows RemoteAudio tab when enabled
+    val isDeveloperMode = sessionManager.developerModeFlow
+    
+    private val _searchQuery = MutableStateFlow("")
+    private var suggestionJob: Job? = null
+    private var searchJob: Job? = null
+    
+    init {
+        // Load browse categories on init
+        loadBrowseCategories()
+        
+        // Load recent searches
+        viewModelScope.launch {
+            loadRecentSearches()
+        }
+        
+        // Observe music source
+        observeMusicSource()
+        
+        // Suggestions: quick + cheap, so keep them responsive.
+        viewModelScope.launch {
+            _searchQuery
+                .debounce(250)
+                .distinctUntilChanged()
+                .filter { it.isNotBlank() }
+                .collect { query -> fetchSuggestions(query) }
+        }
+        // Full auto-search: heavier (parallel network calls + full result-list
+        // replacement that recomposes the grid). Debounce it longer and gate on a
+        // minimum length so we don't fire a complete search on every keystroke.
+        viewModelScope.launch {
+            _searchQuery
+                .debounce(650)
+                .distinctUntilChanged()
+                .filter { it.trim().length >= 2 }
+                .collect { query -> searchInternal(query) }
+        }
+    }
+    
+    private fun observeMusicSource() {
+        viewModelScope.launch {
+            sessionManager.musicSourceFlow.collect { source ->
+                val defaultTab = when (source) {
+                    MusicSource.REMOTE -> SearchTab.REMOTE
+                    else -> SearchTab.YOUTUBE_MUSIC
+                }
+                _uiState.update {
+                    it.copy(
+                        currentSource = source,
+                        selectedTab = defaultTab
+                    )
+                }
+                loadBrowseCategories()
+            }
+        }
+    }
+    
+    private suspend fun loadRecentSearches() {
+        val recentSearches = sessionManager.getRecentSearches()
+        _uiState.update { it.copy(recentSearches = recentSearches) }
+    }
+    
+    private fun loadBrowseCategories() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCategoriesLoading = true) }
+            try {
+                // Always load YouTube moods/genres — browsing ignores source.
+                val categories = youTubeRepository.getMoodsAndGenres()
+                _uiState.update {
+                    it.copy(
+                        browseCategories = categories,
+                        isCategoriesLoading = false
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isCategoriesLoading = false) }
+            }
+        }
+    }
+
+    /**
+     * Curated set of browse categories surfaced when RemoteAudio is the active
+     * source. Each entry maps to a RemoteAudio search query at click time via the
+     * "remote:" prefix on [BrowseCategory.browseId].
+     */
+    private fun remoteAudioBrowseCategories(): List<BrowseCategory> = listOf(
+        "Bollywood", "Punjabi", "Hindi Pop", "Romantic", "Party",
+        "Workout", "Lo-fi", "Devotional", "Classical", "Rock",
+        "Hip Hop", "Indie", "Tamil", "Telugu", "English Pop"
+    ).map { title ->
+        BrowseCategory(
+            title = title,
+            browseId = "remote:$title",
+            params = null
+        )
+    }
+
+    fun onCategoryClick(category: BrowseCategory) {
+        _uiState.update {
+            it.copy(
+                selectedCategory = category,
+                query = category.title,
+                showSuggestions = false,
+                isSearchActive = true
+            )
+        }
+
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            try {
+                if (category.browseId.startsWith("remote:")) {
+                    val results = remoteAudioRepository.search(category.title)
+                    _uiState.update {
+                        it.copy(
+                            results = results,
+                            artistResults = emptyList(),
+                            albumResults = emptyList(),
+                            playlistResults = emptyList(),
+                            isLoading = false
+                        )
+                    }
+                } else {
+                    val results = youTubeRepository.getCategoryContent(
+                        browseId = category.browseId,
+                        params = category.params
+                    )
+                    _uiState.update {
+                        it.copy(
+                            results = results,
+                            isLoading = false
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        error = e.toUserFriendlyMessage(),
+                        isLoading = false
+                    )
+                }
+            }
+        }
+    }
+    
+    fun clearCategorySelection() {
+        _uiState.update { 
+            it.copy(
+                selectedCategory = null,
+                query = "",
+                results = emptyList(),
+                suggestions = emptyList(),
+                showSuggestions = false,
+                isSearchActive = false
+            )
+        }
+        _searchQuery.value = ""
+    }
+    
+    fun onQueryChange(query: String) {
+        _uiState.update { 
+            it.copy(
+                query = query,
+                showSuggestions = query.isNotBlank(),
+                selectedCategory = null,
+                isSearchActive = query.isNotBlank()
+            )
+        }
+        _searchQuery.value = query
+        
+        // Clear suggestions and results if query is empty
+        if (query.isBlank()) {
+            _uiState.update { 
+                it.copy(
+                    suggestions = emptyList(),
+                    showSuggestions = false,
+                    results = emptyList(),
+                    isSearchActive = false
+                )
+            }
+        }
+    }
+    
+    fun onSearchFocusChange(focused: Boolean) {
+        if (focused && _uiState.value.query.isBlank()) {
+            _uiState.update { it.copy(isSearchActive = true) }
+        }
+    }
+    
+    fun onBackPressed() {
+        clearCategorySelection()
+    }
+    
+    private fun fetchSuggestions(query: String) {
+        suggestionJob?.cancel()
+        suggestionJob = viewModelScope.launch {
+            _uiState.update { it.copy(isSuggestionsLoading = true) }
+            try {
+                // Suggestions always come from YouTube — browsing ignores source.
+                val suggestions = youTubeRepository.getSearchSuggestions(query)
+                _uiState.update {
+                    it.copy(
+                        suggestions = suggestions,
+                        isSuggestionsLoading = false
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isSuggestionsLoading = false) }
+            }
+        }
+    }
+    
+    fun onSuggestionClick(suggestion: String) {
+        _uiState.update { 
+            it.copy(
+                query = suggestion,
+                showSuggestions = false
+            )
+        }
+        search()
+    }
+    
+    fun hideSuggestions() {
+        _uiState.update { it.copy(showSuggestions = false) }
+    }
+    
+    fun setFilter(filter: String) {
+        _uiState.update { it.copy(filter = filter) }
+        if (_uiState.value.query.isNotBlank()) {
+            search()
+        }
+    }
+    
+    fun onTabChange(tab: SearchTab) {
+        _uiState.update { it.copy(selectedTab = tab) }
+        if (_uiState.value.query.isNotBlank()) {
+            search()
+        }
+    }
+    
+    fun setResultFilter(filter: ResultFilter) {
+        if (_uiState.value.resultFilter == filter) return
+        _uiState.update { it.copy(resultFilter = filter, error = null) }
+        if (_uiState.value.query.isNotBlank()) {
+            search(saveToHistory = false)
+        }
+    }
+    
+    fun onTrendingSearchClick(query: String) {
+        _uiState.update { 
+            it.copy(
+                query = query,
+                showSuggestions = false,
+                isSearchActive = true
+            )
+        }
+        search()
+    }
+    
+    fun search(saveToHistory: Boolean = true) {
+        val query = _uiState.value.query
+        if (query.isBlank()) return
+        
+        // Hide suggestions when searching
+        _uiState.update { it.copy(showSuggestions = false) }
+        
+        // Add to recent searches when a search is explicitly performed
+        if (saveToHistory) {
+            val trimmedQuery = query.trim()
+            viewModelScope.launch {
+                sessionManager.addRecentSearch(RecentSearchItem.QueryItem(trimmedQuery))
+                loadRecentSearches()
+            }
+        }
+        
+        searchInternal(query)
+    }
+    
+    private fun searchInternal(query: String) {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+
+            try {
+                val currentTab = _uiState.value.selectedTab
+                
+                when (currentTab) {
+                    SearchTab.YOUTUBE_MUSIC -> {
+                        coroutineScope {
+                            val filter = _uiState.value.resultFilter
+                            
+                            when (filter) {
+                                ResultFilter.ALL -> {
+                                    val songsDeferred = async { youTubeRepository.search(query, YouTubeRepository.FILTER_SONGS) }
+                                    val videosDeferred = async { youTubeRepository.search(query, YouTubeRepository.FILTER_VIDEOS) }
+                                    val artistsDeferred = async { youTubeRepository.searchArtists(query) }
+                                    val playlistsDeferred = async { youTubeRepository.searchPlaylists(query) }
+                                    val albumsDeferred = async { youTubeRepository.searchAlbums(query) }
+                                    
+                                    val songs = songsDeferred.await()
+                                    val videos = videosDeferred.await()
+                                    val artists = artistsDeferred.await()
+                                    val playlists = playlistsDeferred.await()
+                                    val albums = albumsDeferred.await()
+                                    
+                                    val combinedResults = (songs + videos).distinctBy { it.id }
+                                    
+                                    _uiState.update { 
+                                        it.copy(
+                                            results = combinedResults,
+                                            artistResults = artists,
+                                            playlistResults = playlists,
+                                            albumResults = albums,
+                                            isLoading = false
+                                        )
+                                    }
+                                }
+                                ResultFilter.SONGS -> {
+                                    val results = youTubeRepository.search(query, YouTubeRepository.FILTER_SONGS)
+                                    _uiState.update { it.copy(results = results, isLoading = false) }
+                                }
+                                ResultFilter.VIDEOS -> {
+                                    val results = youTubeRepository.search(query, YouTubeRepository.FILTER_VIDEOS)
+                                    _uiState.update { it.copy(results = results, isLoading = false) }
+                                }
+                                ResultFilter.ALBUMS -> {
+                                    val results = youTubeRepository.searchAlbums(query)
+                                    _uiState.update { it.copy(albumResults = results, isLoading = false) }
+                                }
+                                ResultFilter.ARTISTS -> {
+                                    val results = youTubeRepository.searchArtists(query)
+                                    _uiState.update { it.copy(artistResults = results, isLoading = false) }
+                                }
+                                ResultFilter.COMMUNITY_PLAYLISTS -> {
+                                    val results = youTubeRepository.searchPlaylists(query)
+                                    val filtered = results.filter { 
+                                        !it.author.equals("YouTube Music", ignoreCase = true) && 
+                                        !it.author.equals("YouTube", ignoreCase = true) 
+                                    }
+                                    _uiState.update { it.copy(playlistResults = filtered, isLoading = false) }
+                                }
+                                ResultFilter.FEATURED_PLAYLISTS -> {
+                                    val results = youTubeRepository.searchPlaylists(query)
+                                    val filtered = results.filter { 
+                                        it.author.equals("YouTube Music", ignoreCase = true) || 
+                                        it.author.equals("YouTube", ignoreCase = true) 
+                                    }
+                                    _uiState.update { it.copy(playlistResults = filtered, isLoading = false) }
+                                }
+                            }
+                        }
+                    }
+                    SearchTab.REMOTE -> {
+                        coroutineScope {
+                            val filter = _uiState.value.resultFilter
+                            
+                            when (filter) {
+                                ResultFilter.ALL -> {
+                                    val results = remoteAudioRepository.searchAll(query)
+                                    _uiState.update { 
+                                        it.copy(
+                                            results = results.songs,
+                                            artistResults = results.artists,
+                                            albumResults = results.albums,
+                                            playlistResults = results.playlists,
+                                            isLoading = false
+                                        )
+                                    }
+                                }
+                                ResultFilter.SONGS, ResultFilter.VIDEOS -> {
+                                    val results = remoteAudioRepository.search(query)
+                                    _uiState.update { it.copy(results = results, isLoading = false) }
+                                }
+                                ResultFilter.ALBUMS -> {
+                                    val results = remoteAudioRepository.searchAlbums(query)
+                                    _uiState.update { it.copy(albumResults = results, isLoading = false) }
+                                }
+                                ResultFilter.ARTISTS -> {
+                                    val results = remoteAudioRepository.searchArtists(query)
+                                    _uiState.update { it.copy(artistResults = results, isLoading = false) }
+                                }
+                                ResultFilter.COMMUNITY_PLAYLISTS, ResultFilter.FEATURED_PLAYLISTS -> {
+                                    val results = remoteAudioRepository.searchPlaylists(query)
+                                    _uiState.update { it.copy(playlistResults = results, isLoading = false) }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update { 
+                    it.copy(
+                        error = e.toUserFriendlyMessage(),
+                        isLoading = false
+                    )
+                }
+            }
+        }
+    }
+    
+    fun addToRecentSearches(song: Song) {
+        viewModelScope.launch {
+            sessionManager.addRecentSearch(RecentSearchItem.SongItem(song))
+            loadRecentSearches()
+        }
+    }
+
+    fun addToRecentSearches(album: Album) {
+        viewModelScope.launch {
+            sessionManager.addRecentSearch(RecentSearchItem.AlbumItem(album))
+            loadRecentSearches()
+        }
+    }
+
+    fun addToRecentSearches(playlist: Playlist) {
+        viewModelScope.launch {
+            sessionManager.addRecentSearch(RecentSearchItem.PlaylistItem(playlist))
+            loadRecentSearches()
+        }
+    }
+    
+    fun clearRecentSearches() {
+        viewModelScope.launch {
+            sessionManager.clearRecentSearches()
+            _uiState.update { it.copy(recentSearches = emptyList()) }
+        }
+    }
+    
+    fun onRecentSearchClick(item: RecentSearchItem) {
+        // Update query to show the title
+        _uiState.update { 
+            it.copy(
+                query = item.title,
+                isSearchActive = true,
+                showSuggestions = false
+            )
+        }
+        search(saveToHistory = false)
+        
+        // Move to top of recent logic is handled by adding it again
+        viewModelScope.launch {
+            sessionManager.addRecentSearch(item)
+            loadRecentSearches()
+        }
+    }
+
+    fun playNext(song: Song) {
+        musicPlayer.playNext(listOf(song))
+    }
+
+    fun addToQueue(song: Song) {
+        musicPlayer.addToQueue(listOf(song))
+    }
+
+    fun downloadSong(song: Song) {
+        viewModelScope.launch {
+            downloadRepository.downloadSong(song)
+        }
+    }
+    
+    fun addToPlaylist(song: Song) {
+        viewModelScope.launch {
+            _events.emit(SearchEvent.ShowAddToPlaylistSheet(song))
+        }
+    }
+}
+

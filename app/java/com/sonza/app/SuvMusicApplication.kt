@@ -1,0 +1,255 @@
+package com.sonza.app
+
+import android.app.Application
+import android.content.Context
+import com.sonza.app.BuildConfig
+import com.sonza.app.R
+import dagger.hilt.android.HiltAndroidApp
+import org.acra.ACRA
+import org.acra.config.*
+import org.acra.data.StringFormat
+import org.acra.ktx.initAcra
+
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.disk.DiskCache
+import coil3.disk.directory
+import coil3.memory.*
+import coil3.request.CachePolicy
+import coil3.request.crossfade
+import coil3.util.DebugLogger
+import okio.Path.Companion.toPath
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+import com.sonza.app.di.koinAppModules
+import org.koin.android.ext.koin.androidContext
+import org.koin.android.ext.koin.androidLogger
+import org.koin.core.context.startKoin
+import org.koin.core.logger.Level
+
+/**
+ * Application class for Sonza.
+ * Annotated with @HiltAndroidApp to enable Hilt dependency injection.
+ */
+@HiltAndroidApp
+class SonzaApplication : Application(), SingletonImageLoader.Factory, androidx.work.Configuration.Provider {
+    
+    @javax.inject.Inject
+    lateinit var workerFactory: androidx.hilt.work.HiltWorkerFactory
+
+    @javax.inject.Inject
+    lateinit var sessionManager: com.sonza.app.data.SessionManager
+
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(base)
+
+        // Wire the KMP MusicPlayer actual's application context here — earliest
+        // possible hook so any MusicPlayer constructed before onCreate (Compose
+        // previews, instrumentation tests) still gets a valid context.
+        com.sonza.app.core.domain.player.MusicPlayer.setApplicationContext(this)
+
+        try {
+            initAcra {
+                buildConfigClass = BuildConfig::class.java
+                reportFormat = StringFormat.JSON
+
+                // Capture more logs for context (default is 100)
+                logcatArguments = listOf("-t", "200", "-v", "time")
+
+                notification {
+                    title = base.getString(R.string.acra_crash_title)
+                    text = base.getString(R.string.acra_crash_text)
+                    channelName = base.getString(R.string.app_name)
+                    enabled = true
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e(
+                "SonzaApplication",
+                "ACRA init failed — crash reporting disabled for this session",
+                e,
+            )
+        }
+    }
+
+    private val applicationScope = CoroutineScope(Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
+
+    override fun onCreate() {
+        super.onCreate()
+
+        // Crash-loop guard first: if the last launches died within seconds of
+        // starting, this launch runs in safe mode (native DSP off, poison-prone
+        // disk caches wiped) instead of crashing a fourth time. Must run before
+        // anything that could consume a corrupt cache or load the native engine.
+        com.sonza.app.crash.CrashLoopGuard.install(this)
+
+        // Install the telemetry sink for swallowed (non-crash) failures as early as
+        // possible so any failure during startup is counted. ACRA handles crashes;
+        // this counts the quiet failures (resolution/search/lyrics) that used to
+        // vanish into an empty list. The structured "SuvTelemetry FAIL …" log line
+        // also rides along in ACRA's logcat capture.
+        com.sonza.app.telemetry.Telemetry.install(
+            com.sonza.app.telemetry.LogFailureReporter()
+        )
+
+        // Point the disk-backed offline cache at app storage so search results survive a
+        // cold start / offline launch (home feed + quick picks are already persisted by
+        // SessionManager; this closes the search-results gap).
+        com.sonza.app.cache.OfflineCache.init(this)
+
+        // Seed the synchronous logo-variant mirror BEFORE MainActivity reads it.
+        // SessionManager also seeds it from its init block, but that path runs
+        // inside a coroutine on a background dispatcher and is not guaranteed
+        // to complete before MainActivity.applyVariantSplashTheme() runs on the
+        // very first cold start after the user upgrades to the version that
+        // introduced the mirror — which left the splash showing the wrong
+        // variant. Reading DataStore synchronously here once on launch is
+        // cheap (~tens of ms in the worst case) and runs only when the mirror
+        // is missing.
+        seedLogoVariantMirrorIfMissing()
+
+        // Phase 1a: bring Koin up alongside Hilt. The app still routes all DI
+        // through Hilt; Koin starts with an empty module list and gets populated
+        // slice-by-slice in subsequent phase-1 chunks. Removed in chunk 1d once
+        // Hilt is fully retired.
+        startKoin {
+            androidLogger(if (BuildConfig.DEBUG) Level.INFO else Level.ERROR)
+            androidContext(this@SonzaApplication)
+            modules(koinAppModules)
+        }
+
+        // Initialize logging early
+        applicationScope.launch {
+            val enabled = sessionManager.isLoggingEnabled()
+            withContext(Dispatchers.Main) {
+                com.sonza.app.util.AppLog.init(this@SonzaApplication, enabled)
+                com.sonza.app.util.AppLog.i("SonzaApplication") { "App initialization started" }
+            }
+        }
+
+        // Phase 3b.3-A health check: force the SQLDelight database to open
+        // so we surface any driver/schema misconfiguration at app launch
+        // rather than the first time a real consumer queries it. The
+        // `listening_history` count is a no-op SELECT that exercises the
+        // generated query class end-to-end. Empty DB on a fresh install
+        // means count = 0; that's the success case.
+        //
+        // Wrapped in try/catch so an SQLDelight setup bug can't take the
+        // whole app down — we just log and move on.
+        applicationScope.launch {
+            try {
+                val db: com.sonza.app.core.db.SonzaDatabase =
+                    org.koin.java.KoinJavaComponent.getKoin().get()
+                val count = db.listeningHistoryQueries.countAll().executeAsOne()
+                android.util.Log.i(
+                    "SonzaApplication",
+                    "SQLDelight DB opened OK; listening_history rows = $count",
+                )
+            } catch (t: Throwable) {
+                android.util.Log.e(
+                    "SonzaApplication",
+                    "SQLDelight DB health check failed",
+                    t,
+                )
+            }
+        }
+
+        // Initialize any app-wide components here on a background thread
+        applicationScope.launch {
+            com.sonza.app.util.AppLog.d("SonzaApplication") { "Setting up workers" }
+            setupWorkers()
+        }
+        // Note: we deliberately do NOT reconcile the launcher activity-alias
+        // state with the stored LogoVariant on cold start. Doing so would
+        // kill the app on the first launch after upgrade (because the
+        // default in-app variant is PULSE but the manifest default alias
+        // is CLASSIC), which is jarring UX. The launcher icon switches
+        // only when the user explicitly picks a variant from Appearance
+        // settings.
+    }
+    
+    override val workManagerConfiguration: androidx.work.Configuration
+        get() = androidx.work.Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
+
+    override fun newImageLoader(context: Context): ImageLoader {
+        return ImageLoader.Builder(context)
+            .memoryCache {
+                MemoryCache.Builder()
+                    .maxSizePercent(context, 0.30) // Use 30% of available heap for images (was 25%)
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(cacheDir.resolve("image_cache").absolutePath.toPath())
+                    .maxSizeBytes(150 * 1024 * 1024) // 150MB disk cache — sensible for album art
+                    .build()
+            }
+            // Aggressive caching for offline support and smoothness
+            .networkCachePolicy(CachePolicy.ENABLED)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .crossfade(true)
+            .apply { if (BuildConfig.DEBUG) logger(DebugLogger()) }
+            .build()
+    }
+    
+    private fun seedLogoVariantMirrorIfMissing() {
+        val prefs = getSharedPreferences("suvmusic_branding", Context.MODE_PRIVATE)
+        if (prefs.getString("logo_variant", null) != null) return
+        val variantName = try {
+            kotlinx.coroutines.runBlocking {
+                sessionManager.getLogoVariant().name
+            }
+        } catch (e: Exception) {
+            android.util.Log.w(
+                "SonzaApplication",
+                "Could not read LogoVariant from DataStore for splash mirror seed",
+                e,
+            )
+            com.sonza.app.core.model.LogoVariant.DEFAULT.name
+        }
+        prefs.edit().putString("logo_variant", variantName).commit()
+    }
+
+    private fun setupWorkers() {
+        val workRequest = androidx.work.PeriodicWorkRequestBuilder<com.sonza.app.workers.NewReleaseWorker>(
+            12, java.util.concurrent.TimeUnit.HOURS
+        )
+            .setConstraints(
+                androidx.work.Constraints.Builder()
+                    .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                    .setRequiresBatteryNotLow(true)
+                    .build()
+            )
+            .build()
+
+        androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "NewReleaseCheck",
+            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+            workRequest
+        )
+
+        // Periodic Update Check (Every 24 hours)
+        val updateRequest = androidx.work.PeriodicWorkRequestBuilder<com.sonza.app.workers.PeriodicUpdateWorker>(
+            24, java.util.concurrent.TimeUnit.HOURS
+        )
+            .setConstraints(
+                androidx.work.Constraints.Builder()
+                    .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                    .setRequiresBatteryNotLow(true)
+                    .build()
+            )
+            .build()
+
+        androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "PeriodicUpdateCheck",
+            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+            updateRequest
+        )
+    }
+}

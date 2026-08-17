@@ -1,0 +1,691 @@
+package com.sonza.app.ui.viewmodel
+
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import android.content.Context
+import com.sonza.app.data.SessionManager
+import com.sonza.app.core.model.Album
+import com.sonza.app.core.model.Artist
+import com.sonza.app.core.model.PlaylistDisplayItem
+import com.sonza.app.core.model.Song
+import com.sonza.app.data.repository.DownloadRepository
+import com.sonza.app.data.repository.RemoteAudioRepository
+import com.sonza.app.core.domain.repository.LibraryRepository
+import com.sonza.app.data.repository.LocalAudioRepository
+import com.sonza.app.data.repository.YouTubeRepository
+import com.sonza.app.player.MusicPlayer
+import com.sonza.app.service.ImportStatus
+import com.sonza.app.service.PlaylistImportService
+import com.sonza.app.util.SpotifyImportHelper
+import com.sonza.app.util.PlaylistImportHelper
+import com.sonza.app.util.PlaylistExportHelper
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class LibraryUiState(
+    val playlists: List<PlaylistDisplayItem> = emptyList(),
+    val userPlaylists: List<PlaylistDisplayItem> = emptyList(),
+    val remotePlaylists: List<PlaylistDisplayItem> = emptyList(),
+    val localSongs: List<Song> = emptyList(),
+    val downloadedSongs: List<Song> = emptyList(),
+    val likedSongs: List<Song> = emptyList(),
+    val likedSongsCount: Int = 0,
+    val libraryArtists: List<Artist> = emptyList(),
+    val libraryAlbums: List<Album> = emptyList(),
+    val localArtists: List<Artist> = emptyList(),
+    val localAlbums: List<Album> = emptyList(),
+    val localFolders: Map<String, List<Song>> = emptyMap(),
+    val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
+    val importState: ImportState = ImportState.Idle,
+    val error: String? = null,
+    val isLoggedIn: Boolean = false,
+    val isSyncingLikedSongs: Boolean = false,
+    val viewMode: LibraryViewMode = LibraryViewMode.GRID,
+    val sortOption: LibrarySortOption = LibrarySortOption.DATE_ADDED,
+    val librarySearchQuery: String = "",
+    val selectedFilter: LibraryFilter = LibraryFilter.PLAYLISTS,
+    val top50SongCount: Int = 0,
+    val cachedSongCount: Int = 0
+)
+
+enum class LibraryViewMode {
+    GRID, LIST
+}
+
+enum class LibrarySortOption {
+    DATE_ADDED, NAME
+}
+
+enum class LibraryFilter(val title: String) {
+    PLAYLISTS("Playlists"),
+    SONGS("Songs"),
+    ALBUMS("Albums"),
+    ARTISTS("Artists"),
+    FOLDERS("Folders")
+}
+
+sealed class ImportState {
+    object Idle : ImportState()
+    object Loading : ImportState()
+    data class Processing(
+        val currentSong: String,
+        val currentArtist: String,
+        val thumbnail: String?,
+        val currentIndex: Int,
+        val totalSongs: Int,
+        val successCount: Int,
+        val status: String // "Searching...", "Adding...", "Failed"
+    ) : ImportState()
+    data class Success(
+        val successCount: Int,
+        val totalCount: Int,
+        val failedSongs: List<Pair<String, String>> = emptyList()
+    ) : ImportState()
+    data class Error(val message: String) : ImportState()
+}
+
+class LibraryViewModel @Inject constructor(
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: Context,
+    private val youTubeRepository: YouTubeRepository,
+    private val remoteAudioRepository: RemoteAudioRepository,
+    private val localAudioRepository: LocalAudioRepository,
+    private val downloadRepository: DownloadRepository,
+    private val sessionManager: SessionManager,
+    private val spotifyImportHelper: SpotifyImportHelper,
+    private val playlistImportHelper: PlaylistImportHelper,
+    private val libraryRepository: LibraryRepository,
+    private val musicPlayer: MusicPlayer,
+    private val workManager: androidx.work.WorkManager,
+    private val cache: androidx.media3.datasource.cache.Cache,
+    private val listeningHistoryDao: com.sonza.app.core.data.local.dao.ListeningHistoryDao
+) : ViewModel() {
+    
+    private val _uiState = MutableStateFlow(LibraryUiState())
+    val uiState: StateFlow<LibraryUiState> = _uiState.asStateFlow()
+    
+    init {
+        _uiState.update { it.copy(isLoggedIn = sessionManager.isLoggedIn()) }
+        loadData()
+        observeDownloads()
+        observeLibraryPlaylists()
+        observeImportService()
+        observeLikedSongs()
+        observeSettings() // Renamed for broader scope
+        schedulePeriodicSync()
+    }
+
+    private fun observeSettings() {
+        // Observe View Mode
+        viewModelScope.launch {
+            sessionManager.libraryViewModeFlow.collect { modeStr ->
+                val mode = try { LibraryViewMode.valueOf(modeStr) } catch (e: Exception) { LibraryViewMode.GRID }
+                _uiState.update { it.copy(viewMode = mode) }
+            }
+        }
+
+        // Observe Duration Filter
+        viewModelScope.launch {
+            kotlinx.coroutines.flow.combine(
+                sessionManager.filterLocalByDurationEnabledFlow,
+                sessionManager.localDurationFilterThresholdFlow
+            ) { enabled, threshold ->
+                enabled to threshold
+            }.collect {
+                // Refresh local data when duration filter settings change
+                loadLocalData()
+            }
+        }
+    }
+
+    private fun loadLocalData() {
+        viewModelScope.launch {
+            try {
+                val local = localAudioRepository.getAllLocalSongs()
+                val localAlbums = localAudioRepository.getAllLocalAlbums()
+                val localArtists = localAudioRepository.getAllLocalArtists()
+                val localFolders = local.groupBy { it.customFolderPath ?: "Root" }
+                
+                _uiState.update { it.copy(
+                    localSongs = local,
+                    localAlbums = localAlbums,
+                    localArtists = localArtists,
+                    localFolders = localFolders
+                ) }
+            } catch (e: Exception) { }
+        }
+    }
+
+    private fun observeLikedSongs() {
+        // Observe only the count for Library screen cards (lightweight)
+        viewModelScope.launch {
+            libraryRepository.getPlaylistSongCountFlow("LM").collect { count ->
+                _uiState.update { it.copy(likedSongsCount = count) }
+            }
+        }
+    }
+
+    /**
+     * Starts observing the full liked-songs list, which is only needed once the user
+     * actually opens it.
+     *
+     * Guarded because the Songs filter calls this every time it is selected, and each call
+     * used to launch another collector on a flow that never completes — so switching tabs
+     * repeatedly piled up duplicate collectors for the lifetime of the screen.
+     */
+    fun loadLikedSongs() {
+        if (likedSongsJob?.isActive == true) return
+        likedSongsJob = viewModelScope.launch {
+            libraryRepository.getCachedPlaylistSongsFlow("LM").collect { songs ->
+                _uiState.update { it.copy(likedSongs = songs) }
+            }
+        }
+    }
+
+    private var likedSongsJob: kotlinx.coroutines.Job? = null
+
+    private fun schedulePeriodicSync() {
+        if (!sessionManager.isLoggedIn()) return
+        
+        val syncRequest = androidx.work.PeriodicWorkRequestBuilder<com.sonza.app.data.worker.LikedSongsSyncWorker>(
+            15, java.util.concurrent.TimeUnit.MINUTES // Minimum interval
+        )
+            .setConstraints(
+                androidx.work.Constraints.Builder()
+                .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                .build()
+            )
+            .build()
+
+        workManager.enqueueUniquePeriodicWork(
+            "LikedSongsPeriodicSync",
+            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+            syncRequest
+        )
+    }
+
+    private fun observeImportService() {
+        viewModelScope.launch {
+            PlaylistImportService.importState.collect { status ->
+                val newState = when (status.state) {
+                    ImportStatus.State.IDLE -> ImportState.Idle
+                    ImportStatus.State.PREPARING -> ImportState.Loading
+                    ImportStatus.State.PROCESSING -> ImportState.Processing(
+                        currentSong = status.currentSong,
+                        currentArtist = status.currentArtist,
+                        thumbnail = status.thumbnail,
+                        currentIndex = status.progress,
+                        totalSongs = status.total,
+                        successCount = status.successCount,
+                        status = "Importing..."
+                    )
+                    ImportStatus.State.COMPLETED -> {
+                        refresh()
+                        ImportState.Success(
+                            successCount = status.successCount, 
+                            totalCount = status.total,
+                            failedSongs = status.failedSongs
+                        )
+                    }
+                    ImportStatus.State.ERROR -> ImportState.Error(status.error ?: "Unknown Error")
+                    ImportStatus.State.CANCELLED -> ImportState.Error("Import Cancelled")
+                }
+                _uiState.update { it.copy(importState = newState) }
+            }
+        }
+    }
+    
+    private fun observeDownloads() {
+        viewModelScope.launch {
+            downloadRepository.downloadedSongs.collect { songs ->
+                _uiState.update { it.copy(downloadedSongs = songs) }
+            }
+        }
+    }
+
+    fun loadData(forceRefresh: Boolean = false, preloadedLikedSongs: List<Song>? = null) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            try {
+                loadLocalData()
+
+                // Liked songs arrive through observeLikedSongs' flow, so there is nothing
+                // to fetch for them here.
+
+                if (sessionManager.isLoggedIn()) {
+                    // Show the cached playlists first so the grid isn't empty while the
+                    // network catches up.
+                    val cachedPlaylists = sessionManager.getCachedLibraryPlaylistsSync()
+                    if (cachedPlaylists.isNotEmpty()) {
+                        setRemotePlaylists(cachedPlaylists)
+                    }
+
+                    fetchRemoteLibrary()
+                }
+
+                loadCachedSongCount()
+
+                if (forceRefresh && sessionManager.isLoggedIn()) {
+                    syncLikedSongs()
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message) }
+            } finally {
+                _uiState.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+
+    /**
+     * Fetches the remote library sections concurrently, each isolated from the others.
+     *
+     * These used to run in sequence under a single try/catch, so one failing call (a
+     * flaky artists fetch, say) skipped everything after it and blanked the rest of the
+     * library. Now a section that fails simply keeps whatever it was already showing.
+     */
+    private suspend fun fetchRemoteLibrary() = kotlinx.coroutines.coroutineScope {
+        val playlists = async { runCatching { youTubeRepository.getUserPlaylists(autoSave = false) }.getOrNull() }
+        val artists = async { runCatching { youTubeRepository.getLibraryArtists() }.getOrNull() }
+        val albums = async { runCatching { youTubeRepository.getLibraryAlbums() }.getOrNull() }
+        val top50 = async { runCatching { youTubeRepository.getPlaylist("RTM", autoSave = false).songs.size }.getOrNull() }
+
+        playlists.await()?.takeIf { it.isNotEmpty() }?.let { fresh -> setRemotePlaylists(fresh) }
+        artists.await()?.takeIf { it.isNotEmpty() }?.let { fresh ->
+            _uiState.update { it.copy(libraryArtists = fresh) }
+        }
+        albums.await()?.takeIf { it.isNotEmpty() }?.let { fresh ->
+            _uiState.update { it.copy(libraryAlbums = fresh) }
+        }
+        top50.await()?.let { count ->
+            _uiState.update { it.copy(top50SongCount = count) }
+        }
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true, error = null) }
+            try {
+                if (!youTubeRepository.isOnline()) {
+                    _uiState.update { it.copy(error = "You're offline — showing saved library") }
+                    return@launch
+                }
+
+                if (sessionManager.isLoggedIn()) {
+                    syncLikedSongs() // Enqueues background work; doesn't block the refresh
+                    fetchRemoteLibrary()
+                }
+                loadLocalData()
+                loadCachedSongCount()
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Refresh failed: ${e.message}") }
+            } finally {
+                _uiState.update { it.copy(isRefreshing = false) }
+            }
+        }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
+    }
+
+    private fun observeLibraryPlaylists() {
+        viewModelScope.launch {
+            libraryRepository.getSavedPlaylists().collect { displayItems ->
+                _uiState.update { state ->
+                    // Combined list is always remote playlists + saved/local playlists from
+                    // the DB, so a deletion in either place shows up straight away.
+                    val combined = (state.remotePlaylists + displayItems).distinctBy { it.id }
+                    rawPlaylists = combined
+                    state.copy(
+                        playlists = presentPlaylists(combined, state.sortOption, state.librarySearchQuery),
+                        userPlaylists = displayItems
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Publishes a new set of remote playlists and re-derives the visible list from it.
+     *
+     * Writing `remotePlaylists` alone wasn't enough: the visible list is only recomputed
+     * when the saved-playlists flow emits, so freshly fetched YouTube playlists stayed
+     * invisible until something happened to the local database.
+     */
+    private fun setRemotePlaylists(remote: List<PlaylistDisplayItem>) {
+        _uiState.update { state ->
+            val combined = (remote + state.userPlaylists).distinctBy { it.id }
+            rawPlaylists = combined
+            state.copy(
+                remotePlaylists = remote,
+                playlists = presentPlaylists(combined, state.sortOption, state.librarySearchQuery)
+            )
+        }
+    }
+
+    /** Unsorted, unfiltered source list — sort/search are presentation-only. */
+    private var rawPlaylists: List<PlaylistDisplayItem> = emptyList()
+
+    private fun presentPlaylists(
+        list: List<PlaylistDisplayItem>,
+        sort: LibrarySortOption,
+        query: String
+    ): List<PlaylistDisplayItem> {
+        val q = query.trim().lowercase()
+        val filtered = if (q.isEmpty()) list else list.filter {
+            it.name.lowercase().contains(q) || it.uploaderName.lowercase().contains(q)
+        }
+        return when (sort) {
+            LibrarySortOption.NAME -> filtered.sortedBy { it.name.lowercase() }
+            LibrarySortOption.DATE_ADDED -> filtered
+        }
+    }
+
+    fun setLibrarySearchQuery(query: String) {
+        _uiState.update {
+            it.copy(
+                librarySearchQuery = query,
+                playlists = presentPlaylists(rawPlaylists, it.sortOption, query)
+            )
+        }
+    }
+    
+    fun createPlaylist(title: String, description: String, isPrivate: Boolean, syncWithYt: Boolean, onComplete: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                if (syncWithYt && sessionManager.isLoggedIn()) {
+                    val privacyStatus = if (isPrivate) "PRIVATE" else "PUBLIC"
+                    val playlistId = youTubeRepository.createPlaylist(title, description, privacyStatus)
+                    if (playlistId != null) {
+                        refresh()
+                    }
+                } else {
+                    // Create Local Playlist
+                    val id = "local_" + java.util.UUID.randomUUID().toString()
+                    val playlist = com.sonza.app.core.model.Playlist(
+                        id = id, 
+                        title = title, 
+                        author = "You", 
+                        thumbnailUrl = null, 
+                        songs = emptyList()
+                    )
+                    libraryRepository.savePlaylist(playlist)
+                    // Refresh local lists
+                    refresh()
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Failed to create playlist: ${e.message}") }
+            } finally {
+                onComplete()
+            }
+        }
+    }
+
+
+    fun importPlaylist(url: String) {
+        val context = appContext
+        val intent = Intent(context, PlaylistImportService::class.java).apply {
+            action = PlaylistImportService.ACTION_START
+            putExtra(PlaylistImportService.EXTRA_URL, url)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
+        }
+    }
+
+    fun importM3U(uri: Uri) {
+        val context = appContext
+        val intent = Intent(context, PlaylistImportService::class.java).apply {
+            action = PlaylistImportService.ACTION_START
+            putExtra(PlaylistImportService.EXTRA_M3U_URI, uri)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
+        }
+    }
+
+    fun importSUV(uri: Uri) {
+        val context = appContext
+        val intent = Intent(context, PlaylistImportService::class.java).apply {
+            action = PlaylistImportService.ACTION_START
+            putExtra(PlaylistImportService.EXTRA_SUV_URI, uri)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
+        }
+    }
+
+    fun cancelImport() {
+        val context = appContext
+        val intent = Intent(context, PlaylistImportService::class.java).apply {
+            action = PlaylistImportService.ACTION_CANCEL
+        }
+        context.startService(intent)
+    }
+
+    fun exportPlaylistToM3U(context: Context, playlistItem: com.sonza.app.core.model.PlaylistDisplayItem) {
+        viewModelScope.launch {
+            try {
+                val fullPlaylist = youTubeRepository.getPlaylist(playlistItem.id)
+                PlaylistExportHelper.exportPlaylistToM3U(context, fullPlaylist)
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Failed to export: ${e.message}") }
+            }
+        }
+    }
+
+    fun exportPlaylistToSUV(context: Context, playlistItem: com.sonza.app.core.model.PlaylistDisplayItem) {
+        viewModelScope.launch {
+            try {
+                val fullPlaylist = youTubeRepository.getPlaylist(playlistItem.id)
+                PlaylistExportHelper.exportPlaylistToSUV(context, fullPlaylist)
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Failed to export: ${e.message}") }
+            }
+        }
+    }
+
+    fun resetImportState() {
+        cancelImport()
+        _uiState.update { it.copy(importState = ImportState.Idle) }
+    }
+
+    fun downloadPlaylist(playlistItem: PlaylistDisplayItem) {
+        viewModelScope.launch {
+            try {
+                val fullPlaylist = youTubeRepository.getPlaylist(playlistItem.id)
+                downloadRepository.downloadPlaylist(fullPlaylist)
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Failed to download playlist: ${e.message}") }
+            }
+        }
+    }
+
+    fun deletePlaylist(playlistId: String) {
+        viewModelScope.launch {
+            try {
+                // Check if it exists locally in the library repository
+                val isLocal = libraryRepository.getPlaylistById(playlistId) != null || playlistId.startsWith("local_")
+                
+                val success = if (isLocal) {
+                    libraryRepository.removePlaylist(playlistId)
+                    true
+                } else {
+                    val ytSuccess = youTubeRepository.deletePlaylist(playlistId)
+                    if (ytSuccess) {
+                        libraryRepository.removePlaylist(playlistId)
+                    }
+                    ytSuccess
+                }
+
+                if (success) {
+                    refresh()
+                } else if (!isLocal) {
+                     _uiState.update { it.copy(error = "Failed to delete from YouTube") }
+                }
+            } catch (e: Exception) {
+                 _uiState.update { it.copy(error = "Failed to delete: ${e.message}") }
+            }
+        }
+    }
+
+    fun renamePlaylist(playlistId: String, newName: String) {
+        if (newName.isBlank()) return
+        viewModelScope.launch {
+            try {
+                val isLocal = libraryRepository.getPlaylistById(playlistId) != null || playlistId.startsWith("local_")
+                val success = if (isLocal) {
+                    libraryRepository.updatePlaylistName(playlistId, newName)
+                    true
+                } else {
+                    youTubeRepository.renamePlaylist(playlistId, newName)
+                }
+
+                if (success) {
+                    refresh()
+                } else {
+                    _uiState.update { it.copy(error = "Failed to rename playlist") }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Failed to rename: ${e.message}") }
+            }
+        }
+    }
+
+    fun shufflePlay(playlistId: String) {
+        viewModelScope.launch {
+            try {
+                // Prioritize local playlist data
+                val localSongs = libraryRepository.getCachedPlaylistSongs(playlistId)
+                val playlist = if (localSongs.isNotEmpty()) {
+                    val item = libraryRepository.getPlaylistById(playlistId)
+                    com.sonza.app.core.model.Playlist(
+                        id = playlistId,
+                        title = item?.title ?: "Playlist",
+                        author = item?.subtitle ?: "You",
+                        thumbnailUrl = item?.thumbnailUrl,
+                        songs = localSongs
+                    )
+                } else {
+                    youTubeRepository.getPlaylist(playlistId)
+                }
+
+                if (playlist.songs.isNotEmpty()) {
+                    val shuffled = playlist.songs.shuffled()
+                    musicPlayer.playSong(shuffled.first(), shuffled, 0, true)
+                }
+            } catch (e: Exception) { }
+        }
+    }
+
+    fun playNext(playlistId: String) {
+         viewModelScope.launch {
+            try {
+                val localSongs = libraryRepository.getCachedPlaylistSongs(playlistId)
+                val songs = if (localSongs.isNotEmpty()) localSongs else youTubeRepository.getPlaylist(playlistId).songs
+                musicPlayer.playNext(songs)
+            } catch (e: Exception) { }
+        }
+    }
+
+    fun addToQueue(playlistId: String) {
+         viewModelScope.launch {
+            try {
+                val localSongs = libraryRepository.getCachedPlaylistSongs(playlistId)
+                val songs = if (localSongs.isNotEmpty()) localSongs else youTubeRepository.getPlaylist(playlistId).songs
+                musicPlayer.addToQueue(songs)
+            } catch (e: Exception) { }
+        }
+    }
+
+    fun syncLikedSongs() {
+        if (!sessionManager.isLoggedIn()) return
+        
+        _uiState.update { it.copy(isSyncingLikedSongs = true) }
+        
+        val syncRequest = androidx.work.OneTimeWorkRequestBuilder<com.sonza.app.data.worker.LikedSongsSyncWorker>()
+            .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+            .build()
+
+        workManager.enqueueUniqueWork(
+            "LikedSongsValidSync",
+            androidx.work.ExistingWorkPolicy.REPLACE,
+            syncRequest
+        )
+        
+        // We can listen to the work status if needed, but for now we just rely on Flow updates
+        // To update the spinner, we could observe the WorkInfo, but for simplicity
+        // in this step, let's just reset the spinner after a delay or separate observer.
+        // Actually, let's keep it simple: UI already observes Flow. 
+        // We'll set isSyncing to false after a short delay since the real work is background.
+        // Or better, observe the work status.
+        viewModelScope.launch {
+            workManager.getWorkInfoByIdFlow(syncRequest.id).collect { workInfo ->
+                if (workInfo != null && workInfo.state.isFinished) {
+                     _uiState.update { it.copy(isSyncingLikedSongs = false) }
+                }
+            }
+        }
+    }
+
+    fun setViewMode(mode: LibraryViewMode) {
+        viewModelScope.launch {
+            sessionManager.setLibraryViewMode(mode.name)
+            _uiState.update { it.copy(viewMode = mode) }
+        }
+    }
+
+    fun setSortOption(option: LibrarySortOption) {
+        _uiState.update {
+            it.copy(
+                sortOption = option,
+                playlists = presentPlaylists(rawPlaylists, option, it.librarySearchQuery)
+            )
+        }
+    }
+
+    fun setFilter(filter: LibraryFilter) {
+        _uiState.update { it.copy(selectedFilter = filter) }
+        if (filter == LibraryFilter.SONGS) {
+            loadLikedSongs()
+        }
+    }
+
+    private suspend fun loadCachedSongCount() {
+        val count = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val allKeys = cache.keys
+            val allHistory = listeningHistoryDao.getAllHistory()
+            val historyIds = allHistory.map { it.songId }.toSet()
+            
+            val cachedIds = mutableSetOf<String>()
+            
+            for (key in allKeys) {
+                val songId = key.removePrefix("audio_").removePrefix("video_").substringBefore("_")
+                if (historyIds.contains(songId)) {
+                    cachedIds.add(songId)
+                }
+            }
+            
+            // Also include downloaded songs
+            val downloadedIds = downloadRepository.downloadedSongs.value.map { it.id }
+            cachedIds.addAll(downloadedIds)
+            
+            cachedIds.size
+        }
+        _uiState.update { it.copy(cachedSongCount = count) }
+    }
+}

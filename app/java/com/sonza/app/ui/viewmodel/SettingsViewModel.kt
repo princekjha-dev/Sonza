@@ -1,0 +1,1770 @@
+package com.sonza.app.ui.viewmodel
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import androidx.core.content.FileProvider
+import androidx.lifecycle.ViewModel
+import com.sonza.app.BuildConfig
+import androidx.lifecycle.viewModelScope
+import com.sonza.app.data.SessionManager
+import com.sonza.app.core.model.AppTheme
+import com.sonza.app.core.model.AudioQuality
+import com.sonza.app.core.model.VideoQuality
+import com.sonza.app.core.model.DownloadQuality
+import com.sonza.app.core.model.HapticsIntensity
+import com.sonza.app.core.model.HapticsMode
+import com.sonza.app.core.model.LyricsTextPosition
+import com.sonza.app.core.model.LyricsAnimationType
+import com.sonza.app.core.model.ThemeMode
+import com.sonza.app.core.model.UpdateChannel
+import com.sonza.app.data.repository.YouTubeRepository
+
+import com.sonza.app.lastfm.LastFmRepository
+import com.sonza.app.core.model.MusicSource
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import javax.inject.Inject
+
+data class SettingsUiState(
+    val isLoggedIn: Boolean = false,
+    val userName: String? = null,
+    val userAvatarUrl: String? = null,
+    val storedAccounts: List<SessionManager.StoredAccount> = emptyList(),
+    val availableAccounts: List<SessionManager.StoredAccount> = emptyList(),
+    val audioQuality: AudioQuality = AudioQuality.HIGH,
+    val wifiAudioQuality: AudioQuality = AudioQuality.HIGH,
+    val mobileAudioQuality: AudioQuality = AudioQuality.MEDIUM,
+    val videoQuality: VideoQuality = VideoQuality.MEDIUM,
+    val downloadQuality: DownloadQuality = DownloadQuality.HIGH,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val appTheme: AppTheme = AppTheme.DEFAULT,
+    val logoVariant: com.sonza.app.core.model.LogoVariant = com.sonza.app.core.model.LogoVariant.DEFAULT,
+    val dynamicColorEnabled: Boolean = true,
+    val gaplessPlaybackEnabled: Boolean = false,
+    val automixEnabled: Boolean = true,
+    val volumeSliderEnabled: Boolean = true,
+    val musicSource: MusicSource = MusicSource.YOUTUBE,
+    val preferRemoteAudio: Boolean = true,
+    val doubleTapSeekSeconds: Int = 10,
+    val volumeNormalizationEnabled: Boolean = true,
+    val betterLyricsEnabled: Boolean = true,
+    val simpMusicEnabled: Boolean = true,
+    val kuGouEnabled: Boolean = true,
+    val playerCacheLimit: Long = -1L, // Default Unlimited
+    val playerCacheAutoClearInterval: Int = 5, // Default 5 days
+    // Music Haptics
+    val musicHapticsEnabled: Boolean = false,
+    val hapticsMode: HapticsMode = HapticsMode.BASIC,
+    val hapticsIntensity: HapticsIntensity = HapticsIntensity.MEDIUM,
+    // Misc
+    val stopMusicOnTaskClear: Boolean = false,
+    val pauseMusicOnMediaMuted: Boolean = false,
+    val keepScreenOn: Boolean = false,
+    val swipeDownToDismissEnabled: Boolean = true,
+    // Appearance
+    val pureBlackEnabled: Boolean = false,
+    val playerAnimatedBackgroundEnabled: Boolean = true,
+    val albumArtDynamicColorsEnabled: Boolean = true,
+    val rotatingVinylAnimationEnabled: Boolean = true,
+    val albumArtColorFlashingEnabled: Boolean = false,
+    // Lyrics
+    val preferredLyricsProvider: String = "BetterLyrics",
+    val lyricsTextPosition: LyricsTextPosition = LyricsTextPosition.CENTER,
+    val lyricsAnimationType: LyricsAnimationType = LyricsAnimationType.WORD,
+    val lyricsLineSpacing: Float = 1.5f,
+    val lyricsFontSize: Float = 26f,
+    val lyricsBlur: Float = 2.5f,
+    // Audio Offload
+    val audioOffloadEnabled: Boolean = false,
+    // Volume Boost
+    val volumeBoostEnabled: Boolean = false,
+    val volumeBoostAmount: Int = 0,
+    // SponsorBlock
+    val sponsorBlockEnabled: Boolean = true,
+    // Last.fm
+    val lastFmUsername: String? = null,
+    val lastFmScrobblingEnabled: Boolean = false,
+    val lastFmRecommendationsEnabled: Boolean = true,
+    val lastFmUseNowPlaying: Boolean = true,
+    val lastFmSendLikes: Boolean = false,
+    val scrobbleDelayPercent: Float = 0.5f,
+    val scrobbleMinDuration: Int = 30, // seconds
+    val scrobbleDelaySeconds: Int = 180, // seconds
+    // AI
+    val openaiApiKey: String = "",
+    val openaiModel: String = "gpt-4o",
+    val anthropicApiKey: String = "",
+    val anthropicModel: String = "claude-3-5-sonnet-20240620",
+    val geminiApiKey: String = "",
+    val geminiModel: String = "gemini-1.5-pro",
+    val chatProxyModel: String = "gpt-5",
+    val selectedAiProvider: String = "CHAT_PROXY",
+    // Content Preferences
+    val preferredLanguages: Set<String> = emptySet(),
+    val youtubeHistorySyncEnabled: Boolean = false,
+    val ignoreAudioFocusDuringCalls: Boolean = false,
+    val autoResumeAfterCall: Boolean = true,
+    // Bluetooth
+    val bluetoothAutoplayEnabled: Boolean = false,
+    val speakSongDetailsEnabled: Boolean = false,
+    val announceTtsVolume: Int = 100,
+    val announceDuckVolume: Int = 30,
+    val announceBluetoothOnly: Boolean = true,
+    // Discord RPC
+    val discordRpcEnabled: Boolean = false,
+    val discordToken: String = "", // Empty means not set
+    val discordUseDetails: Boolean = false,
+    val incognitoModeEnabled: Boolean = false,
+    val audioArEnabled: Boolean = false,
+    val audioArSensitivity: Float = 1.0f,
+    val audioArAutoCalibrate: Boolean = true,
+    val spatialAudioStrength: Int = 70,
+    // Preloading
+    val nextSongPreloadingEnabled: Boolean = true,
+    val nextSongPreloadDelay: Int = 3, // seconds
+    // Crossfade (smooth volume-fade between tracks)
+    val crossfadeMs: Int = 0,
+    // Crossfeed
+    val crossfeedEnabled: Boolean = false,
+    // Equalizer
+    val eqEnabled: Boolean = false,
+    val eqBands: FloatArray = FloatArray(10) { 0f },
+    val forceMaxRefreshRateEnabled: Boolean = true,
+    val navBarAlpha: Float = 1.0f,
+    val navBarBlur: Float = 60.0f,
+    val iosLiquidGlassEnabled: Boolean = false,
+    val miniPlayerAlpha: Float = 0f,
+    val miniPlayerStyle: com.sonza.app.core.model.MiniPlayerStyle = com.sonza.app.core.model.MiniPlayerStyle.YT_MUSIC,
+    val playerStyle: com.sonza.app.core.model.PlayerStyle = com.sonza.app.core.model.PlayerStyle.YT_MUSIC,
+    val homeSectionsVisibility: Set<String> = com.sonza.app.data.SessionManager.DEFAULT_HOME_SECTIONS,
+    val downloadLocation: String? = null,
+    val loggingEnabled: Boolean = false,
+    val isBugReportingSessionActive: Boolean = false,
+    // Library
+    val filterLocalByDurationEnabled: Boolean = false,
+    val localDurationFilterThreshold: Int = 30, // seconds
+    // Updater
+    val currentVersion: String = "",
+    val updateChannel: UpdateChannel = UpdateChannel.STABLE
+)
+
+class SettingsViewModel @Inject constructor(
+    private val sessionManager: SessionManager,
+    private val youtubeRepository: YouTubeRepository,
+    private val lastFmRepository: LastFmRepository,
+    private val audioARManager: com.sonza.app.player.AudioARManager,
+    @param:ApplicationContext private val context: Context
+) : ViewModel() {
+    
+    // Initialize uiState synchronously with cached account info so the
+    // Settings header doesn't show a blank avatar/name on entry.
+    private val _uiState = MutableStateFlow(
+        SettingsUiState(
+            isLoggedIn = sessionManager.isLoggedIn(),
+            userName = sessionManager.getCachedUserName(),
+            userAvatarUrl = sessionManager.getCachedUserAvatar(),
+            storedAccounts = sessionManager.getStoredAccounts()
+        )
+    )
+    val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+    
+    // Developer mode - shows RemoteAudio option when enabled
+    val isDeveloperMode = sessionManager.developerModeFlow
+    
+    // Dynamic Island enabled state
+    val dynamicIslandEnabled = sessionManager.dynamicIslandEnabledFlow
+    
+    // Volume Slider enabled state
+    val volumeSliderEnabledFlow = sessionManager.volumeSliderEnabledFlow // Renamed to avoid name clash
+
+    // SponsorBlock
+    val sponsorBlockEnabled = sessionManager.sponsorBlockEnabledFlow
+    val sponsorBlockCategories = sessionManager.sponsorBlockCategoriesFlow
+
+    // Last.fm
+    val lastFmUsername = sessionManager.lastFmUsernameFlow
+    
+    // Discord RPC
+    val discordRpcEnabled = sessionManager.discordRpcEnabledFlow
+
+    // Incognito Mode
+    val incognitoModeEnabled = sessionManager.incognitoModeEnabledFlow
+
+    // Audio AR
+    val audioArEnabled = sessionManager.audioArEnabledFlow
+    
+    // Lyrics Settings Flows
+    val lyricsLineSpacing = sessionManager.lyricsLineSpacingFlow
+    val lyricsFontSize = sessionManager.lyricsFontSizeFlow
+
+    // Download Location
+    val downloadLocationFlow = sessionManager.downloadLocationFlow
+    
+    // Logging
+    val loggingEnabledFlow = sessionManager.loggingEnabledFlow
+
+    suspend fun setDynamicIslandEnabled(enabled: Boolean) {
+        sessionManager.setDynamicIslandEnabled(enabled)
+    }
+    
+    fun setVolumeSliderEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setVolumeSliderEnabled(enabled)
+            _uiState.update { it.copy(volumeSliderEnabled = enabled) }
+        }
+    }
+    
+    init {
+        loadSettings()
+
+        // Live-update the account header as DataStore values change.
+        viewModelScope.launch {
+            sessionManager.userNameFlow.collect { name ->
+                if (name != null) _uiState.update { it.copy(userName = name) }
+            }
+        }
+        viewModelScope.launch {
+            sessionManager.userAvatarFlow.collect { avatar ->
+                if (avatar != null) _uiState.update { it.copy(userAvatarUrl = avatar) }
+            }
+        }
+        viewModelScope.launch {
+            sessionManager.isLoggedInFlow.collect { loggedIn ->
+                _uiState.update { it.copy(isLoggedIn = loggedIn) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.audioQualityFlow.collect { quality ->
+                _uiState.update { it.copy(audioQuality = quality) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.wifiAudioQualityFlow.collect { quality ->
+                _uiState.update { it.copy(wifiAudioQuality = quality) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.mobileAudioQualityFlow.collect { quality ->
+                _uiState.update { it.copy(mobileAudioQuality = quality) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.videoQualityFlow.collect { quality ->
+                _uiState.update { it.copy(videoQuality = quality) }
+            }
+        }
+        
+        viewModelScope.launch {
+            sessionManager.appThemeFlow.collect { theme ->
+                _uiState.update { it.copy(appTheme = theme) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.logoVariantFlow.collect { variant ->
+                _uiState.update { it.copy(logoVariant = variant) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.doubleTapSeekSecondsFlow.collect { seconds ->
+                _uiState.update { it.copy(doubleTapSeekSeconds = seconds) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.enableBetterLyricsFlow.collect { enabled ->
+                _uiState.update { it.copy(betterLyricsEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.enableSimpMusicFlow.collect { enabled ->
+                _uiState.update { it.copy(simpMusicEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.enableKuGouFlow.collect { enabled ->
+                _uiState.update { it.copy(kuGouEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.playerCacheLimitFlow.collect { limit ->
+                _uiState.update { it.copy(playerCacheLimit = limit) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.playerCacheAutoClearIntervalFlow.collect { interval ->
+                _uiState.update { it.copy(playerCacheAutoClearInterval = interval) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.musicHapticsEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(musicHapticsEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.hapticsModeFlow.collect { mode ->
+                _uiState.update { it.copy(hapticsMode = mode) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.hapticsIntensityFlow.collect { intensity ->
+                _uiState.update { it.copy(hapticsIntensity = intensity) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.stopMusicOnTaskClearEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(stopMusicOnTaskClear = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.pauseMusicOnMediaMutedEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(pauseMusicOnMediaMuted = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.keepScreenOnEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(keepScreenOn = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.openaiApiKeyFlow.collect { value -> _uiState.update { it.copy(openaiApiKey = value) } }
+        }
+        viewModelScope.launch {
+            sessionManager.openaiModelFlow.collect { value -> _uiState.update { it.copy(openaiModel = value) } }
+        }
+        viewModelScope.launch {
+            sessionManager.anthropicApiKeyFlow.collect { value -> _uiState.update { it.copy(anthropicApiKey = value) } }
+        }
+        viewModelScope.launch {
+            sessionManager.anthropicModelFlow.collect { value -> _uiState.update { it.copy(anthropicModel = value) } }
+        }
+        viewModelScope.launch {
+            sessionManager.geminiApiKeyFlow.collect { value -> _uiState.update { it.copy(geminiApiKey = value) } }
+        }
+        viewModelScope.launch {
+            sessionManager.geminiModelFlow.collect { value -> _uiState.update { it.copy(geminiModel = value) } }
+        }
+        viewModelScope.launch {
+            sessionManager.chatProxyModelFlow.collect { value -> _uiState.update { it.copy(chatProxyModel = value) } }
+        }
+        viewModelScope.launch {
+            sessionManager.selectedAiProviderFlow.collect { value -> _uiState.update { it.copy(selectedAiProvider = value) } }
+        }
+
+        viewModelScope.launch {
+            sessionManager.swipeDownToDismissEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(swipeDownToDismissEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.pureBlackEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(pureBlackEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.playerAnimatedBackgroundFlow.collect { enabled ->
+                _uiState.update { it.copy(playerAnimatedBackgroundEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.albumArtDynamicColorsEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(albumArtDynamicColorsEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.rotatingVinylAnimationEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(rotatingVinylAnimationEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.albumArtColorFlashingEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(albumArtColorFlashingEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.preferredLyricsProviderFlow.collect { provider ->
+                _uiState.update { it.copy(preferredLyricsProvider = provider) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.lyricsTextPositionFlow.collect { position ->
+                _uiState.update { it.copy(lyricsTextPosition = position) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.lyricsAnimationTypeFlow.collect { type ->
+                _uiState.update { it.copy(lyricsAnimationType = type) }
+            }
+        }
+        
+        viewModelScope.launch {
+            sessionManager.lyricsLineSpacingFlow.collect { spacing ->
+                _uiState.update { it.copy(lyricsLineSpacing = spacing) }
+            }
+        }
+        
+        viewModelScope.launch {
+            sessionManager.lyricsFontSizeFlow.collect { size ->
+                _uiState.update { it.copy(lyricsFontSize = size) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.lyricsBlurFlow.collect { blur ->
+                _uiState.update { it.copy(lyricsBlur = blur) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.audioOffloadEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(audioOffloadEnabled = enabled) }
+            }
+        }
+        
+        viewModelScope.launch {
+            sessionManager.volumeBoostEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(volumeBoostEnabled = enabled) }
+            }
+        }
+        
+        viewModelScope.launch {
+            sessionManager.volumeBoostAmountFlow.collect { amount ->
+                _uiState.update { it.copy(volumeBoostAmount = amount) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.sponsorBlockEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(sponsorBlockEnabled = enabled) }
+            }
+        }
+        
+        viewModelScope.launch {
+            sessionManager.lastFmUsernameFlow.collect { username ->
+                _uiState.update { it.copy(lastFmUsername = username) }
+            }
+        }
+        
+        viewModelScope.launch {
+            sessionManager.preferredLanguagesFlow.collect { languages ->
+                _uiState.update { it.copy(preferredLanguages = languages) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.youtubeHistorySyncEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(youtubeHistorySyncEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            launch {
+                sessionManager.ignoreAudioFocusDuringCallsFlow.collect { enabled ->
+                    _uiState.update { it.copy(ignoreAudioFocusDuringCalls = enabled) }
+                }
+            }
+
+            launch {
+                sessionManager.autoresumeAfterCallFlow.collect { enabled ->
+                    _uiState.update { it.copy(autoResumeAfterCall = enabled) }
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.bluetoothAutoplayEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(bluetoothAutoplayEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.speakSongDetailsEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(speakSongDetailsEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.announceTtsVolumeFlow.collect { value ->
+                _uiState.update { it.copy(announceTtsVolume = value) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.announceDuckVolumeFlow.collect { value ->
+                _uiState.update { it.copy(announceDuckVolume = value) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.announceBluetoothOnlyFlow.collect { enabled ->
+                _uiState.update { it.copy(announceBluetoothOnly = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.discordRpcEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(discordRpcEnabled = enabled) }
+            }
+        }
+        
+        viewModelScope.launch {
+            sessionManager.discordTokenFlow.collect { token ->
+                _uiState.update { it.copy(discordToken = token) }
+            }
+        }
+        
+        viewModelScope.launch {
+            sessionManager.discordUseDetailsFlow.collect { enabled ->
+                _uiState.update { it.copy(discordUseDetails = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.incognitoModeEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(incognitoModeEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.audioArEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(audioArEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.audioArSensitivityFlow.collect { value ->
+                _uiState.update { it.copy(audioArSensitivity = value) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.audioArAutoCalibrateFlow.collect { enabled ->
+                _uiState.update { it.copy(audioArAutoCalibrate = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.spatialAudioStrengthFlow.collect { value ->
+                _uiState.update { it.copy(spatialAudioStrength = value) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.nextSongPreloadingEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(nextSongPreloadingEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.nextSongPreloadDelayFlow.collect { delay ->
+                _uiState.update { it.copy(nextSongPreloadDelay = delay) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.crossfadeMsFlow.collect { ms ->
+                _uiState.update { it.copy(crossfadeMs = ms) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.crossfeedEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(crossfeedEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.eqEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(eqEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.eqBandsFlow.collect { bands ->
+                _uiState.update { it.copy(eqBands = bands) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.forceMaxRefreshRateFlow.collect { enabled ->
+                _uiState.update { it.copy(forceMaxRefreshRateEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.navBarAlphaFlow.collect { alpha ->
+                _uiState.update { it.copy(navBarAlpha = alpha) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.navBarBlurFlow.collect { blur ->
+                _uiState.update { it.copy(navBarBlur = blur) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.iosLiquidGlassEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(iosLiquidGlassEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.miniPlayerAlphaFlow.collect { alpha ->
+                _uiState.update { it.copy(miniPlayerAlpha = alpha) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.miniPlayerStyleFlow.collect { style ->
+                _uiState.update { it.copy(miniPlayerStyle = style) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.playerStyleFlow.collect { style ->
+                _uiState.update { it.copy(playerStyle = style) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.homeSectionsVisibilityFlow.collect { sections ->
+                _uiState.update { it.copy(homeSectionsVisibility = sections) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.downloadLocationFlow.collect { location ->
+                _uiState.update { it.copy(downloadLocation = location) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.loggingEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(loggingEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.filterLocalByDurationEnabledFlow.collect { enabled ->
+                _uiState.update { it.copy(filterLocalByDurationEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.localDurationFilterThresholdFlow.collect { threshold ->
+                _uiState.update { it.copy(localDurationFilterThreshold = threshold) }
+            }
+        }
+
+        // Refresh account info if logged in
+        viewModelScope.launch {
+            if (sessionManager.isLoggedIn()) {
+                fetchAndSaveAccountInfo()
+            }
+        }
+    }
+
+    fun setOpenAiApiKey(value: String) = viewModelScope.launch { sessionManager.setOpenAiApiKey(value) }
+    fun setOpenAiModel(value: String) = viewModelScope.launch { sessionManager.setOpenAiModel(value) }
+    fun setAnthropicApiKey(value: String) = viewModelScope.launch { sessionManager.setAnthropicApiKey(value) }
+    fun setAnthropicModel(value: String) = viewModelScope.launch { sessionManager.setAnthropicModel(value) }
+    fun setGeminiApiKey(value: String) = viewModelScope.launch { sessionManager.setGeminiApiKey(value) }
+    fun setGeminiModel(value: String) = viewModelScope.launch { sessionManager.setGeminiModel(value) }
+    fun setChatProxyModel(value: String) = viewModelScope.launch { sessionManager.setChatProxyModel(value) }
+    fun setSelectedAiProvider(value: String) = viewModelScope.launch { sessionManager.setSelectedAiProvider(value) }
+    
+    private fun loadSettings() {
+        viewModelScope.launch {
+            val isLoggedIn = sessionManager.isLoggedIn()
+            val userAvatar = sessionManager.getUserAvatar()
+            val storedAccounts = sessionManager.getStoredAccounts()
+            val userName = storedAccounts.firstOrNull()?.name
+            
+            val audioQuality = sessionManager.getAudioQuality()
+            val wifiAudioQuality = sessionManager.getWifiAudioQuality()
+            val mobileAudioQuality = sessionManager.getMobileAudioQuality()
+            val videoQuality = sessionManager.getVideoQuality()
+            val downloadQuality = sessionManager.getDownloadQuality()
+            val themeMode = sessionManager.getThemeMode()
+            val appTheme = sessionManager.getAppTheme()
+            val dynamicColorEnabled = sessionManager.isDynamicColorEnabled()
+            val gaplessPlaybackEnabled = sessionManager.isGaplessPlaybackEnabled()
+            val automixEnabled = sessionManager.isAutomixEnabled()
+            val volumeSliderEnabled = sessionManager.isVolumeSliderEnabled()
+            val musicSource = sessionManager.getMusicSource()
+            val preferRemoteAudio = sessionManager.isPreferRemoteAudio()
+            val doubleTapSeekSeconds = sessionManager.getDoubleTapSeekSeconds()
+            val volumeNormalizationEnabled = sessionManager.isVolumeNormalizationEnabled()
+            val betterLyricsEnabled = sessionManager.doesEnableBetterLyrics()
+            val simpMusicEnabled = sessionManager.doesEnableSimpMusic()
+            val kuGouEnabled = sessionManager.doesEnableKuGou()
+            val playerCacheLimit = sessionManager.getPlayerCacheLimit()
+            val playerCacheAutoClearInterval = sessionManager.getPlayerCacheAutoClearInterval()
+            val musicHapticsEnabled = sessionManager.isMusicHapticsEnabled()
+            val hapticsMode = sessionManager.getHapticsMode()
+            val hapticsIntensity = sessionManager.getHapticsIntensity()
+            val stopMusicOnTaskClear = sessionManager.isStopMusicOnTaskClearEnabled()
+            val pauseMusicOnMediaMuted = sessionManager.isPauseMusicOnMediaMutedEnabled()
+            val keepScreenOn = sessionManager.isKeepScreenOnEnabled()
+            val swipeDownToDismissEnabled = sessionManager.isSwipeDownToDismissEnabled()
+            val pureBlackEnabled = sessionManager.isPureBlackEnabled()
+            val playerAnimatedBackgroundEnabled = sessionManager.isPlayerAnimatedBackgroundEnabled()
+            val sponsorBlockEnabled = sessionManager.isSponsorBlockEnabled()
+            val lastFmUsername = sessionManager.getLastFmUsername()
+            val lastFmScrobblingEnabled = sessionManager.isLastFmScrobblingEnabled()
+            val lastFmRecommendationsEnabled = sessionManager.isLastFmRecommendationsEnabled()
+            val lastFmUseNowPlaying = sessionManager.isLastFmUseNowPlayingEnabled()
+            val lastFmSendLikes = sessionManager.isLastFmSendLikesEnabled()
+            val scrobbleDelayPercent = sessionManager.getScrobbleDelayPercent()
+            val scrobbleMinDuration = sessionManager.getScrobbleMinDuration()
+            val scrobbleDelaySeconds = sessionManager.getScrobbleDelaySeconds()
+            val preferredLanguages = sessionManager.getPreferredLanguages()
+            val ignoreAudioFocusDuringCalls = sessionManager.isIgnoreAudioFocusDuringCallsEnabled()
+            val bluetoothAutoplayEnabled = sessionManager.isBluetoothAutoplayEnabled()
+            val speakSongDetailsEnabled = sessionManager.isSpeakSongDetailsEnabled()
+            val announceTtsVolume = sessionManager.getAnnounceTtsVolume()
+            val announceDuckVolume = sessionManager.getAnnounceDuckVolume()
+            val announceBluetoothOnly = sessionManager.isAnnounceBluetoothOnly()
+            val discordToken = sessionManager.getDiscordToken()
+            val discordUseDetails = sessionManager.isDiscordUseDetailsEnabled()
+            val lyricsLineSpacing = sessionManager.getLyricsLineSpacing()
+            val lyricsFontSize = sessionManager.getLyricsFontSize()
+            val lyricsBlur = sessionManager.getLyricsBlur()
+            val preferredLyricsProvider = sessionManager.getPreferredLyricsProvider()
+            val lyricsTextPosition = sessionManager.getLyricsTextPosition()
+            val lyricsAnimationType = sessionManager.getLyricsAnimationType()
+            val audioOffloadEnabled = sessionManager.isAudioOffloadEnabled()
+            val volumeBoostEnabled = sessionManager.isVolumeBoostEnabled()
+            val volumeBoostAmount = sessionManager.getVolumeBoostAmount()
+            val updateChannel = sessionManager.getUpdateChannel()
+            val youtubeHistorySyncEnabled = sessionManager.isYouTubeHistorySyncEnabled()
+            val discordRpcEnabled = sessionManager.isDiscordRpcEnabled()
+            val incognitoModeEnabled = sessionManager.isIncognitoModeEnabled()
+            val audioArEnabled = sessionManager.isAudioArEnabled()
+            val spatialAudioStrength = sessionManager.getSpatialAudioStrength()
+            val nextSongPreloadingEnabled = sessionManager.isNextSongPreloadingEnabled()
+            val nextSongPreloadDelay = sessionManager.getNextSongPreloadDelay()
+            val crossfeedEnabled = sessionManager.isCrossfeedEnabled()
+            val eqEnabled = sessionManager.isEqEnabled()
+            val eqBands = sessionManager.getEqBands()
+            val forceMaxRefreshRate = sessionManager.forceMaxRefreshRateFlow.first()
+            val navBarAlpha = sessionManager.getNavBarAlpha()
+            val navBarBlur = sessionManager.getNavBarBlur()
+            val iosLiquidGlassEnabled = sessionManager.isIosLiquidGlassEnabled()
+            val miniPlayerAlpha = sessionManager.getMiniPlayerAlpha()
+            val miniPlayerStyle = sessionManager.getMiniPlayerStyle()
+            val playerStyle = sessionManager.getPlayerStyle()
+            val homeSectionsVisibility = sessionManager.getHomeSectionsVisibility()
+            val downloadLocation = sessionManager.getDownloadLocation()
+            val loggingEnabled = sessionManager.isLoggingEnabled()
+            val filterLocalByDurationEnabled = sessionManager.isFilterLocalByDurationEnabled()
+            val localDurationFilterThreshold = sessionManager.getLocalDurationFilterThreshold()
+
+
+            _uiState.update { it.copy(
+                isLoggedIn = isLoggedIn,
+                userName = userName,
+                userAvatarUrl = userAvatar,
+                storedAccounts = storedAccounts,
+
+                    audioQuality = audioQuality,
+                    wifiAudioQuality = wifiAudioQuality,
+                    mobileAudioQuality = mobileAudioQuality,
+                    videoQuality = videoQuality,
+                    downloadQuality = downloadQuality,
+                    themeMode = themeMode,
+                    appTheme = appTheme,
+                    dynamicColorEnabled = dynamicColorEnabled,
+                    gaplessPlaybackEnabled = gaplessPlaybackEnabled,
+                    automixEnabled = automixEnabled,
+                    volumeSliderEnabled = volumeSliderEnabled,
+                    musicSource = musicSource,
+                    preferRemoteAudio = preferRemoteAudio,
+                    doubleTapSeekSeconds = doubleTapSeekSeconds,
+                    volumeNormalizationEnabled = volumeNormalizationEnabled,
+                    betterLyricsEnabled = betterLyricsEnabled,
+                    simpMusicEnabled = simpMusicEnabled,
+                    kuGouEnabled = kuGouEnabled,
+                    playerCacheLimit = playerCacheLimit,
+                    playerCacheAutoClearInterval = playerCacheAutoClearInterval,
+                    // Music Haptics
+                    musicHapticsEnabled = musicHapticsEnabled,
+                    hapticsMode = hapticsMode,
+                    hapticsIntensity = hapticsIntensity,
+                    stopMusicOnTaskClear = stopMusicOnTaskClear,
+                    pauseMusicOnMediaMuted = pauseMusicOnMediaMuted,
+                    keepScreenOn = keepScreenOn,
+                    swipeDownToDismissEnabled = swipeDownToDismissEnabled,
+                    pureBlackEnabled = pureBlackEnabled,
+                    playerAnimatedBackgroundEnabled = playerAnimatedBackgroundEnabled,
+                    preferredLyricsProvider = preferredLyricsProvider,
+                    lyricsTextPosition = lyricsTextPosition,
+                    lyricsAnimationType = lyricsAnimationType,
+                    lyricsLineSpacing = lyricsLineSpacing,
+                    lyricsFontSize = lyricsFontSize,
+                    lyricsBlur = lyricsBlur,
+                    audioOffloadEnabled = audioOffloadEnabled,
+                    volumeBoostEnabled = volumeBoostEnabled,
+                    volumeBoostAmount = volumeBoostAmount,
+                    sponsorBlockEnabled = sponsorBlockEnabled,
+                    lastFmUsername = lastFmUsername,
+                    lastFmScrobblingEnabled = lastFmScrobblingEnabled,
+                    lastFmRecommendationsEnabled = lastFmRecommendationsEnabled,
+                    lastFmUseNowPlaying = lastFmUseNowPlaying,
+                    lastFmSendLikes = lastFmSendLikes,
+                    scrobbleDelayPercent = scrobbleDelayPercent,
+                    scrobbleMinDuration = scrobbleMinDuration,
+                    scrobbleDelaySeconds = scrobbleDelaySeconds,
+
+                    currentVersion = com.sonza.app.BuildConfig.VERSION_NAME,
+                    updateChannel = updateChannel,
+                    preferredLanguages = preferredLanguages,
+                    youtubeHistorySyncEnabled = youtubeHistorySyncEnabled,
+                    ignoreAudioFocusDuringCalls = ignoreAudioFocusDuringCalls,
+                    bluetoothAutoplayEnabled = bluetoothAutoplayEnabled,
+                    speakSongDetailsEnabled = speakSongDetailsEnabled,
+                    announceTtsVolume = announceTtsVolume,
+                    announceDuckVolume = announceDuckVolume,
+                    announceBluetoothOnly = announceBluetoothOnly,
+                    discordRpcEnabled = discordRpcEnabled,
+                    discordToken = discordToken,
+                    discordUseDetails = discordUseDetails,
+                    incognitoModeEnabled = incognitoModeEnabled,
+                    audioArEnabled = audioArEnabled,
+                    audioArSensitivity = sessionManager.getAudioArSensitivity(),
+                    audioArAutoCalibrate = sessionManager.isAudioArAutoCalibrateEnabled(),
+                    spatialAudioStrength = spatialAudioStrength,
+                    nextSongPreloadingEnabled = nextSongPreloadingEnabled,
+                    nextSongPreloadDelay = nextSongPreloadDelay,
+                    crossfeedEnabled = crossfeedEnabled,
+                    eqEnabled = eqEnabled,
+                    eqBands = eqBands,
+                    forceMaxRefreshRateEnabled = forceMaxRefreshRate,
+                    navBarAlpha = navBarAlpha,
+                    navBarBlur = navBarBlur,
+                    iosLiquidGlassEnabled = iosLiquidGlassEnabled,
+                    miniPlayerAlpha = miniPlayerAlpha,
+                    miniPlayerStyle = miniPlayerStyle,
+                    playerStyle = playerStyle,
+                    homeSectionsVisibility = homeSectionsVisibility,
+                    downloadLocation = downloadLocation,
+                    loggingEnabled = loggingEnabled,
+                    filterLocalByDurationEnabled = filterLocalByDurationEnabled,
+                    localDurationFilterThreshold = localDurationFilterThreshold
+                )
+            }
+        }
+    }
+
+    fun setCrossfeedEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setCrossfeedEnabled(enabled)
+            _uiState.update { it.copy(crossfeedEnabled = enabled) }
+        }
+    }
+
+    fun setEqEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setEqEnabled(enabled)
+            _uiState.update { it.copy(eqEnabled = enabled) }
+        }
+    }
+
+    fun setEqBandGain(index: Int, gain: Float) {
+        viewModelScope.launch {
+            sessionManager.setEqBand(index, gain)
+            val currentBands = _uiState.value.eqBands.copyOf()
+            if (index in currentBands.indices) {
+                currentBands[index] = gain
+                _uiState.update { it.copy(eqBands = currentBands) }
+            }
+        }
+    }
+
+    fun resetEqBands() {
+        viewModelScope.launch {
+            sessionManager.resetEqBands()
+            _uiState.update { it.copy(eqBands = FloatArray(10) { 0f }) }
+        }
+    }
+
+    fun getLastFmAuthUrl(): String {
+        // Record that auth was initiated from inside the app; the deep-link
+        // callback refuses to consume a token unless this flag is fresh.
+        sessionManager.markLastFmAuthStarted()
+        return lastFmRepository.getAuthUrl()
+    }
+
+    fun disconnectLastFm() {
+        viewModelScope.launch {
+            sessionManager.setLastFmSession("", "")
+            _uiState.update { it.copy(lastFmUsername = null) }
+        }
+    }
+
+    fun processLastFmToken(token: String, onSuccess: (String) -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            val result = lastFmRepository.fetchSession(token)
+            result.onSuccess { auth ->
+                val username = auth.session.name
+                val sessionKey = auth.session.key
+                sessionManager.setLastFmSession(sessionKey, username)
+                _uiState.update { it.copy(lastFmUsername = username) }
+                onSuccess(username)
+            }.onFailure { error ->
+                onError("Failed: ${error.message ?: "Unknown Error"}")
+            }
+        }
+    }
+
+    fun loginLastFmMobile(username: String, password: String, onSuccess: (String) -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            lastFmRepository.getMobileSession(username, password)
+                .onSuccess { auth ->
+                    sessionManager.setLastFmSession(auth.session.key, auth.session.name)
+                    _uiState.update { it.copy(lastFmUsername = auth.session.name) }
+                    onSuccess(auth.session.name)
+                }
+                .onFailure { error ->
+                    onError(error.message ?: "Login failed")
+                }
+        }
+    }
+
+    fun setLastFmScrobblingEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setLastFmScrobblingEnabled(enabled)
+            _uiState.update { it.copy(lastFmScrobblingEnabled = enabled) }
+        }
+    }
+
+    fun setLastFmRecommendationsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setLastFmRecommendationsEnabled(enabled)
+            _uiState.update { it.copy(lastFmRecommendationsEnabled = enabled) }
+        }
+    }
+
+    fun setLastFmUseNowPlaying(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setLastFmUseNowPlaying(enabled)
+            _uiState.update { it.copy(lastFmUseNowPlaying = enabled) }
+        }
+    }
+
+    fun setLastFmSendLikes(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setLastFmSendLikes(enabled)
+            _uiState.update { it.copy(lastFmSendLikes = enabled) }
+        }
+    }
+
+    fun setScrobbleDelayPercent(percent: Float) {
+        viewModelScope.launch {
+            sessionManager.setScrobbleDelayPercent(percent)
+            _uiState.update { it.copy(scrobbleDelayPercent = percent) }
+        }
+    }
+
+    fun setScrobbleMinDuration(seconds: Int) {
+        viewModelScope.launch {
+            sessionManager.setScrobbleMinDuration(seconds)
+            _uiState.update { it.copy(scrobbleMinDuration = seconds) }
+        }
+    }
+
+    fun setScrobbleDelaySeconds(seconds: Int) {
+        viewModelScope.launch {
+            sessionManager.setScrobbleDelaySeconds(seconds)
+            _uiState.update { it.copy(scrobbleDelaySeconds = seconds) }
+        }
+    }
+
+    fun setYouTubeHistorySyncEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setYouTubeHistorySyncEnabled(enabled)
+            _uiState.update { it.copy(youtubeHistorySyncEnabled = enabled) }
+        }
+    }
+
+    fun setIgnoreAudioFocusDuringCalls(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setIgnoreAudioFocusDuringCallsEnabled(enabled)
+            _uiState.update { it.copy(ignoreAudioFocusDuringCalls = enabled) }
+        }
+    }
+
+    fun setAutoResumeAfterCall(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setAutoResumeAfterCallEnabled(enabled)
+            _uiState.update { it.copy(autoResumeAfterCall = enabled) }
+        }
+    }
+
+    fun setBluetoothAutoplayEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setBluetoothAutoplayEnabled(enabled)
+            _uiState.update { it.copy(bluetoothAutoplayEnabled = enabled) }
+        }
+    }
+
+    fun setSpeakSongDetailsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setSpeakSongDetailsEnabled(enabled)
+            _uiState.update { it.copy(speakSongDetailsEnabled = enabled) }
+        }
+    }
+
+    fun setAnnounceTtsVolume(percent: Int) {
+        viewModelScope.launch {
+            sessionManager.setAnnounceTtsVolume(percent)
+            _uiState.update { it.copy(announceTtsVolume = percent.coerceIn(0, 100)) }
+        }
+    }
+
+    fun setAnnounceDuckVolume(percent: Int) {
+        viewModelScope.launch {
+            sessionManager.setAnnounceDuckVolume(percent)
+            _uiState.update { it.copy(announceDuckVolume = percent.coerceIn(0, 100)) }
+        }
+    }
+
+    fun setAnnounceBluetoothOnly(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setAnnounceBluetoothOnly(enabled)
+            _uiState.update { it.copy(announceBluetoothOnly = enabled) }
+        }
+    }
+
+    fun setDiscordRpcEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setDiscordRpcEnabled(enabled)
+            _uiState.update { it.copy(discordRpcEnabled = enabled) }
+        }
+    }
+    
+    fun setDiscordToken(token: String) {
+        viewModelScope.launch {
+            sessionManager.setDiscordToken(token)
+            _uiState.update { it.copy(discordToken = token) }
+        }
+    }
+    
+    fun setDiscordUseDetails(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setDiscordUseDetails(enabled)
+            _uiState.update { it.copy(discordUseDetails = enabled) }
+        }
+    }
+
+    fun setIncognitoModeEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setIncognitoModeEnabled(enabled)
+            _uiState.update { it.copy(incognitoModeEnabled = enabled) }
+        }
+    }
+
+    fun setAudioArEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setAudioArEnabled(enabled)
+            _uiState.update { it.copy(audioArEnabled = enabled) }
+        }
+    }
+
+    fun setAudioArSensitivity(sensitivity: Float) {
+        viewModelScope.launch {
+            sessionManager.setAudioArSensitivity(sensitivity)
+            _uiState.update { it.copy(audioArSensitivity = sensitivity) }
+        }
+    }
+
+    fun setAudioArAutoCalibrate(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setAudioArAutoCalibrate(enabled)
+            _uiState.update { it.copy(audioArAutoCalibrate = enabled) }
+        }
+    }
+
+    fun setSpatialAudioStrength(percent: Int) {
+        viewModelScope.launch {
+            sessionManager.setSpatialAudioStrength(percent)
+            _uiState.update { it.copy(spatialAudioStrength = percent.coerceIn(0, 100)) }
+        }
+    }
+
+    fun setNextSongPreloadingEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setNextSongPreloadingEnabled(enabled)
+            _uiState.update { it.copy(nextSongPreloadingEnabled = enabled) }
+        }
+    }
+    
+    fun setNextSongPreloadDelay(seconds: Int) {
+        viewModelScope.launch {
+            sessionManager.setNextSongPreloadDelay(seconds)
+            _uiState.update { it.copy(nextSongPreloadDelay = seconds) }
+        }
+    }
+
+    fun setCrossfadeMs(ms: Int) {
+        viewModelScope.launch {
+            sessionManager.setCrossfadeMs(ms)
+            _uiState.update { it.copy(crossfadeMs = ms.coerceIn(0, 12000)) }
+        }
+    }
+
+    fun setLyricsLineSpacing(multiplier: Float) {
+        viewModelScope.launch {
+            sessionManager.setLyricsLineSpacing(multiplier)
+            _uiState.update { it.copy(lyricsLineSpacing = multiplier) }
+        }
+    }
+
+    fun setLyricsFontSize(size: Float) {
+        viewModelScope.launch {
+            sessionManager.setLyricsFontSize(size)
+            _uiState.update { it.copy(lyricsFontSize = size) }
+        }
+    }
+
+    fun setLyricsBlur(blur: Float) {
+        viewModelScope.launch {
+            sessionManager.setLyricsBlur(blur)
+            _uiState.update { it.copy(lyricsBlur = blur) }
+        }
+    }
+    
+    fun calibrateAudioAr() {
+        audioARManager.calibrate()
+    }
+
+    /**
+     * Fetch account info (name, email) and save to history.
+     */
+    fun fetchAndSaveAccountInfo() {
+        viewModelScope.launch {
+            val account = youtubeRepository.fetchAccountInfo()
+            if (account != null) {
+               sessionManager.saveCurrentAccountToHistory(account.name, account.email, account.avatarUrl)
+               _uiState.update {
+                   it.copy(
+                       userAvatarUrl = account.avatarUrl,
+                       userName = account.name,
+                       storedAccounts = sessionManager.getStoredAccounts()
+                   )
+               }
+            }
+
+        }
+    }
+    
+    /**
+     * Fetch available brand accounts.
+     */
+    fun fetchAvailableAccounts() {
+        viewModelScope.launch {
+            val accounts = youtubeRepository.getAvailableAccounts()
+            _uiState.update { it.copy(availableAccounts = accounts) }
+        }
+    }
+
+    /**
+     * Switch to a saved account.
+     */
+    fun switchAccount(account: SessionManager.StoredAccount) {
+        viewModelScope.launch {
+            youtubeRepository.switchAccount(account)
+            _uiState.update { 
+                it.copy(
+                    isLoggedIn = true,
+                    userAvatarUrl = account.avatarUrl,
+                    storedAccounts = sessionManager.getStoredAccounts()
+                )
+            }
+            fetchAndSaveAccountInfo()
+            // Clear WebView cookies to force fresh login if needed or just to be safe
+            // clearWebViewCookies() 
+        }
+    }
+    
+    /**
+     * Prepare for adding a new account (logout current, save it).
+     */
+    fun prepareAddAccount() {
+        viewModelScope.launch {
+            sessionManager.clearCookies()
+            _uiState.update { 
+                it.copy(
+                    isLoggedIn = false,
+                    userAvatarUrl = null
+                )
+            }
+        }
+    }
+
+    /**
+     * Clear only WebView cookies to allow signing into a new account.
+     * Does NOT clear the current app session, so previous account remains active if login is cancelled.
+     */
+    fun clearWebViewCookies() {
+        viewModelScope.launch {
+            android.webkit.CookieManager.getInstance().removeAllCookies(null)
+            android.webkit.CookieManager.getInstance().flush()
+        }
+    }
+    
+    fun removeAccount(email: String) {
+        viewModelScope.launch {
+            sessionManager.removeAccount(email)
+            _uiState.update { 
+                it.copy(storedAccounts = sessionManager.getStoredAccounts())
+            }
+        }
+    }
+
+    fun setAudioQuality(quality: AudioQuality) {
+        viewModelScope.launch {
+            sessionManager.setAudioQuality(quality)
+            _uiState.update { it.copy(audioQuality = quality) }
+        }
+    }
+
+    fun setWifiAudioQuality(quality: AudioQuality) {
+        viewModelScope.launch {
+            sessionManager.setWifiAudioQuality(quality)
+            _uiState.update { it.copy(wifiAudioQuality = quality) }
+        }
+    }
+
+    fun setMobileAudioQuality(quality: AudioQuality) {
+        viewModelScope.launch {
+            sessionManager.setMobileAudioQuality(quality)
+            _uiState.update { it.copy(mobileAudioQuality = quality) }
+        }
+    }
+
+    fun setVideoQuality(quality: VideoQuality) {
+        viewModelScope.launch {
+            sessionManager.setVideoQuality(quality)
+            _uiState.update { it.copy(videoQuality = quality) }
+        }
+    }
+    
+    fun setDownloadQuality(quality: DownloadQuality) {
+        viewModelScope.launch {
+            sessionManager.setDownloadQuality(quality)
+            _uiState.update { it.copy(downloadQuality = quality) }
+        }
+    }
+    
+    fun setDynamicColor(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setDynamicColor(enabled)
+            _uiState.update { it.copy(dynamicColorEnabled = enabled) }
+        }
+    }
+    
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch {
+            sessionManager.setThemeMode(mode)
+            _uiState.update { it.copy(themeMode = mode) }
+        }
+    }
+    
+    fun setAppTheme(theme: AppTheme) {
+        viewModelScope.launch {
+            sessionManager.setAppTheme(theme)
+            _uiState.update { it.copy(appTheme = theme) }
+        }
+    }
+
+    fun setLogoVariant(variant: com.sonza.app.core.model.LogoVariant) {
+        viewModelScope.launch {
+            sessionManager.setLogoVariant(variant)
+            _uiState.update { it.copy(logoVariant = variant) }
+        }
+    }
+
+    fun setGaplessPlayback(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setGaplessPlayback(enabled)
+            _uiState.update { it.copy(gaplessPlaybackEnabled = enabled) }
+        }
+    }
+    
+    fun setAutomix(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setAutomix(enabled)
+            _uiState.update { it.copy(automixEnabled = enabled) }
+        }
+    }
+    
+    fun setMusicSource(source: MusicSource) {
+        viewModelScope.launch {
+            sessionManager.setMusicSource(source)
+            _uiState.update { it.copy(musicSource = source) }
+        }
+    }
+
+    fun setPreferRemoteAudio(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setPreferRemoteAudio(enabled)
+            _uiState.update { it.copy(preferRemoteAudio = enabled) }
+        }
+    }
+    
+    fun logout() {
+        viewModelScope.launch {
+            sessionManager.clearCookies()
+            _uiState.update { 
+                it.copy(
+                    isLoggedIn = false,
+                    userAvatarUrl = null
+                )
+            }
+        }
+    }
+    
+    fun setDoubleTapSeekSeconds(seconds: Int) {
+        viewModelScope.launch {
+            sessionManager.setDoubleTapSeekSeconds(seconds)
+            _uiState.update { it.copy(doubleTapSeekSeconds = seconds) }
+        }
+    }
+
+    fun setVolumeNormalizationEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setVolumeNormalizationEnabled(enabled)
+            _uiState.update { it.copy(volumeNormalizationEnabled = enabled) }
+        }
+    }
+
+    fun setBetterLyricsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setEnableBetterLyrics(enabled)
+            _uiState.update { it.copy(betterLyricsEnabled = enabled) }
+        }
+    }
+
+    fun setSimpMusicEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setEnableSimpMusic(enabled)
+            _uiState.update { it.copy(simpMusicEnabled = enabled) }
+        }
+    }
+
+    fun setKuGouEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setEnableKuGou(enabled)
+            _uiState.update { it.copy(kuGouEnabled = enabled) }
+        }
+    }
+
+
+    fun setPlayerCacheLimit(limit: Long) {
+        viewModelScope.launch {
+            sessionManager.setPlayerCacheLimit(limit)
+            _uiState.update { it.copy(playerCacheLimit = limit) }
+        }
+    }
+
+    fun setPlayerCacheAutoClearInterval(days: Int) {
+        viewModelScope.launch {
+            sessionManager.setPlayerCacheAutoClearInterval(days)
+            _uiState.update { it.copy(playerCacheAutoClearInterval = days) }
+        }
+    }
+
+    // --- Music Haptics ---
+
+    fun setMusicHapticsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setMusicHapticsEnabled(enabled)
+            _uiState.update { it.copy(musicHapticsEnabled = enabled) }
+        }
+    }
+
+    fun setHapticsMode(mode: HapticsMode) {
+        viewModelScope.launch {
+            sessionManager.setHapticsMode(mode)
+            _uiState.update { it.copy(hapticsMode = mode) }
+        }
+    }
+
+    fun setHapticsIntensity(intensity: HapticsIntensity) {
+        viewModelScope.launch {
+            sessionManager.setHapticsIntensity(intensity)
+            _uiState.update { it.copy(hapticsIntensity = intensity) }
+        }
+    }
+
+    // --- Misc Settings ---
+
+    fun setStopMusicOnTaskClear(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setStopMusicOnTaskClearEnabled(enabled)
+            _uiState.update { it.copy(stopMusicOnTaskClear = enabled) }
+        }
+    }
+
+    fun setPauseMusicOnMediaMuted(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setPauseMusicOnMediaMutedEnabled(enabled)
+            _uiState.update { it.copy(pauseMusicOnMediaMuted = enabled) }
+        }
+    }
+
+    fun setKeepScreenOn(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setKeepScreenOnEnabled(enabled)
+            _uiState.update { it.copy(keepScreenOn = enabled) }
+        }
+    }
+
+    fun setSwipeDownToDismissEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setSwipeDownToDismissEnabled(enabled)
+            _uiState.update { it.copy(swipeDownToDismissEnabled = enabled) }
+        }
+    }
+
+    fun setPureBlackEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setPureBlackEnabled(enabled)
+            _uiState.update { it.copy(pureBlackEnabled = enabled) }
+        }
+    }
+
+    fun setPlayerAnimatedBackgroundEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setPlayerAnimatedBackground(enabled)
+            _uiState.update { it.copy(playerAnimatedBackgroundEnabled = enabled) }
+        }
+    }
+
+    fun setAlbumArtDynamicColorsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setAlbumArtDynamicColorsEnabled(enabled)
+            _uiState.update { it.copy(albumArtDynamicColorsEnabled = enabled) }
+        }
+    }
+
+    fun setRotatingVinylAnimationEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setRotatingVinylAnimationEnabled(enabled)
+            _uiState.update { it.copy(rotatingVinylAnimationEnabled = enabled) }
+        }
+    }
+
+    fun setAlbumArtColorFlashingEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setAlbumArtColorFlashingEnabled(enabled)
+            _uiState.update { it.copy(albumArtColorFlashingEnabled = enabled) }
+        }
+    }
+
+    fun setPreferredLanguages(languages: Set<String>) {
+        viewModelScope.launch {
+            sessionManager.setPreferredLanguages(languages)
+            _uiState.update { it.copy(preferredLanguages = languages) }
+        }
+    }
+
+    fun setPreferredLyricsProvider(provider: String) {
+        viewModelScope.launch {
+            sessionManager.setPreferredLyricsProvider(provider)
+            _uiState.update { it.copy(preferredLyricsProvider = provider) }
+        }
+    }
+
+    fun setLyricsTextPosition(position: LyricsTextPosition) {
+        viewModelScope.launch {
+            sessionManager.setLyricsTextPosition(position)
+            _uiState.update { it.copy(lyricsTextPosition = position) }
+        }
+    }
+
+    fun setLyricsAnimationType(type: LyricsAnimationType) {
+        viewModelScope.launch {
+            sessionManager.setLyricsAnimationType(type)
+            _uiState.update { it.copy(lyricsAnimationType = type) }
+        }
+    }
+
+    fun setAudioOffloadEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setAudioOffloadEnabled(enabled)
+            _uiState.update { it.copy(audioOffloadEnabled = enabled) }
+        }
+    }
+
+    fun setVolumeBoostEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setVolumeBoostEnabled(enabled)
+            _uiState.update { it.copy(volumeBoostEnabled = enabled) }
+        }
+    }
+
+    fun setVolumeBoostAmount(amount: Int) {
+        viewModelScope.launch {
+            sessionManager.setVolumeBoostAmount(amount)
+            _uiState.update { it.copy(volumeBoostAmount = amount) }
+        }
+    }
+    fun setForceMaxRefreshRate(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setForceMaxRefreshRate(enabled)
+            _uiState.update { it.copy(forceMaxRefreshRateEnabled = enabled) }
+        }
+    }
+
+    fun setNavBarAlpha(alpha: Float) {
+        viewModelScope.launch {
+            sessionManager.setNavBarAlpha(alpha)
+            _uiState.update { it.copy(navBarAlpha = alpha) }
+        }
+    }
+
+    fun setNavBarBlur(blur: Float) {
+        viewModelScope.launch {
+            sessionManager.setNavBarBlur(blur)
+            _uiState.update { it.copy(navBarBlur = blur) }
+        }
+    }
+
+    fun setIosLiquidGlassEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setIosLiquidGlassEnabled(enabled)
+            _uiState.update { it.copy(iosLiquidGlassEnabled = enabled) }
+        }
+    }
+
+    fun setMiniPlayerAlpha(alpha: Float) {
+        viewModelScope.launch {
+            sessionManager.setMiniPlayerAlpha(alpha)
+            _uiState.update { it.copy(miniPlayerAlpha = alpha) }
+        }
+    }
+
+    fun setMiniPlayerStyle(style: com.sonza.app.core.model.MiniPlayerStyle) {
+        viewModelScope.launch {
+            sessionManager.setMiniPlayerStyle(style)
+            _uiState.update { it.copy(miniPlayerStyle = style) }
+        }
+    }
+
+    fun setPlayerStyle(style: com.sonza.app.core.model.PlayerStyle) {
+        viewModelScope.launch {
+            sessionManager.setPlayerStyle(style)
+            _uiState.update { it.copy(playerStyle = style) }
+        }
+    }
+
+    fun setHomeSectionsVisibility(sections: Set<String>) {
+        viewModelScope.launch {
+            sessionManager.setHomeSectionsVisibility(sections)
+            _uiState.update { it.copy(homeSectionsVisibility = sections) }
+        }
+    }
+
+    fun setSponsorBlockEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setSponsorBlockEnabled(enabled)
+            _uiState.update { it.copy(sponsorBlockEnabled = enabled) }
+        }
+    }
+
+    fun setDownloadLocation(uriString: String?) {
+        viewModelScope.launch {
+            sessionManager.setDownloadLocation(uriString)
+            _uiState.update { it.copy(downloadLocation = uriString) }
+        }
+    }
+
+    fun setLoggingEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setLoggingEnabled(enabled)
+            _uiState.update { it.copy(loggingEnabled = enabled) }
+            com.sonza.app.util.AppLog.init(context, enabled)
+        }
+    }
+
+    fun setFilterLocalByDurationEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.setFilterLocalByDurationEnabled(enabled)
+            _uiState.update { it.copy(filterLocalByDurationEnabled = enabled) }
+        }
+    }
+
+    fun setLocalDurationFilterThreshold(seconds: Int) {
+        viewModelScope.launch {
+            sessionManager.setLocalDurationFilterThreshold(seconds)
+            _uiState.update { it.copy(localDurationFilterThreshold = seconds) }
+        }
+    }
+
+    fun sharePersistentLogs() {
+        val logFile = com.sonza.app.util.AppLog.logFile ?: return
+        if (!logFile.exists()) return
+        shareBugReport(logFile)
+    }
+
+    fun toggleSponsorCategory(categoryKey: String, isEnabled: Boolean) {
+        viewModelScope.launch {
+            sessionManager.toggleSponsorCategory(categoryKey, isEnabled)
+        }
+    }
+
+    private var currentIssueDescription: String? = null
+
+    fun startBugReportingSession(description: String? = null) {
+        currentIssueDescription = description
+        _uiState.update { it.copy(isBugReportingSessionActive = true) }
+        // Optional: clear logcat buffer if possible
+        try {
+            Runtime.getRuntime().exec("logcat -c")
+        } catch (e: Exception) {
+            // Might fail on some Android versions due to permission
+        }
+    }
+
+    fun stopBugReportingSession(onLogReady: (File) -> Unit) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isBugReportingSessionActive = false) }
+            val logFile = withContext(Dispatchers.IO) { collectLogs(currentIssueDescription) }
+            if (logFile != null) {
+                onLogReady(logFile)
+            }
+            currentIssueDescription = null
+        }
+    }
+
+    private fun collectLogs(description: String?): File? {
+        val logDir = File(context.cacheDir, "crash_logs")
+        if (!logDir.exists()) logDir.mkdirs()
+
+        val timestamp = System.currentTimeMillis()
+        val logFile = File(logDir, "suvmusic_bug_report_$timestamp.txt")
+
+        return try {
+            val process = Runtime.getRuntime().exec("logcat -d")
+            val reader = process.inputStream.bufferedReader()
+            val writer = logFile.bufferedWriter()
+
+            writer.use { w ->
+                // --- 1. User Description ---
+                w.write("═══════════════════════════════════════\n")
+                w.write("  Sonza Bug Report\n")
+                w.write("  Generated: ${java.util.Date(timestamp)}\n")
+                w.write("═══════════════════════════════════════\n\n")
+                
+                w.write("── USER DESCRIPTION ──\n")
+                w.write("Issue: ${description ?: "No description provided"}\n\n")
+
+                // --- 2. Full System Details ---
+                w.write("── SYSTEM INFORMATION ──\n")
+                w.write("App Version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n")
+                w.write("Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}\n")
+                w.write("Brand: ${android.os.Build.BRAND}\n")
+                w.write("Hardware: ${android.os.Build.HARDWARE} / ${android.os.Build.BOARD}\n")
+                w.write("Android OS: ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})\n")
+                w.write("Build ID: ${android.os.Build.DISPLAY}\n")
+                w.write("Supported ABIs: ${android.os.Build.SUPPORTED_ABIS.joinToString(", ")}\n")
+                
+                // Memory Info
+                val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+                val memInfo = android.app.ActivityManager.MemoryInfo()
+                activityManager?.getMemoryInfo(memInfo)
+                w.write("Total RAM: ${memInfo.totalMem / (1024 * 1024)} MB\n")
+                w.write("Available RAM: ${memInfo.availMem / (1024 * 1024)} MB\n")
+                w.write("Low Memory State: ${memInfo.lowMemory}\n")
+                
+                // Display Info
+                val metrics = context.resources.displayMetrics
+                w.write("Display: ${metrics.widthPixels}x${metrics.heightPixels} (${metrics.densityDpi} dpi)\n")
+                w.write("────────────────────────\n\n")
+
+                // --- 3. Logcat Output ---
+                w.write("── LOGCAT OUTPUT ──\n")
+                reader.use { r ->
+                    r.forEachLine { line ->
+                        w.write(line)
+                        w.newLine()
+                    }
+                }
+                w.write("\n════════ End of Report ════════\n")
+            }
+            logFile
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsViewModel", "Error collecting logs", e)
+            null
+        }
+    }
+    fun setUpdateChannel(channel: UpdateChannel) {
+        viewModelScope.launch {
+            sessionManager.setUpdateChannel(channel)
+            _uiState.update { it.copy(updateChannel = channel) }
+        }
+    }
+
+    fun shareBugReport(file: File) {
+        try {
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.provider",
+                file
+            )
+            
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "Sonza Bug Report - ${android.os.Build.MODEL}")
+                putExtra(Intent.EXTRA_TEXT, "Attached is the bug report for Sonza.\n\nDeveloper: @princekjha-dev")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            
+            context.startActivity(Intent.createChooser(intent, "Send Bug Report via…").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsViewModel", "Error sharing bug report", e)
+        }
+    }
+}

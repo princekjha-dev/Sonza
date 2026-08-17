@@ -1,0 +1,172 @@
+{
+  "releases": [
+    {
+      "versionName": "2.6.3.0",
+      "versionCode": 42,
+      "date": "August 13, 2026",
+      "description": "• Player & Artwork Polish: Centered album artwork with Extra Large (92%) and Full Width (100%) presets, Full Width default, left-aligned now playing metadata layout, and customizable player background styles (Ambient, Black, Light).\n• Per-Song Audio Source Switching: Seamlessly switch between YouTube and HQ Audio per song right from the player controls, preserving playback position.\n• Download Feedback & Error Recovery: Comprehensive download status tracking with detailed failure reasons, one-tap retries from player snackbar and Downloads screen, offline fast-fail, and per-song notification tracking.\n• Story & Layout Fixes: Added 'The Story' section in About screen detailing project history and fixed layout stacking issues.",
+      "isMajorUpdate": false
+    },
+    {
+      "versionName": "2.6.2.0",
+      "versionCode": 41,
+      "date": "July 25, 2026",
+      "description": "• YouTube Architecture: Modularized YouTube repository into focused domain services and centralized model parsing.\n• Playlist & Edit Fixes: Fixed silent playlist edit failures, user-editable playlist detection, and playlist creation auth headers.\n• HQ Audio Dynamic Routing: Added daily timezone-based provider and per-request route interceptor with automated circuit breaker.\n• Glassmorphism Visual Polish: Frosted artwork backdrop for player sheets and dialogs.\n• Library Stability: Concurrent isolated section fetches, eliminated refresh double-fetching and collector leaks.\n• Upgraded NewPipeExtractor to v0.26.4.",
+      "isMajorUpdate": false
+    },
+    {
+      "versionName": "2.6.1.0",
+      "versionCode": 40,
+      "date": "July 23, 2026",
+      "description": "• Stability and Error Recovery: Crash-loop safe mode, stuck-playback watchdog, lyrics circuit breaker, offline cache for search, and album error retry.\n• Player & Library Ergonomics: Mini player swipe-to-skip, queue swipe-to-remove, library sort/search, sleep timer & speed chips, and stream fallback.\n• Listen Together Enhancements: Song suggestions, leave-button fix, disband/kick feedback, live server stats, and exact-sync toggle.\n• Jam Mode: Guest participation, queue routing, and control unblock.\n• User Experience: Settings search, taste onboarding, Hindi & Bengali translations, accessibility labels.\n• Support: Feedback API with email and Telegram fallback.\n• Fixed HQ Audio null-safety, dead failover, leaks, races, blank search results, and swipe-to-delete affordance.",
+      "isMajorUpdate": false
+    },
+    {
+      "versionName": "2.6.0.0",
+      "versionCode": 39,
+      "date": "July 08, 2026",
+      "description": "• Listen Together — Spotify Jam-style sessions: The host can now let guests add songs to a shared queue and even control playback (play/pause/skip/seek), all toggled live from the room's Guest Permissions. Guest suggestions and queue additions are attributed to who added them.\n• Suggest a song: Guests can search and send a song to the host, who can play it whenever they approve — and the guest gets a confirmation. Hosts see all pending suggestions with one-tap approve/reject.\n• Faster, reliable sync: Fixed a bug where a guest could get stuck on the previous song after a track change (every change stalled for up to 12 seconds waiting to sync). Songs now switch over promptly for everyone.\n• Exact Sync toggle: New option in Listen Together settings — turn it off for faster song switches when you don't need frame-perfect sync between devices.\n• Cleaner sessions: When the host ends a session the room is closed for everyone, and members whose app stops responding while syncing are dropped so they can't stall the room.\n• Live room stats: Active-room and listener counts now stream over the live connection instead of a periodic poll, so the server status is always accurate and never stale.\n• Enforced guest controls everywhere: Guest playback restrictions are now honored across the mini player, home screen, notification, headset buttons and Android Auto — not just the full player.\n• Clearer join flow: Joining now shows a 'waiting for the host' screen while your request is pending, and a clear message when a room doesn't exist, is full, or the host declines.\n• Fixed notification actions: Approve/Reject buttons on the join-request and song-suggestion notifications now actually work.\n• UI polish: The Leave Session button is no longer hidden behind the mini player.",
+      "isMajorUpdate": true
+    },
+    {
+      "versionName": "2.5.9.0",
+      "versionCode": 38,
+      "date": "July 06, 2026",
+      "description": "• Translucent Bottom Nav: Made bottom navigation bar Spotify-style translucent with a darkened top edge for improved visual contrast.\n• Search Category Grid: Added a Spotify-style 'Start browsing' category grid to search and removed the redundant Local Library tab.\n• Library Grid Scrollbar: Added a fading overlay scrollbar to the library grid.\n• Lifecycle-Aware Home Screen: Made Home screen flow collection lifecycle-aware to optimize resource usage.\n• Android Auto Pagination: Paginated Android Auto browse/search results to avoid Binder transaction overflow.\n• Tablet Player Layout: Fixed player layout on tablet portrait — no longer uses landscape layout for non-landscape screens.\n• Spotify Import Fix: Fixed Spotify playlist import capping at 100 tracks with TOTP-based token auth.",
+      "isMajorUpdate": false
+    },
+    {
+      "versionName": "2.5.8.0",
+      "versionCode": 37,
+      "date": "July 01, 2026",
+      "description": "• General bug fixes and performance improvements.",
+      "isMajorUpdate": false
+    },
+    {
+      "versionName": "2.5.7.0",
+      "versionCode": 36,
+      "date": "June 27, 2026",
+      "description": "• HQ Audio is now the default: Sonza now streams in high-quality 320 kbps audio out of the box, hosted on our own VPS for fast, reliable playback. Both Wi-Fi and mobile streaming default to 320 kbps. Prefer YouTube Music? You can switch back anytime in Playback settings. Existing users get a one-time welcome to the new HQ experience.\n• Cross-Search YouTube Music: Even with HQ Audio selected, the YouTube Music tab is now always available in Search, so you can find anything from either catalogue. Playback tries HQ first and gracefully falls back to YouTube when no HQ match exists, with a clear on-screen notice.\n• Unified Liquid-Glass Player: The transparent frosted-glass backdrop — blurred album art behind a soft scrim — now applies across all player styles, including Classic. The standalone iOS Liquid Glass style has been merged into the default look, and anyone using it is moved over automatically.\n• Smoother Player Transitions: Eliminated per-frame UI recompositions when expanding and collapsing between the mini player and the full player, so the animation is noticeably smoother and lighter on the battery.\n• Queue & UI Cleanup: Trimmed redundant actions from the queue's long-press selection bar and polished several screens.\n• Bug Fixes & Performance: General stability and performance improvements, including a fix for albums and playlists showing 0 songs under the HQ Audio source.",
+      "isMajorUpdate": false
+    },
+    {
+      "versionName": "2.5.5.0",
+      "versionCode": 34,
+      "date": "June 17, 2026",
+      "description": "• Liquid Glass UI (App-Wide): When the iOS Liquid Glass toggle is enabled, frosted glass now extends across bottom sheets, top bars, and cards app-wide. 12 sheets across Settings, Playback Settings, Library, and Customization all frost automatically. Polished the core glass effect with sharper specular falloff, a crisp top-edge glint, and a brighter rim border.\n• Miniplayer Vinyl Spin: When the Vinyl artwork shape is selected, the artwork in all four miniplayer styles (Standard, YT Music, Pill, Liquid Glass) now rotates continuously while playing — matching the full player behaviour.\n• Lyrics Screen UX: Added a floating 'Resume' pill (Apple Music / Spotify style) that appears whenever the active lyric line scrolls off screen while reading ahead. Tap it to instantly snap back to the playing line with a smooth animation. Auto-scroll resumes 4 seconds after the last manual scroll (up from 2).\n• About Screen Fixes: Social icon badges now wrap to multiple rows on narrow screens using FlowRow, preventing overflow. Tech-stack row values (versions, library names) no longer truncate — the label flexes and the value stays fully visible.\n• NewPipe Extractor v0.26.3: Updated to the official upstream release which resolves the YouTube 'audioStreams EMPTY' issue (SABR protocol). Removed the temporary MonseyNY fork workaround.",
+      "isMajorUpdate": false
+    },
+    {
+      "versionName": "2.5.4.0",
+      "versionCode": 33,
+      "date": "June 10, 2026",
+      "description": "• Critical bug fixes and performance improvements.",
+      "isMajorUpdate": false
+    },
+    {
+      "versionName": "2.5.3.0",
+      "versionCode": 32,
+      "date": "June 03, 2026",
+      "description": "• General bug fixes and performance improvements.",
+      "isMajorUpdate": false
+    },
+    {
+      "versionName": "2.5.2.0",
+      "versionCode": 31,
+      "date": "May 30, 2026",
+      "description": "• High-Quality Audio Sources: Enhanced HQ audio source selection and streaming stability.\n• Performance Optimization: Significant reduction in UI recompositions and general performance tuning.",
+      "isMajorUpdate": false
+    },
+    {
+      "versionName": "2.5.1.0",
+      "versionCode": 30,
+      "date": "May 28, 2026",
+      "description": "• General bug fixes and performance improvements.",
+      "isMajorUpdate": false
+    },
+    {
+      "versionName": "2.5.0.0",
+      "versionCode": 29,
+      "date": "May 17, 2026",
+      "description": "• General bug fixes and performance improvements.",
+      "isMajorUpdate": false
+    },
+    {
+      "versionName": "2.4.1.0",
+      "versionCode": 28,
+      "date": "May 09, 2026",
+      "description": "• Spotify-Style Volume Normalization: Replaced the old constant-gain shim with per-track perceptual loudness analysis. Each song's RMS is measured the first time it plays, cached locally, and used to apply a per-track gain offset (target ≈ -15 dBFS) so back-to-back tracks land at the same level — no more sudden jumps between a quiet ballad and a loud chart hit.\n• Robust Volume Boost: Capped the boost slider at +12 dB (was +15) with combined-gain clamp [-8, +14] dB, plus softer limiter params (threshold -0.3, ratio 12, attack 1ms, release 80ms) so the limiter colours the signal less while still preventing clipping.\n• Spatial Audio Intensity: New 'Spatial Intensity' slider (0–100%) drives both the static azimuth sweep and crossfeed strength independently of head-tracking sensitivity, so users on speakers or wired headphones now have a knob too.\n• Audio Offload Now Honoured: The 'Audio Offload' toggle in Playback settings is finally respected — previously the service would auto-enable offload regardless of the user's preference whenever no software effect was active.\n• Music Haptics from Real Audio: Replaced the synthetic 500ms beat with real-time RMS sampling from the native audio engine, plus an adaptive threshold (max of absolute floor and 60% of running peak) so haptics fire on quiet tracks and don't spam on loud ones. Toggling Music Haptics or changing mode/intensity now takes effect live without an app restart.\n• Music Languages Dialog Wired: Clicking 'Music Languages' in Playback Settings now actually shows the selection dialog (it was orphaned before). Expanded to 23 languages with proper YouTube hl-code mapping for richer localized recommendations.\n• Queue Reorder Polish: Bumped drag threshold so the row that snaps under the finger lines up cleanly after each swap (was visibly jumping ~8dp). Replaced the single-step `if` with a `while` loop tracking the working index locally so fast flicks walk through multiple rows instead of stalling on a stale captured index. Same fast-flick fix applied to the Playlist screen for consistency.\n• Swipe-Down-To-Dismiss Responsiveness: Lowered dismiss threshold from -10% to -5% of drag range so a confident flick reliably triggers it. Mini player now tracks the finger 1:1 with a fade as you pull down, and animates offscreen before stopping playback so the dismiss reads as motion rather than a hard cut. Toggle now takes effect live without restart.\n• High-Resolution Artwork on Home: Threaded covers, song rows, and playlist headers across HomeSections, PlaylistCard, AlbumScreen, and PlaylistScreen through ImageUtils.getHighResThumbnailUrl with explicit Coil request sizes. Previously several AsyncImage calls passed raw w120/w160 URLs so YouTube returned tiny stamps that pixellated on mid/large surfaces.\n• Instant Settings Account Header: Mirrored userName + userAvatar into encrypted prefs for synchronous read on entry. The Settings header now renders the current account immediately instead of flashing blank while DataStore reads complete.\n• Robust Announce Songs: Rewrote TTSManager around UtteranceProgressListener with AudioAttributes(USAGE_MEDIA, CONTENT_TYPE_SPEECH), STREAM_MUSIC, and per-utterance audio focus so announcements actually route through Bluetooth/BLE headsets correctly. Added three settings — TTS volume %, music duck volume %, and Bluetooth-only switch — with sliders. Player volume now reliably restores in onDone/onError, and a try/finally fallback ensures the player isn't stranded ducked when cancellation happens (e.g., next track starting before announcement finishes).\n• Bluetooth Autoplay Reliability: Debounce duplicate connect events between AudioDeviceCallback and ACL_CONNECTED, then verify play() actually started — some BT stacks miss the first call while the route is still settling, so retry up to three times with backoff.\n• AI Equalizer Critical Fixes:\n  · OpenAI client was building a JSONObject and discarding it before sending a hand-templated string. Now uses proper JSONObject/JSONArray construction.\n  · Restored AI state on app restart was set on _lastResult but never pushed to the audio engine. Now applies on init AND snapshots the pre-AI engine state so A/B Compare works after restart.\n  · checkAndAutoApplyAIForSong took the 'before AI' snapshot AFTER applySettings — so Original and AI were identical. Snapshot is now captured first.\n  · Auto mode was hardcoded to ChatProxy with empty key, ignoring the user's configured provider/model. Now resolves provider+key+model from settings with a graceful fallback to ChatProxy when no key is configured.\n  · System prompt mislabelled limiterThresholdDb as 'Peak Level' and let the model wrap output in markdown. Reworded plus added an extractJsonObject() helper that strips ``` json fences across all four AI clients.",
+      "isMajorUpdate": true
+    },
+    {
+      "versionName": "2.4.0.0",
+      "versionCode": 27,
+      "date": "May 03, 2026",
+      "description": "• Dynamic App Icons: Introduced 'Logo Variants'—Aether, Pulse, and Resonance. Customize the app icon and splash screen in Appearance settings.\n• Unified Multiplatform Architecture: Massive architectural shift to Kotlin Multiplatform (KMP). Core models and business logic are now shared, laying the foundation for desktop support.\n• Critical Playback Fixes: Resolved edge cases in MusicPlayer where state could become desynchronized. Optimized recovery logic for high-fidelity streams and improved gapless playback transitions.\n• Enhanced Session Persistence: Now accurately remembers your last played song, position, and queue across app restarts.\n• Next-Gen Audio Features: Integrated Spatial Audio processing, Haptic feedback for controls, and intelligent TTS ducking during voice announcements.\n• Download Stability: Major overhaul of the Download engine to resolve intermittent failures and improve resume reliability on unstable networks.\n• Smart Connectivity: Improved Discord RPC synchronization and refreshed Glance widgets with real-time playback status.",
+      "isMajorUpdate": true
+    },
+    {
+      "versionName": "2.3.0.0",
+      "versionCode": 26,
+      "date": "April 17, 2026",
+      "description": "• Expressive Player Experience: Added a professional 'bounce' feel to all main player controls (Play/Pause, Skip) for tactile feedback. Expanded Waveform Seeker with new 'Neon Glow' and 'Blocks' styles.\n• Professional Video Suite: Major overhaul of the Full-screen Video Player with high-fidelity gesture feedback. Added YouTube-style double-tap to seek with visual indicators, and improved brightness/volume gesture overlays.\n• Smarter Artist Insights: Redesigned artist matching to prioritize official channels and higher follower counts. Tapping artist names now accurately navigates to official profiles first.\n• UI Refinements & Polish: Moved Home Screen FAB higher for better accessibility. Redesigned Home Speed Dial to match YT Music's aesthetic with semi-transparent rounded cards and bouncy feedback.\n• About Sonza: Completely refreshed the About screen with personalized developer 'Vibe Coder' info and a new vision-focused app description.\n• Bug Fixes & Stability: Fixed a critical bug where long-pressing the seekbar would stop working after the first use. Improved playlist drawer stability and resolved various UI glitches in landscape video mode.",
+      "isMajorUpdate": true
+    },
+    {
+      "versionName": "2.2.2.0",
+      "versionCode": 25,
+      "date": "April 08, 2026",
+      "description": "• Neural Hardware AI Engine: New hardware-level AI audio engine with real-time signal analyzer. Migrated core AI logic to a dedicated C++ processor for peak performance and near-zero latency.\n• Smart AI Equalizer: Professional-grade AI tuning with A/B comparison, prompt history, and robust error handling with automatic fallback.\n• AI Feature Transparency: Introduced 'BETA' indicators across all AI-powered features, including the new Neural Equalizer and AI Assistant settings.\n• Listen Together Integration: Enhanced the Audio Output dialog with integrated 'Listen Together' session controls. View room codes and manage your session directly while switching devices.\n• Core Library Upgrades: Updated to Media3 1.10.0 and Coil 3.4.0. Improved gapless playback stability, memory efficiency during scrolling, and resolved high-res artwork crashes.\n• Technical Refinements: Implemented Media3 notification channel info requirements and optimized UI state collection for active shared-play sessions.\n• Bug Fixes: Resolved various type mismatches in AI EQ presets and fixed critical NullPointerExceptions in state unboxing and result card rendering.",
+      "isMajorUpdate": true
+    },
+    {
+      "versionName": "2.2.1.0",
+      "versionCode": 24,
+      "date": "April 05, 2026",
+      "description": "• Real-time Download Progress: Native-feel download tracking with live percentage and MB stats during updates.\n• Premium Updater UI: Redesigned System Update screen with expressive gradients, Squircle shapes, and M3E components.\n• Performance Overhaul: Massive optimizations across data and UI layers. Reduced redundant recompositions by 70% and offloaded heavy database tasks to background threads for stutter-free navigation.\n• UI Modernization: Replaced legacy Toast notifications with modern, theme-aware Snackbars across the entire app.\n• Advanced Lyrics Experience: Redesigned lyrics header for better visibility, added blur intensity controls, and implemented sticky layouts with smooth animations.\n• Local Library Control: New setting to filter local audio by duration, ensuring short clips or notification sounds don't clutter your library.\n• Playlist & Sync Fixes: Resolved infinite loading loops in Playlist screen and improved playlist ownership detection for better sync.\n• Multimedia Stability: Fixed media notification thumbnails, improved Snackbar support with MaterialComponents theme, and optimized YouTube stream resolution recovery.",
+      "isMajorUpdate": false
+    },
+    {
+      "versionName": "2.2.0.0",
+      "versionCode": 23,
+      "date": "March 31, 2026",
+      "description": "• Immersive Artist Experience: Completely redesigned Artist screen with dynamic colors, multiple artist navigation dialog, and an enhanced Artist Radio engine.\n• Modernized Player UI: New 'YT Music' default style with a centered Audio/Video switch, compact Like/Dislike capsule, and marquee titles for long names.\n• Technical Audio Insights: Overhauled Song Info sheet now displays technical stats (bitrate, codec) with adaptive artwork-based themes.\n• Advanced History & Privacy: Grouped history by date with sticky headers, integrated Incognito mode, and dedicated multi-select management.\n• Unified Selection & Reordering: Standardized long-press selection across all lists with integrated batch actions and always-visible, touch-optimized reorder handles.\n• Related Songs & Autoplay: New Related sheet with dedicated queue management and an expanded Radio queue of 50 songs with diversity scoring.\n• Playback Excellence: Implemented reactive quality downscaling for weak networks, smooth Volume Fade-in, and advanced BLE audio routing recovery.\n• Hardware & Notifications: Fixed notification artwork for user-uploaded videos and optimized artwork fallbacks for offline playback.\n• Premium UX Polish: Redesigned theme-aware Welcome dialog, improved snackbar positioning, and haptic-feedback reordering with zero-flicker database syncing.",
+      "isMajorUpdate": true
+    },
+    {
+      "versionName": "2.1.4.0",
+      "versionCode": 22,
+      "date": "March 29, 2026",
+      "description": "• Shuffle Integrity: Resolved a critical issue where shuffle mode would cause rapid song skipping or 'Source Errors'.\n• Audio Output Switching: Fixed playback failing to resume or becoming silent when switching between Bluetooth and speakers.\n• Visual Error Feedback: Introduced a modern error overlay on the Player screen with 'Copy Error' and 'Retry' actions.\n• Intelligent Recovery: Implemented exponential backoff for network retries and automatic search fallback for expired YouTube streams.\n• Battery & Efficiency: Optimized battery life with Dynamic Audio Offload and reduced memory usage for Android Auto thumbnails.\n• Safe Volume: Added 'Safe Volume Ducking' to prevent sudden loud volume when connecting Bluetooth devices.\n• Backup Efficiency: Optimized cloud backup rules to exclude large cache files for faster transfers.",
+      "isMajorUpdate": false
+    },
+    {
+      "versionName": "2.1.3.0",
+      "versionCode": 21,
+      "date": "March 25, 2026",
+      "description": "• Comprehensive Backup & Restore: Securely back up your entire Sonza experience, including library cache and encrypted YouTube settings, using the new high-performance .suv format.\n• Lyrics Screen Overhaul: Experience a completely redesigned, more immersive lyrics screen built with modern Material 3 Expressive components.\n• Home Screen Personalization: Take control of your home feed with new layout customization options and a refined 4-row Quick Picks layout.\n• Enhanced Playlist Management: Expanded playlist support with native .suv and standard .m3u export options, plus a new 'Queue to Playlist' action.\n• Improved Audio Stability: Optimized audio output detection and fixed 'Auto-resume after calls' to ensure seamless playback transitions.\n• Visual Refinements: Introduced the M3E wavy seekbar as the new default with smoother, more expressive animations and enabled rotating vinyl artwork by default.\n• Customization & Links: New blur customization for iOS-style navigation bars and added official Sonza website and Privacy Policy links for quick access.\n• Under-the-Hood Fixes: Resolved various UI state restoration issues, improved dynamic theme transitions, and filtered virtual devices for better audio switching.",
+      "isMajorUpdate": true
+    },
+    {
+      "versionName": "2.1.2.0",
+      "versionCode": 20,
+      "date": "March 21, 2026",
+      "description": "• Modernized Credits & About: Completely redesigned the Credits screen with expressive styling, TopAppBar scroll behavior, and unified developer profile visuals matching the About screen.\n• Advanced Playlist Management: Redesigned Playlist and Import screens with Material 3 Expressive UI. Enhanced headers, sort menus, and added support for renaming local playlists.\n• Universal Playlist Import: Implemented direct native import for YouTube Music sources and added support for .m3u playlist files.\n• Hardware Integration: Added MediaButtonReceiver for superior hardware media key handling and peripheral control.\n• Database Integrity: Migrated database to version 9 to resolve critical Room data integrity and migration crashes.\n• Playback Stability: Resolved auto-skip chains caused by resolution parse errors. Optimized playback latency and fixed resolution race conditions during rapid track skipping.\n• UI Polish: Stabilized player layout with fixed-height seekbar containers to eliminate loading jank. Expanded brand-standard Squircle shapes to all remaining UI components.\n• Fixes & Refinements: Resolved duplicate and uneditable imported playlists, fixed 'Date Added' library sorting, and corrected edge-case Radio queue logic bugs.",
+      "isMajorUpdate": false
+    },
+    {
+      "versionName": "2.1.1.0",
+      "versionCode": 19,
+      "date": "March 17, 2026",
+      "description": "• Core Playback Overhaul: Massive performance update reducing playback startup latency to 500ms for near-instant response. Optimized main-thread resource usage by decoupling position updates and offloading JSON serialization to background threads.\n• Skip & Resolution Stability: Resolved critical issues with orphaned coroutines and auto-skip chains during rapid track skipping. Fixed double-resolution race conditions between service and client.\n• Material 3 Expressive UI Polish: Massive refinement phase introducing the new Wavy Seekbar style, YouTube-style bouncy animations for Like/Dislike buttons, and a completely redesigned Credits & Song Info screen with adaptive artwork coloring.\n• Android Auto Overhaul: Comprehensive fix for car-screen integration. Resolved issues with skip buttons, auto-advance, empty menus, and playlist transition hangs.\n• Advanced Playlist Management: Full suite of management tools including track sorting (A-Z, Artist, Date), mass reordering, and multi-select deletion. Added a smart 24-hour auto-clear policy for temporary playlist cache.\n• Local Library & Offline: Major enhancement for offline listeners with folder browsing support and integrated local albums/artists in search.\n• Audio Refinements: Resolved volume micro-toggle clicks and improved TTS ducking/restoration logic for smoother transitions.\n• Modern Infrastructure: Full migration to Navigation 2.9.0 and Coil 3. Updated SDK to 36 and improved JNI-based recommendation scoring.",
+      "isMajorUpdate": false
+    },
+    {
+      "versionName": "2.1.0.0",
+      "versionCode": 18,
+      "date": "March 14, 2026",
+      "description": "• Material 3 Expressive Redesign: Massive UI overhaul with unified expressive components and squircle shapes.\n• Visual Consistency: Switched all artwork, thumbnails, and action buttons to modern Squircle shapes.\n• Redesigned Core Screens: Completely refreshed Settings, Album, Playlist, Artist, and Search screens.\n• Robust Backup Restore: Fixed crashes after Swift Backup restoration by handling corrupted encryption keys.\n• Seamless History Sync: Automatically enables 'Sync with YouTube History' for logged-in users.\n• TV Optimization: Integrated dpadFocusable across all major interactive elements for better remote navigation.",
+      "isMajorUpdate": true
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+package com.sonza.app.ui.screens.player
+
+import com.sonza.app.core.model.Song
+
+/**
+ * Represents the currently active overlay on the Player screen.
+ * Only one overlay can be visible at a time, preventing sheet "pileups"
+ * and simplifying back-press handling.
+ */
+sealed interface PlayerOverlay {
+    data object None : PlayerOverlay
+    data object Queue : PlayerOverlay
+    data object Lyrics : PlayerOverlay
+    data object Related : PlayerOverlay
+    data class Actions(val targetSong: Song? = null, val fromQueue: Boolean = false, val fromRelated: Boolean = false) : PlayerOverlay
+    data object SongInfo : PlayerOverlay
+    data object SleepTimer : PlayerOverlay
+    data object OutputDevice : PlayerOverlay
+    data object PlaybackSpeed : PlayerOverlay
+    data object ListenTogether : PlayerOverlay
+    data object Equalizer : PlayerOverlay
+}

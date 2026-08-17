@@ -1,0 +1,422 @@
+package com.sonza.app.data.repository.youtube.internal
+
+import com.sonza.app.data.SessionManager
+import com.sonza.app.data.YouTubeAuthUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * Handles all YouTube Music API communication.
+ * Manages authentication, request building, and API calls.
+ */
+@Singleton
+class YouTubeApiClient @Inject constructor(
+    private val okHttpClient: OkHttpClient,
+    private val sessionManager: SessionManager,
+    private val visitorDataProvider: VisitorDataProvider
+) {
+
+    private fun contextJson(hl: String, gl: String): String = """
+        "context": {
+            "client": {
+                "clientName": "${YouTubeConfig.CLIENT_NAME}",
+                "clientVersion": "${YouTubeConfig.CLIENT_VERSION}",
+                "hl": "$hl",
+                "gl": "$gl"
+            }
+        }
+    """.trimIndent()
+
+    private fun stripOuterBraces(bodyJson: String): String {
+        val cleaned = bodyJson.trim()
+        return if (cleaned.startsWith("{") && cleaned.endsWith("}")) {
+            cleaned.substring(1, cleaned.length - 1)
+        } else {
+            cleaned
+        }
+    }
+
+    private fun okhttp3.Request.Builder.addPublicApiHeaders(): okhttp3.Request.Builder =
+        addHeader("User-Agent", YouTubeConfig.USER_AGENT)
+            .addHeader("Origin", YouTubeConfig.ORIGIN)
+            .addHeader("Referer", "${YouTubeConfig.ORIGIN}/")
+
+    private fun executeForBody(request: okhttp3.Request): String {
+        return try {
+            okHttpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    android.util.Log.w("YouTubeApiClient", "InnerTube request failed: HTTP ${response.code}")
+                    return ""
+                }
+                response.body?.string() ?: ""
+            }
+        } catch (e: Exception) {
+            // Log instead of silently returning "": network errors and InnerTube
+            // schema drift otherwise vanish into empty results with no signal.
+            android.util.Log.w("YouTubeApiClient", "InnerTube request failed: ${e.javaClass.simpleName}: ${e.message}")
+            ""
+        }
+    }
+
+    /**
+     * Fetch authenticated YouTube Music internal API.
+     * @param endpoint Either a browseId (e.g., "FEmusic_home") or endpoint path (e.g., "account/account_menu")
+     * @param hl Host language (e.g., "en", "hi")
+     * @param gl Geolocation (e.g., "US", "IN")
+     * @param params Optional browse params token (for category browsing)
+     */
+    suspend fun fetchInternalApi(
+        endpoint: String,
+        hl: String = YouTubeConfig.DEFAULT_HL,
+        gl: String = YouTubeConfig.DEFAULT_GL,
+        params: String? = null
+    ): String = withContext(Dispatchers.IO) {
+        val cookies = sessionManager.getCookies() ?: return@withContext ""
+        val authUser = sessionManager.getAuthUserIndex()
+        val visitorData = visitorDataProvider.get()
+        val isBrowse = !endpoint.contains("/")
+
+        val url = if (isBrowse) {
+            "${YouTubeConfig.BASE_URL}/browse"
+        } else {
+            "${YouTubeConfig.BASE_URL}/$endpoint"
+        }
+
+        val fields = buildList {
+            add(contextJson(hl, gl))
+            if (isBrowse) add("\"browseId\": \"$endpoint\"")
+            if (params != null) add("\"params\": \"$params\"")
+        }
+        val jsonBody = "{ ${fields.joinToString(", ")} }"
+
+        val request = okhttp3.Request.Builder()
+            .url(url)
+            .post(jsonBody.toRequestBody("application/json".toMediaType()))
+            .addYouTubeAuthHeaders(cookies, authUser, visitorData)
+            .build()
+
+        executeForBody(request)
+    }
+
+    /**
+     * Fetch continuation data for paginated results.
+     */
+    suspend fun fetchInternalApiWithContinuation(continuationToken: String, hl: String = YouTubeConfig.DEFAULT_HL, gl: String = YouTubeConfig.DEFAULT_GL): String = withContext(Dispatchers.IO) {
+        val cookies = sessionManager.getCookies() ?: return@withContext ""
+        val authUser = sessionManager.getAuthUserIndex()
+        val visitorData = visitorDataProvider.get()
+
+        val jsonBody = "{ \"continuation\": \"$continuationToken\", ${contextJson(hl, gl)} }"
+
+        val request = okhttp3.Request.Builder()
+            .url("${YouTubeConfig.BASE_URL}/browse?ctoken=$continuationToken&continuation=$continuationToken")
+            .post(jsonBody.toRequestBody("application/json".toMediaType()))
+            .addYouTubeAuthHeaders(cookies, authUser, visitorData)
+            .build()
+
+        executeForBody(request)
+    }
+
+    /**
+     * Fetch authenticated YouTube Music internal API with a custom body.
+     */
+    suspend fun fetchInternalApiWithBody(endpoint: String, bodyJson: String, hl: String = YouTubeConfig.DEFAULT_HL, gl: String = YouTubeConfig.DEFAULT_GL): String = withContext(Dispatchers.IO) {
+        val cookies = sessionManager.getCookies() ?: return@withContext ""
+        val authUser = sessionManager.getAuthUserIndex()
+        val visitorData = visitorDataProvider.get()
+
+        val url = "${YouTubeConfig.BASE_URL}/$endpoint"
+
+        val fullBody = "{ ${contextJson(hl, gl)}, ${stripOuterBraces(bodyJson)} }"
+
+        val request = okhttp3.Request.Builder()
+            .url(url)
+            .post(fullBody.toRequestBody("application/json".toMediaType()))
+            .addYouTubeAuthHeaders(cookies, authUser, visitorData)
+            .build()
+
+        executeForBody(request)
+    }
+
+    /**
+     * POST an arbitrary body to an InnerTube endpoint, signing it only if we happen to be
+     * logged in.
+     *
+     * For content that works either way — lyrics, watch-next queues — this keeps one code
+     * path instead of an authenticated and an anonymous copy, and it still benefits from a
+     * session when there is one.
+     */
+    suspend fun fetchPublicApiWithBody(
+        endpoint: String,
+        bodyJson: String,
+        hl: String = YouTubeConfig.DEFAULT_HL,
+        gl: String = YouTubeConfig.DEFAULT_GL
+    ): String = withContext(Dispatchers.IO) {
+        val cookies = sessionManager.getCookies()
+        val authUser = sessionManager.getAuthUserIndex()
+        val fullBody = "{ ${contextJson(hl, gl)}, ${stripOuterBraces(bodyJson)} }"
+
+        val request = okhttp3.Request.Builder()
+            .url("${YouTubeConfig.BASE_URL}/$endpoint")
+            .post(fullBody.toRequestBody("application/json".toMediaType()))
+            // The helper omits the authenticated headers when cookies are null/blank.
+            .addYouTubeAuthHeaders(cookies, authUser)
+            .build()
+
+        executeForBody(request)
+    }
+
+    /**
+     * Fetch public YouTube Music API without authentication.
+     * Used for charts, trending, and public browse content.
+     * @param params Optional browse params token, for mood/genre categories that require one.
+     */
+    suspend fun fetchPublicApi(
+        browseId: String,
+        hl: String = YouTubeConfig.DEFAULT_HL,
+        gl: String = "IN",
+        params: String? = null
+    ): String = withContext(Dispatchers.IO) {
+        val url = "${YouTubeConfig.PUBLIC_BASE_URL}/browse?prettyPrint=false"
+
+        val fields = buildList {
+            add(contextJson(hl, gl))
+            add("\"browseId\": \"$browseId\"")
+            if (params != null) add("\"params\": \"$params\"")
+        }
+        val jsonBody = "{ ${fields.joinToString(", ")} }"
+
+        val request = okhttp3.Request.Builder()
+            .url(url)
+            .post(jsonBody.toRequestBody("application/json".toMediaType()))
+            .addPublicApiHeaders()
+            .build()
+
+        executeForBody(request)
+    }
+
+
+    /**
+     * Perform an authenticated action (like, create playlist, etc.).
+     * @param endpoint API endpoint path (e.g., "like/like", "playlist/create")
+     * @param innerBody JSON body content (without context wrapper)
+     */
+    suspend fun performAuthenticatedAction(endpoint: String, innerBody: String): Boolean =
+        performAuthenticatedActionForBody(endpoint, innerBody) != null
+
+    /**
+     * Like [performAuthenticatedAction] but returns the response body, for callers that
+     * need something out of it (a new playlist id, say). Null means the action failed.
+     */
+    suspend fun performAuthenticatedActionForBody(endpoint: String, innerBody: String): String? = withContext(Dispatchers.IO) {
+        if (!sessionManager.isLoggedIn()) return@withContext null
+        val cookies = sessionManager.getCookies() ?: return@withContext null
+
+        val url = "${YouTubeConfig.BASE_URL}/$endpoint"
+        // Don't even attempt an authenticated action if we can't sign the request.
+        if (YouTubeAuthUtils.getAuthorizationHeader(cookies) == null) return@withContext null
+        val authUser = sessionManager.getAuthUserIndex()
+        val visitorData = visitorDataProvider.get()
+
+        val fullBody = "{ ${contextJson(YouTubeConfig.DEFAULT_HL, YouTubeConfig.DEFAULT_GL)}, ${stripOuterBraces(innerBody)} }"
+
+        val request = okhttp3.Request.Builder()
+            .url(url)
+            .post(fullBody.toRequestBody("application/json".toMediaType()))
+            .addYouTubeAuthHeaders(cookies, authUser, visitorData)
+            .build()
+
+        try {
+            okHttpClient.newCall(request).execute().use { response ->
+                val body = try { response.body?.string() } catch (e: Exception) { null }
+                if (!response.isSuccessful) {
+                    android.util.Log.e("YouTubeApiClient", "Action failed: $endpoint. Code: ${response.code}, Body: $body")
+                    return@withContext null
+                }
+                if (isRejected(body)) {
+                    android.util.Log.e("YouTubeApiClient", "Action rejected: $endpoint. Body: $body")
+                    return@withContext null
+                }
+                body ?: ""
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("YouTubeApiClient", "Action error: $endpoint", e)
+            null
+        }
+    }
+
+    /**
+     * InnerTube answers a rejected mutation with HTTP 200 and a failed status in the body —
+     * an edit that never happened otherwise reads as success, which is what made
+     * "add to playlist" appear to work while nothing was written.
+     */
+    private fun isRejected(body: String?): Boolean {
+        if (body.isNullOrBlank()) return false
+        return try {
+            val json = JSONObject(body)
+            if (json.has("error")) return true
+            val status = json.optString("status")
+            status.isNotBlank() && !status.equals("STATUS_SUCCEEDED", ignoreCase = true)
+        } catch (e: Exception) {
+            // Not JSON we understand — don't invent a failure.
+            false
+        }
+    }
+
+    /**
+     * Apply edit_playlist actions to a playlist.
+     * @param playlistId The ID of the playlist, with or without the "VL" prefix
+     * @param actions The edit_playlist action objects to apply
+     */
+    suspend fun editPlaylist(playlistId: String, actions: List<JSONObject>): Boolean {
+        // Strip "VL" prefix if present, as edit_playlist expects the raw playlist ID
+        val realPlaylistId = playlistId.removePrefix("VL")
+        val body = JSONObject().apply {
+            put("playlistId", realPlaylistId)
+            put("actions", JSONArray(actions))
+        }
+        return performAuthenticatedAction("browse/edit_playlist", body.toString())
+    }
+
+    /**
+     * Send a one-shot feedback token.
+     *
+     * This is the only removal path YouTube offers for auto-generated playlists (My Top 50,
+     * Discover Mix, …), which reject `edit_playlist` outright. The token comes from the
+     * item's own overflow menu and is consumed by this call.
+     */
+    suspend fun sendFeedback(feedbackTokens: List<String>): Boolean {
+        if (feedbackTokens.isEmpty()) return false
+        val body = JSONObject().put("feedbackTokens", JSONArray(feedbackTokens))
+        return performAuthenticatedAction("feedback", body.toString())
+    }
+
+    /**
+     * Generate a Client Playback Nonce (CPN) - a 16-character alphanumeric string
+     * used by YouTube to identify unique playback sessions.
+     */
+    private fun generateCPN(): String {
+        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+        return (1..16).map { chars.random() }.joinToString("")
+    }
+
+    /**
+     * Report a song playback to YouTube Music history.
+     * 
+     * This works by:
+     * 1. Calling the /player endpoint to get playbackTracking URLs
+     * 2. Hitting the videostatsPlaybackUrl (playback start signal)
+     * 3. Hitting the videostatsWatchtimeUrl (watch time signal - this is what actually records history)
+     *
+     * @param videoId The YouTube video ID to report
+     * @param durationSeconds Approximate duration of the song in seconds (used in watchtime reporting)
+     * @return true if history was successfully reported
+     */
+    suspend fun reportPlaybackForHistory(videoId: String, durationSeconds: Int = 30): Boolean {
+        if (!sessionManager.isLoggedIn()) return false
+        val cookies = sessionManager.getCookies() ?: return false
+        if (YouTubeAuthUtils.getAuthorizationHeader(cookies) == null) return false
+        val authUser = sessionManager.getAuthUserIndex()
+        val visitorData = visitorDataProvider.get()
+
+        try {
+            // Step 1: Call /player to get playbackTracking URLs
+            val playerBody = JSONObject().apply {
+                put("context", JSONObject().apply {
+                    put("client", JSONObject().apply {
+                        put("clientName", YouTubeConfig.CLIENT_NAME)
+                        put("clientVersion", YouTubeConfig.CLIENT_VERSION)
+                        put("hl", YouTubeConfig.DEFAULT_HL)
+                        put("gl", YouTubeConfig.DEFAULT_GL)
+                    })
+                })
+                put("videoId", videoId)
+                put("playbackContext", JSONObject().apply {
+                    put("contentPlaybackContext", JSONObject().apply {
+                        put("signatureTimestamp", System.currentTimeMillis() / 1000)
+                    })
+                })
+            }
+
+            val playerRequest = okhttp3.Request.Builder()
+                .url("${YouTubeConfig.BASE_URL}/player")
+                .post(playerBody.toString().toRequestBody("application/json".toMediaType()))
+                .addYouTubeAuthHeaders(cookies, authUser, visitorData)
+                .addHeader("Referer", "https://music.youtube.com/")
+                .build()
+
+            val playerResponse = okHttpClient.newCall(playerRequest).execute()
+            val playerResponseBody = playerResponse.body?.string()
+            
+            if (!playerResponse.isSuccessful || playerResponseBody.isNullOrBlank()) {
+                android.util.Log.e("YouTubeApiClient", "Player request failed: ${playerResponse.code}")
+                return false
+            }
+
+            val playerJson = JSONObject(playerResponseBody)
+            val playbackTracking = playerJson.optJSONObject("playbackTracking")
+            
+            if (playbackTracking == null) {
+                android.util.Log.e("YouTubeApiClient", "No playbackTracking in player response for $videoId")
+                return false
+            }
+
+            // Extract tracking URLs
+            val playbackUrl = playbackTracking
+                .optJSONObject("videostatsPlaybackUrl")
+                ?.optString("baseUrl")
+            val watchtimeUrl = playbackTracking
+                .optJSONObject("videostatsWatchtimeUrl")
+                ?.optString("baseUrl")
+
+            if (playbackUrl.isNullOrBlank() || watchtimeUrl.isNullOrBlank()) {
+                android.util.Log.e("YouTubeApiClient", "Missing tracking URLs for $videoId")
+                return false
+            }
+
+            val cpn = generateCPN()
+
+            // Step 2: Hit videostatsPlaybackUrl (signals playback start)
+            val playbackTrackingUrl = "$playbackUrl&ver=2&cpn=$cpn&el=detailpage&st=0&et=$durationSeconds"
+            val playbackTrackRequest = okhttp3.Request.Builder()
+                .url(playbackTrackingUrl)
+                .get()
+                .addHeader("Cookie", cookies)
+                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                .addHeader("Origin", "https://music.youtube.com")
+                .addHeader("Referer", "https://music.youtube.com/")
+                .build()
+
+            val playbackTrackResponse = okHttpClient.newCall(playbackTrackRequest).execute()
+            android.util.Log.d("YouTubeApiClient", "Playback tracking response: ${playbackTrackResponse.code}")
+            playbackTrackResponse.body?.close()
+
+            // Step 3: Hit videostatsWatchtimeUrl (signals watch time - THIS records history)
+            val watchtimeTrackingUrl = "$watchtimeUrl&ver=2&cpn=$cpn&el=detailpage&st=0&et=$durationSeconds&len=$durationSeconds&cmt=$durationSeconds"
+            val watchtimeTrackRequest = okhttp3.Request.Builder()
+                .url(watchtimeTrackingUrl)
+                .get()
+                .addHeader("Cookie", cookies)
+                .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                .addHeader("Origin", "https://music.youtube.com")
+                .addHeader("Referer", "https://music.youtube.com/")
+                .build()
+
+            val watchtimeTrackResponse = okHttpClient.newCall(watchtimeTrackRequest).execute()
+            android.util.Log.d("YouTubeApiClient", "Watchtime tracking response: ${watchtimeTrackResponse.code}")
+            watchtimeTrackResponse.body?.close()
+
+            return playbackTrackResponse.isSuccessful && watchtimeTrackResponse.isSuccessful
+        } catch (e: Exception) {
+            android.util.Log.e("YouTubeApiClient", "Error reporting playback history for $videoId", e)
+            return false
+        }
+    }
+}

@@ -1,7 +1,0 @@
-<resources>
-    <string name="app_name">SONZA</string>
-    <string name="tagline">Hear Music Differently.</string>
-    <string name="sub_tagline">Audiophile High-Fidelity Streaming &amp; Social Listening</string>
-    <string name="notification_channel_name">SONZA Playback</string>
-    <string name="notification_channel_description">Displays high-fidelity playback controls and track metadata.</string>
-</resources>
