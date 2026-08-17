@@ -25,16 +25,20 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Ensure Gradle Wrapper & Catalog
+        run: |
+          mkdir -p gradle
+          gradle wrapper --gradle-version 8.11.1
+          chmod +x gradlew
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
@@ -43,16 +47,17 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
 
       - name: Create Release and Upload APK
-        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         with:
-          name: SONZA ${{ github.ref_name }}
+          name: SONZA ${{ github.ref_name || 'v2.6.3.0' }}
+          tag_name: ${{ github.ref_name || 'v2.6.3.0' }}
           body: |
             ## 🎧 SONZA — Hear Music Differently.
             
             ### High-Fidelity Audiophile Playback & Social Listening
             - Lossless bit-perfect playback (FLAC / 24-bit / 96kHz / 192kHz)
-            - 10-Band Parametric Equalizer (-12dB to +12dB) & DSP visualizer
+            - 10-Band Parametric Equalizer (-12dB to +12dB) & DSP curve visualizer
             - Binaural Spatial Audio & Stereo Expander
             - Real-time Synchronized Lyrics with word-level highlighting
             - Social Listen Together synchronized listening rooms
