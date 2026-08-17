@@ -26,7 +26,7 @@ fun ExportPlaylistDialog(
     isVisible: Boolean,
     onDismiss: () -> Unit,
     onExportM3U: () -> Unit,
-    onExportSUV: () -> Unit
+    onExportSonza: () -> Unit
 ) {
     if (isVisible) {
         Dialog(onDismissRequest = onDismiss) {
@@ -64,14 +64,14 @@ fun ExportPlaylistDialog(
                         modifier = Modifier.padding(bottom = 24.dp)
                     )
 
-                    // SUV Option (Recommended)
+                    // Sonza Option (Recommended)
                     ExportOptionItem(
-                        title = ".suv (Recommended)",
+                        title = ".sonza (Recommended)",
                         description = "Optimized for Sonza. Blazing fast imports, preserves all metadata and track sequence perfectly.",
                         icon = Icons.Default.CheckCircle,
                         iconTint = Color(0xFF4CAF50),
                         onClick = {
-                            onExportSUV()
+                            onExportSonza()
                             onDismiss()
                         }
                     )

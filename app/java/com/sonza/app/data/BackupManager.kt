@@ -25,7 +25,7 @@ class BackupManager @Inject constructor(
 ) {
     /**
      * Create a complete backup of Sonza data and write it to the provided output stream.
-     * The backup is a GZIP compressed JSON file (.suv).
+     * The backup is a GZIP compressed JSON file (.sonza).
      */
     suspend fun createBackup(outputStream: OutputStream): Result<Unit> = withContext(Dispatchers.IO) {
         try {

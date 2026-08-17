@@ -590,7 +590,7 @@ fun PlaylistScreen(
                 isVisible = showExportDialog,
                 onDismiss = { showExportDialog = false },
                 onExportM3U = { viewModel.exportPlaylistToM3U(context) },
-                onExportSUV = { viewModel.exportPlaylistToSUV(context) }
+                onExportSonza = { viewModel.exportPlaylistToSonza(context) }
             )
         }
     }

@@ -169,14 +169,14 @@ fun MiscScreen(
                 NavigationRow(
                     icon = Icons.Default.Save,
                     title = "Create Backup",
-                    subtitle = if (isBackingUp) "Backing up..." else "Save library, history, and settings to .suv file",
+                    subtitle = if (isBackingUp) "Backing up..." else "Save library, history, and settings to .sonza file",
                     onClick = { if (!isBackingUp) onCreateBackup() },
                 )
                 ThinDivider()
                 NavigationRow(
                     icon = Icons.Default.Restore,
                     title = "Restore Backup",
-                    subtitle = if (isRestoring) "Restoring..." else "Restore your data from a .suv backup file",
+                    subtitle = if (isRestoring) "Restoring..." else "Restore your data from a .sonza backup file",
                     onClick = { if (!isRestoring) onRestoreBackup() },
                 )
             }

@@ -351,8 +351,8 @@ fun LibraryScreen(
             onImportM3U = { uri ->
                 viewModel.importM3U(uri)
             },
-            onImportSUV = { uri ->
-                viewModel.importSUV(uri)
+            onImportSonza = { uri ->
+                viewModel.importSonza(uri)
             },
             onCancel = {
                 viewModel.cancelImport()
@@ -427,7 +427,7 @@ fun LibraryScreen(
             isVisible = showExportDialog,
             onDismiss = { showExportDialog = false },
             onExportM3U = { viewModel.exportPlaylistToM3U(context, selectedPlaylist!!) },
-            onExportSUV = { viewModel.exportPlaylistToSUV(context, selectedPlaylist!!) }
+            onExportSonza = { viewModel.exportPlaylistToSonza(context, selectedPlaylist!!) }
         )
     }
 

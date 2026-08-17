@@ -199,7 +199,7 @@ fun MediaMenuBottomSheet(
                     MenuActionItem(
                         icon = Icons.AutoMirrored.Filled.PlaylistAdd,
                         title = "Export Playlist",
-                        subtitle = "Export to .suv or .m3u format",
+                        subtitle = "Export to .sonza or .m3u format",
                         onClick = { onExport(); onDismiss() }
                     )
                 }

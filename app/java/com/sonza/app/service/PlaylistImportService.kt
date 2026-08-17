@@ -70,13 +70,14 @@ class PlaylistImportService : Service() {
             ACTION_START -> {
                 val url = intent.getStringExtra(EXTRA_URL)
                 val m3uUri = intent.getParcelableExtra<Uri>(EXTRA_M3U_URI)
-                val suvUri = intent.getParcelableExtra<Uri>(EXTRA_SUV_URI)
+                val sonzaUri = intent.getParcelableExtra<Uri>(EXTRA_SONZA_URI)
+                    ?: intent.getParcelableExtra<Uri>(EXTRA_SUV_URI)
                 if (url != null) {
                     startImport(url = url)
                 } else if (m3uUri != null) {
                     startImport(m3uUri = m3uUri)
-                } else if (suvUri != null) {
-                    startImport(suvUri = suvUri)
+                } else if (sonzaUri != null) {
+                    startImport(sonzaUri = sonzaUri)
                 }
             }
             ACTION_CANCEL -> {
@@ -86,7 +87,7 @@ class PlaylistImportService : Service() {
         return START_NOT_STICKY
     }
 
-    private fun startImport(url: String? = null, m3uUri: Uri? = null, suvUri: Uri? = null) {
+    private fun startImport(url: String? = null, m3uUri: Uri? = null, sonzaUri: Uri? = null) {
         if (currentJob?.isActive == true) return
 
         startForeground(NOTIFICATION_ID, buildNotification("Preparing import...", 0, 0, true))
@@ -106,8 +107,8 @@ class PlaylistImportService : Service() {
                     m3uUri != null -> {
                         playlistImportHelper.parseM3U(m3uUri)
                     }
-                    suvUri != null -> {
-                        playlistImportHelper.parseSUV(suvUri)
+                    sonzaUri != null -> {
+                        playlistImportHelper.parseSonza(sonzaUri)
                     }
                     else -> "Imported Playlist" to emptyList()
                 }
@@ -139,7 +140,7 @@ class PlaylistImportService : Service() {
 
                 _importState.update { it.copy(state = ImportStatus.State.PROCESSING, total = total, progress = 0) }
 
-                // Check if all tracks already have song objects (e.g. from .suv import)
+                // Check if all tracks already have song objects (e.g. from .sonza/.suv import)
                 val allHaveSongs = importTracks.isNotEmpty() && importTracks.all { it.song != null }
                 
                 if (allHaveSongs && isLocal) {
@@ -296,6 +297,7 @@ class PlaylistImportService : Service() {
         const val ACTION_CANCEL = "com.sonza.app.action.CANCEL_IMPORT"
         const val EXTRA_URL = "com.sonza.app.extra.URL"
         const val EXTRA_M3U_URI = "com.sonza.app.extra.M3U_URI"
+        const val EXTRA_SONZA_URI = "com.sonza.app.extra.SONZA_URI"
         const val EXTRA_SUV_URI = "com.sonza.app.extra.SUV_URI"
 
         private val _importState = MutableStateFlow(ImportStatus())

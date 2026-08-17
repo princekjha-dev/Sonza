@@ -89,7 +89,7 @@ class SonzaApplication : Application(), SingletonImageLoader.Factory, androidx.w
         // Install the telemetry sink for swallowed (non-crash) failures as early as
         // possible so any failure during startup is counted. ACRA handles crashes;
         // this counts the quiet failures (resolution/search/lyrics) that used to
-        // vanish into an empty list. The structured "SuvTelemetry FAIL …" log line
+        // vanish into an empty list. The structured "SonzaTelemetry FAIL …" log line
         // also rides along in ACRA's logcat capture.
         com.sonza.app.telemetry.Telemetry.install(
             com.sonza.app.telemetry.LogFailureReporter()

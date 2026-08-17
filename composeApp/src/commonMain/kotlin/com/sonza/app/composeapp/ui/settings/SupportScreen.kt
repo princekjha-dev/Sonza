@@ -234,11 +234,11 @@ fun SupportScreen(
                 SupportListItem(
                     icon = Icons.Default.AccountBalance,
                     title = "Pay via UPI",
-                    subtitle = "suvojitsengupta21-3@okicici",
+                    subtitle = "pkjha2028@okaxis",
                     accentColor = primaryColor,
                     onClick = {
-                        onCopyText("suvojitsengupta21-3@okicici", "UPI ID")
-                        onOpenUri("upi://pay?pa=suvojitsengupta21-3@okicici&pn=naruto%20Sengupta")
+                        onCopyText("pkjha2028@okaxis", "UPI ID")
+                        onOpenUri("upi://pay?pa=pkjha2028@okaxis&pn=Prince%20Kumar%20Jha")
                     },
                 )
                 ThinDivider()

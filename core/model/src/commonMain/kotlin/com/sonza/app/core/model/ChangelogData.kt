@@ -78,7 +78,7 @@ object ChangelogData {
                 "Set default mini player style to Floating Pill",
                 "Enhanced Navigation Bar with 15% default transparency",
                 "Allowed UI content to flow behind Navigation Bar (Glass Effect)",
-                "Added 'Pay via UPI' in Support screen (suvojitsengupta21-3@okicici)",
+                "Added 'Pay via UPI' in Support screen (pkjha2028@okaxis)",
                 "Improved Support screen layout with better gradients",
                 "Fixed 'Resources\$NotFoundException' crash on launch",
                 "Removed QR code scanning and generation to optimize app size",

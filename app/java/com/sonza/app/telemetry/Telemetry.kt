@@ -71,7 +71,7 @@ object Telemetry {
 /**
  * The default reporter: logs a structured, greppable line and keeps in-memory counters.
  *
- * The log line ("SuvTelemetry FAIL …") rides along in ACRA's logcat capture, so even
+ * The log line ("SonzaTelemetry FAIL …") rides along in ACRA's logcat capture, so even
  * without a backend a crash report now shows the *recent failure history* that led up to
  * it. [snapshot] backs a future in-app diagnostics screen.
  */
@@ -82,7 +82,7 @@ class LogFailureReporter : FailureReporter {
         counts.getOrPut(event.key) { AtomicLong(0) }.incrementAndGet()
         val ctx = if (event.context.isEmpty()) "" else " " + event.context.entries.joinToString(" ") { "${it.key}=${it.value}" }
         android.util.Log.w(
-            "SuvTelemetry",
+            "SonzaTelemetry",
             "FAIL op=${event.operation} src=${event.source} err=${event.error.kind}" +
                 (event.error.detail?.let { " detail=$it" } ?: "") + ctx,
         )

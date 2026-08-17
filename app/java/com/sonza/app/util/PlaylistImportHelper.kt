@@ -136,11 +136,11 @@ class PlaylistImportHelper @Inject constructor(
     }
 
     /**
-     * Parse an .suv file from a Uri.
+     * Parse an .sonza or .suv file from a Uri.
      */
-    suspend fun parseSUV(uri: Uri): Pair<String, List<ImportTrack>> = withContext(Dispatchers.IO) {
+    suspend fun parseSonza(uri: Uri): Pair<String, List<ImportTrack>> = withContext(Dispatchers.IO) {
         val tracksMap = mutableMapOf<String, ImportTrack>()
-        var playlistName = uri.lastPathSegment?.substringBeforeLast(".") ?: "SUV Import"
+        var playlistName = uri.lastPathSegment?.substringBeforeLast(".") ?: "Sonza Import"
         var sequence = emptyList<String>()
         
         try {
@@ -219,7 +219,7 @@ class PlaylistImportHelper @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            Log.e("PlaylistImportHelper", "SUV parse failed", e)
+            Log.e("PlaylistImportHelper", "Sonza parse failed", e)
         }
         
         val orderedTracks = if (sequence.isNotEmpty()) {
@@ -230,4 +230,6 @@ class PlaylistImportHelper @Inject constructor(
         
         playlistName to orderedTracks
     }
+
+    suspend fun parseSUV(uri: Uri): Pair<String, List<ImportTrack>> = parseSonza(uri)
 }

@@ -336,10 +336,10 @@ fun MiscScreen(
                     MiscNavigationItem(
                         icon = Icons.Default.Save,
                         title = "Create Backup",
-                        subtitle = if (backupState.isBackingUp) "Backing up..." else "Save library, history, and settings to .suv file",
+                        subtitle = if (backupState.isBackingUp) "Backing up..." else "Save library, history, and settings to .sonza file",
                         onClick = { 
                             if (!backupState.isBackingUp) {
-                                createBackupLauncher.launch("sonza_backup_${System.currentTimeMillis()}.suv")
+                                createBackupLauncher.launch("sonza_backup_${System.currentTimeMillis()}.sonza")
                             }
                         }
                     )
@@ -349,7 +349,7 @@ fun MiscScreen(
                     MiscNavigationItem(
                         icon = Icons.Default.Restore,
                         title = "Restore Backup",
-                        subtitle = if (backupState.isRestoring) "Restoring..." else "Restore your data from a .suv backup file",
+                        subtitle = if (backupState.isRestoring) "Restoring..." else "Restore your data from a .sonza backup file",
                         onClick = { 
                             if (!backupState.isRestoring) {
                                 restoreBackupLauncher.launch("*/*")

@@ -456,11 +456,11 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    fun importSUV(uri: Uri) {
+    fun importSonza(uri: Uri) {
         val context = appContext
         val intent = Intent(context, PlaylistImportService::class.java).apply {
             action = PlaylistImportService.ACTION_START
-            putExtra(PlaylistImportService.EXTRA_SUV_URI, uri)
+            putExtra(PlaylistImportService.EXTRA_SONZA_URI, uri)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             context.startForegroundService(intent)
@@ -468,6 +468,8 @@ class LibraryViewModel @Inject constructor(
             context.startService(intent)
         }
     }
+
+    fun importSUV(uri: Uri) = importSonza(uri)
 
     fun cancelImport() {
         val context = appContext
@@ -488,16 +490,19 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    fun exportPlaylistToSUV(context: Context, playlistItem: com.sonza.app.core.model.PlaylistDisplayItem) {
+    fun exportPlaylistToSonza(context: Context, playlistItem: com.sonza.app.core.model.PlaylistDisplayItem) {
         viewModelScope.launch {
             try {
                 val fullPlaylist = youTubeRepository.getPlaylist(playlistItem.id)
-                PlaylistExportHelper.exportPlaylistToSUV(context, fullPlaylist)
+                PlaylistExportHelper.exportPlaylistToSonza(context, fullPlaylist)
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = "Failed to export: ${e.message}") }
             }
         }
     }
+
+    fun exportPlaylistToSUV(context: Context, playlistItem: com.sonza.app.core.model.PlaylistDisplayItem) =
+        exportPlaylistToSonza(context, playlistItem)
 
     fun resetImportState() {
         cancelImport()

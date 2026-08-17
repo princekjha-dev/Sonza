@@ -599,10 +599,12 @@ class PlaylistViewModel @Inject constructor(
         PlaylistExportHelper.exportPlaylistToM3U(context, playlist)
     }
 
-    fun exportPlaylistToSUV(context: android.content.Context) {
+    fun exportPlaylistToSonza(context: android.content.Context) {
         val playlist = _uiState.value.playlist ?: return
-        PlaylistExportHelper.exportPlaylistToSUV(context, playlist)
+        PlaylistExportHelper.exportPlaylistToSonza(context, playlist)
     }
+
+    fun exportPlaylistToSUV(context: android.content.Context) = exportPlaylistToSonza(context)
     
     fun addToPlaylist(song: Song) {
         showAddToPlaylistSheet(song)

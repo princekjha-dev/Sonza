@@ -45,7 +45,7 @@ fun ImportPlaylistScreen(
     onDismiss: () -> Unit,
     onImport: (url: String) -> Unit,
     onImportM3U: (android.net.Uri) -> Unit,
-    onImportSUV: (android.net.Uri) -> Unit,
+    onImportSonza: (android.net.Uri) -> Unit = {},
     onCancel: () -> Unit,
     onReset: () -> Unit
 ) {
@@ -100,7 +100,7 @@ fun ImportPlaylistScreen(
                     label = "ImportState"
                 ) { state ->
                     when (state) {
-                        is ImportState.Idle -> InputView(onImport, onImportM3U, onImportSUV)
+                        is ImportState.Idle -> InputView(onImport, onImportM3U, onImportSonza)
                         is ImportState.Loading -> LoadingView(onCancel)
                         is ImportState.Processing -> ProcessingView(state, onCancel)
                         is ImportState.Success -> SuccessView(
@@ -131,7 +131,7 @@ fun ImportPlaylistScreen(
 private fun InputView(
     onImport: (String) -> Unit, 
     onImportM3U: (android.net.Uri) -> Unit,
-    onImportSUV: (android.net.Uri) -> Unit
+    onImportSonza: (android.net.Uri) -> Unit = {}
 ) {
     var url by remember { mutableStateOf("") }
     val clipboard = LocalClipboard.current
@@ -145,11 +145,11 @@ private fun InputView(
         }
     }
     
-    val suvPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+    val sonzaPicker = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
-            onImportSUV(uri)
+            onImportSonza(uri)
         }
     }
 
@@ -232,7 +232,7 @@ private fun InputView(
         )
 
         Text(
-            text = "Sonza supports importing from Spotify, YouTube Music, and .m3u or .suv files.",
+            text = "Sonza supports importing from Spotify, YouTube Music, and .m3u or .sonza files.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -303,13 +303,13 @@ private fun InputView(
             Spacer(modifier = Modifier.width(12.dp))
             
             OutlinedButton(
-                onClick = { suvPicker.launch("*/*") },
+                onClick = { sonzaPicker.launch("*/*") },
                 modifier = Modifier
                     .weight(1f)
                     .height(56.dp),
                 shape = SquircleShape
             ) {
-                Text("Import .suv", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Text("Import .sonza", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
             }
         }
     }
