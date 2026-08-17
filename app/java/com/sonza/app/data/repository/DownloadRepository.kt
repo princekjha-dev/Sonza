@@ -48,7 +48,7 @@ class DownloadRepository @Inject constructor(
 ) {
     companion object {
         private const val TAG = "DownloadRepository"
-        private const val SUVMUSIC_FOLDER = "Sonza"
+        private const val sonza_FOLDER = "Sonza"
         // Dedicated logcat tag for end-to-end download tracing.
         // `adb logcat -s DownloadTrace:V` to capture all download events.
         private const val DL_TAG = "DownloadTrace"
@@ -244,16 +244,16 @@ class DownloadRepository @Inject constructor(
 
     private fun getPublicMusicFolder(): File {
         val musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
-        val suvMusicDir = File(musicDir, SUVMUSIC_FOLDER)
-        if (!suvMusicDir.exists()) {
-            suvMusicDir.mkdirs()
+        val sonzaDir = File(musicDir, sonza_FOLDER)
+        if (!sonzaDir.exists()) {
+            sonzaDir.mkdirs()
         }
-        return suvMusicDir
+        return sonzaDir
     }
     
     private fun getLegacyDownloadsFolder(): File {
         val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        return File(downloadsDir, SUVMUSIC_FOLDER)
+        return File(downloadsDir, sonza_FOLDER)
     }
     
     private fun scanAndMigrateLegacyFolder() {
@@ -475,9 +475,9 @@ class DownloadRepository @Inject constructor(
     ): Uri? {
         return try {
             val relativePath = if (subfolder != null) {
-                "${Environment.DIRECTORY_MUSIC}/$SUVMUSIC_FOLDER/${sanitizeFileName(subfolder)}"
+                "${Environment.DIRECTORY_MUSIC}/$sonza_FOLDER/${sanitizeFileName(subfolder)}"
             } else {
-                "${Environment.DIRECTORY_MUSIC}/$SUVMUSIC_FOLDER"
+                "${Environment.DIRECTORY_MUSIC}/$sonza_FOLDER"
             }
 
             val mimeType = if (extension == "opus") "audio/opus" else "audio/m4a"

@@ -589,7 +589,7 @@ fun SettingsScreen(
                         icon = Icons.Default.Security,
                         title = "Privacy Policy",
                         subtitle = "How Sonza handles your data",
-                        onClick = { uriHandler.openUri("https://princekjha-dev.github.io/Sonza-Website/suvmusic-privacy.html") }
+                        onClick = { uriHandler.openUri("https://princekjha-dev.github.io/Sonza-Website/sonza-privacy.html") }
                     )
 
                     HorizontalDivider()

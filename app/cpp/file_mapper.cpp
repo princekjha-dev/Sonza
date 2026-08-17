@@ -11,7 +11,7 @@
 
 extern "C"
 JNIEXPORT jfloatArray JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nExtractWaveform(JNIEnv *env, jobject thiz,
+Java_com_naruto_sonza_player_NativeSpatialAudio_nExtractWaveform(JNIEnv *env, jobject thiz,
                                                                     jstring file_path, jint num_points) {
     if (file_path == nullptr || num_points <= 0) {
         return nullptr;

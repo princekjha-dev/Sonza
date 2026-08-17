@@ -380,7 +380,7 @@ class MainActivity : ComponentActivity() {
      * installSplashScreen() and before super.onCreate().
      */
     private fun applyVariantSplashTheme() {
-        val prefs = getSharedPreferences("suvmusic_branding", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("sonza_branding", Context.MODE_PRIVATE)
         val variantName = prefs.getString("logo_variant", null) ?: "PULSE"
         // The splash drawable lives at the CONCEPT level — sub-styles
         // (App Icon / Mono / Light / Tone) reuse the same hero PNG for the

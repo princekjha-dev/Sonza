@@ -4,7 +4,7 @@ import androidx.compose.ui.graphics.Color
 
 /**
  * Sonza colour scale — full Material 3 5-theme palette ported verbatim from
- * `app/src/main/java/com/suvojeet/suvmusic/ui/theme/Color.kt`. Lives in
+ * `app/src/main/java/com/naruto/sonza/ui/theme/Color.kt`. Lives in
  * commonMain so Android (`:app` consumer pending) and Desktop pull from one
  * source. The palette covers Default (Purple/Cyan/Magenta), Ocean (Blue/Teal),
  * Sunset (Orange/Gold), Nature (Green/Lime), Love (Pink/Rose).

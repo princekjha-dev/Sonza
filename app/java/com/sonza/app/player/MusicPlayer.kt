@@ -346,7 +346,7 @@ class MusicPlayer @Inject constructor(
     @Volatile private var crossfadeTriggered: Boolean = false
 
     // Queue mutation lock — serializes toggleShuffle / playSong / radio-append races
-    // that desync ExoPlayer internal state (see suvmusic_shuffle*.log).
+    // that desync ExoPlayer internal state (see sonza_shuffle*.log).
     private val queueMutex = Mutex()
     
     init {

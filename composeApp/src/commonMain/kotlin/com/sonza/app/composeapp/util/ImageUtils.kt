@@ -2,7 +2,7 @@ package com.sonza.app.composeapp.util
 
 /**
  * URL helpers for image thumbnails — verbatim port of
- * `app/src/main/java/com/suvojeet/suvmusic/util/ImageUtils.kt`. Pure
+ * `app/src/main/java/com/naruto/sonza/util/ImageUtils.kt`. Pure
  * Kotlin, no platform deps, so it lives in commonMain. Used by mini-
  * players and album-art rendering across both Android and Desktop.
  */

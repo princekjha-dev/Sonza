@@ -238,7 +238,7 @@ fun SupportScreen(
                     accentColor = primaryColor,
                     onClick = {
                         onCopyText("suvojitsengupta21-3@okicici", "UPI ID")
-                        onOpenUri("upi://pay?pa=suvojitsengupta21-3@okicici&pn=Suvojeet%20Sengupta")
+                        onOpenUri("upi://pay?pa=suvojitsengupta21-3@okicici&pn=naruto%20Sengupta")
                     },
                 )
                 ThinDivider()
@@ -325,7 +325,7 @@ fun SupportScreen(
                     subtitle = "How Sonza handles your data",
                     accentColor = primaryColor,
                     onClick = {
-                        onOpenUri("https://princekjha-dev.github.io/Sonza-Website/suvmusic-privacy.html")
+                        onOpenUri("https://princekjha-dev.github.io/Sonza-Website/sonza-privacy.html")
                     },
                 )
             }

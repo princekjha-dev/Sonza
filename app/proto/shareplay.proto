@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package shareplay;
 
-option go_package = "github.com/suvojeet/suvmusic-server/proto";
+option go_package = "github.com/naruto/sonza-server/proto";
 option java_package = "com.sonza.app.shareplay.proto";
 option java_outer_classname = "SharePlay";
 option java_multiple_files = false;

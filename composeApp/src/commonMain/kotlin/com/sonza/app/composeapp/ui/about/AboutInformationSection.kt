@@ -37,7 +37,7 @@ internal fun AboutInformationSection(
             trailingIcon = Icons.Default.OpenInNew,
             title = "Privacy Policy",
             subtitle = "Review how Sonza handles your data",
-            onClick = { onOpenUri("https://princekjha-dev.github.io/Sonza-Website/suvmusic-privacy.html") },
+            onClick = { onOpenUri("https://princekjha-dev.github.io/Sonza-Website/sonza-privacy.html") },
         )
         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = dividerColor)
         InfoListItem(

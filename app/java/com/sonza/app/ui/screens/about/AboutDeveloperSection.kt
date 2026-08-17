@@ -108,7 +108,7 @@ internal fun AboutDeveloperSection(onOpenUri: (String) -> Unit) {
                 )
                 SocialIconBadge(
                     icon = SocialIcons.Instagram,
-                    onClick = { onOpenUri("https://www.instagram.com/suvojeet__sengupta?igsh=MWhyMXE4YzhxaDVvNg==") }
+                    onClick = { onOpenUri("https://www.instagram.com/naruto__sengupta?igsh=MWhyMXE4YzhxaDVvNg==") }
                 )
                 SocialIconBadge(
                     icon = SocialIcons.Telegram,

@@ -1,4 +1,4 @@
-// File: app/src/main/java/com/suvojeet/suvmusic/ui/screens/player/components/M3ELoadingOverlay.kt
+// File: app/src/main/java/com/naruto/sonza/ui/screens/player/components/M3ELoadingOverlay.kt
 package com.sonza.app.ui.screens.player.components
 
 import androidx.compose.animation.AnimatedVisibility

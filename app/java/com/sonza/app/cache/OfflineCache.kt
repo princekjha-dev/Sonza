@@ -138,7 +138,7 @@ object OfflineCache {
                 android.util.Log.e(
                     TAG,
                     "getSearch('$query') CORRUPT payload dropped: n=${raw?.size ?: 0} firstElementType=$firstType " +
-                        "age=${ageMin}min (expected com.suvojeet...Song; non-Song means Gson lost the generic) -> deleting"
+                        "age=${ageMin}min (expected com.naruto...Song; non-Song means Gson lost the generic) -> deleting"
                 )
                 runCatching { file.delete() }
                 return null

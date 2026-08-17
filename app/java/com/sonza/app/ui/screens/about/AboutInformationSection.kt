@@ -101,7 +101,7 @@ internal fun AboutInformationSection(
             },
             modifier = Modifier
                 .dpadFocusable(
-                    onClick = { onOpenUri("https://princekjha-dev.github.io/Sonza-Website/suvmusic-privacy.html") },
+                    onClick = { onOpenUri("https://princekjha-dev.github.io/Sonza-Website/sonza-privacy.html") },
                     shape = SquircleShape
                 )
                 .clip(SquircleShape),

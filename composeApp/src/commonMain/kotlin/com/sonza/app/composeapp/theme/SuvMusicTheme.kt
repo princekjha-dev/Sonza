@@ -17,7 +17,7 @@ import com.sonza.app.composeapp.image.DominantColors
 /**
  * Shared Sonza theme — full 5-palette / dominant-color / animated
  * Material 3 Expressive scheme, ported from
- * `app/src/main/java/com/suvojeet/suvmusic/ui/theme/Theme.kt`.
+ * `app/src/main/java/com/naruto/sonza/ui/theme/Theme.kt`.
  *
  * This commonMain version differs from the Android original in two ways:
  *  - Dynamic-Color (Material You) lookup is delegated to platform code via

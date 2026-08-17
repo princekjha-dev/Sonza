@@ -339,7 +339,7 @@ fun MiscScreen(
                         subtitle = if (backupState.isBackingUp) "Backing up..." else "Save library, history, and settings to .suv file",
                         onClick = { 
                             if (!backupState.isBackingUp) {
-                                createBackupLauncher.launch("suvmusic_backup_${System.currentTimeMillis()}.suv")
+                                createBackupLauncher.launch("sonza_backup_${System.currentTimeMillis()}.suv")
                             }
                         }
                     )

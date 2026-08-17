@@ -1680,7 +1680,7 @@ class SettingsViewModel @Inject constructor(
         if (!logDir.exists()) logDir.mkdirs()
 
         val timestamp = System.currentTimeMillis()
-        val logFile = File(logDir, "suvmusic_bug_report_$timestamp.txt")
+        val logFile = File(logDir, "sonza_bug_report_$timestamp.txt")
 
         return try {
             val process = Runtime.getRuntime().exec("logcat -d")

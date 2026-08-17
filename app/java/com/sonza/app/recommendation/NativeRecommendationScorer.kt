@@ -13,7 +13,7 @@ import javax.inject.Singleton
  *
  * Falls back to Kotlin scoring if the native library fails to load.
  *
- * The native library (`suvmusic_native`) is shared with the audio DSP pipeline —
+ * The native library (`sonza_native`) is shared with the audio DSP pipeline —
  * no additional .so file is needed.
  */
 @Singleton
@@ -42,7 +42,7 @@ class NativeRecommendationScorer @Inject constructor() {
         } else {
             try {
                 // Library is already loaded by NativeSpatialAudio — but ensure it's loaded
-                System.loadLibrary("suvmusic_native")
+                System.loadLibrary("sonza_native")
                 isAvailable = true
                 Log.d(TAG, "Native recommendation scorer loaded successfully")
             } catch (e: UnsatisfiedLinkError) {

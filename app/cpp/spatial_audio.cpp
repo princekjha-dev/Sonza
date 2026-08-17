@@ -30,7 +30,7 @@ static constexpr int MAX_TOTAL_SAMPLES = 48000 * 8; // max 48kHz * 8 channels = 
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nApplyAIState(JNIEnv *env, jobject thiz, 
+Java_com_naruto_sonza_player_NativeSpatialAudio_nApplyAIState(JNIEnv *env, jobject thiz, 
     jboolean eqEnabled, jfloatArray eqBands, jfloat bassBoost, jfloat virtualizer, 
     jboolean spatialEnabled, jboolean crossfeedEnabled, 
     jfloat limiterThreshold, jfloat limiterRatio, jfloat limiterAttack, jfloat limiterRelease, jfloat limiterGain) {
@@ -59,19 +59,19 @@ Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nApplyAIState(JNIEnv *env, 
 
 extern "C"
 JNIEXPORT jfloat JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nGetPeakLevel(JNIEnv *env, jobject thiz) {
+Java_com_naruto_sonza_player_NativeSpatialAudio_nGetPeakLevel(JNIEnv *env, jobject thiz) {
     return AIAudioProcessor::getLatestStats().peakLevel;
 }
 
 extern "C"
 JNIEXPORT jfloat JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nGetRmsLevel(JNIEnv *env, jobject thiz) {
+Java_com_naruto_sonza_player_NativeSpatialAudio_nGetRmsLevel(JNIEnv *env, jobject thiz) {
     return AIAudioProcessor::getLatestStats().rmsLevel;
 }
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nProcessPcm16(JNIEnv *env, jobject thiz,
+Java_com_naruto_sonza_player_NativeSpatialAudio_nProcessPcm16(JNIEnv *env, jobject thiz,
                                                                    jobject buffer,
                                                                    jint frameCount,
                                                                    jint channelCount,
@@ -122,49 +122,49 @@ Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nProcessPcm16(JNIEnv *env, 
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nSetEqEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
+Java_com_naruto_sonza_player_NativeSpatialAudio_nSetEqEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
     equalizer.setEnabled(enabled);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nSetEqBand(JNIEnv *env, jobject thiz, jint bandIndex, jfloat gainDb) {
+Java_com_naruto_sonza_player_NativeSpatialAudio_nSetEqBand(JNIEnv *env, jobject thiz, jint bandIndex, jfloat gainDb) {
     equalizer.setBandGain(bandIndex, gainDb);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nSetEqPreamp(JNIEnv *env, jobject thiz, jfloat gainDb) {
+Java_com_naruto_sonza_player_NativeSpatialAudio_nSetEqPreamp(JNIEnv *env, jobject thiz, jfloat gainDb) {
     equalizer.setPreamp(gainDb);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nSetBassBoost(JNIEnv *env, jobject thiz, jfloat strength) {
+Java_com_naruto_sonza_player_NativeSpatialAudio_nSetBassBoost(JNIEnv *env, jobject thiz, jfloat strength) {
     bassBoost.setStrength(strength);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nSetVirtualizer(JNIEnv *env, jobject thiz, jfloat strength) {
+Java_com_naruto_sonza_player_NativeSpatialAudio_nSetVirtualizer(JNIEnv *env, jobject thiz, jfloat strength) {
     virtualizer.setStrength(strength);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nSetCrossfeedParams(JNIEnv *env, jobject thiz, jboolean enabled, jfloat strength) {
+Java_com_naruto_sonza_player_NativeSpatialAudio_nSetCrossfeedParams(JNIEnv *env, jobject thiz, jboolean enabled, jfloat strength) {
     crossfeed.setParams(enabled, strength);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nSetPlaybackParams(JNIEnv *env, jobject thiz, jfloat pitch) {
+Java_com_naruto_sonza_player_NativeSpatialAudio_nSetPlaybackParams(JNIEnv *env, jobject thiz, jfloat pitch) {
     pitchShifter.setParams(pitch, 44100);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nReset(JNIEnv *env, jobject thiz) {
+Java_com_naruto_sonza_player_NativeSpatialAudio_nReset(JNIEnv *env, jobject thiz) {
     spatializer.reset();
     limiter.reset();
     crossfeed.reset();
@@ -176,19 +176,19 @@ Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nReset(JNIEnv *env, jobject
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nSetSpatializerEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
+Java_com_naruto_sonza_player_NativeSpatialAudio_nSetSpatializerEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
     spatializer.setEnabled(enabled);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nSetLimiterEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
+Java_com_naruto_sonza_player_NativeSpatialAudio_nSetLimiterEnabled(JNIEnv *env, jobject thiz, jboolean enabled) {
     limiter.setEnabled(enabled);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nSetLimiterParams(JNIEnv *env, jobject thiz, 
+Java_com_naruto_sonza_player_NativeSpatialAudio_nSetLimiterParams(JNIEnv *env, jobject thiz, 
                                                                        jfloat thresholdDb, jfloat ratio, 
                                                                        jfloat attackMs, jfloat releaseMs, 
                                                                        jfloat makeupGainDb) {
@@ -197,37 +197,37 @@ Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nSetLimiterParams(JNIEnv *e
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nSetLimiterBalance(JNIEnv *env, jobject thiz, jfloat balance) {
+Java_com_naruto_sonza_player_NativeSpatialAudio_nSetLimiterBalance(JNIEnv *env, jobject thiz, jfloat balance) {
     limiter.setBalance(balance);
 }
 
 extern "C"
 JNIEXPORT jfloat JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nGetEqBand(JNIEnv *env, jobject thiz, jint index) {
+Java_com_naruto_sonza_player_NativeSpatialAudio_nGetEqBand(JNIEnv *env, jobject thiz, jint index) {
     return equalizer.getBandGain(index);
 }
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nIsEqEnabled(JNIEnv *env, jobject thiz) {
+Java_com_naruto_sonza_player_NativeSpatialAudio_nIsEqEnabled(JNIEnv *env, jobject thiz) {
     return equalizer.isEnabled();
 }
 
 extern "C"
 JNIEXPORT jfloat JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nGetBassBoost(JNIEnv *env, jobject thiz) {
+Java_com_naruto_sonza_player_NativeSpatialAudio_nGetBassBoost(JNIEnv *env, jobject thiz) {
     return bassBoost.getStrength();
 }
 
 extern "C"
 JNIEXPORT jfloat JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nGetVirtualizer(JNIEnv *env, jobject thiz) {
+Java_com_naruto_sonza_player_NativeSpatialAudio_nGetVirtualizer(JNIEnv *env, jobject thiz) {
     return virtualizer.getStrength();
 }
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_com_suvojeet_suvmusic_player_NativeSpatialAudio_nIsSpatializerEnabled(JNIEnv *env, jobject thiz) {
+Java_com_naruto_sonza_player_NativeSpatialAudio_nIsSpatializerEnabled(JNIEnv *env, jobject thiz) {
     return spatializer.isEnabled();
 }
 

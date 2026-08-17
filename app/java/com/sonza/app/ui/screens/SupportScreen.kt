@@ -114,7 +114,7 @@ fun SupportScreen(onBack: () -> Unit) {
                         val mediaType = "application/json; charset=utf-8".toMediaType()
                         val requestBody = json.toString().toRequestBody(mediaType)
                         val request = Request.Builder()
-                            .url("https://feedback.suvojeetsengupta.in/api/feedback")
+                            .url("https://feedback.narutosengupta.in/api/feedback")
                             .post(requestBody)
                             .build()
 

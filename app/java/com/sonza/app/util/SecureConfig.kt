@@ -10,7 +10,7 @@ import com.sonza.app.BuildConfig
 object SecureConfig {
     
     init {
-        System.loadLibrary("suvmusic_native")
+        System.loadLibrary("sonza_native")
     }
 
     // Native key derivation — implemented in secure_config.cpp

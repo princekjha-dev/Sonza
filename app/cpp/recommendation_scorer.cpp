@@ -21,7 +21,7 @@
  * Features layout (flat array, N candidates × 10 features, row-major):
  *   For candidate i, feature j is at index [j * N + i] (SoA / column-major)
  *
- * Copyright (c) 2026 SuvMusic. All rights reserved.
+ * Copyright (c) 2026 sonza. All rights reserved.
  */
 
 #include <jni.h>
@@ -360,7 +360,7 @@ extern "C" {
  * @return IntArray of length min(topK, numCandidates), indices sorted by descending score
  */
 JNIEXPORT jintArray JNICALL
-Java_com_suvojeet_suvmusic_recommendation_NativeRecommendationScorer_nScoreCandidates(
+Java_com_naruto_sonza_recommendation_NativeRecommendationScorer_nScoreCandidates(
     JNIEnv* env,
     jobject /* this */,
     jfloatArray jFeatures,
@@ -433,7 +433,7 @@ Java_com_suvojeet_suvmusic_recommendation_NativeRecommendationScorer_nScoreCandi
  * @return Cosine similarity [0, 1] (clamped, since genre vectors are non-negative)
  */
 JNIEXPORT jfloat JNICALL
-Java_com_suvojeet_suvmusic_recommendation_NativeRecommendationScorer_nCosineSimilarity(
+Java_com_naruto_sonza_recommendation_NativeRecommendationScorer_nCosineSimilarity(
     JNIEnv* env,
     jobject /* this */,
     jfloatArray jVecA,
@@ -469,7 +469,7 @@ Java_com_suvojeet_suvmusic_recommendation_NativeRecommendationScorer_nCosineSimi
  * @return FloatArray[N] — cosine similarities
  */
 JNIEXPORT jfloatArray JNICALL
-Java_com_suvojeet_suvmusic_recommendation_NativeRecommendationScorer_nBatchCosineSimilarity(
+Java_com_naruto_sonza_recommendation_NativeRecommendationScorer_nBatchCosineSimilarity(
     JNIEnv* env,
     jobject /* this */,
     jfloatArray jUserVec,

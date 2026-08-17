@@ -18,7 +18,7 @@ class NativeSpatialAudio @Inject constructor() {
                 return@launch
             }
             try {
-                System.loadLibrary("suvmusic_native")
+                System.loadLibrary("sonza_native")
                 isLibraryLoaded = true
             } catch (e: UnsatisfiedLinkError) {
                 android.util.Log.e("NativeSpatialAudio", "Failed to load native library", e)

@@ -111,7 +111,7 @@ internal fun AboutDeveloperSection(onOpenUri: (String) -> Unit) {
                 SocialIconBadge(Icons.Filled.Code) { onOpenUri("https://github.com/princekjha-dev") }
                 SocialIconBadge(Icons.Filled.Email) { onOpenUri("mailto:pkjha2028@gmail.com") }
                 SocialIconBadge(Icons.Filled.Language) { onOpenUri("https://princekjha-dev.github.io/Sonza-Website/") }
-                SocialIconBadge(Icons.Filled.Photo) { onOpenUri("https://www.instagram.com/suvojeet__sengupta") }
+                SocialIconBadge(Icons.Filled.Photo) { onOpenUri("https://www.instagram.com/naruto__sengupta") }
                 SocialIconBadge(Icons.Filled.Send) { onOpenUri("https://t.me/princekjha-dev") }
             }
         }

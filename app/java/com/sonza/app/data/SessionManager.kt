@@ -58,7 +58,7 @@ import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "suvmusic_session")
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "sonza_session")
 
 /**
  * Manages session data for YouTube Music authentication.
@@ -1967,7 +1967,7 @@ class SessionManager @Inject constructor(
             // selection yet so the mirror falls back to the in-app default
             // (PULSE), which matches what About / Home would render.
             val brandingPrefs = context.getSharedPreferences(
-                "suvmusic_branding",
+                "sonza_branding",
                 Context.MODE_PRIVATE,
             )
             if (brandingPrefs.getString("logo_variant", null) == null) {
@@ -2480,7 +2480,7 @@ class SessionManager @Inject constructor(
         // PULSE default (or, for fresh installs, the Classic activity-alias
         // theme), so the splash icon failed to match the variant the user
         // had just selected.
-        context.getSharedPreferences("suvmusic_branding", Context.MODE_PRIVATE)
+        context.getSharedPreferences("sonza_branding", Context.MODE_PRIVATE)
             .edit()
             .putString("logo_variant", variant.name)
             .commit()

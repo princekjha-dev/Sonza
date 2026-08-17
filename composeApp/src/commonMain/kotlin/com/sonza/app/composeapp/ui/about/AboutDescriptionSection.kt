@@ -19,7 +19,7 @@ internal fun AboutDescriptionSection() {
     AboutCard(modifier = Modifier.padding(horizontal = 16.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Suvmusic is the indian music streaming app (YT Music Client) that provides best UI unique features that not present anywhere and full control and better implementation.",
+                text = "sonza is the indian music streaming app (YT Music Client) that provides best UI unique features that not present anywhere and full control and better implementation.",
                 style = MaterialTheme.typography.bodyLarge.copy(
                     lineHeight = 24.sp,
                     fontWeight = FontWeight.SemiBold,

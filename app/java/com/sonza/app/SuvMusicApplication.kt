@@ -199,7 +199,7 @@ class SonzaApplication : Application(), SingletonImageLoader.Factory, androidx.w
     }
     
     private fun seedLogoVariantMirrorIfMissing() {
-        val prefs = getSharedPreferences("suvmusic_branding", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("sonza_branding", Context.MODE_PRIVATE)
         if (prefs.getString("logo_variant", null) != null) return
         val variantName = try {
             kotlinx.coroutines.runBlocking {

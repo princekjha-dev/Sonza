@@ -47,14 +47,14 @@ static std::string deriveDesKeyNative() {
 
 extern "C"
 JNIEXPORT jstring JNICALL
-Java_com_suvojeet_suvmusic_util_SecureConfig_nDeriveKey(JNIEnv *env, jobject thiz) {
+Java_com_naruto_sonza_util_SecureConfig_nDeriveKey(JNIEnv *env, jobject thiz) {
     std::string key = deriveKeyNative();
     return env->NewStringUTF(key.c_str());
 }
 
 extern "C"
 JNIEXPORT jstring JNICALL
-Java_com_suvojeet_suvmusic_util_SecureConfig_nDeriveDesKey(JNIEnv *env, jobject thiz) {
+Java_com_naruto_sonza_util_SecureConfig_nDeriveDesKey(JNIEnv *env, jobject thiz) {
     std::string key = deriveDesKeyNative();
     return env->NewStringUTF(key.c_str());
 }

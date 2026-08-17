@@ -346,7 +346,7 @@ fun SpotifyWrappedShareCard(
                 }
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    "SUVMUSIC",
+                    "sonza",
                     style = MaterialTheme.typography.titleMedium,
                     color = Color.White,
                     fontWeight = FontWeight.Black,
