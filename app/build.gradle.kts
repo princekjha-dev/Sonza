@@ -119,7 +119,8 @@ dependencies {
     implementation(libs.androidx.media3.ui.compose)
     implementation(libs.androidx.mediarouter)
 
-    // NewPipe Extractor & Networking
+    implementation(libs.androidx.media3.datasource.cronet)
+    implementation(libs.cronet.embedded)
     implementation(libs.newpipe.extractor)
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
