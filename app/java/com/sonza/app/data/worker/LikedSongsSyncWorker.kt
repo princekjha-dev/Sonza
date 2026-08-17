@@ -6,6 +6,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.sonza.app.data.repository.YouTubeRepository
 import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 
 @HiltWorker
@@ -31,4 +32,12 @@ class LikedSongsSyncWorker @AssistedInject constructor(
             Result.failure()
         }
     }
+}
+
+@AssistedFactory
+interface LikedSongsSyncWorkerFactory {
+    fun create(
+        appContext: Context,
+        params: WorkerParameters,
+    ): LikedSongsSyncWorker
 }
