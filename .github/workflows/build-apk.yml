@@ -1,0 +1,70 @@
+name: Build & Release SONZA APK
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload Debug APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonza-audiophile-debug
+          path: app/build/outputs/apk/debug/*.apk
+
+      - name: Create Release and Upload APK
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: SONZA ${{ github.ref_name }}
+          body: |
+            ## 🎧 SONZA — Hear Music Differently.
+            
+            ### High-Fidelity Audiophile Playback & Social Listening
+            - Lossless bit-perfect playback (FLAC / 24-bit / 96kHz / 192kHz)
+            - 10-Band Parametric Equalizer (-12dB to +12dB) & DSP visualizer
+            - Binaural Spatial Audio & Stereo Expander
+            - Real-time Synchronized Lyrics with word-level highlighting
+            - Social Listen Together synchronized listening rooms
+            - ReplayGain Loudness Normalization & anti-clipping limiter
+            - Beat-synchronized musical haptics
+            - Native Android MediaStore local library scanner
+            - Spotify Playlist metadata importer
+            
+            ### 📱 Installation Instructions:
+            1. Download `app-debug.apk` below directly onto your Android phone.
+            2. Tap to install (enable "Install from unknown sources" if prompted).
+            3. Enjoy high-fidelity audio!
+          files: app/build/outputs/apk/debug/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
