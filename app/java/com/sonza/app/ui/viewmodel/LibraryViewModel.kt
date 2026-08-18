@@ -501,6 +501,17 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
+    fun exportPlaylistToJson(context: Context, playlistItem: com.sonza.app.core.model.PlaylistDisplayItem) {
+        viewModelScope.launch {
+            try {
+                val fullPlaylist = youTubeRepository.getPlaylist(playlistItem.id)
+                PlaylistExportHelper.exportPlaylistToJson(context, fullPlaylist)
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Failed to export: ${e.message}") }
+            }
+        }
+    }
+
     fun exportPlaylistToSUV(context: Context, playlistItem: com.sonza.app.core.model.PlaylistDisplayItem) =
         exportPlaylistToSonza(context, playlistItem)
 

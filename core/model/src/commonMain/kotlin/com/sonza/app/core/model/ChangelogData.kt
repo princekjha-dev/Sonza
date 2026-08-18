@@ -10,9 +10,20 @@ data class ChangelogEntry(
 object ChangelogData {
     val entries = listOf(
         ChangelogEntry(
+            version = "2.6.5.0",
+            date = "August 19, 2026",
+            isLatest = true,
+            changes = listOf(
+                "Brand & Launcher Refresh: Rebuilt application launcher mipmaps and vector assets across all display densities with crisp high-resolution rendering.",
+                "Playlist Engine 2.0: Added multi-format playlist importer/exporter supporting M3U, M3U8 (with UTF-8 BOM & extended metadata), Sonza backup, and JSON formats.",
+                "Audio DSP & Playback Responsiveness: Optimized state emissions, audio focus transitions, and equalizer responsiveness for seamless real-time processing.",
+                "System & Dependency Upgrades: Modernized dependencies and optimized memory allocation for smoother UI transitions."
+            )
+        ),
+        ChangelogEntry(
             version = "2.6.4.0",
             date = "August 18, 2026",
-            isLatest = true,
+            isLatest = false,
             changes = listOf(
                 "Core Architecture & Models: Refactored model definitions and migrated build cache to core model module with optimized database queries.",
                 "Background Workers & DI: Fixed Hilt worker factories for KSP build and streamlined WorkManager periodic tasks.",

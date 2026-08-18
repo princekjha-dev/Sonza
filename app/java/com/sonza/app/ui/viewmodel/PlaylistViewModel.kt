@@ -604,6 +604,11 @@ class PlaylistViewModel @Inject constructor(
         PlaylistExportHelper.exportPlaylistToSonza(context, playlist)
     }
 
+    fun exportPlaylistToJson(context: android.content.Context) {
+        val playlist = _uiState.value.playlist ?: return
+        PlaylistExportHelper.exportPlaylistToJson(context, playlist)
+    }
+
     fun exportPlaylistToSUV(context: android.content.Context) = exportPlaylistToSonza(context)
     
     fun addToPlaylist(song: Song) {

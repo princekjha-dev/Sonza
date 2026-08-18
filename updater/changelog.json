@@ -1,6 +1,13 @@
 {
   "releases": [
     {
+      "versionName": "2.6.5.0",
+      "versionCode": 2650,
+      "date": "August 19, 2026",
+      "description": "• Brand & Launcher Refresh: Rebuilt application launcher mipmaps and vector assets across all display densities.\n• Playlist Engine 2.0: Added multi-format playlist importer/exporter supporting M3U, M3U8 (with UTF-8 BOM & extended metadata), Sonza backup, and JSON formats.\n• Audio DSP & Playback Responsiveness: Optimized state emissions, audio focus transitions, and equalizer responsiveness for seamless real-time processing.\n• System & Dependency Upgrades: Modernized dependencies and optimized memory allocation for smoother UI transitions.",
+      "isMajorUpdate": false
+    },
+    {
       "versionName": "2.6.4.0",
       "versionCode": 2640,
       "date": "August 18, 2026",

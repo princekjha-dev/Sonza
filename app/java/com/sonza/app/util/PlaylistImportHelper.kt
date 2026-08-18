@@ -83,7 +83,7 @@ class PlaylistImportHelper @Inject constructor(
     }
 
     /**
-     * Parse an .m3u file from a Uri.
+     * Parse an .m3u or .m3u8 file from a Uri.
      */
     suspend fun parseM3U(uri: Uri): Pair<String, List<ImportTrack>> = withContext(Dispatchers.IO) {
         val tracks = mutableListOf<ImportTrack>()
@@ -91,19 +91,28 @@ class PlaylistImportHelper @Inject constructor(
         
         try {
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                BufferedReader(InputStreamReader(inputStream)).use { reader ->
+                BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8)).use { reader ->
                     var line: String?
                     var currentTitle: String? = null
                     var currentArtist: String? = null
+                    var currentDuration = 0L
                     
                     while (reader.readLine().also { line = it } != null) {
-                        val trimmed = line!!.trim()
+                        var trimmed = line!!.trim()
+                        if (trimmed.startsWith("\uFEFF")) {
+                            trimmed = trimmed.substring(1).trim()
+                        }
                         if (trimmed.startsWith("#EXTINF:")) {
                             // Parse #EXTINF:duration,Artist - Title
                             // Or #EXTINF:duration,Title
                             val info = trimmed.substringAfter("#EXTINF:")
                             val commaIndex = info.indexOf(',')
                             if (commaIndex != -1) {
+                                val durStr = info.substring(0, commaIndex).trim()
+                                val durSec = durStr.toDoubleOrNull() ?: 0.0
+                                if (durSec > 0) {
+                                    currentDuration = (durSec * 1000).toLong()
+                                }
                                 val metadata = info.substring(commaIndex + 1)
                                 if (metadata.contains(" - ")) {
                                     currentArtist = metadata.substringBefore(" - ").trim()
@@ -114,16 +123,16 @@ class PlaylistImportHelper @Inject constructor(
                                 }
                             }
                         } else if (trimmed.isNotBlank() && !trimmed.startsWith("#")) {
-                            // This is a file path or URL
-                            // If we didn't get metadata from #EXTINF, use filename
+                            // File path or URL
                             val title = currentTitle ?: trimmed.substringAfterLast('/').substringAfterLast('\\').substringBeforeLast('.')
                             val artist = currentArtist ?: "Unknown Artist"
                             
-                            tracks.add(ImportTrack(title, artist))
+                            tracks.add(ImportTrack(title = title, artist = artist, durationMs = currentDuration))
                             
-                            // Reset for next
+                            // Reset for next track
                             currentTitle = null
                             currentArtist = null
+                            currentDuration = 0L
                         }
                     }
                 }
@@ -136,6 +145,70 @@ class PlaylistImportHelper @Inject constructor(
     }
 
     /**
+     * Parse a .json playlist file from a Uri.
+     */
+    suspend fun parseJson(uri: Uri): Pair<String, List<ImportTrack>> = withContext(Dispatchers.IO) {
+        val tracks = mutableListOf<ImportTrack>()
+        var playlistName = uri.lastPathSegment?.substringBeforeLast(".") ?: "JSON Playlist"
+
+        try {
+            val content = context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+            if (!content.isNullOrBlank()) {
+                val root = org.json.JSONObject(content)
+                if (root.has("title")) {
+                    playlistName = root.optString("title", playlistName)
+                }
+                val tracksArray = root.optJSONArray("tracks") ?: root.optJSONArray("songs")
+                if (tracksArray != null) {
+                    for (i in 0 until tracksArray.length()) {
+                        val songObj = tracksArray.optJSONObject(i) ?: continue
+                        val id = songObj.optString("id", "")
+                        val title = songObj.optString("title", "")
+                        val artist = songObj.optString("artist", "Unknown Artist")
+                        val album = songObj.optString("album", title)
+                        val duration = songObj.optLong("duration", 0L)
+                        val sourceStr = songObj.optString("source", "YOUTUBE")
+                        val source = try {
+                            com.sonza.app.core.model.SongSource.valueOf(sourceStr)
+                        } catch (e: Exception) {
+                            com.sonza.app.core.model.SongSource.YOUTUBE
+                        }
+
+                        if (title.isNotBlank()) {
+                            val song = if (id.isNotBlank()) {
+                                com.sonza.app.core.model.Song(
+                                    id = id,
+                                    title = title,
+                                    artist = artist,
+                                    album = album,
+                                    duration = duration,
+                                    thumbnailUrl = songObj.optString("thumbnailUrl").takeIf { it.isNotBlank() }
+                                        ?: "https://img.youtube.com/vi/$id/maxresdefault.jpg",
+                                    source = source
+                                )
+                            } else null
+
+                            tracks.add(
+                                ImportTrack(
+                                    title = title,
+                                    artist = artist,
+                                    durationMs = duration,
+                                    sourceId = id.takeIf { it.isNotBlank() },
+                                    song = song
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("PlaylistImportHelper", "JSON playlist parse failed", e)
+        }
+
+        playlistName to tracks
+    }
+
+    /**
      * Parse an .sonza or .suv file from a Uri.
      */
     suspend fun parseSonza(uri: Uri): Pair<String, List<ImportTrack>> = withContext(Dispatchers.IO) {
@@ -144,7 +217,7 @@ class PlaylistImportHelper @Inject constructor(
         var sequence = emptyList<String>()
         
         try {
-            val content = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+            val content = context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
             if (content != null) {
                 // 1. Read Metadata
                 val metaStart = content.indexOf("[METADATA]")

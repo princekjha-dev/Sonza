@@ -109,5 +109,61 @@ object PlaylistExportHelper {
         }
     }
 
+    fun exportPlaylistToJson(context: Context, playlist: Playlist) {
+        val songs = playlist.songs
+        if (songs.isEmpty()) return
+
+        try {
+            val jsonObject = org.json.JSONObject().apply {
+                put("title", playlist.title)
+                put("author", playlist.author)
+                put("description", playlist.description ?: "")
+                put("trackCount", songs.size)
+                put("createdAt", System.currentTimeMillis())
+                val tracksArray = org.json.JSONArray()
+                for (song in songs) {
+                    val songObj = org.json.JSONObject().apply {
+                        put("id", song.id)
+                        put("title", song.title)
+                        put("artist", song.artist)
+                        put("album", song.album)
+                        put("duration", song.duration)
+                        put("source", song.source.name)
+                        put("thumbnailUrl", song.thumbnailUrl ?: "")
+                    }
+                    tracksArray.put(songObj)
+                }
+                put("tracks", tracksArray)
+            }
+
+            val safeTitle = playlist.title.replace(Regex("[^a-zA-Z0-9]"), "_")
+            val fileName = "$safeTitle.json"
+
+            val playlistsDir = File(context.cacheDir, "playlists")
+            if (!playlistsDir.exists()) playlistsDir.mkdirs()
+
+            val tempFile = File(playlistsDir, fileName)
+            tempFile.writeText(jsonObject.toString(2))
+
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.provider",
+                tempFile
+            )
+
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/json"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+
+            val chooser = Intent.createChooser(intent, "Export Playlist (.json)")
+            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(chooser)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     fun exportPlaylistToSUV(context: Context, playlist: Playlist) = exportPlaylistToSonza(context, playlist)
 }
