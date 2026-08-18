@@ -46,7 +46,7 @@ class PipHelper @Inject constructor(
             .setActions(createRemoteActions(isPlaying))
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            builder.setAutoEnterEnabled(if (isPipEnabled) isVideoMode else false)
+            builder.setAutoEnterEnabled(isPipEnabled && (isPlaying || isVideoMode || musicPlayer.playerState.value.currentSong != null))
             builder.setSeamlessResizeEnabled(true)
         }
 
@@ -56,7 +56,7 @@ class PipHelper @Inject constructor(
     /**
      * Enter PiP mode if conditions are met.
      * For video mode: always enter (YouTube behavior).
-     * For audio mode: only enter if "Dynamic Island" setting is enabled (existing behavior).
+     * For audio mode: only enter if "Dynamic Island" / PiP setting is enabled.
      */
     fun enterPipIfEligible(activity: Activity, forceVideoPip: Boolean = false, isPipEnabled: Boolean = true) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -64,9 +64,7 @@ class PipHelper @Inject constructor(
         val state = musicPlayer.playerState.value
         val hasSong = state.currentSong != null
 
-        if (!hasSong) return
-
-        if (!isPipEnabled) return
+        if (!hasSong || !isPipEnabled) return
 
         val isVideoMode = state.isVideoMode || forceVideoPip
         val params = buildPipParams(isVideoMode, state.isPlaying, isPipEnabled) ?: return
@@ -74,7 +72,7 @@ class PipHelper @Inject constructor(
         try {
             activity.enterPictureInPictureMode(params)
         } catch (e: Exception) {
-            // PiP not supported or activity state doesn't allow it
+            android.util.Log.e("PipHelper", "Failed to enter Picture-in-Picture mode", e)
         }
     }
 

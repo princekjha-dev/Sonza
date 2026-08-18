@@ -14,6 +14,7 @@ object ChangelogData {
             date = "August 19, 2026",
             isLatest = true,
             changes = listOf(
+                "Dynamic Island / Floating Player: Fixed Picture-in-Picture auto-enter on gesture navigation and home press, delivering smooth floating playback overlays for both audio and video modes.",
                 "Brand & Launcher Refresh: Rebuilt application launcher mipmaps and vector assets across all display densities with crisp high-resolution rendering.",
                 "Playlist Engine 2.0: Added multi-format playlist importer/exporter supporting M3U, M3U8 (with UTF-8 BOM & extended metadata), Sonza backup, and JSON formats.",
                 "Audio DSP & Playback Responsiveness: Optimized state emissions, audio focus transitions, and equalizer responsiveness for seamless real-time processing.",

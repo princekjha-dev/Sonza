@@ -376,8 +376,8 @@ fun SettingsScreen(
                     
                     SettingsSwitchRow(
                         icon = Icons.Default.PictureInPicture,
-                        title = "Picture-in-Picture",
-                        subtitle = "Show mini player when backgrounded",
+                        title = "Dynamic Island / Floating Player",
+                        subtitle = "Floating player overlay (PiP) when app is backgrounded",
                         checked = floatingPlayerEnabled,
                         onCheckedChange = { enabled ->
                             scope.launch { viewModel.setDynamicIslandEnabled(enabled) }

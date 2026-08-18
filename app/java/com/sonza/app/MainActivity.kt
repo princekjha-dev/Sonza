@@ -421,13 +421,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        
-        lifecycleScope.launch {
-            if (isSongPlaying && isPipEnabled) {
-                // Enter PiP (only if enabled in Settings -> General -> Picture-in-Picture)
-                val isVideoMode = musicPlayer.playerState.value.isVideoMode
-                pipHelper.enterPipIfEligible(this@MainActivity, forceVideoPip = isVideoMode, isPipEnabled = isPipEnabled)
-            }
+        if (isSongPlaying && isPipEnabled) {
+            // Enter PiP synchronously when user leaves the activity (Home or App Switcher)
+            val isVideoMode = musicPlayer.playerState.value.isVideoMode
+            pipHelper.enterPipIfEligible(this, forceVideoPip = isVideoMode, isPipEnabled = isPipEnabled)
         }
     }
 
@@ -814,6 +811,17 @@ fun SonzaApp(
             isPlayerExpanded -> navBarPadding + 12.dp
             showMiniPlayer -> miniPlayerHeight + navBarPadding + navBarHeight + 12.dp
             else -> navBarPadding + navBarHeight + 12.dp
+        }
+
+        // In Picture-in-Picture mode (Dynamic Island / Floating player), render lightweight PiP player directly
+        if (mainUiState.isInPictureInPictureMode) {
+            val playerState by playerViewModel.playerState.collectAsStateWithLifecycle(initialValue = com.sonza.app.core.model.PlayerState())
+            com.sonza.app.ui.screens.player.PiPPlayerContent(
+                song = playbackInfo.currentSong,
+                isVideoMode = playerState.isVideoMode,
+                player = playerViewModel.getPlayer()
+            )
+            return
         }
 
         Box(modifier = Modifier.fillMaxSize()) {
