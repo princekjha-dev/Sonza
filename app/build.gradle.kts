@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.protobuf)
 }
 
 android {
@@ -64,11 +65,32 @@ android {
     }
 }
 
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:${libs.versions.protobuf.get()}"
+    }
+    generateProtoTasks {
+        all().forEach { task ->
+            task.builtins {
+                create("java") {
+                    option("lite")
+                }
+                create("kotlin") {
+                    option("lite")
+                }
+            }
+        }
+    }
+}
+
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
         freeCompilerArgs.addAll(
             "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
+            "-opt-in=androidx.compose.material3.ExperimentalMaterial3ExpressiveApi",
+            "-opt-in=androidx.compose.material.ExperimentalMaterialApi",
+            "-opt-in=androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi",
             "-opt-in=androidx.media3.common.util.UnstableApi",
             "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi"
         )
@@ -85,6 +107,7 @@ dependencies {
     implementation(project(":lyric-lrclib"))
     implementation(project(":lyric-kugou"))
     implementation(project(":updater"))
+    implementation(project(":composeApp"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)
@@ -140,6 +163,10 @@ dependencies {
     implementation(libs.okhttp.logging)
     implementation(libs.jsoup)
 
+    // Retrofit
+    implementation(libs.retrofit)
+    implementation(libs.converter.gson)
+
     // Ktor
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)
@@ -181,10 +208,15 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.jaudiotagger)
 
+    // Protobuf
+    implementation(libs.protobuf.javalite)
+    implementation(libs.protobuf.kotlin.lite)
+
     // ACRA Crash Reporting
     implementation(libs.acra.core)
     implementation(libs.acra.toast)
     implementation(libs.acra.dialog)
+    implementation(libs.acra.notification)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
