@@ -14,7 +14,6 @@ import com.sonza.app.R
 import com.sonza.app.core.domain.repository.LibraryRepository
 import com.sonza.app.data.repository.YouTubeRepository
 import dagger.assisted.Assisted
-import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
@@ -137,12 +136,4 @@ class NewReleaseWorker @AssistedInject constructor(
             }
         }
     }
-}
-
-@AssistedFactory
-interface NewReleaseWorkerFactory {
-    fun create(
-        appContext: Context,
-        params: WorkerParameters,
-    ): NewReleaseWorker
 }

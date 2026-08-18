@@ -1,3 +1,4 @@
 {
-    "cmake.sourceDirectory": "/home/naruto/Downloads/SONZA/app/cpp"
+    "cmake.sourceDirectory": "/home/naruto/Downloads/SONZA/app/cpp",
+    "java.configuration.updateBuildConfiguration": "interactive"
 }

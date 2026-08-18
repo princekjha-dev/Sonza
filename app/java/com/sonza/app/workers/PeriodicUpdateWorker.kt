@@ -9,7 +9,6 @@ import com.sonza.app.data.SessionManager
 import com.sonza.app.updater.UpdateChecker
 import com.sonza.app.core.model.UpdateChannel
 import dagger.assisted.Assisted
-import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 
 @HiltWorker
@@ -63,11 +62,4 @@ class PeriodicUpdateWorker @AssistedInject constructor(
         const val MAX_RETRIES = 3
     }
 }
-
-@AssistedFactory
-interface PeriodicUpdateWorkerFactory {
-    fun create(
-        appContext: Context,
-        params: WorkerParameters,
-    ): PeriodicUpdateWorker
 }
