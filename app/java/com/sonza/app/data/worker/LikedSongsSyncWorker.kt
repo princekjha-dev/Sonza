@@ -32,4 +32,3 @@ class LikedSongsSyncWorker @AssistedInject constructor(
         }
     }
 }
-}

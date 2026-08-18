@@ -62,4 +62,3 @@ class PeriodicUpdateWorker @AssistedInject constructor(
         const val MAX_RETRIES = 3
     }
 }
-}
