@@ -51,7 +51,7 @@ class YouTubeContentParser @Inject constructor(
                     val navEndpoint = item.optJSONObject("navigationEndpoint")
                     val watchEndpoint = navEndpoint?.optJSONObject("watchEndpoint")
                         ?: item.optJSONObject("watchEndpoint")
-                        ?: item.optJSONObject("playlistItemData")
+                        ?: item.optJSONObject("playNavigationEndpoint")?.optJSONObject("watchEndpoint")
 
                     val browseEndpoint = navEndpoint?.optJSONObject("browseEndpoint")
                     if (browseEndpoint != null && watchEndpoint == null) {
@@ -59,7 +59,11 @@ class YouTubeContentParser @Inject constructor(
                     }
 
                     var videoId = watchEndpoint?.optString("videoId")
+                        ?.takeIf { it.isNotBlank() }
+                        ?: item.optJSONObject("playlistItemData")?.optString("videoId")
+                        ?.takeIf { it.isNotBlank() }
                         ?: item.optString("videoId")
+                        ?.takeIf { it.isNotBlank() }
 
                     if (videoId.isNullOrBlank()) {
                         videoId = json.extractValueFromRuns(item, "videoId")

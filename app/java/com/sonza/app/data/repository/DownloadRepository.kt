@@ -2,6 +2,10 @@ package com.sonza.app.data.repository
 
 import android.content.ContentValues
 import android.content.Context
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaFormat
+import android.media.MediaMuxer
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -13,6 +17,8 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.sonza.app.core.model.Song
 import com.sonza.app.core.model.SongSource
+import com.sonza.app.core.model.VideoQuality
+import java.nio.ByteBuffer
 import com.sonza.app.service.DownloadService
 import com.sonza.app.util.TaggingUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -1428,25 +1434,89 @@ class DownloadRepository @Inject constructor(
         }
         if (!canDownload) return@withContext true
 
+        var tempVideoFile: File? = null
+        var tempAudioFile: File? = null
+        var tempMuxedFile: File? = null
+
         try {
-            val muxedUrl = youTubeRepository.getMuxedVideoStreamUrlForDownload(song.id, maxResolution)
-            if (muxedUrl == null) {
+            val quality = when {
+                maxResolution >= 1080 -> VideoQuality.HIGH
+                maxResolution >= 720 -> VideoQuality.MEDIUM
+                else -> VideoQuality.LOW
+            }
+
+            Log.i(DL_TAG, "Starting video download for: ${song.title} (${song.id}) at maxResolution=$maxResolution")
+            val streamResult = youTubeRepository.getVideoStreamResult(song.id, quality)
+            val videoUrl = streamResult?.videoUrl
+            val audioUrl = streamResult?.audioUrl
+
+            if (videoUrl.isNullOrBlank()) {
+                Log.e(DL_TAG, "Failed to resolve video stream URL for ${song.id}")
                 downloadMutex.withLock { _downloadingIds.update { it - videoKey } }
                 return@withContext false
             }
 
-            val request = Request.Builder().url(muxedUrl).build()
-            val response = downloadClient.newCall(request).execute()
-            if (!response.isSuccessful) {
-                response.close()
-                downloadMutex.withLock { _downloadingIds.update { it - videoKey } }
-                return@withContext false
-            }
-
-            val contentLength = response.body.contentLength()
             _downloadProgress.update { it + (videoKey to 0f) }
-
+            val cacheDir = File(context.cacheDir, "video_downloads").apply { mkdirs() }
             val fileName = "${sanitizeFileName(song.title)} - ${sanitizeFileName(song.artist)}.mp4"
+
+            val finalFile: File = if (audioUrl.isNullOrBlank()) {
+                // Already a combined/muxed stream, download directly to temp
+                val directFile = File(cacheDir, "${song.id}_direct.mp4")
+                tempVideoFile = directFile
+                val req = Request.Builder().url(videoUrl).build()
+                downloadClient.newCall(req).execute().use { resp ->
+                    if (!resp.isSuccessful) throw Exception("HTTP ${resp.code} downloading video")
+                    val len = resp.body.contentLength()
+                    FileOutputStream(directFile).use { out ->
+                        copyWithProgress(resp.body.byteStream(), out, len) { p ->
+                            _downloadProgress.update { it + (videoKey to p) }
+                        }
+                    }
+                }
+                directFile
+            } else {
+                // Separate video and audio streams — download both and mux
+                val vidFile = File(cacheDir, "${song.id}_raw_video.mp4")
+                val audFile = File(cacheDir, "${song.id}_raw_audio.m4a")
+                val muxFile = File(cacheDir, "${song.id}_muxed.mp4")
+                tempVideoFile = vidFile
+                tempAudioFile = audFile
+                tempMuxedFile = muxFile
+
+                Log.i(DL_TAG, "Downloading video track for ${song.id}")
+                val vidReq = Request.Builder().url(videoUrl).build()
+                downloadClient.newCall(vidReq).execute().use { resp ->
+                    if (!resp.isSuccessful) throw Exception("HTTP ${resp.code} downloading video track")
+                    val len = resp.body.contentLength()
+                    FileOutputStream(vidFile).use { out ->
+                        copyWithProgress(resp.body.byteStream(), out, len) { p ->
+                            _downloadProgress.update { it + (videoKey to (p * 0.5f)) }
+                        }
+                    }
+                }
+
+                Log.i(DL_TAG, "Downloading audio track for ${song.id}")
+                val audReq = Request.Builder().url(audioUrl).build()
+                downloadClient.newCall(audReq).execute().use { resp ->
+                    if (!resp.isSuccessful) throw Exception("HTTP ${resp.code} downloading audio track")
+                    val len = resp.body.contentLength()
+                    FileOutputStream(audFile).use { out ->
+                        copyWithProgress(resp.body.byteStream(), out, len) { p ->
+                            _downloadProgress.update { it + (videoKey to (0.5f + p * 0.4f)) }
+                        }
+                    }
+                }
+
+                Log.i(DL_TAG, "Muxing video + audio into MP4 for ${song.id}")
+                val muxSuccess = muxAudioAndVideo(vidFile, audFile, muxFile)
+                if (!muxSuccess || !muxFile.exists() || muxFile.length() == 0L) {
+                    throw Exception("MediaMuxer failed to combine audio and video tracks")
+                }
+                muxFile
+            }
+
+            // Save final MP4 to MediaStore (Movies/Sonza) or external public folder
             val savedUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val relativePath = "${Environment.DIRECTORY_MOVIES}/Sonza"
                 val contentValues = ContentValues().apply {
@@ -1459,9 +1529,7 @@ class DownloadRepository @Inject constructor(
                 val uri = resolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, contentValues)
                 uri?.let { videoUri ->
                     resolver.openOutputStream(videoUri)?.use { out ->
-                        copyWithProgress(response.body.byteStream(), out, contentLength) { p ->
-                            _downloadProgress.update { it + (videoKey to p) }
-                        }
+                        finalFile.inputStream().use { input -> input.copyTo(out) }
                     }
                     contentValues.clear()
                     contentValues.put(MediaStore.Video.Media.IS_PENDING, 0)
@@ -1470,22 +1538,21 @@ class DownloadRepository @Inject constructor(
                 uri
             } else {
                 val videosDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "Sonza").apply { mkdirs() }
-                val file = File(videosDir, fileName)
-                FileOutputStream(file).use { out ->
-                    copyWithProgress(response.body.byteStream(), out, contentLength) { p ->
-                        _downloadProgress.update { it + (videoKey to p) }
-                    }
+                val destFile = File(videosDir, fileName)
+                finalFile.inputStream().use { input ->
+                    FileOutputStream(destFile).use { out -> input.copyTo(out) }
                 }
-                file.toUri()
+                destFile.toUri()
             }
-            response.close()
 
             if (savedUri == null) {
+                Log.e(DL_TAG, "Failed to save video file to MediaStore")
                 downloadMutex.withLock { _downloadingIds.update { it - videoKey } }
                 _downloadProgress.update { it - videoKey }
                 return@withContext false
             }
 
+            // Cache high-res thumbnail for the video item
             val currentThumbnailUrl = song.thumbnailUrl
             var localThumbnailUrl = currentThumbnailUrl
             if (!currentThumbnailUrl.isNullOrEmpty() && currentThumbnailUrl.startsWith("http")) {
@@ -1505,16 +1572,111 @@ class DownloadRepository @Inject constructor(
                 }
             }
 
-            val downloadedSong = song.copy(source = SongSource.DOWNLOADED, localUri = savedUri.toString(), thumbnailUrl = localThumbnailUrl, streamUrl = null, originalSource = song.source, isVideo = true)
+            val downloadedSong = song.copy(
+                source = SongSource.DOWNLOADED,
+                localUri = savedUri.toString(),
+                thumbnailUrl = localThumbnailUrl,
+                streamUrl = null,
+                originalSource = song.source,
+                isVideo = true
+            )
             _downloadedSongs.update { it + downloadedSong }
             saveDownloads()
             downloadMutex.withLock { _downloadingIds.update { it - videoKey } }
             _downloadProgress.update { it - videoKey }
+            Log.i(DL_TAG, "Video download succeeded for ${song.title}: $savedUri")
             true
         } catch (e: Exception) {
+            Log.e(DL_TAG, "Video download error for ${song.id}", e)
             downloadMutex.withLock { _downloadingIds.update { it - videoKey } }
             _downloadProgress.update { it - videoKey }
             false
+        } finally {
+            try { tempVideoFile?.delete() } catch (_: Exception) {}
+            try { tempAudioFile?.delete() } catch (_: Exception) {}
+            try { tempMuxedFile?.delete() } catch (_: Exception) {}
+        }
+    }
+
+    private fun muxAudioAndVideo(videoFile: File, audioFile: File, outputFile: File): Boolean {
+        var videoExtractor: MediaExtractor? = null
+        var audioExtractor: MediaExtractor? = null
+        var muxer: MediaMuxer? = null
+        try {
+            videoExtractor = MediaExtractor().apply { setDataSource(videoFile.absolutePath) }
+            audioExtractor = MediaExtractor().apply { setDataSource(audioFile.absolutePath) }
+
+            var videoTrackIndex = -1
+            for (i in 0 until videoExtractor.trackCount) {
+                val format = videoExtractor.getTrackFormat(i)
+                val mime = format.getString(MediaFormat.KEY_MIME).orEmpty()
+                if (mime.startsWith("video/")) {
+                    videoTrackIndex = i
+                    break
+                }
+            }
+
+            var audioTrackIndex = -1
+            for (i in 0 until audioExtractor.trackCount) {
+                val format = audioExtractor.getTrackFormat(i)
+                val mime = format.getString(MediaFormat.KEY_MIME).orEmpty()
+                if (mime.startsWith("audio/")) {
+                    audioTrackIndex = i
+                    break
+                }
+            }
+
+            if (videoTrackIndex == -1 || audioTrackIndex == -1) {
+                Log.e(DL_TAG, "Could not find video or audio tracks (v=$videoTrackIndex, a=$audioTrackIndex)")
+                return false
+            }
+
+            videoExtractor.selectTrack(videoTrackIndex)
+            val videoFormat = videoExtractor.getTrackFormat(videoTrackIndex)
+
+            audioExtractor.selectTrack(audioTrackIndex)
+            val audioFormat = audioExtractor.getTrackFormat(audioTrackIndex)
+
+            muxer = MediaMuxer(outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            val muxerVideoTrack = muxer.addTrack(videoFormat)
+            val muxerAudioTrack = muxer.addTrack(audioFormat)
+            muxer.start()
+
+            val maxBufferSize = 1024 * 1024
+            val buffer = ByteBuffer.allocateDirect(maxBufferSize)
+            val bufferInfo = MediaCodec.BufferInfo()
+
+            while (true) {
+                val sampleSize = videoExtractor.readSampleData(buffer, 0)
+                if (sampleSize < 0) break
+                bufferInfo.offset = 0
+                bufferInfo.size = sampleSize
+                bufferInfo.presentationTimeUs = videoExtractor.sampleTime
+                bufferInfo.flags = videoExtractor.sampleFlags
+                muxer.writeSampleData(muxerVideoTrack, buffer, bufferInfo)
+                videoExtractor.advance()
+            }
+
+            while (true) {
+                val sampleSize = audioExtractor.readSampleData(buffer, 0)
+                if (sampleSize < 0) break
+                bufferInfo.offset = 0
+                bufferInfo.size = sampleSize
+                bufferInfo.presentationTimeUs = audioExtractor.sampleTime
+                bufferInfo.flags = audioExtractor.sampleFlags
+                muxer.writeSampleData(muxerAudioTrack, buffer, bufferInfo)
+                audioExtractor.advance()
+            }
+
+            muxer.stop()
+            return true
+        } catch (e: Exception) {
+            Log.e(DL_TAG, "Error in muxAudioAndVideo: ${e.message}", e)
+            return false
+        } finally {
+            try { videoExtractor?.release() } catch (_: Exception) {}
+            try { audioExtractor?.release() } catch (_: Exception) {}
+            try { muxer?.release() } catch (_: Exception) {}
         }
     }
 

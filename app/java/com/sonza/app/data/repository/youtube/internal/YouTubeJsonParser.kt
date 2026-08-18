@@ -53,9 +53,53 @@ class YouTubeJsonParser @Inject constructor() {
     }
 
     fun extractValueFromRuns(item: JSONObject, key: String): String? {
-        val endpoints = mutableListOf<JSONObject>()
-        findAllObjects(item, "watchEndpoint", endpoints)
-        return endpoints.firstOrNull()?.optString("videoId")
+        // Check overlay play button endpoint
+        val overlayPlay = item.optJSONObject("overlay")
+            ?.optJSONObject("musicItemThumbnailOverlayRenderer")
+            ?.optJSONObject("content")
+            ?.optJSONObject("musicPlayButtonRenderer")
+            ?.optJSONObject("playNavigationEndpoint")
+            ?.optJSONObject("watchEndpoint")
+            ?.optString("videoId")
+            ?.takeIf { it.isNotBlank() }
+        if (overlayPlay != null) return overlayPlay
+
+        // Check flexColumns title run navigationEndpoint
+        val flexColumns = item.optJSONArray("flexColumns")
+        if (flexColumns != null) {
+            val runs = flexColumns.optJSONObject(0)
+                ?.optJSONObject("musicResponsiveListItemFlexColumnRenderer")
+                ?.optJSONObject("text")
+                ?.optJSONArray("runs")
+            if (runs != null) {
+                for (i in 0 until runs.length()) {
+                    val runVid = runs.optJSONObject(i)
+                        ?.optJSONObject("navigationEndpoint")
+                        ?.optJSONObject("watchEndpoint")
+                        ?.optString("videoId")
+                        ?.takeIf { it.isNotBlank() }
+                    if (runVid != null) return runVid
+                }
+            }
+        }
+
+        // Check thumbnail renderer navigation endpoint
+        val thumbEndpoint = item.optJSONObject("thumbnail")
+            ?.optJSONObject("musicThumbnailRenderer")
+            ?.optJSONObject("navigationEndpoint")
+            ?.optJSONObject("watchEndpoint")
+            ?.optString("videoId")
+            ?.takeIf { it.isNotBlank() }
+        if (thumbEndpoint != null) return thumbEndpoint
+
+        // Check double tap endpoint
+        val doubleTap = item.optJSONObject("doubleTapEndpoint")
+            ?.optJSONObject("watchEndpoint")
+            ?.optString("videoId")
+            ?.takeIf { it.isNotBlank() }
+        if (doubleTap != null) return doubleTap
+
+        return null
     }
 
     // --- Item Extraction Methods ---

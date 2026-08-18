@@ -1613,21 +1613,18 @@ class MusicPlayer @Inject constructor(
             val inter = targetTitle.intersect(cTitle).size.toDouble()
             val titleRecall = inter / targetTitle.size
             val titlePrecision = inter / cTitle.size
-            if (titleRecall < 0.5 || titlePrecision < 0.5) continue
-            // Harmonic mean (F1) of the two — penalises a lopsided match where one side
-            // is strong but the other is weak.
+            if (titleRecall < 0.85 || titlePrecision < 0.75) continue
+            // Harmonic mean (F1) of the two
             val titleF1 = 2.0 * titleRecall * titlePrecision / (titleRecall + titlePrecision)
 
-            // Duration gate (only when both are known): reject anything beyond ±15s to
-            // tolerate intros/outros while filtering remixes / live / extended cuts.
-            // A closer duration earns a small bonus that breaks ties toward the right take.
+            // Duration gate (only when both are known): reject anything beyond ±10s
             var durBonus = 0.0
             var durationKnown = false
             if (song.duration > 0 && c.duration > 0) {
                 durationKnown = true
                 val diff = kotlin.math.abs(song.duration - c.duration)
-                if (diff > 15_000L) continue
-                durBonus = (1.0 - diff / 15_000.0) * 0.15
+                if (diff > 10_000L) continue
+                durBonus = (1.0 - diff / 10_000.0) * 0.15
             }
 
             val cArtist = normalize(c.artist)
@@ -1635,19 +1632,13 @@ class MusicPlayer @Inject constructor(
             val artistOverlap = if (!artistKnown) 0.0
                 else targetArtist.intersect(cArtist).size.toDouble() / targetArtist.size
 
-            // Artist gate: when BOTH artists are known but share no tokens at all, this
-            // is almost always a cover / re-sing / wrong rendition. Only let it through
-            // if the title is a near-exact match *and* the duration confirms it.
+            // Artist gate: when BOTH artists are known but share no tokens at all, reject
             if (artistKnown && artistOverlap == 0.0 && !(titleF1 >= 0.95 && durationKnown)) continue
 
             val score = titleF1 + artistOverlap * 0.5 + durBonus
 
-            // Per-candidate confidence floor. When NOTHING corroborates the title
-            // (no shared artist AND no usable duration) a title-only match is the easiest
-            // way to land on the wrong song, so demand a much higher bar (0.85). With any
-            // corroboration the normal 0.6 floor applies.
-            val hasCorroboration = (artistKnown && artistOverlap > 0.0) || durationKnown
-            val requiredFloor = if (hasCorroboration) 0.60 else 0.85
+            // High confidence floor required so we never play the wrong song
+            val requiredFloor = if (artistKnown && artistOverlap > 0.3) 0.80 else 0.90
             if (score < requiredFloor) continue
 
             if (score > bestScore) {
@@ -2540,6 +2531,9 @@ class MusicPlayer @Inject constructor(
         // New queue → let HQ-fallback notices fire again for these songs.
         hqNoticeShown.evictAll()
 
+        android.util.Log.i("MusicPlayer", "[SONG_SELECTED] title=${song.title}, artist=${song.artist}")
+        android.util.Log.i("MusicPlayer", "[SONG_ID] id=${song.id}, source=${song.source}, queueSize=${queue.size}, startIndex=$startIndex")
+
         playJob = scope.launch {
             _playerState.update {
                 it.copy(
@@ -2571,18 +2565,22 @@ class MusicPlayer @Inject constructor(
                         crossfadeTriggered = false
                         if (controller.volume < 1f) controller.volume = 1f
 
+                        android.util.Log.i("MusicPlayer", "[PLAYER_PREPARE] setMediaItems(${mediaItems.size}, startIndex=$startIndex)")
                         controller.setMediaItems(mediaItems, startIndex, startPositionMs.coerceAtLeast(0L))
                         controller.prepare()
                         if (autoPlay) {
+                            android.util.Log.i("MusicPlayer", "[PLAYER_PLAY] autoPlay=true, playing controller")
                             controller.play()
                         }
                     } ?: run {
+                        android.util.Log.e("MusicPlayer", "[PLAYER_ERROR] Music service not connected")
                         _playerState.update { it.copy(error = "Music service not connected", isLoading = false) }
                     }
                 }
             } catch (e: Exception) {
                 // Ignore cancellations
                 if (e is kotlinx.coroutines.CancellationException) throw e
+                android.util.Log.e("MusicPlayer", "[PLAYER_ERROR] playSong failed: ${e.message}", e)
                 _playerState.update { it.copy(error = e.message, isLoading = false) }
             }
         }
@@ -2738,23 +2736,86 @@ class MusicPlayer @Inject constructor(
             )
         }
 
+        if (resolveStream) {
+            android.util.Log.i("MusicPlayer", "[STREAM_RESOLVED] songId=${song.id}, uri=${uri?.take(80)}")
+        }
+        android.util.Log.i("MusicPlayer", "[MEDIA_ITEM_CREATED] mediaId=${song.id}")
+
         return builder.build()
     }
 
     fun play() {
         if (blockedForListenTogetherGuest()) return
-        mediaController?.play()
+        android.util.Log.i("MusicPlayer", "[PLAY_CLICK] play() invoked")
+        val controller = mediaController
+        if (controller == null) {
+            android.util.Log.w("MusicPlayer", "[PLAY_CLICK] mediaController is null, connecting to service")
+            connectToService()
+            return
+        }
+
+        val state = _playerState.value
+        val song = state.currentSong
+
+        if (controller.mediaItemCount == 0 && song != null) {
+            android.util.Log.i("MusicPlayer", "[PLAY_CLICK] controller has 0 items; playing current song: ${song.title} (${song.id})")
+            playSong(song, state.queue.ifEmpty { listOf(song) }, state.currentIndex.coerceAtLeast(0))
+            return
+        }
+
+        if (controller.playbackState == Player.STATE_IDLE) {
+            if (controller.mediaItemCount > 0) {
+                android.util.Log.i("MusicPlayer", "[PLAYER_PREPARE] controller is STATE_IDLE with items; preparing and playing")
+                controller.prepare()
+                controller.play()
+            } else if (song != null) {
+                android.util.Log.i("MusicPlayer", "[PLAY_CLICK] controller is STATE_IDLE with song; calling playSong")
+                playSong(song, state.queue.ifEmpty { listOf(song) }, state.currentIndex.coerceAtLeast(0))
+            }
+            return
+        }
+
+        if (controller.playbackState == Player.STATE_ENDED) {
+            android.util.Log.i("MusicPlayer", "[PLAYER_PLAY] controller is STATE_ENDED; seeking to start and playing")
+            controller.seekTo(0, 0L)
+            controller.prepare()
+            controller.play()
+            return
+        }
+
+        val currentUri = controller.currentMediaItem?.localConfiguration?.uri?.toString()
+        val isPlaceholder = isYouTubeWatchPlaceholder(currentUri) || (currentUri != null && currentUri.contains("placeholder.invalid"))
+        if (isPlaceholder && song != null) {
+            android.util.Log.i("MusicPlayer", "[RESOLVING_STREAM] current item is unresolved placeholder; resolving and playing ${song.id}")
+            currentResolutionJob?.cancel()
+            currentResolutionJob = scope.launch {
+                resolveAndPlayCurrentItem(song, controller.currentMediaItemIndex, shouldPlay = true)
+            }
+            return
+        }
+
+        android.util.Log.i("MusicPlayer", "[PLAYER_PLAY] delegating to mediaController.play()")
+        controller.play()
     }
 
     fun pause() {
         if (blockedForListenTogetherGuest()) return
+        android.util.Log.i("MusicPlayer", "[PLAYER_PAUSE] pausing mediaController")
         mediaController?.pause()
     }
 
     fun togglePlayPause() {
         if (blockedForListenTogetherGuest()) return
-        mediaController?.let { controller ->
-            if (controller.isPlaying) pause() else play()
+        val controller = mediaController
+        if (controller == null) {
+            android.util.Log.i("MusicPlayer", "[PLAY_CLICK] togglePlayPause with null controller; triggering play()")
+            play()
+            return
+        }
+        if (controller.isPlaying) {
+            pause()
+        } else {
+            play()
         }
     }
 
