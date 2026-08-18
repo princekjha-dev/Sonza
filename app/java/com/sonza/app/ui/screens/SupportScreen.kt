@@ -81,7 +81,7 @@ fun SupportScreen(onBack: () -> Unit) {
                         val appPackage = context.packageName
                         val appVersion = runCatching {
                             context.packageManager.getPackageInfo(context.packageName, 0).versionName
-                        }.getOrDefault("2.5.9.0")
+                        }.getOrDefault("2.6.3.0")
 
                         val deviceBrand = android.os.Build.BRAND
                         val deviceModel = android.os.Build.MODEL
