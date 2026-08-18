@@ -1,3 +1,0 @@
-/home/naruto/Downloads/SONZA/core/domain/src/commonMain/kotlin/com/sonza/app/core/domain/repository/LibraryRepository.kt
-/home/naruto/Downloads/SONZA/core/domain/src/androidMain/kotlin/com/sonza/app/core/domain/player/MusicPlayer.android.kt
-/home/naruto/Downloads/SONZA/core/domain/src/commonMain/kotlin/com/sonza/app/core/domain/player/MusicPlayer.kt
