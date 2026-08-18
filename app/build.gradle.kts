@@ -16,8 +16,8 @@ android {
         applicationId = "com.sonza.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 2630
-        versionName = "2.6.3.0"
+        versionCode = 2640
+        versionName = "2.6.4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

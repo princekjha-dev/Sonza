@@ -1,6 +1,13 @@
 {
   "releases": [
     {
+      "versionName": "2.6.4.0",
+      "versionCode": 2640,
+      "date": "August 18, 2026",
+      "description": "• Core Architecture & Models: Refactored model definitions and migrated build cache to core model module with optimized database queries.\n• Background Workers & DI: Fixed Hilt worker factories for KSP build and streamlined WorkManager periodic tasks.\n• Multiplatform & Protobuf: Updated Protobuf integration and Compose Multiplatform dependencies for improved performance.\n• Production Polish: Enhanced error recovery, app stability, and build optimizations for smooth Android playback.",
+      "isMajorUpdate": false
+    },
+    {
       "versionName": "2.6.3.0",
       "versionCode": 2630,
       "date": "August 13, 2026",

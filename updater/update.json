@@ -1,9 +1,9 @@
 {
-  "versionName": "2.6.3.0",
-  "versionCode": 2630,
-  "downloadUrl": "https://github.com/princekjha-dev/Sonza/releases/download/v2.6.3.0/app-debug.apk",
+  "versionName": "2.6.4.0",
+  "versionCode": 2640,
+  "downloadUrl": "https://github.com/princekjha-dev/Sonza/releases/download/v2.6.4.0/app-debug.apk",
   "forceUpdate": false,
-  "size": "122.2 MB",
-  "sha256": "a568e84c5671b6d84e498bab021649b6dc053604834631bb9b4833a4cab47146"
+  "size": "125 MB"
 }
+
 

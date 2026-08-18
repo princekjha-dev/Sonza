@@ -10,9 +10,20 @@ data class ChangelogEntry(
 object ChangelogData {
     val entries = listOf(
         ChangelogEntry(
+            version = "2.6.4.0",
+            date = "August 18, 2026",
+            isLatest = true,
+            changes = listOf(
+                "Core Architecture & Models: Refactored model definitions and migrated build cache to core model module with optimized database queries.",
+                "Background Workers & DI: Fixed Hilt worker factories for KSP build and streamlined WorkManager periodic tasks.",
+                "Multiplatform & Protobuf: Updated Protobuf integration and Compose Multiplatform dependencies for improved performance.",
+                "Production Polish: Enhanced error recovery, app stability, and build optimizations for smooth Android playback."
+            )
+        ),
+        ChangelogEntry(
             version = "2.6.3.0",
             date = "August 13, 2026",
-            isLatest = true,
+            isLatest = false,
             changes = listOf(
                 "Player & Artwork Polish: Centered album artwork with Extra Large (92%) and Full Width (100%) presets, Full Width default, left-aligned now playing metadata layout, and customizable player background styles (Ambient, Black, Light).",
                 "Per-Song Audio Source Switching: Seamlessly switch between YouTube and HQ Audio per song right from the player controls, preserving playback position.",
