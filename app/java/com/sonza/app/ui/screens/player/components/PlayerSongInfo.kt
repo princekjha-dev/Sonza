@@ -495,6 +495,9 @@ fun TimeLabelsWithQuality(
     currentPositionProvider: () -> Long,
     durationProvider: () -> Long,
     dominantColors: DominantColors,
+    audioCodec: String? = null,
+    audioBitrate: Int? = null,
+    activeAudioSource: com.sonza.app.core.model.MusicSource? = null,
     horizontalPadding: androidx.compose.ui.unit.Dp = 8.dp
 ) {
     // Derive the formatted strings so recomposition only happens when the
@@ -504,6 +507,18 @@ fun TimeLabelsWithQuality(
     }
     val remainingText by remember {
         derivedStateOf { "-${formatDuration(durationProvider() - currentPositionProvider())}" }
+    }
+
+    val formatLabel = remember(audioCodec, audioBitrate, activeAudioSource) {
+        val codecText = audioCodec?.uppercase()
+        val bitrateText = audioBitrate?.let { "${it} kbps" }
+        when {
+            codecText != null && bitrateText != null -> "$codecText • $bitrateText"
+            codecText != null -> codecText
+            bitrateText != null -> bitrateText
+            activeAudioSource == com.sonza.app.core.model.MusicSource.REMOTE -> "HQ • 320 kbps"
+            else -> null
+        }
     }
 
     Row(
@@ -519,6 +534,23 @@ fun TimeLabelsWithQuality(
             style = MaterialTheme.typography.labelMedium,
             color = dominantColors.onBackground.copy(alpha = 0.7f)
         )
+
+        if (formatLabel != null) {
+            Surface(
+                color = dominantColors.accent.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(6.dp)
+            ) {
+                Text(
+                    text = formatLabel,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.4.sp
+                    ),
+                    color = dominantColors.accent,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                )
+            }
+        }
 
         Text(
             text = remainingText,

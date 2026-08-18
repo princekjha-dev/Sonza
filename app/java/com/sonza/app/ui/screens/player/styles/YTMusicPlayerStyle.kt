@@ -330,6 +330,9 @@ private fun YTMusicPortraitContent(
                 currentPositionProvider = positionProvider,
                 durationProvider = durationProvider,
                 dominantColors = dominantColors,
+                audioCodec = playerState.audioCodec,
+                audioBitrate = playerState.audioBitrate,
+                activeAudioSource = playbackInfo.activeAudioSource,
                 horizontalPadding = 0.dp
             )
 

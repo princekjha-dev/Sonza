@@ -260,7 +260,14 @@ private fun ClassicPortraitContent(
 
             SeekbarSection(combinedLoading, dominantColors, progressProvider, playbackInfo.isPlaying, actions, durationProvider, currentSeekbarStyle, onSeekbarStyleChange, sponsorSegments, isVeryShort)
 
-            TimeLabelsWithQuality(currentPositionProvider = positionProvider, durationProvider = durationProvider, dominantColors = dominantColors)
+            TimeLabelsWithQuality(
+                currentPositionProvider = positionProvider,
+                durationProvider = durationProvider,
+                dominantColors = dominantColors,
+                audioCodec = playerState.audioCodec,
+                audioBitrate = playerState.audioBitrate,
+                activeAudioSource = playbackInfo.activeAudioSource
+            )
 
             Spacer(modifier = Modifier.weight(if (isVeryShort) 0.1f else 0.4f))
 
@@ -340,7 +347,14 @@ private fun ClassicLandscapeContent(
             
             SeekbarSection(combinedLoading, dominantColors, progressProvider, playbackInfo.isPlaying, actions, durationProvider, currentSeekbarStyle, { }, sponsorSegments, false)
             
-            TimeLabelsWithQuality(currentPositionProvider = positionProvider, durationProvider = durationProvider, dominantColors = dominantColors)
+            TimeLabelsWithQuality(
+                currentPositionProvider = positionProvider,
+                durationProvider = durationProvider,
+                dominantColors = dominantColors,
+                audioCodec = playerState.audioCodec,
+                audioBitrate = playerState.audioBitrate,
+                activeAudioSource = playbackInfo.activeAudioSource
+            )
             Spacer(modifier = Modifier.height(12.dp))
             
             ClassicPlaybackControls(isPlaying = playerState.isPlaying, shuffleEnabled = playerState.shuffleEnabled, repeatMode = playerState.repeatMode, onPlayPause = actions.onPlayPause, onNext = actions.onNext, onPrevious = actions.onPrevious, onShuffleToggle = actions.onShuffleToggle, onRepeatToggle = actions.onRepeatToggle, dominantColors = dominantColors)
