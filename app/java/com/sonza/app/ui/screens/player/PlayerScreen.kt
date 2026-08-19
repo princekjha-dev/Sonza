@@ -826,7 +826,7 @@ fun PiPPlayerContent(song: com.sonza.app.core.model.Song?, isVideoMode: Boolean,
                         shape = RoundedCornerShape(12.dp)
                     )
                     .border(
-                        width = 0.5.dp,
+                        width = 1.dp,
                         color = Color.White.copy(alpha = 0.15f),
                         shape = RoundedCornerShape(12.dp)
                     )
@@ -838,12 +838,12 @@ fun PiPPlayerContent(song: com.sonza.app.core.model.Song?, isVideoMode: Boolean,
                     text = song?.title ?: "Sonza",
                     style = MaterialTheme.typography.titleSmall.copy(
                         fontFamily = com.sonza.app.ui.theme.Manrope,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        fontWeight = FontWeight.Bold,
                         fontSize = 12.sp
                     ),
                     color = com.sonza.app.ui.theme.SonzaOnBackground,
                     maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis
                 )
                 if (!song?.artist.isNullOrBlank()) {
                     Text(
@@ -854,7 +854,7 @@ fun PiPPlayerContent(song: com.sonza.app.core.model.Song?, isVideoMode: Boolean,
                         ),
                         color = com.sonza.app.ui.theme.SonzaOnSurfaceVariant,
                         maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }

@@ -14,19 +14,12 @@ import com.sonza.app.R
  * Typography — Material 3 Expressive scale powered by Manrope (variable font).
  * Bold, confident hierarchy per Part 2 of DESIGN_SYSTEM.md.
  */
-@OptIn(ExperimentalTextApi::class)
-private fun manrope(weight: Int): Font = Font(
-    resId = R.font.manrope,
-    weight = FontWeight(weight),
-    variationSettings = FontVariation.Settings(FontVariation.weight(weight))
-)
-
 val Manrope: FontFamily = FontFamily(
-    manrope(400),
-    manrope(500),
-    manrope(600),
-    manrope(700),
-    manrope(800)
+    Font(R.font.manrope, FontWeight.Normal),
+    Font(R.font.manrope, FontWeight.Medium),
+    Font(R.font.manrope, FontWeight.SemiBold),
+    Font(R.font.manrope, FontWeight.Bold),
+    Font(R.font.manrope, FontWeight.ExtraBold)
 )
 
 // Explicit Sonza Design System typography tokens
