@@ -963,18 +963,16 @@ private fun SpeedDialGrid(
         }
         Text(
             text = "Speed dial",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            letterSpacing = (-0.3).sp,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 14.dp)
+            style = com.sonza.app.ui.theme.SonzaTypography.Headline,
+            color = com.sonza.app.ui.theme.SonzaOnBackground,
+            modifier = Modifier.padding(start = com.sonza.app.ui.theme.SpacingTokens.SpaceLg, end = com.sonza.app.ui.theme.SpacingTokens.SpaceLg, bottom = com.sonza.app.ui.theme.SpacingTokens.SpaceMd)
         )
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(horizontal = com.sonza.app.ui.theme.SpacingTokens.SpaceLg),
+            verticalArrangement = Arrangement.spacedBy(com.sonza.app.ui.theme.SpacingTokens.SpaceSm)
         ) {
             rows.forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(com.sonza.app.ui.theme.SpacingTokens.SpaceSm)) {
                     row.forEach { cellIndex ->
                         if (cellIndex < items.size) {
                             val song = items[cellIndex]
@@ -999,49 +997,45 @@ private fun SpeedDialGrid(
 }
 
 /**
- * The trailing "shuffle" tile of the speed dial — plays a random mix built from the
- * user's personalized recommendations. Styled to match [SpeedDialTile]: a square,
- * 14dp-rounded tile with a label overlaid at the bottom.
+ * The trailing "shuffle" tile of the speed dial per Part 6.1.
  */
 @Composable
 private fun ShuffleTile(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val shape = RoundedCornerShape(14.dp)
-    // Constant-color scrim gradient — remembered so it isn't reallocated on
-    // every recomposition.
+    val dynamicColors = com.sonza.app.ui.components.LocalSonzaDynamicColors.current
+    val shape = RoundedCornerShape(com.sonza.app.ui.theme.RadiusTokens.Lg)
     val scrimBrush = remember {
         Brush.verticalGradient(
-            listOf(Color.Transparent, Color.Black.copy(alpha = 0.78f))
+            listOf(Color.Transparent, Color.Black.copy(alpha = 0.80f))
         )
     }
     Box(
         modifier = modifier
             .aspectRatio(1f)
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceColorAtElevation(10.dp))
+            .background(com.sonza.app.ui.theme.SonzaSurfaceVariant)
             .bounceClick(shape = shape, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector = Icons.Default.Shuffle,
             contentDescription = "Shuffle play",
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(34.dp)
+            tint = dynamicColors.accent,
+            modifier = Modifier.size(32.dp)
         )
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .background(scrimBrush)
-                .padding(horizontal = 8.dp, vertical = 6.dp)
+                .padding(horizontal = com.sonza.app.ui.theme.SpacingTokens.SpaceSm, vertical = 6.dp)
         ) {
             Text(
                 text = "Shuffle",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
+                style = com.sonza.app.ui.theme.SonzaTypography.LabelSmall.copy(fontWeight = FontWeight.Bold),
+                color = com.sonza.app.ui.theme.SonzaOnBackground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1057,15 +1051,14 @@ private fun SpeedDialTile(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val shape = RoundedCornerShape(14.dp)
+    val dynamicColors = com.sonza.app.ui.components.LocalSonzaDynamicColors.current
+    val shape = RoundedCornerShape(com.sonza.app.ui.theme.RadiusTokens.Lg)
     val thumb = remember(song.thumbnailUrl) {
         ImageUtils.getHighResThumbnailUrl(song.thumbnailUrl) ?: song.thumbnailUrl
     }
-    // Constant-color scrim gradient — remembered so it isn't reallocated on
-    // every recomposition of each tile.
     val scrimBrush = remember {
         Brush.verticalGradient(
-            listOf(Color.Transparent, Color.Black.copy(alpha = 0.78f))
+            listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
         )
     }
     Box(
@@ -1089,12 +1082,11 @@ private fun SpeedDialTile(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .background(scrimBrush)
-                .padding(horizontal = 8.dp, vertical = 6.dp)
+                .padding(horizontal = com.sonza.app.ui.theme.SpacingTokens.SpaceSm, vertical = 6.dp)
         ) {
             Text(
                 text = song.title,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
+                style = com.sonza.app.ui.theme.SonzaTypography.LabelSmall.copy(fontWeight = FontWeight.Bold),
                 color = Color.White,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -1104,7 +1096,7 @@ private fun SpeedDialTile(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .border(2.5.dp, Color.White, shape)
+                    .border(2.dp, dynamicColors.accent, shape)
             )
         }
     }

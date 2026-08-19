@@ -211,6 +211,116 @@ fun HomeSectionHeader(
 }
 
 
+/**
+ * Featured / Hero Card per DESIGN_SYSTEM.md Part 6.1:
+ * - 2x width span, top of Home only, radius-lg (16dp).
+ * - Displays subtle accent-muted wash derived from its own artwork.
+ * - Bold title in TitleLarge and subtitle in BodyMedium over scrim gradient.
+ */
+@Composable
+fun FeaturedHeroCard(
+    title: String,
+    subtitle: String,
+    thumbnailUrl: String?,
+    tag: String = "FEATURED",
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val dynamicColors = rememberDynamicAccentColors(thumbnailUrl)
+    val cardShape = RoundedCornerShape(com.sonza.app.ui.theme.RadiusTokens.Lg)
+    val highResThumbnail = remember(thumbnailUrl) {
+        ImageUtils.getHighResThumbnailUrl(thumbnailUrl, size = 800) ?: thumbnailUrl
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .clip(cardShape)
+            .bounceClick(onClick = onClick)
+    ) {
+        // High-res artwork background
+        if (!highResThumbnail.isNullOrBlank()) {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(highResThumbnail)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = title,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(com.sonza.app.ui.theme.SonzaSurfaceVariant)
+            )
+        }
+
+        // Accent-muted wash + Scrim gradient overlay per Part 1 & 6.1
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0.0f to dynamicColors.accentMuted.copy(alpha = 0.35f),
+                        0.4f to Color.Transparent,
+                        0.7f to Color.Black.copy(alpha = 0.55f),
+                        1.0f to Color.Black.copy(alpha = 0.90f)
+                    )
+                )
+        )
+
+        // Metadata & Text content
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(com.sonza.app.ui.theme.SpacingTokens.SpaceLg)
+        ) {
+            // Tag badge
+            Surface(
+                color = dynamicColors.accent,
+                shape = RoundedCornerShape(com.sonza.app.ui.theme.RadiusTokens.Sm)
+            ) {
+                Text(
+                    text = tag.uppercase(),
+                    style = com.sonza.app.ui.theme.SonzaTypography.LabelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp,
+                        letterSpacing = 1.sp
+                    ),
+                    color = dynamicColors.onAccent,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(com.sonza.app.ui.theme.SpacingTokens.SpaceXs))
+
+            Text(
+                text = title,
+                style = com.sonza.app.ui.theme.SonzaTypography.TitleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp
+                ),
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Text(
+                text = subtitle,
+                style = com.sonza.app.ui.theme.SonzaTypography.BodyMedium,
+                color = com.sonza.app.ui.theme.SonzaOnSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
 fun Modifier.bounceClick(
     scaleDown: Float = 0.95f,
     onClick: () -> Unit

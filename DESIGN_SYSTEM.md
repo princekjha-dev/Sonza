@@ -152,13 +152,13 @@ Spotify's Circular and Apple's SF Pro, and avoids default-Roboto "templated" fee
 - **Standard tile:** square, `radius-lg`, title overlaid bottom with `scrim` gradient.
 - **Featured/hero tile:** 2x width span, top of Home only, same radius, may show
   `accent-muted` wash derived from its own artwork.
-- Defined in: `[ file/composable name once implemented ]`
+- Defined in: `HomeComponents.kt` (`FeaturedHeroCard`, `SquareSongCard`, `PlaylistDisplayCard`), `HomeScreen.kt` (`SpeedDialTile`, `SpeedDialGrid`)
 
 ### 6.2 Genre Pills
 - Horizontal scroll, `radius-pill`, `space-sm` internal padding.
 - **Selected:** filled `accent` background (or fixed brand blue if no dynamic context), `on-accent` text.
 - **Unselected:** `surface-variant` background, `on-surface-variant` text, `outline` border.
-- Defined in: `[ file/composable name once implemented ]`
+- Defined in: `MoodChips.kt` (`MoodChipsSection`, `MoodChip`)
 
 ### 6.3 Bottom Navigation
 - 4 items: Home, Search, Your Library, Settings. Fixed on mobile (per both reference apps).
@@ -255,4 +255,5 @@ Defined in: `[ file/composable name once implemented ]`
 | 2026-08-19 | Direction locked: Dynamic Album-Driven Dark UI (Apple Music / Spotify inspired) | Part 0, Part 1 (dynamic tokens), Part 5 (blur), 6.5, 6.6 added |
 | 2026-08-19 | Phase 1 & 2 Completed: Foundation (Fixed tokens, Manrope variable font, Spacing, Shapes, Elevation, Motion) & Dynamic Accent Color System (Palette extraction, contrast checking, 400ms crossfade) | `Color.kt`, `Type.kt`, `SpacingTokens.kt`, `Shapes.kt`, `ElevationTokens.kt`, `MotionTokens.kt`, `DominantColorExtractor.kt`, `Theme.kt` |
 | 2026-08-19 | Phase 3 Completed: Blur-Behind Components (RenderEffect on API 31+, Surface @ 92% + shadow on API <31 for Bottom Nav and Mini-Player) | `ExpressiveBottomNav.kt`, `StandardMiniPlayer.kt`, `LiquidGlassMiniPlayer.kt`, `LiquidGlassSurface.kt`, `ExpandablePlayerSheet.kt` |
+| 2026-08-19 | Phase 4a Completed: Home Screen (Featured hero card, Speed dial grid with dynamic accent & scrim, Genre pills with dynamic accent & outline) | `HomeComponents.kt`, `HomeScreen.kt`, `MoodChips.kt` |
 

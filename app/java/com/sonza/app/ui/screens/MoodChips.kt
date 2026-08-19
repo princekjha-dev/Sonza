@@ -1,20 +1,31 @@
 package com.sonza.app.ui.screens
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,24 +34,33 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sonza.app.ui.components.LocalSonzaDynamicColors
+import com.sonza.app.ui.theme.MotionTokens
+import com.sonza.app.ui.theme.RadiusTokens
+import com.sonza.app.ui.theme.SonzaOnSurfaceVariant
+import com.sonza.app.ui.theme.SonzaOutline
+import com.sonza.app.ui.theme.SonzaSurfaceVariant
+import com.sonza.app.ui.theme.SonzaTypography
+import com.sonza.app.ui.theme.SpacingTokens
 
 /**
- * Mood chips, redesigned. Each mood ships its own emoji glyph and an
- * accent color, and chips alternate between filled (selected/even) and
- * outlined (odd) treatments so the row reads as a curated palette
- * instead of a uniform `FilterChip` strip.
+ * Mood / Genre Pills per DESIGN_SYSTEM.md Part 6.2:
+ * - Horizontal scroll, radius-pill (999dp), space-sm internal vertical padding.
+ * - Selected: filled dynamic accent background, on-accent text (WCAG AA contrast).
+ * - Unselected: surface-variant background, on-surface-variant text, outline border.
  */
-private data class Mood(val name: String, val emoji: String, val accent: Color)
+private data class Mood(val name: String, val emoji: String)
 
 private val MOODS = listOf(
-    Mood("Sleep",     "🌙", Color(0xFF4A4E96)),
-    Mood("Relax",     "🍃", Color(0xFF67B26F)),
-    Mood("Sad",       "💧", Color(0xFF4682B4)),
-    Mood("Romance",   "🌹", Color(0xFFE91E63)),
-    Mood("Feel Good", "✨", Color(0xFFFFB347)),
-    Mood("Party",     "🎉", Color(0xFFFF5E62)),
-    Mood("Focus",     "🎯", Color(0xFF6A2C70)),
-    Mood("Energize",  "⚡", Color(0xFFFFC107))
+    Mood("All",       "🔥"),
+    Mood("Relax",     "🍃"),
+    Mood("Feel Good", "✨"),
+    Mood("Energize",  "⚡"),
+    Mood("Focus",     "🎯"),
+    Mood("Romance",   "🌹"),
+    Mood("Sleep",     "🌙"),
+    Mood("Sad",       "💧"),
+    Mood("Party",     "🎉")
 )
 
 @Composable
@@ -51,15 +71,14 @@ fun MoodChipsSection(
 ) {
     LazyRow(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        contentPadding = PaddingValues(horizontal = SpacingTokens.SpaceLg),
+        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceSm)
     ) {
-        itemsIndexed(MOODS, key = { _, m -> m.name }) { index, mood ->
+        itemsIndexed(MOODS, key = { _, m -> m.name }) { _, mood ->
             MoodChip(
                 mood = mood,
-                isSelected = mood.name == selectedMood,
-                isOutlined = index % 2 == 1,
-                onClick = { onMoodSelected(mood.name) }
+                isSelected = (selectedMood == null && mood.name == "All") || mood.name == selectedMood,
+                onClick = { onMoodSelected(if (mood.name == "All") "" else mood.name) }
             )
         }
     }
@@ -69,46 +88,67 @@ fun MoodChipsSection(
 private fun MoodChip(
     mood: Mood,
     isSelected: Boolean,
-    isOutlined: Boolean,
     onClick: () -> Unit
 ) {
+    val dynamicColors = LocalSonzaDynamicColors.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+    
     val pressScale by animateFloatAsState(
-        targetValue = if (isPressed) 0.94f else 1f,
+        targetValue = if (isPressed) 0.95f else 1f,
         animationSpec = spring(stiffness = Spring.StiffnessMedium),
         label = "moodChipPress"
     )
 
-    // YouTube-Music-style flat pill: a lightly rounded rectangle that fills with
-    // the Sonza accent when selected and sits on a neutral surface otherwise.
-    // The selected chip keeps a subtle accent tint so the Sonza palette still
-    // reads through the otherwise YTM-faithful layout.
-    val containerColor = if (isSelected) {
-        mood.accent
-    } else {
-        MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
-    }
-    val labelColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+    val pillShape = RoundedCornerShape(RadiusTokens.Pill)
+
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isSelected) dynamicColors.accent else SonzaSurfaceVariant,
+        animationSpec = tween(MotionTokens.NavSelectionDuration, easing = FastOutSlowInEasing),
+        label = "chipBg"
+    )
+    
+    val textColor by animateColorAsState(
+        targetValue = if (isSelected) dynamicColors.onAccent else SonzaOnSurfaceVariant,
+        animationSpec = tween(MotionTokens.NavSelectionDuration, easing = FastOutSlowInEasing),
+        label = "chipText"
+    )
 
     Box(
         modifier = Modifier
             .scale(pressScale)
-            .clip(RoundedCornerShape(8.dp))
-            .background(containerColor)
+            .clip(pillShape)
+            .background(backgroundColor)
+            .then(
+                if (!isSelected) {
+                    Modifier.border(width = 1.dp, color = SonzaOutline, shape = pillShape)
+                } else Modifier
+            )
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
             )
-            .padding(horizontal = 16.dp, vertical = 9.dp),
+            .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceSm),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = mood.name,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-            color = labelColor
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = mood.emoji,
+                fontSize = 13.sp
+            )
+            Spacer(modifier = Modifier.width(SpacingTokens.SpaceXs))
+            Text(
+                text = mood.name,
+                style = SonzaTypography.LabelLarge.copy(
+                    fontSize = 13.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                ),
+                color = textColor
+            )
+        }
     }
 }
