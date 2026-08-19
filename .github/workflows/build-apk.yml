@@ -50,18 +50,20 @@ jobs:
       - name: Prepare Named APK Artifacts
         run: |
           mkdir -p build-apks
-          for f in app/build/outputs/apk/debug/*.apk; do
-            if [ -f "$f" ]; then
-              cp "$f" "build-apks/Sonza-v2.6.4.0.apk"
-              cp "$f" "build-apks/Sonza-v2.6.5.0.apk"
-              cp "$f" "build-apks/Sonza-debug.apk"
-            fi
+          VERSION_TAG="${{ github.ref_name }}"
+          if [ -z "$VERSION_TAG" ] || [ "$VERSION_TAG" = "main" ]; then
+            VERSION_TAG="v2.6.5.0"
+          fi
+          # Copy all generated APKs to clean SONZA release names
+          find app/build/outputs/apk -type f -name "*.apk" | while read -r f; do
+            echo "Found APK: $f"
+            cp "$f" "build-apks/SONZA-${VERSION_TAG}.apk"
           done
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Sonza-v2.6.4.0
+          name: SONZA-v2.6.5.0
           path: build-apks/*.apk
 
       - name: Create Release and Upload APK
@@ -85,10 +87,10 @@ jobs:
             - Spotify Playlist metadata importer
             
             ### 📱 Installation Instructions:
-            1. Download `Sonza-v2.6.4.0.apk` below directly onto your Android phone.
+            1. Download `SONZA-${{ github.ref_name }}.apk` below directly onto your Android phone.
             2. Tap to install (enable "Install from unknown sources" if prompted).
             3. Enjoy high-fidelity audio!
-          files: build-apks/*.apk
+          files: build-apks/SONZA-*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
