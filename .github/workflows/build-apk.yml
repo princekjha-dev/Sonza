@@ -54,11 +54,15 @@ jobs:
           if [ -z "$VERSION_TAG" ] || [ "$VERSION_TAG" = "main" ]; then
             VERSION_TAG="v2.6.5.0"
           fi
-          # Copy all generated APKs to clean SONZA release names
-          find app/build/outputs/apk -type f -name "*.apk" | while read -r f; do
-            echo "Found APK: $f"
-            cp "$f" "build-apks/SONZA-${VERSION_TAG}.apk"
-          done
+          APK_FILE=$(find app/build/outputs/apk -type f -name "*.apk" | head -n 1)
+          if [ -n "$APK_FILE" ] && [ -f "$APK_FILE" ]; then
+            echo "Found APK at: $APK_FILE"
+            cp "$APK_FILE" "build-apks/SONZA-${VERSION_TAG}.apk"
+            ls -la build-apks/
+          else
+            echo "::error::No APK files found in app/build/outputs/apk"
+            exit 1
+          fi
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
