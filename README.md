@@ -209,7 +209,7 @@ Sonza/
 
 ### Direct APK Download
 1. Head over to the [GitHub Releases](https://github.com/princekjha-dev/Sonza/releases) page.
-2. Download `app-debug.apk` from the latest release.
+2. Download `Sonza-v2.6.4.0.apk` (or latest release APK) from the latest release.
 3. On your Android device, open the downloaded APK and tap **Install** (enable *"Install from Unknown Sources"* if prompted).
 
 ### Requirements
@@ -237,7 +237,7 @@ cd Sonza
 
 # 3. Output Location
 # The generated APK will be available at:
-# app/build/outputs/apk/debug/app-debug.apk
+# app/build/outputs/apk/debug/Sonza-v2.6.4.0.apk (or app/build/outputs/apk/debug/Sonza-v2.6.5.0.apk)
 ```
 
 ---
