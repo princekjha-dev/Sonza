@@ -38,7 +38,12 @@ jobs:
         uses: gradle/actions/wrapper-validation@v5
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon --stacktrace --info
+        run: |
+          ./gradlew assembleDebug --no-daemon --stacktrace || {
+            echo "====================== KOTLIN COMPILER ERROR ======================"
+            ./gradlew compileDebugKotlin --no-daemon -q --stacktrace
+            exit 1
+          }
 
       - name: Prepare Named APK Artifacts
         run: |
