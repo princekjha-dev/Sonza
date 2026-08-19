@@ -76,12 +76,7 @@ val LocalSonzaDynamicColors = compositionLocalOf { SonzaDynamicColors() }
 /**
  * Process-level LRU cache of extracted colors keyed by imageUrl.
  */
-private val dynamicColorsCache: MutableMap<String, SonzaDynamicColors> =
-    java.util.Collections.synchronizedMap(
-        object : LinkedHashMap<String, SonzaDynamicColors>(16, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, SonzaDynamicColors>): Boolean = size > 100
-        }
-    )
+private val dynamicColorsCache = android.util.LruCache<String, SonzaDynamicColors>(100)
 
 /**
  * Computes on-accent color ensuring WCAG AA contrast (≥ 4.5:1 for body, ≥ 3:1 for large text).
@@ -123,7 +118,7 @@ fun rememberDynamicAccentColors(
     }
 
     var rawColors by remember(imageUrl) {
-        val seeded = imageUrl?.let { dynamicColorsCache[it] } ?: defaultTokens
+        val seeded = imageUrl?.let { dynamicColorsCache.get(it) } ?: defaultTokens
         mutableStateOf(seeded)
     }
 
@@ -135,7 +130,7 @@ fun rememberDynamicAccentColors(
             return@LaunchedEffect
         }
 
-        dynamicColorsCache[imageUrl]?.let { cached ->
+        dynamicColorsCache.get(imageUrl)?.let { cached ->
             rawColors = cached
             return@LaunchedEffect
         }
@@ -153,7 +148,7 @@ fun rememberDynamicAccentColors(
                 if (result is SuccessResult) {
                     val bitmap = result.image.toBitmap()
                     val extracted = extractDynamicColorsFromBitmap(bitmap, fallbackColor)
-                    dynamicColorsCache[imageUrl] = extracted
+                    dynamicColorsCache.put(imageUrl, extracted)
                     withContext(Dispatchers.Main) {
                         rawColors = extracted
                     }
