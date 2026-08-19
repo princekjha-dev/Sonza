@@ -583,7 +583,7 @@ fun PlayerScreen(
                 OverlaysContent(
                     state = state, actions = actions.copy(onClearQueue = { playerViewModel.clearQueue() }), activeOverlay = activeOverlay, onOverlayChange = { activeOverlay = it },
                     dominantColors = dominantColors, playerViewModel = playerViewModel, playlistViewModel = playlistViewModel,
-                    ringtoneViewModel = koinViewModel<RingtoneViewModel>(), // Explicit type for clarity and to fix inference errors
+                    ringtoneViewModel = ringtoneViewModel,
                     upNextSongs = upNextSongs, selectedQueueIndices = selectedQueueIndices,
                     isAppInDarkTheme = isAppInDarkTheme, animatedBackgroundEnabled = animatedBackgroundEnabled,
                     volumeSliderEnabled = volumeSliderEnabled, volumeKeyEvents = volumeKeyEvents,

@@ -3,8 +3,10 @@ package com.sonza.app.ui.theme
 import android.app.Activity
 import android.os.Build
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -219,27 +221,27 @@ fun SonzaTheme(
     val animatedColors = if (albumArtColors != null) {
         val animatedPrimary by animateColorAsState(
             targetValue = albumArtColors.primary,
-            animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
             label = "theme_primary"
         )
         val animatedSecondary by animateColorAsState(
             targetValue = albumArtColors.secondary,
-            animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
             label = "theme_secondary"
         )
         val animatedAccent by animateColorAsState(
             targetValue = albumArtColors.accent,
-            animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
             label = "theme_accent"
         )
         val animatedOnBg by animateColorAsState(
             targetValue = albumArtColors.onBackground,
-            animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
             label = "theme_onBg"
         )
         val animatedOnAccent by animateColorAsState(
             targetValue = albumArtColors.onAccent,
-            animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
             label = "theme_onAccent"
         )
         remember(animatedPrimary, animatedSecondary, animatedAccent, animatedOnBg, animatedOnAccent) {
