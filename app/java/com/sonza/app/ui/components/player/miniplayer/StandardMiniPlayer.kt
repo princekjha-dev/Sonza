@@ -1,7 +1,9 @@
 package com.sonza.app.ui.components.player.miniplayer
 
+import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,16 +32,29 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.sonza.app.core.model.Song
 import com.sonza.app.ui.components.DominantColors
+import com.sonza.app.ui.theme.ElevationTokens
+import com.sonza.app.ui.theme.RadiusTokens
+import com.sonza.app.ui.theme.SonzaBackground
+import com.sonza.app.ui.theme.SonzaOnBackground
+import com.sonza.app.ui.theme.SonzaOnSurfaceVariant
+import com.sonza.app.ui.theme.SonzaOutline
+import com.sonza.app.ui.theme.SonzaSurface
+import com.sonza.app.ui.theme.SonzaTypography
+import com.sonza.app.ui.theme.SpacingTokens
 
 @Composable
 fun StandardMiniPlayer(
@@ -56,12 +71,15 @@ fun StandardMiniPlayer(
     artworkShape: String = "ROUNDED_SQUARE",
     modifier: Modifier = Modifier
 ) {
-    val effectiveAlpha = 1f - userAlpha
+    val isApi31Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val effectiveAlpha = (1f - userAlpha).coerceIn(0f, 1f)
+    val miniPlayerShape = RoundedCornerShape(RadiusTokens.Md)
+    val blurRadius = ElevationTokens.StandardBlurRadius.value
     
     val artShape = when (artworkShape) {
         "CIRCLE", "VINYL" -> androidx.compose.foundation.shape.CircleShape
         "SQUARE" -> androidx.compose.ui.graphics.RectangleShape
-        else -> RoundedCornerShape(8.dp)
+        else -> RoundedCornerShape(RadiusTokens.Sm)
     }
 
     val highResThumbnail = androidx.compose.runtime.remember(song.thumbnailUrl) {
@@ -70,144 +88,173 @@ fun StandardMiniPlayer(
 
     val vinylRotation = rememberMiniPlayerVinylRotation(artworkShape, isPlaying)
 
-    Surface(
+    Box(
         modifier = modifier
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onTap),
-        color = Color.Transparent,
-        shape = RoundedCornerShape(14.dp),
-        tonalElevation = 4.dp,
-        shadowElevation = 8.dp
-    ) {
-        Box(
-            modifier = Modifier
-                .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            dominantColors.primary.copy(alpha = effectiveAlpha),
-                            dominantColors.secondary.copy(alpha = effectiveAlpha)
-                        )
+            .padding(horizontal = SpacingTokens.SpaceSm, vertical = SpacingTokens.SpaceXs)
+            .then(
+                if (!isApi31Plus) {
+                    Modifier.shadow(
+                        elevation = ElevationTokens.Level2,
+                        shape = miniPlayerShape,
+                        ambientColor = Color.Black.copy(alpha = 0.40f),
+                        spotColor = Color.Black.copy(alpha = 0.30f)
+                    )
+                } else Modifier
+            )
+            .clip(miniPlayerShape)
+            .then(
+                if (isApi31Plus && blurRadius > 0.5f) {
+                    Modifier.graphicsLayer {
+                        renderEffect = android.graphics.RenderEffect.createBlurEffect(
+                            blurRadius * 2f,
+                            blurRadius * 2f,
+                            android.graphics.Shader.TileMode.DECAL
+                        ).asComposeRenderEffect()
+                    }
+                } else Modifier
+            )
+            .background(
+                color = if (isApi31Plus) SonzaSurface.copy(alpha = 0.80f * effectiveAlpha)
+                        else SonzaSurface.copy(alpha = 0.92f * effectiveAlpha)
+            )
+            // Subtle dynamic accent-muted wash per Part 6.4
+            .background(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(
+                        dominantColors.accentMuted.copy(alpha = 0.20f * effectiveAlpha),
+                        dominantColors.primary.copy(alpha = 0.08f * effectiveAlpha)
                     )
                 )
-        ) {
-            Column {
-                Row(
+            )
+            .border(
+                width = 0.75.dp,
+                color = SonzaOutline.copy(alpha = 0.7f),
+                shape = miniPlayerShape
+            )
+            .clickable(onClick = onTap)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp)
+                    .padding(horizontal = SpacingTokens.SpaceMd),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Album Art thumbnail
+                Box(
                     modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .size(44.dp)
+                        .graphicsLayer { rotationZ = vinylRotation() }
+                        .clip(artShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .graphicsLayer { rotationZ = vinylRotation() }
-                            .clip(artShape)
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (highResThumbnail != null) {
-                            AsyncImage(
-                                model = highResThumbnail,
-                                contentDescription = song.title,
-                                modifier = Modifier.size(42.dp),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.MusicNote,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = song.title,
-                            style = MaterialTheme.typography.titleSmall,
-                            color = dominantColors.onBackground,
-                            maxLines = 1,
-                            modifier = Modifier.basicMarquee()
+                    if (highResThumbnail != null) {
+                        AsyncImage(
+                            model = highResThumbnail,
+                            contentDescription = song.title,
+                            modifier = Modifier.size(44.dp),
+                            contentScale = ContentScale.Crop
                         )
-                        Text(
-                            text = song.artist,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = dominantColors.onBackground.copy(alpha = 0.7f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    IconButton(
-                        onClick = onPlayPause,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        if (isLoading) {
-                            androidx.compose.material3.CircularProgressIndicator(
-                                color = dominantColors.onBackground,
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        } else {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (isPlaying) "Pause" else "Play",
-                                tint = dominantColors.onBackground,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    IconButton(
-                        onClick = onNext,
-                        modifier = Modifier.size(32.dp)
-                    ) {
+                    } else {
                         Icon(
-                            imageVector = Icons.Default.SkipNext,
-                            contentDescription = "Next",
-                            tint = dominantColors.onBackground,
-                            modifier = Modifier.size(24.dp)
+                            imageVector = Icons.Default.MusicNote,
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp),
+                            tint = SonzaOnSurfaceVariant
                         )
-                    }
-
-                    if (!isPlaying) {
-                        Spacer(modifier = Modifier.width(4.dp))
-
-                        IconButton(
-                            onClick = onClose,
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = dominantColors.onBackground,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
                     }
                 }
 
-                LinearProgressIndicator(
-                    progress = progressProvider,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(3.dp),
-                    trackColor = dominantColors.onBackground.copy(alpha = 0.2f),
-                    color = dominantColors.accent,
-                    strokeCap = StrokeCap.Round
-                )
+                Spacer(modifier = Modifier.width(SpacingTokens.SpaceMd))
+
+                // Song Title & Artist (Manrope typography hierarchy)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = song.title,
+                        style = SonzaTypography.TitleMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
+                        color = SonzaOnBackground,
+                        maxLines = 1,
+                        modifier = Modifier.basicMarquee()
+                    )
+                    Text(
+                        text = song.artist,
+                        style = SonzaTypography.BodyMedium.copy(
+                            fontSize = 13.sp
+                        ),
+                        color = SonzaOnSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
+
+                // Play/Pause button with buffering spinner support per Part 6.4 & 6.7
+                IconButton(
+                    onClick = onPlayPause,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    if (isLoading) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            color = dominantColors.accent,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isPlaying) "Pause" else "Play",
+                            tint = dominantColors.accent,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = onNext,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SkipNext,
+                        contentDescription = "Next",
+                        tint = SonzaOnBackground,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                if (!isPlaying) {
+                    IconButton(
+                        onClick = onClose,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = SonzaOnSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
+
+            // Buffering / Playback Progress Line under the bar per Part 6.4
+            LinearProgressIndicator(
+                progress = progressProvider,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(2.5.dp),
+                trackColor = SonzaOutline.copy(alpha = 0.3f),
+                color = dominantColors.accent,
+                strokeCap = StrokeCap.Round
+            )
         }
     }
 }

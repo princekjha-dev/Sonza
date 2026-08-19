@@ -166,7 +166,7 @@ Spotify's Circular and Apple's SF Pro, and avoids default-Roboto "templated" fee
 - **Inactive:** outlined icon, `on-surface-variant` tint.
 - Background: `elevation-2` blur treatment (see Part 5).
 - Transition: 150ms scale/color ease-out on tab change.
-- Defined in: `[ file/composable name once implemented ]`
+- Defined in: `ExpressiveBottomNav.kt` (`ExpressiveBottomNav`, `StandardNavBar`, `LiquidGlassNavBar`)
 
 ### 6.4 Mini-Player
 - Fixed bar above bottom nav, `elevation-2` blur background.
@@ -175,7 +175,7 @@ Spotify's Circular and Apple's SF Pro, and avoids default-Roboto "templated" fee
 - **Buffering state:** thin linear progress line under the bar (reflects live stream
   resolution isn't instant) — replaces static play icon briefly with a small spinner.
 - Tap to expand → Now Playing sheet (`elevation-3`, full dynamic background).
-- Defined in: `[ file/composable name once implemented ]`
+- Defined in: `StandardMiniPlayer.kt`, `LiquidGlassMiniPlayer.kt`, `ExpandablePlayerSheet.kt`
 
 ### 6.5 Now Playing (Expanded Sheet)
 - Full-bleed blurred background generated from album art (Apple Music-style), `scrim`
@@ -254,4 +254,5 @@ Defined in: `[ file/composable name once implemented ]`
 | 2026-08-19 | Initial draft created | — |
 | 2026-08-19 | Direction locked: Dynamic Album-Driven Dark UI (Apple Music / Spotify inspired) | Part 0, Part 1 (dynamic tokens), Part 5 (blur), 6.5, 6.6 added |
 | 2026-08-19 | Phase 1 & 2 Completed: Foundation (Fixed tokens, Manrope variable font, Spacing, Shapes, Elevation, Motion) & Dynamic Accent Color System (Palette extraction, contrast checking, 400ms crossfade) | `Color.kt`, `Type.kt`, `SpacingTokens.kt`, `Shapes.kt`, `ElevationTokens.kt`, `MotionTokens.kt`, `DominantColorExtractor.kt`, `Theme.kt` |
+| 2026-08-19 | Phase 3 Completed: Blur-Behind Components (RenderEffect on API 31+, Surface @ 92% + shadow on API <31 for Bottom Nav and Mini-Player) | `ExpressiveBottomNav.kt`, `StandardMiniPlayer.kt`, `LiquidGlassMiniPlayer.kt`, `LiquidGlassSurface.kt`, `ExpandablePlayerSheet.kt` |
 

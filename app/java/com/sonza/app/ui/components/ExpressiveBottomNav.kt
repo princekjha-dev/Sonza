@@ -381,7 +381,7 @@ private fun LiquidGlassNavItem(
     }
 }
 
-// ─── Standard (Non-Glass) Navigation Bar ─────────────────────────────────────
+// ─── Standard (Design System) Navigation Bar ─────────────────────────────────
 
 @Composable
 private fun StandardNavBar(
@@ -393,31 +393,52 @@ private fun StandardNavBar(
     alpha: Float = 1.0f,
     backgroundColor: Color? = null
 ) {
-    // Spotify-style translucent bar: transparent at the very top edge so the
-    // scrolling content behind bleeds through faintly, deepening to a mostly-
-    // opaque tint at the bottom. The base hue still follows the theme / dominant
-    // colour, and the user's navBarAlpha slider acts as an overall opacity
-    // multiplier (so it can be made fully solid again if desired).
-    val base = backgroundColor ?: MaterialTheme.colorScheme.surface
-    val a = alpha.coerceIn(0f, 1f)
-    // Darker, denser bottom edge: blend the base toward black on the way down and
-    // ramp opacity to near-solid at the very bottom, while the top edge stays
-    // clear so scrolling content still bleeds through faintly.
-    val bottomColor = androidx.compose.ui.graphics.lerp(base, Color.Black, 0.55f)
-    val scrimBrush = Brush.verticalGradient(
-        0.0f to base.copy(alpha = 0.0f),
-        0.35f to base.copy(alpha = 0.55f * a),
-        0.70f to bottomColor.copy(alpha = 0.85f * a),
-        1.0f to bottomColor.copy(alpha = 0.98f * a)
-    )
+    val dynamicColors = com.sonza.app.ui.components.LocalSonzaDynamicColors.current
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val baseSurface = backgroundColor ?: com.sonza.app.ui.theme.SonzaSurface
+    val blurRadius = com.sonza.app.ui.theme.ElevationTokens.StandardBlurRadius.value
+
+    // Blur-behind treatment per Part 5 & 6.3:
+    // API 31+: RenderEffect 12dp radial blur + surface @ 78% opacity + outline rim
+    // API < 31 fallback: surface @ 92% opacity + elevation shadow
+    val isApi31Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val navShape = RoundedCornerShape(topStart = com.sonza.app.ui.theme.RadiusTokens.Md, topEnd = com.sonza.app.ui.theme.RadiusTokens.Md)
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(scrimBrush)
             .navigationBarsPadding()
-            // Consume taps that miss individual items so clicks don't pass through
-            // to controls rendered behind a translucent navigation bar.
+            .then(
+                if (!isApi31Plus) {
+                    Modifier.shadow(
+                        elevation = com.sonza.app.ui.theme.ElevationTokens.Level2,
+                        shape = navShape,
+                        ambientColor = Color.Black.copy(alpha = 0.35f),
+                        spotColor = Color.Black.copy(alpha = 0.25f)
+                    )
+                } else Modifier
+            )
+            .clip(navShape)
+            .then(
+                if (isApi31Plus && blurRadius > 0.5f) {
+                    Modifier.graphicsLayer {
+                        renderEffect = android.graphics.RenderEffect.createBlurEffect(
+                            blurRadius * 2f,
+                            blurRadius * 2f,
+                            android.graphics.Shader.TileMode.DECAL
+                        ).asComposeRenderEffect()
+                    }
+                } else Modifier
+            )
+            .background(
+                color = if (isApi31Plus) baseSurface.copy(alpha = 0.78f * alpha.coerceIn(0f, 1f))
+                        else baseSurface.copy(alpha = 0.92f * alpha.coerceIn(0f, 1f))
+            )
+            .border(
+                width = 0.75.dp,
+                color = com.sonza.app.ui.theme.SonzaOutline.copy(alpha = 0.6f),
+                shape = navShape
+            )
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -427,7 +448,7 @@ private fun StandardNavBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 2.dp),
+                .padding(horizontal = com.sonza.app.ui.theme.SpacingTokens.SpaceSm, vertical = 4.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -436,6 +457,7 @@ private fun StandardNavBar(
                 StandardNavItem(
                     item = item,
                     isSelected = isSelected,
+                    accentColor = dynamicColors.accent,
                     onClick = {
                         if (currentDestination == item.destination) {
                             onReClick(item.destination)
@@ -453,12 +475,31 @@ private fun StandardNavBar(
 private fun StandardNavItem(
     item: BottomNavItem,
     isSelected: Boolean,
+    accentColor: Color,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val selectedColor = MaterialTheme.colorScheme.onSurface
-    val unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val contentColor = if (isSelected) selectedColor else unselectedColor
+    val selectedColor = accentColor
+    val unselectedColor = com.sonza.app.ui.theme.SonzaOnSurfaceVariant
+
+    // 150ms ease-out transition on tab change per Part 6.3 & Part 8
+    val contentColor by animateColorAsState(
+        targetValue = if (isSelected) selectedColor else unselectedColor,
+        animationSpec = tween(
+            durationMillis = com.sonza.app.ui.theme.MotionTokens.NavSelectionDuration,
+            easing = FastOutSlowInEasing
+        ),
+        label = "navItemColor"
+    )
+
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1.05f else 1.0f,
+        animationSpec = tween(
+            durationMillis = com.sonza.app.ui.theme.MotionTokens.NavSelectionDuration,
+            easing = FastOutSlowInEasing
+        ),
+        label = "navItemScale"
+    )
 
     Box(
         modifier = Modifier
@@ -467,24 +508,32 @@ private fun StandardNavItem(
                 indication = null,
                 onClick = onClick
             )
-            .padding(12.dp),
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .padding(horizontal = com.sonza.app.ui.theme.SpacingTokens.SpaceSm, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(com.sonza.app.ui.theme.SpacingTokens.SpaceXs)
         ) {
             Icon(
                 imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
                 contentDescription = item.label,
-                modifier = Modifier.size(26.dp),
+                modifier = Modifier.size(24.dp),
                 tint = contentColor
             )
 
             Text(
                 text = item.label,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                color = contentColor
+                style = com.sonza.app.ui.theme.SonzaTypography.LabelSmall.copy(
+                    fontSize = 11.sp,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
+                ),
+                color = contentColor,
+                maxLines = 1
             )
         }
     }
