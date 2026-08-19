@@ -38,14 +38,7 @@ jobs:
         uses: gradle/actions/wrapper-validation@v5
 
       - name: Build Debug APK
-        run: |
-          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build_output.log || {
-            echo "### ❌ Build Failure Log" >> $GITHUB_STEP_SUMMARY
-            echo '```text' >> $GITHUB_STEP_SUMMARY
-            grep -E "(e: [^ ]+\.kt|error: |Unresolved reference|Compilation error)" build_output.log -B 2 -A 4 | head -n 80 >> $GITHUB_STEP_SUMMARY || tail -n 80 build_output.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            exit 1
-          }
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Prepare Named APK Artifacts
         run: |
