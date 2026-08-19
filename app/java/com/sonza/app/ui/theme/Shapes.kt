@@ -87,3 +87,23 @@ object ExpressiveShapes {
 val CardShapeToken = RoundedCornerShape(20.dp)
 val SheetShapeToken = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
 val ChipShapeToken = RoundedCornerShape(16.dp)
+
+// ==========================================
+// Sonza Design System Radius Tokens (DESIGN_SYSTEM.md Part 4)
+// ==========================================
+object RadiusTokens {
+    val Sm = 8.dp      // Small chips, format badges
+    val Md = 12.dp     // Buttons, mini-player
+    val Lg = 16.dp     // Cards (speed dial tiles, playlist cards)
+    val Pill = 999.dp  // Genre pills, tags
+}
+
+object SonzaShapes {
+    val Badge = RoundedCornerShape(RadiusTokens.Sm)
+    val Button = RoundedCornerShape(RadiusTokens.Md)
+    val MiniPlayer = RoundedCornerShape(RadiusTokens.Md)
+    val Card = RoundedCornerShape(RadiusTokens.Lg)
+    val GenrePill = RoundedCornerShape(RadiusTokens.Pill)
+    val Circle = RoundedCornerShape(50)
+}
+

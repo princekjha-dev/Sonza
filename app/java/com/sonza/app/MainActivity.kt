@@ -553,10 +553,10 @@ fun SonzaApp(
     val artistCredits by playerViewModel.artistCredits.collectAsStateWithLifecycle(initialValue = emptyList<ArtistCreditInfo>())
     val showMultipleArtistsDialog by playerViewModel.showMultipleArtistsDialog.collectAsStateWithLifecycle(initialValue = false)
     
-    // Track if song is playing for Activity-level volume interception
+    // Track if song is playing for Activity-level volume interception and PiP state updates
     // Use playbackInfo (stable) to avoid recomposing the whole app shell on progress updates
     val hasSong = playbackInfo.currentSong != null
-    LaunchedEffect(hasSong) {
+    LaunchedEffect(hasSong, playbackInfo.isPlaying, playbackInfo.isVideoMode) {
         onPlaybackStateChanged(hasSong)
     }
     

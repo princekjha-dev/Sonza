@@ -28,13 +28,13 @@ import com.sonza.app.core.model.AppTheme
 import com.sonza.app.ui.components.DominantColors
 
 /**
- * Dark color scheme - Primary for Sonza (Default/Purple)
+ * Dark color scheme - Fixed shell tokens for Sonza (DESIGN_SYSTEM.md Part 1)
  */
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple70,
-    onPrimary = Purple10,
-    primaryContainer = Purple30,
-    onPrimaryContainer = Purple90,
+    primary = SonzaDefaultAccent,
+    onPrimary = SonzaBackground,
+    primaryContainer = SonzaSurfaceVariant,
+    onPrimaryContainer = SonzaOnBackground,
     secondary = Cyan70,
     onSecondary = Cyan10,
     secondaryContainer = Cyan30,
@@ -43,19 +43,17 @@ private val DarkColorScheme = darkColorScheme(
     onTertiary = Magenta10,
     tertiaryContainer = Magenta30,
     onTertiaryContainer = Magenta90,
-    background = Color.Black,
-    onBackground = Neutral90,
-    surface = Color.Black,
-    onSurface = Neutral90,
-    surfaceVariant = NeutralVar30,
-    onSurfaceVariant = NeutralVar80,
-    error = Error80,
-    onError = Error20,
-    errorContainer = Error30,
-    onErrorContainer = Error90,
-    outline = NeutralVar60,
-    outlineVariant = NeutralVar30,
-    scrim = Color.Black
+    background = SonzaBackground,
+    onBackground = SonzaOnBackground,
+    surface = SonzaSurface,
+    onSurface = SonzaOnSurface,
+    surfaceVariant = SonzaSurfaceVariant,
+    onSurfaceVariant = SonzaOnSurfaceVariant,
+    error = SonzaError,
+    onError = SonzaOnError,
+    outline = SonzaOutline,
+    outlineVariant = SonzaOutline,
+    scrim = SonzaScrim
 )
 
 /**
@@ -150,35 +148,38 @@ private val LoveLightColorScheme = lightColorScheme(
 )
 
 /**
- * Creates a Material3 ColorScheme from extracted dominant colors.
+ * Creates a Material3 ColorScheme from extracted dynamic colors.
  */
 private fun createColorSchemeFromDominantColors(
     colors: DominantColors,
     darkTheme: Boolean
 ): ColorScheme {
     val primary = colors.accent
-    val onPrimary = if (darkTheme) Color.Black else Color.White
+    val onPrimary = colors.onAccent
     
     return if (darkTheme) {
         darkColorScheme(
             primary = primary,
             onPrimary = onPrimary,
-            primaryContainer = colors.secondary,
-            onPrimaryContainer = colors.onBackground,
-            secondary = colors.secondary,
-            onSecondary = colors.onBackground,
-            secondaryContainer = colors.secondary.copy(alpha = 0.3f),
-            onSecondaryContainer = colors.onBackground,
-            tertiary = colors.accent,
-            onTertiary = onPrimary,
-            background = colors.primary,
-            onBackground = colors.onBackground,
-            surface = colors.primary,
-            onSurface = colors.onBackground,
-            surfaceVariant = colors.secondary,
-            onSurfaceVariant = colors.onBackground,
-            outline = colors.secondary,
-            outlineVariant = colors.primary,
+            primaryContainer = SonzaSurfaceVariant,
+            onPrimaryContainer = SonzaOnBackground,
+            secondary = Cyan70,
+            onSecondary = Cyan10,
+            secondaryContainer = Cyan30,
+            onSecondaryContainer = Cyan90,
+            tertiary = Magenta70,
+            onTertiary = Magenta10,
+            tertiaryContainer = Magenta30,
+            onTertiaryContainer = Magenta90,
+            background = SonzaBackground,
+            onBackground = SonzaOnBackground,
+            surface = SonzaSurface,
+            onSurface = SonzaOnSurface,
+            surfaceVariant = SonzaSurfaceVariant,
+            onSurfaceVariant = SonzaOnSurfaceVariant,
+            outline = SonzaOutline,
+            outlineVariant = SonzaOutline,
+            scrim = SonzaScrim
         )
     } else {
         lightColorScheme(
@@ -214,37 +215,48 @@ fun SonzaTheme(
     albumArtColors: DominantColors? = null,
     content: @Composable () -> Unit
 ) {
-    // M3E Fast Expressive animation for song-based color changes
+    // 400ms FastOutSlow color cross-fade animation for song-based color changes
     val animatedColors = if (albumArtColors != null) {
         val animatedPrimary by animateColorAsState(
             targetValue = albumArtColors.primary,
-            animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow),
+            animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing),
             label = "theme_primary"
         )
         val animatedSecondary by animateColorAsState(
             targetValue = albumArtColors.secondary,
-            animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow),
+            animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing),
             label = "theme_secondary"
         )
         val animatedAccent by animateColorAsState(
             targetValue = albumArtColors.accent,
-            animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow),
+            animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing),
             label = "theme_accent"
         )
         val animatedOnBg by animateColorAsState(
             targetValue = albumArtColors.onBackground,
-            animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow),
+            animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing),
             label = "theme_onBg"
         )
-        remember(animatedPrimary, animatedSecondary, animatedAccent, animatedOnBg) {
+        val animatedOnAccent by animateColorAsState(
+            targetValue = albumArtColors.onAccent,
+            animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            label = "theme_onAccent"
+        )
+        remember(animatedPrimary, animatedSecondary, animatedAccent, animatedOnBg, animatedOnAccent) {
             DominantColors(
                 primary = animatedPrimary,
                 secondary = animatedSecondary,
                 accent = animatedAccent,
-                onBackground = animatedOnBg
+                onBackground = animatedOnBg,
+                accentMuted = animatedAccent.copy(alpha = 0.25f),
+                onAccent = animatedOnAccent
             )
         }
     } else null
+
+    val currentDynamicTokens = remember(animatedColors) {
+        animatedColors?.toSonzaDynamicColors() ?: com.sonza.app.ui.components.SonzaDynamicColors()
+    }
 
     var colorScheme = when {
         animatedColors != null -> {
@@ -297,10 +309,14 @@ fun SonzaTheme(
         }
     }
     
-    MaterialExpressiveTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        shapes = Shapes,
-        content = content
-    )
+    androidx.compose.runtime.CompositionLocalProvider(
+        com.sonza.app.ui.components.LocalSonzaDynamicColors provides currentDynamicTokens
+    ) {
+        MaterialExpressiveTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            shapes = Shapes,
+            content = content
+        )
+    }
 }

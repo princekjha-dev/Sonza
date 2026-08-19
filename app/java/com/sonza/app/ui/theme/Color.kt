@@ -2,6 +2,39 @@ package com.sonza.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
+// ==========================================
+// Sonza Design System Tokens (DESIGN_SYSTEM.md Part 1)
+// ==========================================
+val SonzaBackground = Color(0xFF0B0B0D)
+val SonzaSurface = Color(0xFF17171A)
+val SonzaSurfaceVariant = Color(0xFF232327)
+val SonzaOnBackground = Color(0xFFF5F5F7)
+val SonzaOnSurface = Color(0xFFF5F5F7)
+val SonzaOnSurfaceVariant = Color(0xFFA1A1A8)
+val SonzaOutline = Color(0xFF2E2E33)
+val SonzaError = Color(0xFFFF6B6B)
+val SonzaOnError = Color(0xFF0B0B0D)
+val SonzaSuccess = Color(0xFF4ADE80)
+val SonzaWarning = Color(0xFFFBBF24)
+val SonzaScrim = Color(0x73000000) // 45% black overlay
+val SonzaDefaultAccent = Color(0xFF5B8DEF) // Fallback cool blue
+
+object SonzaColors {
+    val Background = SonzaBackground
+    val Surface = SonzaSurface
+    val SurfaceVariant = SonzaSurfaceVariant
+    val OnBackground = SonzaOnBackground
+    val OnSurface = SonzaOnSurface
+    val OnSurfaceVariant = SonzaOnSurfaceVariant
+    val Outline = SonzaOutline
+    val Error = SonzaError
+    val OnError = SonzaOnError
+    val Success = SonzaSuccess
+    val Warning = SonzaWarning
+    val Scrim = SonzaScrim
+    val DefaultAccent = SonzaDefaultAccent
+}
+
 // Primary - Deep Electric Purple
 val Purple10 = Color(0xFF1D0035)
 val Purple20 = Color(0xFF2D0050)

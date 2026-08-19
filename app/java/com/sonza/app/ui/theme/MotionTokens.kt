@@ -57,4 +57,24 @@ object MotionTokens {
 
     fun <T> tweenStandard(durationMs: Int = DurationMedium2): FiniteAnimationSpec<T> =
         tween(durationMillis = durationMs, easing = Standard)
+
+    // ==========================================
+    // Sonza Design System Motion Specs (DESIGN_SYSTEM.md Part 8)
+    // ==========================================
+    const val NavSelectionDuration: Int = 150
+    const val CardTapDuration: Int = 100
+    const val AccentCrossfadeDuration: Int = 400
+    const val SkeletonShimmerDuration: Int = 1200
+    const val BannerTransitionDuration: Int = 200
+    const val SheetExpandDuration: Int = 300
+
+    fun <T> accentCrossfadeSpec(): FiniteAnimationSpec<T> =
+        tween(durationMillis = AccentCrossfadeDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+
+    fun <T> navSelectionSpec(): FiniteAnimationSpec<T> =
+        tween(durationMillis = NavSelectionDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+
+    fun <T> bannerSpec(): FiniteAnimationSpec<T> =
+        tween(durationMillis = BannerTransitionDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing)
 }
+

@@ -756,16 +756,103 @@ fun AdaptiveSupportingContent(
 
 @Composable
 fun PiPPlayerContent(song: com.sonza.app.core.model.Song?, isVideoMode: Boolean, player: Player?) {
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(com.sonza.app.ui.theme.SonzaBackground),
+        contentAlignment = Alignment.Center
+    ) {
         if (isVideoMode && player != null) {
-            AndroidView(factory = { context -> PlayerView(context).apply { this.player = player; useController = false } }, modifier = Modifier.fillMaxSize())
+            AndroidView(
+                factory = { context ->
+                    PlayerView(context).apply {
+                        this.player = player
+                        useController = false
+                        resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
         } else {
-            if (song?.thumbnailUrl != null) {
-                coil3.compose.AsyncImage(model = song.thumbnailUrl, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop, alpha = 0.6f)
+            // Album art background
+            if (!song?.thumbnailUrl.isNullOrBlank()) {
+                coil3.compose.AsyncImage(
+                    model = song?.thumbnailUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(com.sonza.app.ui.theme.SonzaSurface),
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.material3.Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Filled.MusicNote,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = com.sonza.app.ui.theme.SonzaDefaultAccent
+                    )
+                }
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(8.dp).background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(8.dp)).padding(4.dp)) {
-                Text(text = song?.title ?: "Unknown", style = MaterialTheme.typography.titleSmall, color = Color.White, maxLines = 1)
-                Text(text = song?.artist ?: "Unknown Artist", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.7f), maxLines = 1)
+
+            // Bottom gradient vignette & frosted Dynamic Island metadata pill
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0.0f to Color.Transparent,
+                            0.5f to Color.Black.copy(alpha = 0.2f),
+                            1.0f to Color.Black.copy(alpha = 0.85f)
+                        )
+                    )
+            )
+
+            // Dynamic Island Info Pill
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 8.dp)
+                    .background(
+                        color = Color.Black.copy(alpha = 0.65f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .border(
+                        width = 0.5.dp,
+                        color = Color.White.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = song?.title ?: "Sonza",
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontFamily = com.sonza.app.ui.theme.Manrope,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        fontSize = 12.sp
+                    ),
+                    color = com.sonza.app.ui.theme.SonzaOnBackground,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+                if (!song?.artist.isNullOrBlank()) {
+                    Text(
+                        text = song?.artist ?: "",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = com.sonza.app.ui.theme.Manrope,
+                            fontSize = 10.sp
+                        ),
+                        color = com.sonza.app.ui.theme.SonzaOnSurfaceVariant,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }

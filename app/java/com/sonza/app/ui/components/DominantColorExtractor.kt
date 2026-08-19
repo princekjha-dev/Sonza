@@ -1,14 +1,19 @@
 package com.sonza.app.ui.components
 
 import android.graphics.Bitmap
-import android.graphics.drawable.BitmapDrawable
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.graphics.ColorUtils
 import coil3.imageLoader
@@ -16,78 +21,122 @@ import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
 import coil3.toBitmap
+import com.sonza.app.ui.theme.MotionTokens
+import com.sonza.app.ui.theme.SonzaBackground
+import com.sonza.app.ui.theme.SonzaDefaultAccent
+import com.sonza.app.ui.theme.SonzaOnBackground
+import com.sonza.app.ui.theme.SonzaOnSurfaceVariant
+import com.sonza.app.ui.theme.SonzaOutline
+import com.sonza.app.ui.theme.SonzaScrim
+import com.sonza.app.ui.theme.SonzaSurface
+import com.sonza.app.ui.theme.SonzaSurfaceVariant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Data class holding dominant colors extracted from an image
+ * Dynamic per-screen color tokens derived at runtime from active album art (DESIGN_SYSTEM.md Part 1).
  */
-data class DominantColors(
-    val primary: Color = Color(0xFF1A1A1A),
-    val secondary: Color = Color(0xFF2A2A2A),
-    val accent: Color = Color(0xFF888888),
-    val onBackground: Color = Color.White
+data class SonzaDynamicColors(
+    val accent: Color = SonzaDefaultAccent,
+    val accentMuted: Color = SonzaDefaultAccent.copy(alpha = 0.25f),
+    val onAccent: Color = SonzaOnBackground,
+    val background: Color = SonzaBackground,
+    val surface: Color = SonzaSurface,
+    val surfaceVariant: Color = SonzaSurfaceVariant,
+    val onBackground: Color = SonzaOnBackground,
+    val onSurface: Color = SonzaOnBackground,
+    val onSurfaceVariant: Color = SonzaOnSurfaceVariant,
+    val outline: Color = SonzaOutline,
+    val scrim: Color = SonzaScrim
 )
 
 /**
- * Process-level LRU cache of extracted colors keyed by "url|isDarkTheme".
- * Switching back to a previously seen artwork skips the Coil decode + pixel
- * sampling entirely. Bounded (LRU, 100) and thread-safe since it's read from
- * composition (Main) and written from Dispatchers.IO. Same idiom as
- * PlayerViewModel.lyricsProviderBySong.
+ * Backward-compatible DominantColors representation
  */
-private val dominantColorsCache: MutableMap<String, DominantColors> =
+data class DominantColors(
+    val primary: Color = SonzaSurface,
+    val secondary: Color = SonzaSurfaceVariant,
+    val accent: Color = SonzaDefaultAccent,
+    val onBackground: Color = SonzaOnBackground,
+    val accentMuted: Color = SonzaDefaultAccent.copy(alpha = 0.25f),
+    val onAccent: Color = SonzaOnBackground
+) {
+    fun toSonzaDynamicColors(): SonzaDynamicColors = SonzaDynamicColors(
+        accent = accent,
+        accentMuted = accentMuted,
+        onAccent = onAccent,
+        background = SonzaBackground,
+        surface = SonzaSurface,
+        onBackground = onBackground
+    )
+}
+
+val LocalSonzaDynamicColors = compositionLocalOf { SonzaDynamicColors() }
+
+/**
+ * Process-level LRU cache of extracted colors keyed by imageUrl.
+ */
+private val dynamicColorsCache: MutableMap<String, SonzaDynamicColors> =
     java.util.Collections.synchronizedMap(
-        object : LinkedHashMap<String, DominantColors>(16, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, DominantColors>): Boolean = size > 100
+        object : LinkedHashMap<String, SonzaDynamicColors>(16, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, SonzaDynamicColors>): Boolean = size > 100
         }
     )
 
 /**
- * Extracts dominant colors from an image URL
+ * Computes on-accent color ensuring WCAG AA contrast (≥ 4.5:1 for body, ≥ 3:1 for large text).
+ */
+fun computeOnAccent(accent: Color): Color {
+    val accentInt = accent.toArgb()
+    val darkText = android.graphics.Color.rgb(11, 11, 13) // SonzaBackground
+    val lightText = android.graphics.Color.rgb(245, 245, 247) // SonzaOnBackground
+
+    val darkContrast = ColorUtils.calculateContrast(darkText, accentInt)
+    val lightContrast = ColorUtils.calculateContrast(lightText, accentInt)
+
+    return if (darkContrast >= 4.5) {
+        Color(darkText)
+    } else if (lightContrast >= 4.5) {
+        Color(lightText)
+    } else if (darkContrast >= lightContrast) {
+        Color(darkText)
+    } else {
+        Color(lightText)
+    }
+}
+
+/**
+ * Extracts and returns animated dynamic accent colors with a 400ms cross-fade transition on track change.
  */
 @Composable
-fun rememberDominantColors(
+fun rememberDynamicAccentColors(
     imageUrl: String?,
-    isDarkTheme: Boolean = true,
-    defaultColors: DominantColors? = null
-): DominantColors {
-    // Use theme-aware default colors to prevent flickering when song changes
-    val themeAwareDefaults = defaultColors ?: if (isDarkTheme) {
-        DominantColors(
-            primary = Color(0xFF1A1A1A),
-            secondary = Color(0xFF2A2A2A),
-            accent = Color(0xFF888888),
-            onBackground = Color.White
-        )
-    } else {
-        DominantColors(
-            primary = Color(0xFFF5F5F5),
-            secondary = Color(0xFFE8E8E8),
-            accent = Color(0xFF666666),
-            onBackground = Color(0xFF1A1A1A)
+    fallbackColor: Color = SonzaDefaultAccent
+): SonzaDynamicColors {
+    val defaultTokens = remember(fallbackColor) {
+        val onAcc = computeOnAccent(fallbackColor)
+        SonzaDynamicColors(
+            accent = fallbackColor,
+            accentMuted = fallbackColor.copy(alpha = 0.25f),
+            onAccent = onAcc
         )
     }
-    
-    // Seed initial state from the cache so revisiting a known artwork shows the
-    // final colors immediately (no flicker through defaults on recomposition).
-    var colors by remember(imageUrl, isDarkTheme) {
-        val seeded = imageUrl?.let { dominantColorsCache["$it|$isDarkTheme"] } ?: themeAwareDefaults
+
+    var rawColors by remember(imageUrl) {
+        val seeded = imageUrl?.let { dynamicColorsCache[it] } ?: defaultTokens
         mutableStateOf(seeded)
     }
+
     val context = LocalContext.current
 
-    LaunchedEffect(imageUrl, isDarkTheme) {
-        if (imageUrl == null) {
-            colors = themeAwareDefaults
+    LaunchedEffect(imageUrl) {
+        if (imageUrl.isNullOrBlank()) {
+            rawColors = defaultTokens
             return@LaunchedEffect
         }
 
-        // Fast path: previously extracted colors for this (url, theme) — set
-        // synchronously and skip all decode + sampling work.
-        val cacheKey = "$imageUrl|$isDarkTheme"
-        dominantColorsCache[cacheKey]?.let { cached ->
-            colors = cached
+        dynamicColorsCache[imageUrl]?.let { cached ->
+            rawColors = cached
             return@LaunchedEffect
         }
 
@@ -97,137 +146,159 @@ fun rememberDominantColors(
                 val request = ImageRequest.Builder(context)
                     .data(imageUrl)
                     .allowHardware(false)
-                    .size(100) // Small size for faster processing
+                    .size(100)
                     .build()
 
                 val result = loader.execute(request)
                 if (result is SuccessResult) {
                     val bitmap = result.image.toBitmap()
-                    val newColors = extractColorsFromBitmap(bitmap, isDarkTheme)
-                    dominantColorsCache[cacheKey] = newColors
+                    val extracted = extractDynamicColorsFromBitmap(bitmap, fallbackColor)
+                    dynamicColorsCache[imageUrl] = extracted
                     withContext(Dispatchers.Main) {
-                        colors = newColors
+                        rawColors = extracted
                     }
                 }
             } catch (e: Exception) {
-                // Keep current colors on error or set to defaults if needed
+                withContext(Dispatchers.Main) {
+                    rawColors = defaultTokens
+                }
             }
         }
     }
 
-    return colors
+    // 400ms cross-fade animation on track change (DESIGN_SYSTEM.md Part 8)
+    val animatedAccent by animateColorAsState(
+        targetValue = rawColors.accent,
+        animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
+        label = "dynamic_accent"
+    )
+    val animatedAccentMuted by animateColorAsState(
+        targetValue = rawColors.accentMuted,
+        animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
+        label = "dynamic_accent_muted"
+    )
+    val animatedOnAccent by animateColorAsState(
+        targetValue = rawColors.onAccent,
+        animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
+        label = "dynamic_on_accent"
+    )
+
+    return remember(animatedAccent, animatedAccentMuted, animatedOnAccent) {
+        SonzaDynamicColors(
+            accent = animatedAccent,
+            accentMuted = animatedAccentMuted,
+            onAccent = animatedOnAccent,
+            background = SonzaBackground,
+            surface = SonzaSurface,
+            surfaceVariant = SonzaSurfaceVariant,
+            onBackground = SonzaOnBackground,
+            onSurface = SonzaOnBackground,
+            onSurfaceVariant = SonzaOnSurfaceVariant,
+            outline = SonzaOutline,
+            scrim = SonzaScrim
+        )
+    }
 }
 
 /**
- * Extract colors from bitmap using averaging and palette detection
- * @param isDarkTheme If true, generates dark backgrounds; if false, generates light backgrounds
+ * Extracts dynamic accent colors from bitmap with saturation & luminance adjustments.
  */
-private fun extractColorsFromBitmap(bitmap: Bitmap, isDarkTheme: Boolean = true): DominantColors {
+private fun extractDynamicColorsFromBitmap(bitmap: Bitmap, fallbackColor: Color): SonzaDynamicColors {
     val width = bitmap.width
     val height = bitmap.height
-    
-    val colors = mutableListOf<Int>()
-    val step = maxOf(1, minOf(width, height) / 10)
-    
-    // Sample pixels
-    for (x in 0 until width step step) {
-        for (y in 0 until height step step) {
-            val pixel = bitmap.getPixel(x, y)
-            colors.add(pixel)
-        }
+    if (width <= 0 || height <= 0) {
+        val onAcc = computeOnAccent(fallbackColor)
+        return SonzaDynamicColors(accent = fallbackColor, accentMuted = fallbackColor.copy(alpha = 0.25f), onAccent = onAcc)
     }
-    
-    if (colors.isEmpty()) return DominantColors()
-    
-    // Calculate average color
+
+    val step = maxOf(1, minOf(width, height) / 10)
     var totalR = 0L
     var totalG = 0L
     var totalB = 0L
-    
-    colors.forEach { color ->
-        totalR += android.graphics.Color.red(color)
-        totalG += android.graphics.Color.green(color)
-        totalB += android.graphics.Color.blue(color)
+    var count = 0
+
+    // Also look for the most vibrant/saturated pixel
+    var maxSaturation = -1f
+    var vibrantColorInt: Int? = null
+    val hslTemp = FloatArray(3)
+
+    for (x in 0 until width step step) {
+        for (y in 0 until height step step) {
+            val pixel = bitmap.getPixel(x, y)
+            val r = android.graphics.Color.red(pixel)
+            val g = android.graphics.Color.green(pixel)
+            val b = android.graphics.Color.blue(pixel)
+
+            totalR += r
+            totalG += g
+            totalB += b
+            count++
+
+            ColorUtils.RGBToHSL(r, g, b, hslTemp)
+            // Skip overly dark or overly washed out pixels for vibrant detection
+            if (hslTemp[1] > maxSaturation && hslTemp[2] in 0.2f..0.85f) {
+                maxSaturation = hslTemp[1]
+                vibrantColorInt = pixel
+            }
+        }
     }
-    
-    val avgR = (totalR / colors.size).toInt()
-    val avgG = (totalG / colors.size).toInt()
-    val avgB = (totalB / colors.size).toInt()
-    
-    // Create colors based on theme
-    val primary: Color
-    val secondary: Color
-    val onBackground: Color
-    
-    if (isDarkTheme) {
-        // Dark theme: dark backgrounds with white text
-        primary = Color(
-            red = (avgR * 0.3f / 255f).coerceIn(0f, 1f),
-            green = (avgG * 0.3f / 255f).coerceIn(0f, 1f),
-            blue = (avgB * 0.3f / 255f).coerceIn(0f, 1f)
-        )
-        
-        secondary = Color(
-            red = (avgR * 0.5f / 255f).coerceIn(0f, 1f),
-            green = (avgG * 0.5f / 255f).coerceIn(0f, 1f),
-            blue = (avgB * 0.5f / 255f).coerceIn(0f, 1f)
-        )
-        
-        onBackground = Color.White
-    } else {
-        // Light theme: light backgrounds with dark text
-        // Mix with white to create light, pastel-like backgrounds
-        primary = Color(
-            red = (avgR * 0.2f / 255f + 0.85f).coerceIn(0f, 1f),
-            green = (avgG * 0.2f / 255f + 0.85f).coerceIn(0f, 1f),
-            blue = (avgB * 0.2f / 255f + 0.85f).coerceIn(0f, 1f)
-        )
-        
-        secondary = Color(
-            red = (avgR * 0.3f / 255f + 0.75f).coerceIn(0f, 1f),
-            green = (avgG * 0.3f / 255f + 0.75f).coerceIn(0f, 1f),
-            blue = (avgB * 0.3f / 255f + 0.75f).coerceIn(0f, 1f)
-        )
-        
-        onBackground = Color(0xFF1A1A1A) // Dark gray, not pure black
+
+    if (count == 0) {
+        val onAcc = computeOnAccent(fallbackColor)
+        return SonzaDynamicColors(accent = fallbackColor, accentMuted = fallbackColor.copy(alpha = 0.25f), onAccent = onAcc)
     }
-    
-    // Create accent color (saturated version) - works for both themes
+
+    val baseAccentInt = vibrantColorInt ?: android.graphics.Color.rgb(
+        (totalR / count).toInt(),
+        (totalG / count).toInt(),
+        (totalB / count).toInt()
+    )
+
+    // Adjust HSL for a rich, vibrant accent
     val hsl = FloatArray(3)
-    ColorUtils.RGBToHSL(avgR, avgG, avgB, hsl)
-    hsl[1] = minOf(1f, hsl[1] * 1.2f) // Reduced boost (was 1.5f)
-    hsl[2] = if (isDarkTheme) 0.6f else 0.5f // Slightly darker accent for light theme
-    val accent = ensureContrast(hsl, background = primary, lightenToPass = isDarkTheme)
-    
-    return DominantColors(
-        primary = primary,
-        secondary = secondary,
+    ColorUtils.colorToHSL(baseAccentInt, hsl)
+    hsl[1] = (hsl[1] * 1.15f).coerceIn(0.35f, 1.0f) // Keep rich saturation
+    hsl[2] = hsl[2].coerceIn(0.45f, 0.70f) // Keep balanced luminance for dark theme
+
+    val accentInt = ColorUtils.HSLToColor(hsl)
+    val accent = Color(accentInt)
+    val accentMuted = accent.copy(alpha = 0.25f)
+    val onAccent = computeOnAccent(accent)
+
+    return SonzaDynamicColors(
         accent = accent,
-        onBackground = onBackground
+        accentMuted = accentMuted,
+        onAccent = onAccent,
+        background = SonzaBackground,
+        surface = SonzaSurface,
+        surfaceVariant = SonzaSurfaceVariant,
+        onBackground = SonzaOnBackground,
+        onSurface = SonzaOnBackground,
+        onSurfaceVariant = SonzaOnSurfaceVariant,
+        outline = SonzaOutline,
+        scrim = SonzaScrim
     )
 }
 
 /**
- * WCAG guard: nudge the accent's lightness until it reaches at least 3:1 contrast
- * (large text / UI component minimum) against the background it is drawn on.
- * Busy or very bright artwork can otherwise produce accent tints that vanish
- * into the derived background.
+ * Backward-compatible helper for existing screens.
  */
-private const val MIN_ACCENT_CONTRAST = 3.0
-
-private fun ensureContrast(accentHsl: FloatArray, background: Color, lightenToPass: Boolean): Color {
-    val backgroundInt = android.graphics.Color.rgb(
-        (background.red * 255).toInt(),
-        (background.green * 255).toInt(),
-        (background.blue * 255).toInt()
-    )
-    val hsl = accentHsl.copyOf()
-    var candidate = ColorUtils.HSLToColor(hsl)
-    var iterations = 0
-    while (ColorUtils.calculateContrast(candidate, backgroundInt) < MIN_ACCENT_CONTRAST && iterations < 20) {
-        hsl[2] = if (lightenToPass) minOf(1f, hsl[2] + 0.05f) else maxOf(0f, hsl[2] - 0.05f)
-        candidate = ColorUtils.HSLToColor(hsl)
-        iterations++
+@Composable
+fun rememberDominantColors(
+    imageUrl: String?,
+    isDarkTheme: Boolean = true,
+    defaultColors: DominantColors? = null
+): DominantColors {
+    val dynamic = rememberDynamicAccentColors(imageUrl)
+    return remember(dynamic) {
+        DominantColors(
+            primary = dynamic.surface,
+            secondary = dynamic.surfaceVariant,
+            accent = dynamic.accent,
+            onBackground = dynamic.onBackground,
+            accentMuted = dynamic.accentMuted,
+            onAccent = dynamic.onAccent
+        )
     }
-    return Color(candidate)
 }
+

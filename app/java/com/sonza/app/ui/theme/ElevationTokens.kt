@@ -18,4 +18,13 @@ object ElevationTokens {
     val Level3 = 6.dp
     val Level4 = 8.dp
     val Level5 = 12.dp
+
+    // Sonza Design System elevation scale (Part 5)
+    val Elevation0 = 0.dp  // Base screen background
+    val Elevation1 = 1.dp  // Standard cards
+    val Elevation2 = 3.dp  // Bottom nav, mini-player (with background blur)
+    val Elevation3 = 6.dp  // Modals, expanded Now Playing sheet
+
+    val StandardBlurRadius = 12.dp // 12dp radial blur
 }
+

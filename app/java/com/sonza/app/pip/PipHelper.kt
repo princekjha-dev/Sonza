@@ -46,7 +46,8 @@ class PipHelper @Inject constructor(
             .setActions(createRemoteActions(isPlaying))
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            builder.setAutoEnterEnabled(isPipEnabled && (isPlaying || isVideoMode || musicPlayer.playerState.value.currentSong != null))
+            val hasSong = musicPlayer.playerState.value.currentSong != null
+            builder.setAutoEnterEnabled(isPipEnabled && hasSong && (isPlaying || isVideoMode))
             builder.setSeamlessResizeEnabled(true)
         }
 

@@ -11,141 +11,125 @@ import androidx.compose.ui.unit.sp
 import com.sonza.app.R
 
 /**
- * Typography — Material 3 Expressive scale powered by Outfit (variable font).
- * Variable font support requires API 26+, which matches our minSdk.
- *
- * A single `R.font.outfit` TTF covers the full weight axis (400–700); we bind
- * logical weights via `FontVariation.weight(...)` so the text system can request
- * intermediate weights without extra files.
+ * Typography — Material 3 Expressive scale powered by Manrope (variable font).
+ * Bold, confident hierarchy per Part 2 of DESIGN_SYSTEM.md.
  */
 @OptIn(ExperimentalTextApi::class)
-private fun outfit(weight: Int): Font = Font(
-    resId = R.font.outfit,
+private fun manrope(weight: Int): Font = Font(
+    resId = R.font.manrope,
     weight = FontWeight(weight),
     variationSettings = FontVariation.Settings(FontVariation.weight(weight))
 )
 
-private val Outfit: FontFamily = FontFamily(
-    outfit(400),
-    outfit(500),
-    outfit(600),
-    outfit(700),
-    outfit(800)
+val Manrope: FontFamily = FontFamily(
+    manrope(400),
+    manrope(500),
+    manrope(600),
+    manrope(700),
+    manrope(800)
 )
 
-val Typography = Typography(
-    // Display — big headlines
-    displayLarge = TextStyle(
-        fontFamily = Outfit,
-        fontWeight = FontWeight.ExtraBold,
-        fontSize = 57.sp,
-        lineHeight = 64.sp,
-        letterSpacing = (-0.25).sp
-    ),
-    displayMedium = TextStyle(
-        fontFamily = Outfit,
-        fontWeight = FontWeight.Bold,
-        fontSize = 45.sp,
-        lineHeight = 52.sp,
-        letterSpacing = 0.sp
-    ),
-    displaySmall = TextStyle(
-        fontFamily = Outfit,
-        fontWeight = FontWeight.Bold,
-        fontSize = 36.sp,
-        lineHeight = 44.sp,
-        letterSpacing = 0.sp
-    ),
-
-    // Headlines — section titles
-    headlineLarge = TextStyle(
-        fontFamily = Outfit,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 32.sp,
+// Explicit Sonza Design System typography tokens
+object SonzaTypography {
+    val Display = TextStyle(
+        fontFamily = Manrope,
+        fontWeight = FontWeight.Bold, // 700
+        fontSize = 34.sp,
         lineHeight = 40.sp,
-        letterSpacing = 0.sp
-    ),
-    headlineMedium = TextStyle(
-        fontFamily = Outfit,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 28.sp,
-        lineHeight = 36.sp,
-        letterSpacing = 0.sp
-    ),
-    headlineSmall = TextStyle(
-        fontFamily = Outfit,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 24.sp,
+        letterSpacing = (-0.5).sp
+    )
+    val Headline = TextStyle(
+        fontFamily = Manrope,
+        fontWeight = FontWeight.Bold, // 700
+        fontSize = 26.sp,
         lineHeight = 32.sp,
+        letterSpacing = (-0.2).sp
+    )
+    val TitleLarge = TextStyle(
+        fontFamily = Manrope,
+        fontWeight = FontWeight.SemiBold, // 600
+        fontSize = 20.sp,
+        lineHeight = 26.sp,
         letterSpacing = 0.sp
-    ),
-
-    // Titles — cards, dialogs
-    titleLarge = TextStyle(
-        fontFamily = Outfit,
-        fontWeight = FontWeight.Medium,
-        fontSize = 22.sp,
-        lineHeight = 28.sp,
-        letterSpacing = 0.sp
-    ),
-    titleMedium = TextStyle(
-        fontFamily = Outfit,
-        fontWeight = FontWeight.SemiBold,
+    )
+    val TitleMedium = TextStyle(
+        fontFamily = Manrope,
+        fontWeight = FontWeight.SemiBold, // 600
+        fontSize = 16.sp,
+        lineHeight = 22.sp,
+        letterSpacing = 0.1.sp
+    )
+    val BodyLarge = TextStyle(
+        fontFamily = Manrope,
+        fontWeight = FontWeight.Normal, // 400
         fontSize = 16.sp,
         lineHeight = 24.sp,
-        letterSpacing = 0.15.sp
-    ),
+        letterSpacing = 0.25.sp
+    )
+    val BodyMedium = TextStyle(
+        fontFamily = Manrope,
+        fontWeight = FontWeight.Normal, // 400
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.2.sp
+    )
+    val LabelLarge = TextStyle(
+        fontFamily = Manrope,
+        fontWeight = FontWeight.Medium, // 500
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.1.sp
+    )
+    val LabelSmall = TextStyle(
+        fontFamily = Manrope,
+        fontWeight = FontWeight.Medium, // 500
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.4.sp
+    )
+}
+
+val Typography = Typography(
+    // Display — big headlines, Now Playing track title
+    displayLarge = SonzaTypography.Display,
+    displayMedium = SonzaTypography.Display.copy(fontSize = 30.sp, lineHeight = 36.sp),
+    displaySmall = SonzaTypography.Headline,
+
+    // Headlines — section titles ("Speed dial", "Listen again")
+    headlineLarge = SonzaTypography.Headline,
+    headlineMedium = SonzaTypography.Headline.copy(fontSize = 24.sp, lineHeight = 30.sp),
+    headlineSmall = SonzaTypography.TitleLarge,
+
+    // Titles — cards, dialogs, section headers
+    titleLarge = SonzaTypography.TitleLarge,
+    titleMedium = SonzaTypography.TitleMedium,
     titleSmall = TextStyle(
-        fontFamily = Outfit,
+        fontFamily = Manrope,
         fontWeight = FontWeight.Medium,
         fontSize = 14.sp,
         lineHeight = 20.sp,
         letterSpacing = 0.1.sp
     ),
 
-    // Body
-    bodyLarge = TextStyle(
-        fontFamily = Outfit,
-        fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.5.sp
-    ),
-    bodyMedium = TextStyle(
-        fontFamily = Outfit,
-        fontWeight = FontWeight.Normal,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        letterSpacing = 0.25.sp
-    ),
+    // Body — primary readable text, artist names
+    bodyLarge = SonzaTypography.BodyLarge,
+    bodyMedium = SonzaTypography.BodyMedium,
     bodySmall = TextStyle(
-        fontFamily = Outfit,
+        fontFamily = Manrope,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
         lineHeight = 16.sp,
         letterSpacing = 0.4.sp
     ),
 
-    // Labels
-    labelLarge = TextStyle(
-        fontFamily = Outfit,
-        fontWeight = FontWeight.Medium,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        letterSpacing = 0.1.sp
-    ),
+    // Labels — buttons, chip labels, timestamps, metadata, format badges
+    labelLarge = SonzaTypography.LabelLarge,
     labelMedium = TextStyle(
-        fontFamily = Outfit,
+        fontFamily = Manrope,
         fontWeight = FontWeight.Medium,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.5.sp
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+        letterSpacing = 0.2.sp
     ),
-    labelSmall = TextStyle(
-        fontFamily = Outfit,
-        fontWeight = FontWeight.Medium,
-        fontSize = 11.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.5.sp
-    )
+    labelSmall = SonzaTypography.LabelSmall
 )
