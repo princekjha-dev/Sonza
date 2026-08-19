@@ -63,14 +63,6 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
-
-    applicationVariants.all {
-        outputs.all {
-            if (this is com.android.build.gradle.internal.api.ApkVariantOutputImpl) {
-                this.outputFileName = "Sonza-v${defaultConfig.versionName ?: "2.6.4.0"}.apk"
-            }
-        }
-    }
 }
 
 protobuf {
