@@ -6,7 +6,7 @@ plugins {
 kotlin {
     androidLibrary {
         namespace = "com.sonza.app.core.domain"
-        compileSdk = 37
+        compileSdk = 36
         minSdk = 26
         withHostTestBuilder { }
     }

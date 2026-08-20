@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.sonza.app.lyric.lrclib"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 26

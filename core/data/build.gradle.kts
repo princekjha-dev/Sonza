@@ -11,7 +11,7 @@ ksp {
 
 android {
     namespace = "com.sonza.app.core.data"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 26

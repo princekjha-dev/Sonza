@@ -10,7 +10,7 @@ plugins {
 
 android {
     namespace = "com.sonza.app.mediasource"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 26

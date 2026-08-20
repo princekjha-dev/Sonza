@@ -10,12 +10,12 @@ plugins {
 
 android {
     namespace = "com.sonza.app"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.sonza.app"
         minSdk = 26
-        targetSdk = 37
+        targetSdk = 36
         versionCode = 2650
         versionName = "2.6.5.0"
 
