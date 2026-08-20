@@ -805,7 +805,7 @@ fun SonzaApp(
 
         val density = androidx.compose.ui.platform.LocalDensity.current
         val navBarPadding = androidx.compose.foundation.layout.WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-        val navBarHeight = if (showBottomNav && formFactor != DeviceFormFactor.TV) 80.dp else 0.dp
+        val navBarHeight = if (showBottomNav && formFactor != DeviceFormFactor.TV) 64.dp else 0.dp
         val miniPlayerHeight = if (showMiniPlayer) 64.dp else 0.dp
         val snackbarBottomPadding = when {
             isPlayerExpanded -> navBarPadding + 12.dp
@@ -834,17 +834,6 @@ fun SonzaApp(
                             val navBarAlpha by sessionManager.navBarAlphaFlow.collectAsStateWithLifecycle(initialValue = 1.0f)
                             val navBarBlur by sessionManager.navBarBlurFlow.collectAsStateWithLifecycle(initialValue = 60.0f)
                             val iosLiquidGlassEnabled by sessionManager.iosLiquidGlassEnabledFlow.collectAsStateWithLifecycle(initialValue = false)
-                            
-                            val isDarkTheme = androidx.compose.material3.MaterialTheme.colorScheme.background.luminance() < 0.5f
-                            val navBarColor = if (showMiniPlayer) {
-                                if (miniPlayerStyle == MiniPlayerStyle.YT_MUSIC && isDarkTheme) {
-                                    lerp(currentDominantColors.primary, Color.Black, 0.45f)
-                                } else {
-                                    currentDominantColors.primary
-                                }
-                            } else {
-                                androidx.compose.material3.MaterialTheme.colorScheme.surface
-                            }
 
                             val lastHomeClickTime = remember { mutableLongStateOf(0L) }
 
@@ -874,7 +863,6 @@ fun SonzaApp(
                                 },
                                 alpha = navBarAlpha,
                                 iosLiquidGlassEnabled = iosLiquidGlassEnabled,
-                                backgroundColor = navBarColor,
                                 iosNavBarBlur = navBarBlur
                             )
                         }
@@ -1047,7 +1035,7 @@ fun SonzaApp(
     if (showMiniPlayer) {
         val density = LocalDensity.current
         val navBarPadding = androidx.compose.foundation.layout.WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-        val navBarHeight = if (showBottomNav && formFactor != DeviceFormFactor.TV) 80.dp else 0.dp
+        val navBarHeight = if (showBottomNav && formFactor != DeviceFormFactor.TV) 64.dp else 0.dp
         val bottomPaddingPx = with(density) { navBarPadding.toPx() + navBarHeight.toPx() }
 
         ExpandablePlayerSheet(

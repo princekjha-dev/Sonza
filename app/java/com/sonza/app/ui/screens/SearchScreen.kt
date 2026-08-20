@@ -335,19 +335,10 @@ fun SearchScreen(
                         }
                     }
 
-                    // Tab Selection (YouTube Music / HQ Audio). Both tabs are always available
-                    // regardless of the active source, so the user can always cross-search the
-                    // other catalogue.
-                    val visibleTabs = remember(uiState.currentSource) {
-                        buildList {
-                            if (uiState.currentSource == MusicSource.REMOTE) {
-                                add(SearchTab.REMOTE)
-                                add(SearchTab.YOUTUBE_MUSIC)
-                            } else {
-                                add(SearchTab.YOUTUBE_MUSIC)
-                                add(SearchTab.REMOTE)
-                            }
-                        }
+                    // Tab Selection (YouTube Music / HQ Audio). YouTube Music is the default search source.
+                    // Both tabs are always available so the user can always cross-search the other catalogue.
+                    val visibleTabs = remember {
+                        listOf(SearchTab.YOUTUBE_MUSIC, SearchTab.REMOTE)
                     }
                     val visibleSelectedIdx = visibleTabs.indexOf(uiState.selectedTab).coerceAtLeast(0)
                     TabRow(

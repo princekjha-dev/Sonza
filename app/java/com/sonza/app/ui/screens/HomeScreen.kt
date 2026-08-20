@@ -1602,14 +1602,17 @@ private fun CreateMixCard(
 
 @Composable
 private fun Modifier.bounceClick(
-    scaleDown: Float = 0.95f,
+    scaleDown: Float = com.sonza.app.ui.theme.MotionTokens.CardTapScale,
     shape: Shape = RoundedCornerShape(8.dp),
     onClick: () -> Unit
 ): Modifier {
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isPressed) scaleDown else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow),
+        animationSpec = tween(
+            durationMillis = com.sonza.app.ui.theme.MotionTokens.CardTapDuration,
+            easing = FastOutSlowInEasing
+        ),
         label = "bounce"
     )
 

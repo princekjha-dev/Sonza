@@ -162,10 +162,11 @@ Spotify's Circular and Apple's SF Pro, and avoids default-Roboto "templated" fee
 
 ### 6.3 Bottom Navigation
 - 4 items: Home, Search, Your Library, Settings. Fixed on mobile (per both reference apps).
-- **Active:** filled icon variant, `accent` tint (falls back to fixed brand blue outside a playback context), label visible.
-- **Inactive:** outlined icon, `on-surface-variant` tint.
-- Background: `elevation-2` blur treatment (see Part 5).
-- Transition: 150ms scale/color ease-out on tab change.
+- **Active:** filled icon variant (`Icons.Filled.*`), dynamic `accent` tint (falls back to fixed brand blue `SonzaDefaultAccent` outside a playback context), `label-small` (12sp Manrope) `SemiBold` (600) label visible.
+- **Inactive:** outlined icon variant (`Icons.Outlined.*`), `on-surface-variant` (`#A1A1A8`) tint, `label-small` (12sp Manrope) `Medium` (500) label visible.
+- **Iconography:** standard 24dp Material Symbols Rounded/Icons (`Home`, `Search`, `LibraryMusic`, `Settings`).
+- **Surface:** `elevation-2` blur treatment on fixed shell `surface` (`#17171A`), 64dp standard content height, extending edge-to-edge behind system navigation bar with `navigationBarsPadding()` on content items. Top border `outline` @ 60% with `radius-md` top corners.
+- **Transition:** 150ms `FastOutSlowInEasing` color transition on tab change (`NavSelectionDuration`). Zero layout shift on state change.
 - Defined in: `ExpressiveBottomNav.kt` (`ExpressiveBottomNav`, `StandardNavBar`, `LiquidGlassNavBar`)
 
 ### 6.4 Mini-Player
@@ -258,5 +259,7 @@ Defined in: `com.sonza.app.ui.components.StateComponents.kt`
 | 2026-08-19 | Phase 3 Completed: Blur-Behind Components (RenderEffect on API 31+, Surface @ 92% + shadow on API <31 for Bottom Nav and Mini-Player) | `ExpressiveBottomNav.kt`, `StandardMiniPlayer.kt`, `LiquidGlassMiniPlayer.kt`, `LiquidGlassSurface.kt`, `ExpandablePlayerSheet.kt` |
 | 2026-08-19 | Phase 4a Completed: Home Screen (Featured hero card, Speed dial grid with dynamic accent & scrim, Genre pills with dynamic accent & outline) | `HomeComponents.kt`, `HomeScreen.kt`, `MoodChips.kt` |
 | 2026-08-20 | Phase 4b Completed: Search & Home Design-System Alignment, Emoji elimination with 20dp Material Symbols, Interactive Sonza result cards (scale 0.97 / 100ms), State Components (`SonzaEmptyState`, `SonzaErrorState`, `SonzaBanner`), and Media3 Notification Channel alignment (`media_playback_channel`) | `StateComponents.kt`, `MoodChips.kt`, `SearchScreen.kt`, `HomeComponents.kt`, `HomeScreen.kt`, `MusicPlayerService.kt`, `RemoteAudioRepository.kt` |
+| 2026-08-20 | Part E Completed: Bottom Navigation Visual Consistency Fix (Standardized 24dp Material Icons with `LibraryMusic`, Manrope 12sp `SonzaTypography.LabelSmall`, fixed shell `SonzaSurface` blur-behind container with edge-to-edge support, 64dp standard height, 150ms `MotionTokens.NavSelectionDuration` transitions without layout shift) | `ExpressiveBottomNav.kt`, `TvNavigationRail.kt`, `MainActivity.kt`, `DESIGN_SYSTEM.md` |
+| 2026-08-20 | Part F Completed: YouTube Music Default Search Source (Default search tab set to YouTube Music with immediate data flow, search bar focused on search input, HQ Audio tab preserved for cross-catalogue search) | `SearchViewModel.kt`, `SearchScreen.kt`, `DESIGN_SYSTEM.md` |
 
 

@@ -139,14 +139,9 @@ class SearchViewModel @Inject constructor(
     private fun observeMusicSource() {
         viewModelScope.launch {
             sessionManager.musicSourceFlow.collect { source ->
-                val defaultTab = when (source) {
-                    MusicSource.REMOTE -> SearchTab.REMOTE
-                    else -> SearchTab.YOUTUBE_MUSIC
-                }
                 _uiState.update {
                     it.copy(
-                        currentSource = source,
-                        selectedTab = defaultTab
+                        currentSource = source
                     )
                 }
                 loadBrowseCategories()
