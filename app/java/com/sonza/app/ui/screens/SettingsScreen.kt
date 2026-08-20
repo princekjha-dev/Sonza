@@ -680,7 +680,7 @@ fun SettingsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = SpacingTokens.Space2xl)
+                    .padding(bottom = SpacingTokens.Space2Xl)
             ) {
                 Text(
                     text = "Switch Account",
@@ -852,7 +852,7 @@ fun SettingsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = SpacingTokens.Space2xl)
+                    .padding(bottom = SpacingTokens.Space2Xl)
             ) {
                 Text(
                     text = "Update Channel",
