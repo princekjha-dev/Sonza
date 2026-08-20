@@ -1,0 +1,26 @@
+[
+    {
+        "merged": "com.sonza.app.core.data-release-20:/animator/fragment_fade_exit.xml",
+        "source": "com.sonza.app.core.data-fragment-1.5.1-0:/animator/fragment_fade_exit.xml"
+    },
+    {
+        "merged": "com.sonza.app.core.data-release-20:/animator/fragment_open_enter.xml",
+        "source": "com.sonza.app.core.data-fragment-1.5.1-0:/animator/fragment_open_enter.xml"
+    },
+    {
+        "merged": "com.sonza.app.core.data-release-20:/animator/fragment_close_enter.xml",
+        "source": "com.sonza.app.core.data-fragment-1.5.1-0:/animator/fragment_close_enter.xml"
+    },
+    {
+        "merged": "com.sonza.app.core.data-release-20:/animator/fragment_open_exit.xml",
+        "source": "com.sonza.app.core.data-fragment-1.5.1-0:/animator/fragment_open_exit.xml"
+    },
+    {
+        "merged": "com.sonza.app.core.data-release-20:/animator/fragment_close_exit.xml",
+        "source": "com.sonza.app.core.data-fragment-1.5.1-0:/animator/fragment_close_exit.xml"
+    },
+    {
+        "merged": "com.sonza.app.core.data-release-20:/animator/fragment_fade_enter.xml",
+        "source": "com.sonza.app.core.data-fragment-1.5.1-0:/animator/fragment_fade_enter.xml"
+    }
+]

@@ -98,11 +98,11 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Exe)
             packageName = "Sonza"
-            // Tracks app/build.gradle.kts versionName (2.6.4.0) — kept in sync so
+            // Tracks app/build.gradle.kts versionName (2.6.5.0) — kept in sync so
             // Windows MSI upgrade chains see new builds as upgrades. MSI versions
             // are major.minor.patch only (the 4th app field is ignored by Windows
             // Installer anyway), so the meaningful prefix is mirrored here.
-            packageVersion = "2.6.4"
+            packageVersion = "2.6.5"
             description = "Sonza Desktop"
             vendor = "Prince Kumar Jha"
 

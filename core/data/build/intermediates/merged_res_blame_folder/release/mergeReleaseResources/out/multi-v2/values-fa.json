@@ -1,0 +1,82 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.sonza.app.core.data-release-20:/values-fa/values-fa.xml",
+            "map": [
+                {
+                    "source": "/home/naruto/.gradle/caches/9.5.0/transforms/e4402011fbad00ab410ba2d40a524db7/transformed/media3-exoplayer-1.10.1/res/values-fa/values-fa.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9,10",
+                        "startColumns": "4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,122,183,250,310,388,463,552,640",
+                        "endColumns": "66,60,66,59,77,74,88,87,64",
+                        "endOffsets": "117,178,245,305,383,458,547,635,700"
+                    },
+                    "to": {
+                        "startLines": "9,10,11,12,13,14,15,16,17",
+                        "startColumns": "4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "774,841,902,969,1029,1107,1182,1271,1359",
+                        "endColumns": "66,60,66,59,77,74,88,87,64",
+                        "endOffsets": "836,897,964,1024,1102,1177,1266,1354,1419"
+                    }
+                },
+                {
+                    "source": "/home/naruto/.gradle/caches/9.5.0/transforms/f9a54329ae538c4cf53073b3ffc52ac1/transformed/core-1.18.0/res/values-fa/values-fa.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9",
+                        "startColumns": "4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,149,251,350,450,551,657,774",
+                        "endColumns": "93,101,98,99,100,105,116,100",
+                        "endOffsets": "144,246,345,445,546,652,769,870"
+                    },
+                    "to": {
+                        "startLines": "2,3,4,5,6,7,8,18",
+                        "startColumns": "4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,149,251,350,450,551,657,1424",
+                        "endColumns": "93,101,98,99,100,105,116,100",
+                        "endOffsets": "144,246,345,445,546,652,769,1520"
+                    }
+                }
+            ]
+        },
+        {
+            "outputFile": "com.sonza.app.core.data-mergeReleaseResources-18:/values-fa/values-fa.xml",
+            "map": [
+                {
+                    "source": "/home/naruto/.gradle/caches/9.5.0/transforms/e4402011fbad00ab410ba2d40a524db7/transformed/media3-exoplayer-1.10.1/res/values-fa/values-fa.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9,10",
+                        "startColumns": "4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,122,183,250,310,388,463,552,640",
+                        "endColumns": "66,60,66,59,77,74,88,87,64",
+                        "endOffsets": "117,178,245,305,383,458,547,635,700"
+                    },
+                    "to": {
+                        "startLines": "9,10,11,12,13,14,15,16,17",
+                        "startColumns": "4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "774,841,902,969,1029,1107,1182,1271,1359",
+                        "endColumns": "66,60,66,59,77,74,88,87,64",
+                        "endOffsets": "836,897,964,1024,1102,1177,1266,1354,1419"
+                    }
+                },
+                {
+                    "source": "/home/naruto/.gradle/caches/9.5.0/transforms/f9a54329ae538c4cf53073b3ffc52ac1/transformed/core-1.18.0/res/values-fa/values-fa.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9",
+                        "startColumns": "4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,149,251,350,450,551,657,774",
+                        "endColumns": "93,101,98,99,100,105,116,100",
+                        "endOffsets": "144,246,345,445,546,652,769,870"
+                    },
+                    "to": {
+                        "startLines": "2,3,4,5,6,7,8,18",
+                        "startColumns": "4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,149,251,350,450,551,657,1424",
+                        "endColumns": "93,101,98,99,100,105,116,100",
+                        "endOffsets": "144,246,345,445,546,652,769,1520"
+                    }
+                }
+            ]
+        }
+    ]
+}

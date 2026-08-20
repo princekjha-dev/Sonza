@@ -1,0 +1,20 @@
+<lint-module
+    format="1"
+    dir="/home/naruto/Downloads/SONZA/core/data"
+    name=":core:data"
+    type="LIBRARY"
+    maven="Sonza.core:data:unspecified"
+    agpVersion="9.1.0"
+    buildFolder="build"
+    bootClassPath="/home/naruto/Android/Sdk/platforms/android-36/android.jar:/home/naruto/Android/Sdk/build-tools/36.0.0/core-lambda-stubs.jar"
+    javaSourceLevel="21"
+    compileTarget="android-36"
+    neverShrinking="true"
+    highlightGradualR8Api="false">
+  <lintOptions
+      abortOnError="true"
+      absolutePaths="true"
+      checkReleaseBuilds="true"
+      explainIssues="true"/>
+  <variant name="release"/>
+</lint-module>
