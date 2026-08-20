@@ -52,6 +52,7 @@ import com.sonza.app.core.model.ArtworkShape
 import com.sonza.app.core.model.ArtworkSize
 import com.sonza.app.ui.screens.player.PlayerScreenActions
 import com.sonza.app.ui.screens.player.components.*
+import com.sonza.app.ui.theme.SpacingTokens
 
 @Composable
 fun YTMusicPlayerStyle(
@@ -110,8 +111,7 @@ fun YTMusicPlayerStyle(
             song, playerState, playbackInfo, dominantColors, currentArtworkShape, currentArtworkSize,
             currentSeekbarStyle, sponsorSegments, audioArEnabled, isRotatingEnabled, player,
             isFullScreen, isCompactHeight, actions, onShowActions, onShowQueue, onShowLyrics,
-            onShowRelated,
-            onShowDevices, onShowSleepTimer, onShowPlaybackSpeed, onShowEqualizer,
+            onShowRelated, onShowDevices, onShowSleepTimer, onShowPlaybackSpeed, onShowEqualizer,
             onShowListenTogether, handleDoubleTapSeek, onShapeChange, onSeekbarStyleChange,
             onRecenterAr, onSetFullScreen, isSwitchingMode, sleepTimerOption,
             sleepTimerRemainingMs, progressProvider, positionProvider, durationProvider,
@@ -169,24 +169,19 @@ private fun YTMusicPortraitContent(
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val screenHeight = maxHeight
-        val screenWidth = maxWidth
-        
-        // WindowSizeClass based logic
         val heightSizeClass = windowSizeClass?.windowHeightSizeClass ?: WindowHeightSizeClass.MEDIUM
-        val widthSizeClass = windowSizeClass?.windowWidthSizeClass ?: WindowWidthSizeClass.COMPACT
-        
-        // Dynamic thresholds
         val isVeryShort = heightSizeClass == WindowHeightSizeClass.COMPACT || screenHeight < 600.dp
         val isShort = screenHeight < 700.dp
-        
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = if (isVeryShort) 16.dp else 24.dp),
-            horizontalAlignment = Alignment.Start
+                .padding(horizontal = if (isVeryShort) 16.dp else 24.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Top Bar: [Back] | Now Playing | [More]
             PlayerTopBar(
                 onBack = actions.onBack,
                 dominantColors = dominantColors,
@@ -199,16 +194,14 @@ private fun YTMusicPortraitContent(
                 onRecenter = onRecenterAr
             )
 
-            // Flexible space above artwork. Kept deliberately small: the artwork box is
-            // square and height-capped by its weight share, so generous spacers here used
-            // to shrink the art far below the requested fraction of the screen width.
-            Spacer(modifier = Modifier.weight(if (isVeryShort) 0.2f else 0.18f))
+            // Flexible space above artwork
+            Spacer(modifier = Modifier.weight(if (isVeryShort) 0.15f else 0.3f))
 
-            // Adaptive Artwork Box
+            // Hero Artwork Container (Square, Responsive)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(if (isVeryShort) 1.5f else 8f, fill = false)
+                    .weight(if (isVeryShort) 2.5f else 7f, fill = false)
                     .then(if (!isVeryShort) Modifier.aspectRatio(1f) else Modifier),
                 contentAlignment = Alignment.Center
             ) {
@@ -227,7 +220,7 @@ private fun YTMusicPortraitContent(
                             Surface(
                                 modifier = Modifier
                                     .fillMaxSize(currentArtworkSize.fraction / ArtworkSize.MAX_FRACTION)
-                                    .clip(RoundedCornerShape(16.dp))
+                                    .clip(RoundedCornerShape(20.dp))
                                     .background(Color.Black)
                                     .clickable { onSetFullScreen(true) },
                                 tonalElevation = 16.dp,
@@ -244,7 +237,7 @@ private fun YTMusicPortraitContent(
                                     },
                                     modifier = Modifier.fillMaxSize()
                                 )
-                                
+
                                 Box(modifier = Modifier.fillMaxSize().padding(12.dp), contentAlignment = Alignment.TopEnd) {
                                     Icon(
                                         imageVector = Icons.Filled.Fullscreen,
@@ -265,26 +258,45 @@ private fun YTMusicPortraitContent(
                                 .aspectRatio(1f)
                         ) {
                             AlbumArtwork(
-                                imageUrl = song?.thumbnailUrl, title = song?.title, dominantColors = dominantColors, isLoading = combinedLoading,
-                                isPlaying = playerState.isPlaying, isRotatingEnabled = isRotatingEnabled,
-                                onSwipeLeft = actions.onNext, onSwipeRight = actions.onPrevious, initialShape = currentArtworkShape, artworkSize = currentArtworkSize,
-                                onShapeChange = onShapeChange, onDoubleTapLeft = { handleDoubleTapSeek(false) }, onDoubleTapRight = { handleDoubleTapSeek(true) }, songId = song?.id,
+                                imageUrl = song?.thumbnailUrl,
+                                title = song?.title,
+                                dominantColors = dominantColors,
+                                isLoading = combinedLoading,
+                                isPlaying = playerState.isPlaying,
+                                isRotatingEnabled = isRotatingEnabled,
+                                onSwipeLeft = actions.onNext,
+                                onSwipeRight = actions.onPrevious,
+                                initialShape = currentArtworkShape,
+                                artworkSize = currentArtworkSize,
+                                onShapeChange = onShapeChange,
+                                onDoubleTapLeft = { handleDoubleTapSeek(false) },
+                                onDoubleTapRight = { handleDoubleTapSeek(true) },
+                                songId = song?.id,
                                 modifier = Modifier.fillMaxSize()
                             )
-                            
+
                             ErrorOverlay(playerState.error, dominantColors, actions, song)
                         }
                     }
                 }
             }
-            
-            // Flexible space below artwork
-            Spacer(modifier = Modifier.weight(if (isVeryShort) 0.2f else 0.4f))
 
+            // Space between Artwork and Metadata
+            Spacer(modifier = Modifier.weight(if (isVeryShort) 0.15f else 0.35f))
+
+            // Song Info: Title + Artist • Album
             SongInfoSection(
-                song = song, isFavorite = playerState.isLiked, onFavoriteClick = actions.onToggleLike, isDisliked = playerState.isDisliked,
-                onDislikeClick = actions.onToggleDislike, onMoreClick = onShowActions, onArtistClick = actions.onArtistClick, onAlbumClick = actions.onAlbumClick,
-                dominantColors = dominantColors, isLoading = combinedLoading, compact = isShort,
+                song = song,
+                isFavorite = playerState.isLiked,
+                onFavoriteClick = actions.onToggleLike,
+                isDisliked = playerState.isDisliked,
+                onDislikeClick = actions.onToggleDislike,
+                onMoreClick = onShowActions,
+                onArtistClick = actions.onArtistClick,
+                onAlbumClick = actions.onAlbumClick,
+                dominantColors = dominantColors,
+                isLoading = combinedLoading,
+                compact = isShort,
                 sleepTimerRemainingMs = sleepTimerRemainingMs,
                 sleepTimerOption = sleepTimerOption,
                 showMoreButton = false,
@@ -295,79 +307,103 @@ private fun YTMusicPortraitContent(
                 onTitleArrowClick = actions.onNext
             )
 
-            Spacer(modifier = Modifier.height(if (isVeryShort) 8.dp else 12.dp))
+            Spacer(modifier = Modifier.height(if (isVeryShort) 10.dp else 16.dp))
 
-            // YT-Music chip row directly under the song info (like/dislike/lyrics/comments).
-            PlayerActionChips(
-                isFavorite = playerState.isLiked,
-                isDisliked = playerState.isDisliked,
-                onToggleLike = actions.onToggleLike,
-                onToggleDislike = actions.onToggleDislike,
-                onLyricsClick = onShowLyrics,
-                onRelatedClick = onShowRelated,
-                onDownloadClick = actions.onDownload,
-                downloadState = playerState.downloadState,
-                dominantColors = dominantColors,
-                onSleepTimerClick = onShowSleepTimer,
-                onSpeedClick = onShowPlaybackSpeed,
-                sleepTimerRemainingMs = sleepTimerRemainingMs,
-                playbackSpeed = playerState.playbackSpeed,
-                activeAudioSource = playbackInfo.activeAudioSource,
-                onSwitchAudioSource = actions.onSwitchAudioSource
-            )
-
-            Spacer(modifier = Modifier.weight(if (isVeryShort) 0.1f else 0.15f))
-
-            // Flush against the Column's horizontal padding so the waveform and the
-            // 0:00 / -0:00 labels share the artwork's and title's left margin.
+            // Progress Bar / Seekbar
             SeekbarSection(
-                combinedLoading, dominantColors, progressProvider, playbackInfo.isPlaying, actions,
-                durationProvider, currentSeekbarStyle, onSeekbarStyleChange, sponsorSegments,
+                combinedLoading = combinedLoading,
+                dominantColors = dominantColors,
+                progressProvider = progressProvider,
+                isPlaying = playbackInfo.isPlaying,
+                actions = actions,
+                durationProvider = durationProvider,
+                currentSeekbarStyle = currentSeekbarStyle,
+                onSeekbarStyleChange = onSeekbarStyleChange,
+                sponsorSegments = sponsorSegments,
                 contentPadding = 0.dp
             )
 
+            // Elapsed & Remaining Time Labels
             TimeLabelsWithQuality(
                 currentPositionProvider = positionProvider,
                 durationProvider = durationProvider,
                 dominantColors = dominantColors,
                 audioCodec = playerState.audioCodec,
                 audioBitrate = playerState.audioBitrate,
-                activeAudioSource = playbackInfo.activeAudioSource,
+                activeAudioSource = null,
                 horizontalPadding = 0.dp
             )
 
-            Spacer(modifier = Modifier.weight(if (isVeryShort) 0.05f else 0.08f))
+            Spacer(modifier = Modifier.weight(if (isVeryShort) 0.1f else 0.25f))
 
-            Box(modifier = Modifier.graphicsLayer { alpha = controlsAlpha }) {
-                PlaybackControls(
-                    isPlaying = playerState.isPlaying, shuffleEnabled = playerState.shuffleEnabled, repeatMode = playerState.repeatMode,
-                    onPlayPause = actions.onPlayPause, onNext = actions.onNext, onPrevious = actions.onPrevious, onShuffleToggle = actions.onShuffleToggle,
-                    onRepeatToggle = actions.onRepeatToggle, dominantColors = dominantColors, compact = isShort
+            // Main Playback Controls: [Previous] [PLAY/PAUSE] [Next]
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer { alpha = controlsAlpha }
+            ) {
+                MainPlaybackControls(
+                    isPlaying = playerState.isPlaying,
+                    isLoading = combinedLoading,
+                    onPlayPause = actions.onPlayPause,
+                    onNext = actions.onNext,
+                    onPrevious = actions.onPrevious,
+                    dominantColors = dominantColors,
+                    compact = isShort
                 )
             }
 
-            Spacer(modifier = Modifier.height(if (isVeryShort) 8.dp else 16.dp))
+            Spacer(modifier = Modifier.weight(if (isVeryShort) 0.1f else 0.25f))
 
-            QueueHandle(
-                onClick = onShowQueue,
+            // Secondary Controls Row: [Like] [Shuffle] [Repeat] [Queue] [Lyrics]
+            SecondaryPlayerControls(
+                isFavorite = playerState.isLiked,
+                onToggleLike = actions.onToggleLike,
+                shuffleEnabled = playerState.shuffleEnabled,
+                onShuffleToggle = actions.onShuffleToggle,
+                repeatMode = playerState.repeatMode,
+                onRepeatToggle = actions.onRepeatToggle,
+                onShowQueue = onShowQueue,
+                onShowLyrics = onShowLyrics,
                 dominantColors = dominantColors
             )
 
-            Spacer(modifier = Modifier.height(if (isVeryShort) 12.dp else 24.dp))
+            Spacer(modifier = Modifier.height(if (isVeryShort) 8.dp else 16.dp))
         }
     }
 }
 
 @Composable
 private fun YTMusicLandscapeContent(
-    song: com.sonza.app.core.model.Song?, playerState: PlayerState, playbackInfo: PlayerState, dominantColors: DominantColors,
-    currentArtworkShape: ArtworkShape, currentArtworkSize: ArtworkSize, currentSeekbarStyle: SeekbarStyle, sponsorSegments: List<SponsorSegment>,
-    audioArEnabled: Boolean, isRotatingEnabled: Boolean, actions: PlayerScreenActions, onShowActions: () -> Unit, onShowLyrics: () -> Unit, onShowQueue: () -> Unit,
+    song: com.sonza.app.core.model.Song?,
+    playerState: PlayerState,
+    playbackInfo: PlayerState,
+    dominantColors: DominantColors,
+    currentArtworkShape: ArtworkShape,
+    currentArtworkSize: ArtworkSize,
+    currentSeekbarStyle: SeekbarStyle,
+    sponsorSegments: List<SponsorSegment>,
+    audioArEnabled: Boolean,
+    isRotatingEnabled: Boolean,
+    actions: PlayerScreenActions,
+    onShowActions: () -> Unit,
+    onShowLyrics: () -> Unit,
+    onShowQueue: () -> Unit,
     onShowRelated: () -> Unit,
-    onShowDevices: () -> Unit, onShowSleepTimer: () -> Unit, onShowPlaybackSpeed: () -> Unit, onShowEqualizer: () -> Unit, onShowListenTogether: () -> Unit,
-    isVideoMode: Boolean, onToggleVideoMode: () -> Unit, handleDoubleTapSeek: (Boolean) -> Unit, onShapeChange: (ArtworkShape) -> Unit,
-    onSeekbarStyleChange: (SeekbarStyle) -> Unit, onRecenterAr: () -> Unit,
-    player: Player?, isFullScreen: Boolean, onSetFullScreen: (Boolean) -> Unit,
+    onShowDevices: () -> Unit,
+    onShowSleepTimer: () -> Unit,
+    onShowPlaybackSpeed: () -> Unit,
+    onShowEqualizer: () -> Unit,
+    onShowListenTogether: () -> Unit,
+    isVideoMode: Boolean,
+    onToggleVideoMode: () -> Unit,
+    handleDoubleTapSeek: (Boolean) -> Unit,
+    onShapeChange: (ArtworkShape) -> Unit,
+    onSeekbarStyleChange: (SeekbarStyle) -> Unit,
+    onRecenterAr: () -> Unit,
+    player: Player?,
+    isFullScreen: Boolean,
+    onSetFullScreen: (Boolean) -> Unit,
     isSwitchingMode: Boolean = false,
     sleepTimerOption: SleepTimerOption = SleepTimerOption.OFF,
     sleepTimerRemainingMs: Long? = null,
@@ -384,12 +420,26 @@ private fun YTMusicLandscapeContent(
         animationSpec = spring(Spring.DampingRatioNoBouncy, Spring.StiffnessMediumLow),
         label = "controlsDimOnLoadLandscape"
     )
-    
+
     val widthSizeClass = windowSizeClass?.windowWidthSizeClass ?: WindowWidthSizeClass.MEDIUM
     val isExpanded = widthSizeClass == WindowWidthSizeClass.EXPANDED
 
-    Row(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = if (isExpanded) 32.dp else 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.weight(if (isExpanded) 0.4f else 0.45f).fillMaxHeight().padding(end = if (isExpanded) 32.dp else 16.dp), contentAlignment = Alignment.Center) {
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = if (isExpanded) 32.dp else 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Left Column: Artwork
+        Box(
+            modifier = Modifier
+                .weight(if (isExpanded) 0.45f else 0.48f)
+                .fillMaxHeight()
+                .padding(end = if (isExpanded) 32.dp else 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
             AnimatedContent(
                 targetState = isVideoMode && player != null && !isFullScreen,
                 transitionSpec = { fadeIn(animationSpec = tween(500)) togetherWith fadeOut(animationSpec = tween(500)) },
@@ -404,7 +454,7 @@ private fun YTMusicLandscapeContent(
                             modifier = Modifier
                                 .fillMaxHeight(currentArtworkSize.fraction / ArtworkSize.MAX_FRACTION)
                                 .aspectRatio(1f)
-                                .clip(RoundedCornerShape(16.dp))
+                                .clip(RoundedCornerShape(20.dp))
                                 .background(Color.Black)
                                 .clickable { onSetFullScreen(true) },
                             tonalElevation = 16.dp,
@@ -421,7 +471,7 @@ private fun YTMusicLandscapeContent(
                                 },
                                 modifier = Modifier.fillMaxSize()
                             )
-                            
+
                             Box(modifier = Modifier.fillMaxSize().padding(12.dp), contentAlignment = Alignment.TopEnd) {
                                 Icon(
                                     imageVector = Icons.Filled.Fullscreen,
@@ -437,29 +487,63 @@ private fun YTMusicLandscapeContent(
                 } else {
                     Box(contentAlignment = Alignment.Center) {
                         AlbumArtwork(
-                            imageUrl = song?.thumbnailUrl, title = song?.title, dominantColors = dominantColors, isLoading = combinedLoading,
-                            isPlaying = playerState.isPlaying, isRotatingEnabled = isRotatingEnabled,
-                            onSwipeLeft = actions.onNext, onSwipeRight = actions.onPrevious, initialShape = currentArtworkShape, artworkSize = currentArtworkSize,
-                            onShapeChange = onShapeChange, onDoubleTapLeft = { handleDoubleTapSeek(false) }, onDoubleTapRight = { handleDoubleTapSeek(true) }, songId = song?.id
+                            imageUrl = song?.thumbnailUrl,
+                            title = song?.title,
+                            dominantColors = dominantColors,
+                            isLoading = combinedLoading,
+                            isPlaying = playerState.isPlaying,
+                            isRotatingEnabled = isRotatingEnabled,
+                            onSwipeLeft = actions.onNext,
+                            onSwipeRight = actions.onPrevious,
+                            initialShape = currentArtworkShape,
+                            artworkSize = currentArtworkSize,
+                            onShapeChange = onShapeChange,
+                            onDoubleTapLeft = { handleDoubleTapSeek(false) },
+                            onDoubleTapRight = { handleDoubleTapSeek(true) },
+                            songId = song?.id
                         )
-                        
+
                         ErrorOverlay(playerState.error, dominantColors, actions, song)
                     }
                 }
             }
         }
-        Column(modifier = Modifier.weight(0.55f).fillMaxHeight().verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+
+        // Right Column: Controls and Metadata
+        Column(
+            modifier = Modifier
+                .weight(0.52f)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
             PlayerTopBar(
-                onBack = actions.onBack, dominantColors = dominantColors, isVideoMode = isVideoMode,
+                onBack = actions.onBack,
+                dominantColors = dominantColors,
+                isVideoMode = isVideoMode,
                 isYouTubeSong = song?.source == com.sonza.app.core.model.SongSource.YOUTUBE,
-                onVideoToggle = onToggleVideoMode, onMoreClick = onShowActions, onCastClick = onShowDevices,
-                audioArEnabled = audioArEnabled, onRecenter = onRecenterAr
+                onVideoToggle = onToggleVideoMode,
+                onMoreClick = onShowActions,
+                onCastClick = onShowDevices,
+                audioArEnabled = audioArEnabled,
+                onRecenter = onRecenterAr
             )
-            Spacer(modifier = Modifier.height(8.dp))
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             SongInfoSection(
-                song = song, isFavorite = playerState.isLiked, onFavoriteClick = actions.onToggleLike, isDisliked = playerState.isDisliked,
-                onDislikeClick = actions.onToggleDislike, onMoreClick = onShowActions, onArtistClick = actions.onArtistClick, onAlbumClick = actions.onAlbumClick,
-                dominantColors = dominantColors, isLoading = combinedLoading,
+                song = song,
+                isFavorite = playerState.isLiked,
+                onFavoriteClick = actions.onToggleLike,
+                isDisliked = playerState.isDisliked,
+                onDislikeClick = actions.onToggleDislike,
+                onMoreClick = onShowActions,
+                onArtistClick = actions.onArtistClick,
+                onAlbumClick = actions.onAlbumClick,
+                dominantColors = dominantColors,
+                isLoading = combinedLoading,
                 sleepTimerRemainingMs = sleepTimerRemainingMs,
                 sleepTimerOption = sleepTimerOption,
                 showMoreButton = false,
@@ -469,38 +553,51 @@ private fun YTMusicLandscapeContent(
                 showTitleArrow = false,
                 onTitleArrowClick = actions.onNext
             )
-            Spacer(modifier = Modifier.height(12.dp))
-            PlayerActionChips(
-                isFavorite = playerState.isLiked,
-                isDisliked = playerState.isDisliked,
-                onToggleLike = actions.onToggleLike,
-                onToggleDislike = actions.onToggleDislike,
-                onLyricsClick = onShowLyrics,
-                onRelatedClick = onShowRelated,
-                onDownloadClick = actions.onDownload,
-                downloadState = playerState.downloadState,
-                dominantColors = dominantColors,
-                onSleepTimerClick = onShowSleepTimer,
-                onSpeedClick = onShowPlaybackSpeed,
-                sleepTimerRemainingMs = sleepTimerRemainingMs,
-                playbackSpeed = playerState.playbackSpeed,
-                activeAudioSource = playbackInfo.activeAudioSource,
-                onSwitchAudioSource = actions.onSwitchAudioSource
-            )
+
             Spacer(modifier = Modifier.height(16.dp))
 
-            SeekbarSection(combinedLoading, dominantColors, progressProvider, playbackInfo.isPlaying, actions, durationProvider, currentSeekbarStyle, onSeekbarStyleChange, sponsorSegments)
-            
-            TimeLabelsWithQuality(currentPositionProvider = positionProvider, durationProvider = durationProvider, dominantColors = dominantColors)
-            Spacer(modifier = Modifier.height(12.dp))
-            
+            SeekbarSection(
+                combinedLoading = combinedLoading,
+                dominantColors = dominantColors,
+                progressProvider = progressProvider,
+                isPlaying = playbackInfo.isPlaying,
+                actions = actions,
+                durationProvider = durationProvider,
+                currentSeekbarStyle = currentSeekbarStyle,
+                onSeekbarStyleChange = onSeekbarStyleChange,
+                sponsorSegments = sponsorSegments
+            )
+
+            TimeLabelsWithQuality(
+                currentPositionProvider = positionProvider,
+                durationProvider = durationProvider,
+                dominantColors = dominantColors
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Box(modifier = Modifier.graphicsLayer { alpha = controlsAlpha }) {
-                PlaybackControls(isPlaying = playerState.isPlaying, shuffleEnabled = playerState.shuffleEnabled, repeatMode = playerState.repeatMode, onPlayPause = actions.onPlayPause, onNext = actions.onNext, onPrevious = actions.onPrevious, onShuffleToggle = actions.onShuffleToggle, onRepeatToggle = actions.onRepeatToggle, dominantColors = dominantColors)
+                MainPlaybackControls(
+                    isPlaying = playerState.isPlaying,
+                    isLoading = combinedLoading,
+                    onPlayPause = actions.onPlayPause,
+                    onNext = actions.onNext,
+                    onPrevious = actions.onPrevious,
+                    dominantColors = dominantColors
+                )
             }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            QueueHandle(
-                onClick = onShowQueue,
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            SecondaryPlayerControls(
+                isFavorite = playerState.isLiked,
+                onToggleLike = actions.onToggleLike,
+                shuffleEnabled = playerState.shuffleEnabled,
+                onShuffleToggle = actions.onShuffleToggle,
+                repeatMode = playerState.repeatMode,
+                onRepeatToggle = actions.onRepeatToggle,
+                onShowQueue = onShowQueue,
+                onShowLyrics = onShowLyrics,
                 dominantColors = dominantColors
             )
         }
@@ -529,12 +626,16 @@ private fun SeekbarSection(
         } else {
             val duration = durationProvider()
             WaveformSeeker(
-                progressProvider = progressProvider, isPlaying = isPlaying,
+                progressProvider = progressProvider,
+                isPlaying = isPlaying,
                 onSeek = { actions.onSeekTo((it * duration).toLong()) },
-                modifier = Modifier.fillMaxWidth(), activeColor = dominantColors.accent,
-                inactiveColor = dominantColors.onBackground.copy(alpha = 0.3f),
-                initialStyle = currentSeekbarStyle, onStyleChange = onSeekbarStyleChange,
-                duration = duration, sponsorSegments = sponsorSegments,
+                modifier = Modifier.fillMaxWidth(),
+                activeColor = dominantColors.accent,
+                inactiveColor = dominantColors.onBackground.copy(alpha = 0.25f),
+                initialStyle = currentSeekbarStyle,
+                onStyleChange = onSeekbarStyleChange,
+                duration = duration,
+                sponsorSegments = sponsorSegments,
                 contentPadding = contentPadding
             )
         }
@@ -558,7 +659,7 @@ private fun ErrorOverlay(
         Surface(
             modifier = Modifier.fillMaxWidth(0.85f).padding(16.dp),
             shape = RoundedCornerShape(24.dp),
-            color = Color.Black.copy(alpha = 0.75f),
+            color = Color.Black.copy(alpha = 0.85f),
             contentColor = Color.White,
             tonalElevation = 8.dp
         ) {
@@ -573,13 +674,13 @@ private fun ErrorOverlay(
                     modifier = Modifier.size(40.dp),
                     tint = MaterialTheme.colorScheme.error
                 )
-                
+
                 Text(
                     text = "Playback Error",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                
+
                 Text(
                     text = errorText,
                     style = MaterialTheme.typography.bodyMedium,
@@ -587,7 +688,7 @@ private fun ErrorOverlay(
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis
                 )
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -605,7 +706,7 @@ private fun ErrorOverlay(
                     ) {
                         Text("Copy", color = Color.White)
                     }
-                    
+
                     Button(
                         onClick = { if (song != null) actions.onPlayPause() },
                         modifier = Modifier.weight(1f),

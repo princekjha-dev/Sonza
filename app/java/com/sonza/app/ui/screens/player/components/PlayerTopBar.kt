@@ -3,8 +3,9 @@ package com.sonza.app.ui.screens.player.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -20,10 +21,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sonza.app.ui.components.DominantColors
+import com.sonza.app.ui.components.bounceClick
+import com.sonza.app.ui.theme.MotionTokens
+import com.sonza.app.ui.theme.SonzaTypography
+import com.sonza.app.ui.theme.SpacingTokens
 
 @Composable
 fun PlayerTopBar(
@@ -37,19 +43,10 @@ fun PlayerTopBar(
     audioArEnabled: Boolean = false,
     onRecenter: () -> Unit = {}
 ) {
-    // Row-based layout: a fixed-width back button, a flexible center zone that
-    // takes the remaining space, and a fixed-width right cluster. The center
-    // content (audio/video pill or "NOW PLAYING" title) is centered *within*
-    // the gap between the two clusters, so it can never overlap them no matter
-    // the screen density or font scale.
-    //
-    // A previous "truly center on screen" Box layout overlapped the title with
-    // the right-side buttons on high-density / large-font devices because the
-    // screen-centered title's right edge ran underneath the button cluster.
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 2.dp, end = 0.dp, top = 12.dp, bottom = 12.dp),
+            .padding(horizontal = 4.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Left side: Back Button
@@ -57,19 +54,19 @@ fun PlayerTopBar(
             modifier = Modifier
                 .size(44.dp)
                 .clip(CircleShape)
-                .background(dominantColors.onBackground.copy(alpha = 0.07f))
-                .clickable(onClick = onBack),
+                .background(dominantColors.onBackground.copy(alpha = 0.08f))
+                .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onBack),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.KeyboardArrowDown,
-                contentDescription = "Close",
+                contentDescription = "Back",
                 tint = dominantColors.onBackground,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(26.dp)
             )
         }
 
-        // Center: Switch or Title — fills the space between the side clusters
+        // Center: Switcher or Title
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -83,109 +80,109 @@ fun PlayerTopBar(
                         .wrapContentSize()
                         .clip(CircleShape)
                         .background(dominantColors.onBackground.copy(alpha = 0.08f))
-                        .padding(4.dp),
+                        .padding(3.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     // Audio Mode Button
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(34.dp)
                             .clip(CircleShape)
-                            .background(if (!isVideoMode) dominantColors.onBackground.copy(alpha = 0.14f) else Color.Transparent)
-                            .clickable { if (isVideoMode) onVideoToggle() },
+                            .background(if (!isVideoMode) dominantColors.onBackground.copy(alpha = 0.16f) else Color.Transparent)
+                            .bounceClick(scaleDown = MotionTokens.CardTapScale) { if (isVideoMode) onVideoToggle() },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Headphones,
                             contentDescription = "Audio Mode",
-                            tint = if (!isVideoMode) dominantColors.onBackground else dominantColors.onBackground.copy(alpha = 0.55f),
-                            modifier = Modifier.size(20.dp)
+                            tint = if (!isVideoMode) dominantColors.onBackground else dominantColors.onBackground.copy(alpha = 0.5f),
+                            modifier = Modifier.size(18.dp)
                         )
                     }
 
                     // Video Mode Button
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(34.dp)
                             .clip(CircleShape)
-                            .background(if (isVideoMode) dominantColors.onBackground.copy(alpha = 0.14f) else Color.Transparent)
-                            .clickable { if (!isVideoMode) onVideoToggle() },
+                            .background(if (isVideoMode) dominantColors.onBackground.copy(alpha = 0.16f) else Color.Transparent)
+                            .bounceClick(scaleDown = MotionTokens.CardTapScale) { if (!isVideoMode) onVideoToggle() },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.OndemandVideo,
                             contentDescription = "Video Mode",
-                            tint = if (isVideoMode) dominantColors.onBackground else dominantColors.onBackground.copy(alpha = 0.55f),
-                            modifier = Modifier.size(20.dp)
+                            tint = if (isVideoMode) dominantColors.onBackground else dominantColors.onBackground.copy(alpha = 0.5f),
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
             } else {
                 Text(
-                    text = "NOW PLAYING",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = dominantColors.onBackground.copy(alpha = 0.8f),
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.5.sp,
+                    text = "Now Playing",
+                    style = SonzaTypography.TitleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    ),
+                    color = dominantColors.onBackground.copy(alpha = 0.85f),
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
                 )
             }
         }
 
         // Right side: Cast, Audio AR and More Menu
         Row(
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Box(
                 modifier = Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(dominantColors.onBackground.copy(alpha = 0.07f))
-                    .clickable(onClick = onCastClick),
+                    .background(dominantColors.onBackground.copy(alpha = 0.08f))
+                    .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onCastClick),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Devices,
                     contentDescription = "Cast",
                     tint = dominantColors.onBackground,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
             if (audioArEnabled) {
-                Spacer(modifier = Modifier.width(6.dp))
                 Box(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(dominantColors.onBackground.copy(alpha = 0.07f))
-                        .clickable(onClick = onRecenter),
+                        .background(dominantColors.onBackground.copy(alpha = 0.08f))
+                        .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onRecenter),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = "Recenter Audio",
                         tint = dominantColors.onBackground,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.width(6.dp))
 
             Box(
                 modifier = Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(dominantColors.onBackground.copy(alpha = 0.07f))
-                    .clickable(onClick = onMoreClick),
+                    .background(dominantColors.onBackground.copy(alpha = 0.08f))
+                    .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onMoreClick),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More",
+                    contentDescription = "More options",
                     tint = dominantColors.onBackground,
                     modifier = Modifier.size(22.dp)
                 )
@@ -193,3 +190,4 @@ fun PlayerTopBar(
         }
     }
 }
+

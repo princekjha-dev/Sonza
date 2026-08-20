@@ -187,7 +187,7 @@ fun AlbumArtwork(
     
     // Animate corner radius based on shape - use coerceAtLeast to prevent negative values
     val targetCornerRadius = when (currentShape) {
-        ArtworkShape.ROUNDED_SQUARE -> 16.dp
+        ArtworkShape.ROUNDED_SQUARE -> 22.dp
         ArtworkShape.CIRCLE, ArtworkShape.VINYL -> 500.dp // Very large for circle
         ArtworkShape.SQUARE -> 0.dp
     }
