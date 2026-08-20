@@ -63,9 +63,11 @@ object MotionTokens {
     // ==========================================
     const val NavSelectionDuration: Int = 150
     const val CardTapDuration: Int = 100
+    const val CardTapScale: Float = 0.97f
     const val AccentCrossfadeDuration: Int = 400
     const val SkeletonShimmerDuration: Int = 1200
     const val BannerTransitionDuration: Int = 200
+    const val BannerEnterExitDuration: Int = 200
     const val SheetExpandDuration: Int = 300
 
     fun <T> accentCrossfadeSpec(): FiniteAnimationSpec<T> =

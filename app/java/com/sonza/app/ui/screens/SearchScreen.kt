@@ -968,14 +968,15 @@ private fun SearchResultItem(
                         style = SonzaTypography.LabelSmall,
                         color = SonzaOnSurfaceVariant
                     )
+                    val artistId = song.artistId
                     Text(
                         text = song.artist,
                         style = SonzaTypography.BodyMedium.copy(fontSize = 13.sp),
-                        color = if (song.artistId != null) dynamicColors.accent else SonzaOnSurfaceVariant,
+                        color = if (artistId != null) dynamicColors.accent else SonzaOnSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = if (song.artistId != null) {
-                            Modifier.clickable(onClick = { onArtistClick(song.artistId) })
+                        modifier = if (artistId != null) {
+                            Modifier.clickable(onClick = { onArtistClick(artistId) })
                         } else Modifier
                     )
                 }

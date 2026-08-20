@@ -52,6 +52,13 @@ object SonzaTypography {
         lineHeight = 22.sp,
         letterSpacing = 0.1.sp
     )
+    val TitleSmall = TextStyle(
+        fontFamily = Manrope,
+        fontWeight = FontWeight.Medium, // 500
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.1.sp
+    )
     val BodyLarge = TextStyle(
         fontFamily = Manrope,
         fontWeight = FontWeight.Normal, // 400
@@ -66,12 +73,26 @@ object SonzaTypography {
         lineHeight = 20.sp,
         letterSpacing = 0.2.sp
     )
+    val BodySmall = TextStyle(
+        fontFamily = Manrope,
+        fontWeight = FontWeight.Normal, // 400
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.4.sp
+    )
     val LabelLarge = TextStyle(
         fontFamily = Manrope,
         fontWeight = FontWeight.Medium, // 500
         fontSize = 14.sp,
         lineHeight = 20.sp,
         letterSpacing = 0.1.sp
+    )
+    val LabelMedium = TextStyle(
+        fontFamily = Manrope,
+        fontWeight = FontWeight.Medium, // 500
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+        letterSpacing = 0.2.sp
     )
     val LabelSmall = TextStyle(
         fontFamily = Manrope,
@@ -96,33 +117,15 @@ val Typography = Typography(
     // Titles — cards, dialogs, section headers
     titleLarge = SonzaTypography.TitleLarge,
     titleMedium = SonzaTypography.TitleMedium,
-    titleSmall = TextStyle(
-        fontFamily = Manrope,
-        fontWeight = FontWeight.Medium,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        letterSpacing = 0.1.sp
-    ),
+    titleSmall = SonzaTypography.TitleSmall,
 
     // Body — primary readable text, artist names
     bodyLarge = SonzaTypography.BodyLarge,
     bodyMedium = SonzaTypography.BodyMedium,
-    bodySmall = TextStyle(
-        fontFamily = Manrope,
-        fontWeight = FontWeight.Normal,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.4.sp
-    ),
+    bodySmall = SonzaTypography.BodySmall,
 
     // Labels — buttons, chip labels, timestamps, metadata, format badges
     labelLarge = SonzaTypography.LabelLarge,
-    labelMedium = TextStyle(
-        fontFamily = Manrope,
-        fontWeight = FontWeight.Medium,
-        fontSize = 13.sp,
-        lineHeight = 18.sp,
-        letterSpacing = 0.2.sp
-    ),
+    labelMedium = SonzaTypography.LabelMedium,
     labelSmall = SonzaTypography.LabelSmall
 )
