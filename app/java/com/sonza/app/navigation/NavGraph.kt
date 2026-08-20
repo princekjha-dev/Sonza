@@ -378,7 +378,6 @@ fun NavGraph(
                 onSupportClick = { navController.navigate(Destination.Support) },
                 onAboutClick = { navController.navigate(Destination.About) },
                 onMiscClick = { navController.navigate(Destination.Misc) },
-                onCreditsClick = { navController.navigate(Destination.Credits) },
                 onLastFmClick = { navController.navigate(Destination.LastFmLogin) },
                 onSponsorBlockClick = { navController.navigate(Destination.SponsorBlockSettings) },
                 onDiscordClick = { navController.navigate(Destination.DiscordSettings) },
@@ -495,12 +494,6 @@ fun NavGraph(
                 onBack = { navController.popBackStack() },
                 onLyricsProvidersClick = { navController.navigate(Destination.LyricsProviders) },
                 externalSnackbarHostState = snackbarHostState
-            )
-        }
-
-        composable<Destination.Credits> {
-            com.sonza.app.ui.screens.CreditsScreen(
-                onBackClick = { navController.popBackStack() }
             )
         }
 

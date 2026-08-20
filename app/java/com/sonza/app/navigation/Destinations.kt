@@ -60,8 +60,6 @@ sealed class Destination {
     @Serializable
     data object AISettings : Destination()
     @Serializable
-    data object Credits : Destination()
-    @Serializable
     data object Updater : Destination()
     @Serializable
     data object ListenTogether : Destination()

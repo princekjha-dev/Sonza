@@ -281,7 +281,6 @@ Defined in: `com.sonza.app.ui.components.StateComponents.kt`
 - **Dynamic Version Sourcing:** Version dynamically retrieved directly from `BuildConfig.VERSION_NAME` ("2.6.5.1"), eliminating static/stale version strings.
 - **Real Destinations & Data Integrity:**
   - *Support Sonza:* Navigates to the native Support & feedback destination (`Destination.Support`).
-  - *Credits:* Navigates to Developers, Contributors & open-source libraries (`Destination.Credits`).
   - *Privacy Policy:* Opens real URL (`https://princekjha-dev.github.io/Sonza-Website/sonza-privacy.html`).
   - *About Sonza:* Navigates to About destination (`Destination.About`).
   - *Update Channel:* Allows selection between configured channels (Stable, Beta, Nightly).

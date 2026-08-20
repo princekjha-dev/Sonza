@@ -154,7 +154,6 @@ fun SettingsScreen(
     onAboutClick: () -> Unit = {},
     onMiscClick: () -> Unit = {},
     onSponsorBlockClick: () -> Unit = {},
-    onCreditsClick: () -> Unit = {},
     onLastFmClick: () -> Unit = {},
     onDiscordClick: () -> Unit = {},
     onAISettingsClick: () -> Unit = {},
@@ -191,7 +190,6 @@ fun SettingsScreen(
             SettingsSearchEntry("Storage Manager", "Manage downloads & cache", "storage downloads cache clear space data", Icons.Default.Storage, onStorageClick),
             SettingsSearchEntry("Listening stats", "Your listening activity", "stats statistics listening history wrapped activity", Icons.Default.Info, onStatsClick),
             SettingsSearchEntry("Support Sonza", "Help support Sonza's development", "support donate sponsor project", Icons.Default.Favorite, onSupportClick),
-            SettingsSearchEntry("Credits", "Developers, contributors & open-source libraries", "credits developers libraries licenses", Icons.Default.Group, onCreditsClick),
             SettingsSearchEntry("About Sonza", "Version ${uiState.currentVersion}", "about version app info changelog", Icons.Default.Info, onAboutClick),
             SettingsSearchEntry("Privacy Policy", "How Sonza handles your data", "privacy policy terms security data", Icons.Default.Security) {
                 uriHandler.openUri("https://princekjha-dev.github.io/Sonza-Website/sonza-privacy.html")
@@ -534,16 +532,6 @@ fun SettingsScreen(
                                 description = "Help support Sonza's development",
                                 accentColor = accentColor,
                                 onClick = onSupportClick
-                            )
-
-                            HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg))
-
-                            SonzaSettingsRow(
-                                icon = Icons.Default.Group,
-                                title = "Credits",
-                                description = "Developers, contributors & open-source libraries",
-                                accentColor = accentColor,
-                                onClick = onCreditsClick
                             )
 
                             HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg))
