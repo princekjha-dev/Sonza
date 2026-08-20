@@ -1,16 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Pulse monochrome adaptive launcher icon mark.
+  Scaled and centered in the 108dp adaptive canvas safe zone (66dp).
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <group
-        android:scaleX="2.5"
-        android:scaleY="2.5"
-        android:translateX="24"
-        android:translateY="24">
+        android:scaleX="0.22"
+        android:scaleY="0.22"
+        android:translateX="10"
+        android:translateY="9">
         <path
-            android:fillColor="#FFFFFFFF"
-            android:pathData="M12,3v9.28c-0.47,-0.17 -0.97,-0.28 -1.5,-0.28C8.01,12 6,14.01 6,16.5S8.01,21 10.5,21c2.31,0 4.2,-1.75 4.45,-4H15V6h4V3h-7z"/>
+            android:pathData="M280,110 C280,80, 240,70, 200,70 C150,70, 110,100, 110,145 C110,185, 145,200, 195,210 C250,222, 290,235, 290,280 C290,320, 250,340, 200,340 C155,340, 115,325, 110,295"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="34"
+            android:strokeLineCap="round"/>
+        <path
+            android:pathData="M50,205 Q75,180 100,205 T150,205 Q175,230 200,205 T250,205 Q275,180 300,205 T350,205"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="3"
+            android:strokeLineCap="round"/>
     </group>
 </vector>

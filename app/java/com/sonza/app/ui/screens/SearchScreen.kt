@@ -95,6 +95,7 @@ import com.sonza.app.core.model.Playlist
 import com.sonza.app.core.model.RecentSearchItem
 import com.sonza.app.core.model.Song
 import com.sonza.app.ui.components.AddToPlaylistSheet
+import com.sonza.app.ui.components.BrowseCategoryCard
 import com.sonza.app.ui.components.CreatePlaylistDialog
 import com.sonza.app.ui.components.LocalSonzaDynamicColors
 import com.sonza.app.ui.components.SearchResultsSkeleton
@@ -209,20 +210,46 @@ fun SearchScreen(
 
             // Header title shown on Initial Landing Screen when not in active search
             if (!isSearchActive && uiState.query.isBlank()) {
-                Text(
-                    text = "Search",
-                    style = SonzaTypography.Headline,
-                    fontWeight = FontWeight.Bold,
-                    color = SonzaOnBackground,
-                    modifier = Modifier.padding(
-                        start = SpacingTokens.SpaceLg,
-                        top = SpacingTokens.SpaceMd,
-                        bottom = SpacingTokens.SpaceXs
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start = SpacingTokens.SpaceLg,
+                            end = SpacingTokens.SpaceLg,
+                            top = SpacingTokens.SpaceMd,
+                            bottom = SpacingTokens.SpaceXs
+                        ),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Search",
+                        style = SonzaTypography.Display.copy(
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = SonzaOnBackground
                     )
-                )
+
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(SonzaSurfaceVariant)
+                            .border(width = 1.dp, color = SonzaOutline.copy(alpha = 0.4f), shape = CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Search,
+                            contentDescription = "Search",
+                            tint = SonzaOnSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             }
 
-            // Search Bar Component (Q2: Compact in results mode, expandable on tap)
+            // Search Bar Component (Compact in results mode, expandable on tap)
             SearchBar(
                 inputField = {
                     SearchBarDefaults.InputField(
@@ -237,7 +264,7 @@ fun SearchScreen(
                         onExpandedChange = { isSearchActive = it },
                         placeholder = {
                             Text(
-                                text = "Search for songs, artists, or albums",
+                                text = "Artists, Songs, Lyrics, and more...",
                                 style = SonzaTypography.BodyLarge,
                                 color = SonzaOnSurfaceVariant,
                                 maxLines = 1,
@@ -323,7 +350,7 @@ fun SearchScreen(
                 colors = SearchBarDefaults.colors(
                     containerColor = SonzaSurfaceVariant
                 ),
-                shape = SquircleShape
+                shape = RoundedCornerShape(RadiusTokens.Pill)
             ) {
                 // Active Search Dropdown / Overlay Content
                 LazyColumn(
@@ -440,22 +467,18 @@ fun SearchScreen(
 
                 // Initial Discovery Screen (Query is empty & not in active search)
                 if (uiState.query.isBlank()) {
-                    // "Browse all" Category Tiles
                     if (uiState.browseCategories.isNotEmpty()) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceMd)
+                                    .padding(
+                                        start = SpacingTokens.SpaceLg,
+                                        end = SpacingTokens.SpaceLg,
+                                        top = SpacingTokens.SpaceSm,
+                                        bottom = SpacingTokens.SpaceMd
+                                    )
                             ) {
-                                Text(
-                                    text = "Browse all",
-                                    style = SonzaTypography.TitleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = SonzaOnBackground,
-                                    modifier = Modifier.padding(bottom = SpacingTokens.SpaceMd)
-                                )
-
                                 uiState.browseCategories.chunked(2).forEach { rowItems ->
                                     Row(
                                         modifier = Modifier
@@ -470,7 +493,9 @@ fun SearchScreen(
                                                 modifier = Modifier.weight(1f)
                                             )
                                         }
-                                        if (rowItems.size == 1) Spacer(modifier = Modifier.weight(1f))
+                                        if (rowItems.size == 1) {
+                                            Spacer(modifier = Modifier.weight(1f))
+                                        }
                                     }
                                 }
                             }
@@ -1349,52 +1374,7 @@ private fun ActiveSearchHistoryRow(
     }
 }
 
-/**
- * Category exploration card with dynamic gradient and tap bounce.
- */
-@Composable
-private fun BrowseCategoryCard(
-    category: com.sonza.app.core.model.BrowseCategory,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val baseColor = category.color?.let { Color(it) } ?: run {
-        val hue = (((category.title.hashCode() % 360) + 360) % 360).toFloat()
-        Color.hsv(hue, 0.5f, 0.62f)
-    }
-    Box(
-        modifier = modifier
-            .height(96.dp)
-            .clip(RoundedCornerShape(RadiusTokens.Md))
-            .background(baseColor)
-            .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onClick)
-    ) {
-        Text(
-            text = category.title,
-            style = SonzaTypography.TitleSmall.copy(fontWeight = FontWeight.Bold),
-            color = Color.White,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .padding(SpacingTokens.SpaceMd)
-                .align(Alignment.TopStart)
-        )
-        if (!category.thumbnailUrl.isNullOrBlank()) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(category.thumbnailUrl)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(topStart = RadiusTokens.Sm))
-            )
-        }
-    }
-}
+
 
 @Composable
 private fun SuggestionItem(suggestion: String, accentColor: Color, onClick: () -> Unit) {

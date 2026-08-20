@@ -1,121 +1,164 @@
 package com.sonza.app.ui.components
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import com.sonza.app.core.model.BrowseCategory
+import com.sonza.app.ui.theme.MotionTokens
+import com.sonza.app.ui.theme.RadiusTokens
+import com.sonza.app.ui.theme.SonzaColors
+import com.sonza.app.ui.theme.SonzaSurfaceVariant
+import com.sonza.app.ui.theme.SonzaTypography
+import com.sonza.app.ui.theme.SpacingTokens
+import com.sonza.app.ui.utils.DiscoveryArtRegistry
 
 /**
- * Category color palette - vibrant gradients inspired by Apple Music
- */
-private val categoryGradients = listOf(
-    listOf(Color(0xFFE91E63), Color(0xFF9C27B0)), // Pink to Purple
-    listOf(Color(0xFF00BCD4), Color(0xFF3F51B5)), // Cyan to Indigo
-    listOf(Color(0xFFFF5722), Color(0xFFE91E63)), // Orange to Pink
-    listOf(Color(0xFF4CAF50), Color(0xFF00BCD4)), // Green to Cyan
-    listOf(Color(0xFF9C27B0), Color(0xFF673AB7)), // Purple to Deep Purple
-    listOf(Color(0xFFFF9800), Color(0xFFFF5722)), // Orange shades
-    listOf(Color(0xFF2196F3), Color(0xFF00BCD4)), // Blue to Cyan
-    listOf(Color(0xFFE91E63), Color(0xFFFF5722)), // Pink to Orange
-    listOf(Color(0xFF673AB7), Color(0xFF2196F3)), // Deep Purple to Blue
-    listOf(Color(0xFF795548), Color(0xFF9C27B0)), // Brown to Purple
-    listOf(Color(0xFF009688), Color(0xFF4CAF50)), // Teal to Green
-    listOf(Color(0xFFF44336), Color(0xFFE91E63)), // Red to Pink
-)
-
-/**
- * Beautiful browse category card with gradient background.
- * Used in the Apple Music-style search screen grid.
+ * Image-driven music discovery card inspired by modern editorial music apps.
+ * Features full-bleed artwork, vibrant duotone color wash, protective scrim gradient,
+ * bold typography directly over the image, and 0.97 tap bounce feedback.
  */
 @Composable
 fun BrowseCategoryCard(
     category: BrowseCategory,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    index: Int = 0
+    isHero: Boolean = false
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        label = "scale"
-    )
-    
-    // Select gradient based on index or derive from category color
-    val categoryColor = category.color
-    val gradient = if (categoryColor != null) {
-        val baseColor = Color(categoryColor or 0xFF000000) // Ensure alpha
-        val darkerColor = baseColor.copy(
-            red = (baseColor.red * 0.7f).coerceIn(0f, 1f),
-            green = (baseColor.green * 0.7f).coerceIn(0f, 1f),
-            blue = (baseColor.blue * 0.7f).coerceIn(0f, 1f)
-        )
-        listOf(baseColor, darkerColor)
-    } else {
-        categoryGradients[index % categoryGradients.size]
-    }
-    
+    val meta = DiscoveryArtRegistry.getDiscoveryMeta(category.title)
+    val imageUrl = category.thumbnailUrl?.takeIf { it.isNotBlank() } ?: meta.imageUrl
+    val tintLong = category.color ?: meta.tintColor
+    val tintColor = Color(tintLong or 0xFF000000)
+
+    val cardShape = RoundedCornerShape(RadiusTokens.Lg)
+    val aspectRatio = if (isHero) 2.1f else 1.55f
+
     Box(
         modifier = modifier
-            .aspectRatio(1.6f)
-            .scale(scale)
-            .clip(RoundedCornerShape(12.dp))
-            .background(
-                Brush.linearGradient(gradient)
-            )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            ),
-        contentAlignment = Alignment.BottomStart
+            .aspectRatio(aspectRatio)
+            .clip(cardShape)
+            .background(SonzaSurfaceVariant)
+            .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onClick)
+            .semantics {
+                role = Role.Button
+                contentDescription = "${category.title} music discovery category"
+            }
     ) {
-        // Subtle dark overlay at bottom for text readability
+        // Base Dynamic Background Gradient (shown immediately while image loads or if offline)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            tintColor.copy(alpha = 0.85f),
+                            tintColor.copy(alpha = 0.65f),
+                            SonzaColors.Surface
+                        )
+                    )
+                )
+        )
+
+        // Full-bleed Artwork Image
+        if (imageUrl.isNotBlank()) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(imageUrl)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.MusicNote,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.15f),
+                modifier = Modifier
+                    .size(64.dp)
+                    .align(Alignment.Center)
+            )
+        }
+
+        // Duotone Vibrant Color Tint Overlay
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            tintColor.copy(alpha = 0.55f),
+                            tintColor.copy(alpha = 0.75f)
+                        )
+                    )
+                )
+        )
+
+        // Dark Protective Gradient Scrim for WCAG AA Typography Legibility
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
+                            Color.Black.copy(alpha = 0.25f),
                             Color.Transparent,
-                            Color.Black.copy(alpha = 0.3f)
-                        ),
-                        startY = 0f,
-                        endY = Float.POSITIVE_INFINITY
+                            Color.Black.copy(alpha = 0.65f)
+                        )
                     )
                 )
         )
-        
+
+        // Category / Genre Title
         Text(
             text = category.title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
+            style = SonzaTypography.TitleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = if (isHero) 17.sp else 15.sp,
+                shadow = Shadow(
+                    color = Color.Black.copy(alpha = 0.55f),
+                    blurRadius = 8f
+                )
+            ),
             color = Color.White,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(12.dp)
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(
+                    start = SpacingTokens.SpaceMd,
+                    end = SpacingTokens.SpaceMd,
+                    bottom = SpacingTokens.SpaceMd,
+                    top = SpacingTokens.SpaceSm
+                )
         )
     }
 }

@@ -289,6 +289,15 @@ Defined in: `com.sonza.app.ui.components.StateComponents.kt`
 
 ---
 
+### 6.9 Image-Driven Music Discovery Cards (Search Redesign)
+- **Full-Bleed Visual Background:** Replaces flat solid-color blocks with high-resolution music and artist photography rendered edge-to-edge inside 16dp rounded cards (`RadiusTokens.Lg`).
+- **Duotone Color Tint & Scrim:** Curated vibrant theme tints (rose pink, golden amber, royal purple, crimson ruby, electric blue, cyan, etc.) blended directly over the photography with vertical protective dark scrim gradients ensuring 100% WCAG AA text contrast.
+- **Direct Typography Overlay:** High-contrast bold Manrope titles (`SonzaTypography.TitleMedium`, 15–17sp Bold `#FFFFFF`) placed directly over the artwork with subtle text shadow.
+- **Two-Column Discovery Grid:** Balanced 2-column layout with 12dp spacing (`SpacingTokens.SpaceMd`), smooth 0.97 tap bounce feedback, and dynamic bottom insets scrolling cleanly above the floating Mini Player and Bottom Navigation.
+- Defined in: `DiscoveryArtRegistry.kt`, `BrowseCategoryCard.kt`, `CategoryCard.kt`, `SearchScreen.kt`, `SearchViewModel.kt`
+
+---
+
 ## Change Log
 
 | Date | Change | Component(s) affected |
@@ -305,5 +314,7 @@ Defined in: `com.sonza.app.ui.components.StateComponents.kt`
 | 2026-08-21 | Part M Completed: Search Experience Redesign (3-phase music search flow, source-agnostic search bar, recent search history persistence & deletion, TalkBack accessibility semantics, two-step back handler, animated transitions, YouTube Music default results) | `SearchScreen.kt`, `SearchViewModel.kt`, `SessionManager.kt`, `DESIGN_SYSTEM.md` |
 | 2026-08-21 | Part Q Completed: Search Results Screen Redesign & Rebuild (Compact 56dp music result rows, horizontal category pill navigation, structured All tab carousels, dynamic bottom insets for floating mini player, zero technical source strings) | `SearchScreen.kt`, `StandardMiniPlayer.kt`, `YTMusicMiniPlayer.kt`, `ExpandablePlayerSheet.kt`, `DESIGN_SYSTEM.md` |
 | 2026-08-21 | Part P Completed: Settings Screen Redesign & Data Cleanup (Reorganized sections into clear hierarchy, unified `SonzaSettingsRow` component with 0.97 bounce feedback, dynamic `BuildConfig.VERSION_NAME` 2.6.5.1, live OTA update check without technical leakage, real Support/Credits/Privacy Policy/About destinations, dynamic bottom insets) | `SettingsScreen.kt`, `SettingsViewModel.kt`, `NavGraph.kt`, `DESIGN_SYSTEM.md` |
+| 2026-08-21 | Part R Completed: Search Screen Visual Redesign (Image-driven music discovery cards with full-bleed artist photography, vibrant duotone tints, protective gradient scrims, bold typography overlays, prominent Search header, 2-column responsive layout, and DiscoveryArtRegistry) | `DiscoveryArtRegistry.kt`, `BrowseCategoryCard.kt`, `CategoryCard.kt`, `SearchScreen.kt`, `SearchViewModel.kt`, `DESIGN_SYSTEM.md` |
+
 
 

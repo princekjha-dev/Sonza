@@ -52,7 +52,7 @@ internal fun AboutDeveloperSection(onOpenUri: (String) -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             AsyncImage(
-                model = "https://avatars.githubusercontent.com/u/107928380?v=4",
+                model = "https://avatars.githubusercontent.com/u/201319388?v=4",
                 contentDescription = "Prince Kumar Jha",
                 modifier = Modifier
                     .size(100.dp)

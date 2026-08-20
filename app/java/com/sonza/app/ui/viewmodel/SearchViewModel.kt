@@ -59,13 +59,13 @@ data class SearchUiState(
     val albumResults: List<Album> = emptyList(),
     val playlistResults: List<Playlist> = emptyList(),
     val suggestions: List<String> = emptyList(),
-    val browseCategories: List<BrowseCategory> = emptyList(),
+    val browseCategories: List<BrowseCategory> = com.sonza.app.ui.utils.DiscoveryArtRegistry.getDefaultDiscoveryCategories(),
     val selectedCategory: BrowseCategory? = null,
     val recentSearches: List<RecentSearchItem> = emptyList(),
     val selectedTab: SearchTab = SearchTab.YOUTUBE_MUSIC,
     val showSuggestions: Boolean = false,
     val isLoading: Boolean = false,
-    val isCategoriesLoading: Boolean = true,
+    val isCategoriesLoading: Boolean = false,
     val isSuggestionsLoading: Boolean = false,
     val isSearchActive: Boolean = false,
     val error: String? = null,
@@ -156,18 +156,27 @@ class SearchViewModel @Inject constructor(
     
     private fun loadBrowseCategories() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isCategoriesLoading = true) }
             try {
                 // Always load YouTube moods/genres — browsing ignores source.
-                val categories = youTubeRepository.getMoodsAndGenres()
+                val rawCategories = youTubeRepository.getMoodsAndGenres()
+                val enriched = if (rawCategories.isNotEmpty()) {
+                    rawCategories.map { com.sonza.app.ui.utils.DiscoveryArtRegistry.enrichCategory(it) }
+                } else {
+                    com.sonza.app.ui.utils.DiscoveryArtRegistry.getDefaultDiscoveryCategories()
+                }
                 _uiState.update {
                     it.copy(
-                        browseCategories = categories,
+                        browseCategories = enriched,
                         isCategoriesLoading = false
                     )
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isCategoriesLoading = false) }
+                _uiState.update {
+                    it.copy(
+                        browseCategories = com.sonza.app.ui.utils.DiscoveryArtRegistry.getDefaultDiscoveryCategories(),
+                        isCategoriesLoading = false
+                    )
+                }
             }
         }
     }
