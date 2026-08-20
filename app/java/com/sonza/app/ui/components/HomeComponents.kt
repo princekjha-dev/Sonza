@@ -1,6 +1,8 @@
 package com.sonza.app.ui.components
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -30,10 +32,7 @@ import com.sonza.app.core.model.Album
 import com.sonza.app.core.model.HomeItem
 import com.sonza.app.core.model.PlaylistDisplayItem
 import com.sonza.app.core.model.Song
-import com.sonza.app.ui.utils.SharedTransitionKeys
-import com.sonza.app.ui.theme.SquircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.MoreVert
+import com.sonza.app.ui.theme.*
 
 @Composable
 fun HomeItemCard(
@@ -49,7 +48,6 @@ fun HomeItemCard(
             SquareSongCard(
                 song = item.song,
                 onClick = { 
-                    // Extract all songs from the section for the queue
                     val songs = sectionItems.filterIsInstance<HomeItem.SongItem>().map { it.song }
                     val index = songs.indexOf(item.song)
                     if (index != -1) onSongClick(songs, index)
@@ -65,8 +63,6 @@ fun HomeItemCard(
             )
         }
         is HomeItem.AlbumItem -> {
-            // Albums get a thin "CD spine" sliver on the leading edge so they
-            // read as physical media (album, not playlist) at a glance.
             Row(verticalAlignment = Alignment.Top) {
                 Box(
                     modifier = Modifier
@@ -99,10 +95,10 @@ fun HomeItemCard(
             }
         }
         is HomeItem.ArtistItem -> {
-            // Placeholder for Artist
+            // Handled elsewhere
         }
         is HomeItem.ExploreItem -> {
-            // Explore items are handled by ExploreGridSection specifically
+            // Handled by ExploreGridSection
         }
     }
 }
@@ -113,29 +109,24 @@ fun PlaylistDisplayCard(
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
-
-    // Get high-res thumbnail (replace w120 or similar with w544)
     val highResThumbnail = ImageUtils.getHighResThumbnailUrl(playlist.thumbnailUrl) ?: playlist.thumbnailUrl
 
-    // YouTube-Music-style card: square artwork with the title/subtitle stacked
-    // *below* the image rather than overlaid on it. The Expressive squircle clip
-    // is the Sonza signature kept on top of the YTM layout.
     Column(
         modifier = Modifier
             .width(170.dp)
-            .bounceClick(onClick = onClick)
+            .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onClick)
     ) {
         Surface(
             modifier = Modifier.size(170.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            shape = SquircleShape,
+            color = SonzaSurfaceVariant,
+            shape = RoundedCornerShape(RadiusTokens.Lg),
             tonalElevation = 2.dp
         ) {
             AsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(highResThumbnail)
                     .crossfade(true)
-                    .size(544)  // Request high-res
+                    .size(544)
                     .build(),
                 contentDescription = playlist.name,
                 modifier = Modifier.fillMaxSize(),
@@ -143,79 +134,93 @@ fun PlaylistDisplayCard(
             )
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(SpacingTokens.SpaceSm))
 
         Text(
             text = playlist.name,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
+            style = SonzaTypography.TitleSmall.copy(fontWeight = FontWeight.Bold),
             maxLines = 2,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = SonzaOnBackground,
             overflow = TextOverflow.Ellipsis
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = playlist.uploaderName,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = SonzaTypography.BodyMedium.copy(fontSize = 13.sp),
+            color = SonzaOnSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
     }
 }
 
+/**
+ * Section Header per DESIGN_SYSTEM.md Part 6.1:
+ * - TitleLarge (20sp SemiBold 600)
+ * - Spacing: SpaceLg (16dp) horizontal, SpaceXl (24dp) top, SpaceMd (12dp) bottom
+ * - Branded dynamic accent "See all" pill
+ */
 @Composable
 fun HomeSectionHeader(
     title: String,
     onSeeAllClick: (() -> Unit)? = null,
-    trailingContent: (@Composable () -> Unit)? = null
+    trailingContent: (@Composable () -> Unit)? = null,
+    modifier: Modifier = Modifier
 ) {
+    val dynamicColors = LocalSonzaDynamicColors.current
+
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+            .padding(
+                start = SpacingTokens.SpaceLg,
+                end = SpacingTokens.SpaceLg,
+                top = SpacingTokens.SpaceXl,
+                bottom = SpacingTokens.SpaceMd
+            ),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            letterSpacing = (-0.5).sp,
+            style = SonzaTypography.TitleLarge.copy(
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 20.sp
+            ),
+            color = SonzaOnBackground,
+            letterSpacing = (-0.3).sp,
             modifier = Modifier.weight(1f, fill = false)
         )
         if (trailingContent != null) {
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
             trailingContent()
         } else if (onSeeAllClick != null) {
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
             Surface(
-                shape = androidx.compose.foundation.shape.CircleShape,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                shape = RoundedCornerShape(RadiusTokens.Pill),
+                color = dynamicColors.accent.copy(alpha = 0.12f),
+                modifier = Modifier.bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onSeeAllClick)
             ) {
                 Text(
-                    text = "SEE ALL",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .clip(androidx.compose.foundation.shape.CircleShape)
-                        .clickable(onClick = onSeeAllClick)
-                        .padding(horizontal = 14.dp, vertical = 6.dp),
-                    letterSpacing = 1.sp
+                    text = "See all",
+                    style = SonzaTypography.LabelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    ),
+                    color = dynamicColors.accent,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                 )
             }
         }
     }
 }
 
-
 /**
  * Featured / Hero Card per DESIGN_SYSTEM.md Part 6.1:
  * - 2x width span, top of Home only, radius-lg (16dp).
  * - Displays subtle accent-muted wash derived from its own artwork.
  * - Bold title in TitleLarge and subtitle in BodyMedium over scrim gradient.
+ * - Part 8 tap feedback: scale 0.97, 100ms.
  */
 @Composable
 fun FeaturedHeroCard(
@@ -228,7 +233,7 @@ fun FeaturedHeroCard(
 ) {
     val context = LocalContext.current
     val dynamicColors = rememberDynamicAccentColors(thumbnailUrl)
-    val cardShape = RoundedCornerShape(com.sonza.app.ui.theme.RadiusTokens.Lg)
+    val cardShape = RoundedCornerShape(RadiusTokens.Lg)
     val highResThumbnail = remember(thumbnailUrl) {
         ImageUtils.getHighResThumbnailUrl(thumbnailUrl, size = 800) ?: thumbnailUrl
     }
@@ -238,7 +243,7 @@ fun FeaturedHeroCard(
             .fillMaxWidth()
             .height(200.dp)
             .clip(cardShape)
-            .bounceClick(onClick = onClick)
+            .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onClick)
     ) {
         // High-res artwork background
         if (!highResThumbnail.isNullOrBlank()) {
@@ -255,7 +260,7 @@ fun FeaturedHeroCard(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(com.sonza.app.ui.theme.SonzaSurfaceVariant)
+                    .background(SonzaSurfaceVariant)
             )
         }
 
@@ -278,16 +283,16 @@ fun FeaturedHeroCard(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
-                .padding(com.sonza.app.ui.theme.SpacingTokens.SpaceLg)
+                .padding(SpacingTokens.SpaceLg)
         ) {
             // Tag badge
             Surface(
                 color = dynamicColors.accent,
-                shape = RoundedCornerShape(com.sonza.app.ui.theme.RadiusTokens.Sm)
+                shape = RoundedCornerShape(RadiusTokens.Sm)
             ) {
                 Text(
                     text = tag.uppercase(),
-                    style = com.sonza.app.ui.theme.SonzaTypography.LabelSmall.copy(
+                    style = SonzaTypography.LabelSmall.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 10.sp,
                         letterSpacing = 1.sp
@@ -297,11 +302,11 @@ fun FeaturedHeroCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(com.sonza.app.ui.theme.SpacingTokens.SpaceXs))
+            Spacer(modifier = Modifier.height(SpacingTokens.SpaceXs))
 
             Text(
                 text = title,
-                style = com.sonza.app.ui.theme.SonzaTypography.TitleLarge.copy(
+                style = SonzaTypography.TitleLarge.copy(
                     fontWeight = FontWeight.Bold,
                     fontSize = 22.sp
                 ),
@@ -312,8 +317,8 @@ fun FeaturedHeroCard(
 
             Text(
                 text = subtitle,
-                style = com.sonza.app.ui.theme.SonzaTypography.BodyMedium,
-                color = com.sonza.app.ui.theme.SonzaOnSurfaceVariant,
+                style = SonzaTypography.BodyMedium,
+                color = SonzaOnSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -321,17 +326,21 @@ fun FeaturedHeroCard(
     }
 }
 
+/**
+ * Tap Feedback modifier per DESIGN_SYSTEM.md Part 8:
+ * - Scale down to 0.97 on press with 100ms duration.
+ */
 fun Modifier.bounceClick(
-    scaleDown: Float = 0.95f,
+    scaleDown: Float = MotionTokens.CardTapScale,
     onClick: () -> Unit
 ): Modifier = composed {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) scaleDown else 1f,
-        animationSpec = androidx.compose.animation.core.spring(
-            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
-            stiffness = androidx.compose.animation.core.Spring.StiffnessLow
+        animationSpec = tween(
+            durationMillis = MotionTokens.CardTapDuration,
+            easing = FastOutSlowInEasing
         ),
         label = "bounce"
     )
@@ -344,3 +353,4 @@ fun Modifier.bounceClick(
             onClick = onClick
         )
 }
+

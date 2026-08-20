@@ -18,10 +18,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Celebration
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Psychology
+import androidx.compose.material.icons.rounded.Spa
+import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material.icons.rounded.Whatshot
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,23 +57,25 @@ import com.sonza.app.ui.theme.SonzaTypography
 import com.sonza.app.ui.theme.SpacingTokens
 
 /**
- * Mood / Genre Pills per DESIGN_SYSTEM.md Part 6.2:
+ * Mood / Genre Pills per DESIGN_SYSTEM.md Part 6.2 & Part 7:
  * - Horizontal scroll, radius-pill (999dp), space-sm internal vertical padding.
- * - Selected: filled dynamic accent background, on-accent text (WCAG AA contrast).
- * - Unselected: surface-variant background, on-surface-variant text, outline border.
+ * - Material Symbols Rounded icons at 20dp (zero emojis).
+ * - Selected: filled dynamic accent background, on-accent text & icon.
+ * - Unselected: surface-variant background, on-surface-variant text & icon, outline border.
+ * - Part 8 tap feedback: scale 0.97, 100ms.
  */
-private data class Mood(val name: String, val emoji: String)
+private data class Mood(val name: String, val icon: ImageVector)
 
 private val MOODS = listOf(
-    Mood("All",       "🔥"),
-    Mood("Relax",     "🍃"),
-    Mood("Feel Good", "✨"),
-    Mood("Energize",  "⚡"),
-    Mood("Focus",     "🎯"),
-    Mood("Romance",   "🌹"),
-    Mood("Sleep",     "🌙"),
-    Mood("Sad",       "💧"),
-    Mood("Party",     "🎉")
+    Mood("All",       Icons.Rounded.Whatshot),
+    Mood("Relax",     Icons.Rounded.Spa),
+    Mood("Feel Good", Icons.Rounded.AutoAwesome),
+    Mood("Energize",  Icons.Rounded.Bolt),
+    Mood("Focus",     Icons.Rounded.Psychology),
+    Mood("Romance",   Icons.Rounded.Favorite),
+    Mood("Sleep",     Icons.Rounded.Bedtime),
+    Mood("Sad",       Icons.Rounded.WaterDrop),
+    Mood("Party",     Icons.Rounded.Celebration)
 )
 
 @Composable
@@ -95,8 +110,11 @@ private fun MoodChip(
     val isPressed by interactionSource.collectIsPressedAsState()
     
     val pressScale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        targetValue = if (isPressed) MotionTokens.CardTapScale else 1f,
+        animationSpec = tween(
+            durationMillis = MotionTokens.CardTapDuration,
+            easing = FastOutSlowInEasing
+        ),
         label = "moodChipPress"
     )
 
@@ -108,10 +126,10 @@ private fun MoodChip(
         label = "chipBg"
     )
     
-    val textColor by animateColorAsState(
+    val contentColor by animateColorAsState(
         targetValue = if (isSelected) dynamicColors.onAccent else SonzaOnSurfaceVariant,
         animationSpec = tween(MotionTokens.NavSelectionDuration, easing = FastOutSlowInEasing),
-        label = "chipText"
+        label = "chipContentColor"
     )
 
     Box(
@@ -136,19 +154,22 @@ private fun MoodChip(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = mood.emoji,
-                fontSize = 13.sp
+            Icon(
+                imageVector = mood.icon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(20.dp)
             )
-            Spacer(modifier = Modifier.width(SpacingTokens.SpaceXs))
+            Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
             Text(
                 text = mood.name,
                 style = SonzaTypography.LabelLarge.copy(
                     fontSize = 13.sp,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                 ),
-                color = textColor
+                color = contentColor
             )
         }
     }
 }
+

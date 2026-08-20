@@ -774,7 +774,7 @@ class RemoteAudioRepository @Inject constructor(
                 val trendingList = json.getAsJsonArray("new_trending")
                 val items = parseHomeItems(trendingList)
                 if (items.isNotEmpty()) {
-                    sections.add(com.sonza.app.core.model.HomeSection("Trending Now 🔥", items))
+                    sections.add(com.sonza.app.core.model.HomeSection("Trending Now", items))
                 }
             }
             
@@ -956,7 +956,7 @@ class RemoteAudioRepository @Inject constructor(
                         com.sonza.app.core.model.HomeItem.SongItem(song)
                     }
                     if (songItems.isNotEmpty()) {
-                        sections.add(com.sonza.app.core.model.HomeSection("Trending Now 🔥", songItems))
+                        sections.add(com.sonza.app.core.model.HomeSection("Trending Now", songItems))
                     }
                 }
             } catch (e: Exception) { android.util.Log.e("RemoteAudio", "Trending songs fetch error", e) }

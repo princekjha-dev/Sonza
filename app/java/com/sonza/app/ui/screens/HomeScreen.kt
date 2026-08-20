@@ -243,10 +243,13 @@ fun HomeScreen(
                         .fillMaxSize()
                         .statusBarsPadding(),
                     indicator = {
+                        val dynamicColors = com.sonza.app.ui.components.LocalSonzaDynamicColors.current
                         PullToRefreshDefaults.LoadingIndicator(
                             state = state,
                             isRefreshing = uiState.isRefreshing,
-                            modifier = Modifier.align(Alignment.TopCenter)
+                            modifier = Modifier.align(Alignment.TopCenter),
+                            color = dynamicColors.accent,
+                            containerColor = com.sonza.app.ui.theme.SonzaSurfaceVariant
                         )
                     }
                 ) {
@@ -1016,7 +1019,7 @@ private fun ShuffleTile(
             .aspectRatio(1f)
             .clip(shape)
             .background(com.sonza.app.ui.theme.SonzaSurfaceVariant)
-            .bounceClick(shape = shape, onClick = onClick),
+            .bounceClick(scaleDown = com.sonza.app.ui.theme.MotionTokens.CardTapScale, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Icon(
@@ -1065,7 +1068,7 @@ private fun SpeedDialTile(
         modifier = modifier
             .aspectRatio(1f)
             .clip(shape)
-            .bounceClick(shape = shape, onClick = onClick)
+            .bounceClick(scaleDown = com.sonza.app.ui.theme.MotionTokens.CardTapScale, onClick = onClick)
     ) {
         AsyncImage(
             model = ImageRequest.Builder(context)
@@ -1260,7 +1263,7 @@ private fun EndOfFeedCard(
 
             Surface(
                 modifier = Modifier.bounceClick(
-                    shape = PillShape,
+                    scaleDown = com.sonza.app.ui.theme.MotionTokens.CardTapScale,
                     onClick = onStartRadio
                 ),
                 shape = PillShape,
@@ -1300,61 +1303,15 @@ private fun ErrorState(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
+    Box(
         modifier = modifier.padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        contentAlignment = Alignment.Center
     ) {
-        Surface(
-            modifier = Modifier.size(80.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(36.dp)
-                )
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        Text(
-            text = "Couldn't load content",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+        com.sonza.app.ui.components.SonzaErrorState(
+            title = "Couldn't load content",
+            message = message,
+            onRetry = onRetry
         )
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        Button(
-            onClick = onRetry,
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
-        ) {
-            Icon(
-                imageVector = Icons.Default.Refresh,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Retry", fontWeight = FontWeight.Bold)
-        }
     }
 }
 

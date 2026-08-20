@@ -203,14 +203,15 @@ Wraps existing ViewModel data in a UI-state sealed class (`Loading` / `Success` 
 
 | State | Component | Behavior |
 |---|---|---|
-| **Loading** | Skeleton loader | Shimmer placeholder shaped like destination content — not a spinner |
+| **Loading** | Skeleton loader (`SearchResultsSkeleton`) | Shimmer placeholder shaped like destination content — not a spinner |
 | **Buffering (play tap)** | Inline mini-player progress | Thin progress line + brief spinner on tap, see 6.4 |
-| **Stale/Offline** | Banner | Non-blocking top banner: `"Showing saved results"` / `"You're offline"` — `warning` token, dismissible |
-| **Error** | Full-state or inline error | Icon + message + **Retry** button — never blank |
+| **Stale/Offline** | Banner (`SonzaBanner`) | Non-blocking top banner: `"Showing saved results"` / `"You're offline"` — `warning` token, dismissible |
+| **Error** | Full-state error (`SonzaErrorState`) | Icon + message + **Retry** button with `accent` styling — never blank |
+| **Empty** | Full-state empty (`SonzaEmptyState`) | Icon + title + description + actionable CTA button |
 | **Mid-playback failure** | Snackbar/toast | `"Playback interrupted — tap to retry"` — non-blocking, manual retry |
 | **Lyrics unavailable** | Inline message | `"Lyrics not available for this track"` — only after all providers exhausted |
 
-Defined in: `[ file/composable name once implemented ]`
+Defined in: `com.sonza.app.ui.components.StateComponents.kt`
 
 ---
 
@@ -256,4 +257,6 @@ Defined in: `[ file/composable name once implemented ]`
 | 2026-08-19 | Phase 1 & 2 Completed: Foundation (Fixed tokens, Manrope variable font, Spacing, Shapes, Elevation, Motion) & Dynamic Accent Color System (Palette extraction, contrast checking, 400ms crossfade) | `Color.kt`, `Type.kt`, `SpacingTokens.kt`, `Shapes.kt`, `ElevationTokens.kt`, `MotionTokens.kt`, `DominantColorExtractor.kt`, `Theme.kt` |
 | 2026-08-19 | Phase 3 Completed: Blur-Behind Components (RenderEffect on API 31+, Surface @ 92% + shadow on API <31 for Bottom Nav and Mini-Player) | `ExpressiveBottomNav.kt`, `StandardMiniPlayer.kt`, `LiquidGlassMiniPlayer.kt`, `LiquidGlassSurface.kt`, `ExpandablePlayerSheet.kt` |
 | 2026-08-19 | Phase 4a Completed: Home Screen (Featured hero card, Speed dial grid with dynamic accent & scrim, Genre pills with dynamic accent & outline) | `HomeComponents.kt`, `HomeScreen.kt`, `MoodChips.kt` |
+| 2026-08-20 | Phase 4b Completed: Search & Home Design-System Alignment, Emoji elimination with 20dp Material Symbols, Interactive Sonza result cards (scale 0.97 / 100ms), State Components (`SonzaEmptyState`, `SonzaErrorState`, `SonzaBanner`), and Media3 Notification Channel alignment (`media_playback_channel`) | `StateComponents.kt`, `MoodChips.kt`, `SearchScreen.kt`, `HomeComponents.kt`, `HomeScreen.kt`, `MusicPlayerService.kt`, `RemoteAudioRepository.kt` |
+
 
