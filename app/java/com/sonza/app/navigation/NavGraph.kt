@@ -368,6 +368,7 @@ fun NavGraph(
         
         composable<Destination.Settings> {
             SettingsScreen(
+                currentSong = playbackInfo.currentSong,
                 onLoginClick = { navController.navigate(Destination.YouTubeLogin) },
                 onPlaybackClick = { navController.navigate(Destination.PlaybackSettings) },
                 onAppearanceClick = { navController.navigate(Destination.AppearanceSettings) },

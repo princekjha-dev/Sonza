@@ -10,9 +10,20 @@ data class ChangelogEntry(
 object ChangelogData {
     val entries = listOf(
         ChangelogEntry(
+            version = "2.6.5.1",
+            date = "August 21, 2026",
+            isLatest = true,
+            changes = listOf(
+                "Editorial Home Feed Rebuild: Complete reimagination of discovery feed with compact horizontal rails, spotlight hero, 4-row high-density song packs, ranked charts, and 16:9 video content.",
+                "Streamlined Search UX: Dedicated active search mode with clean landing categories, instant query history management, and zero clutter.",
+                "Silent Audio Fallback: Seamless, uninterrupted background stream fallback without intrusive technical snackbars or resolver interruption.",
+                "Design System Consistency: Full alignment with Sonza design tokens, Manrope typography, and dynamic accent wash."
+            )
+        ),
+        ChangelogEntry(
             version = "2.6.5.0",
             date = "August 19, 2026",
-            isLatest = true,
+            isLatest = false,
             changes = listOf(
                 "Dynamic Island / Floating Player: Fixed Picture-in-Picture auto-enter on gesture navigation and home press, delivering smooth floating playback overlays for both audio and video modes.",
                 "Brand & Launcher Refresh: Rebuilt application launcher mipmaps and vector assets across all display densities with crisp high-resolution rendering.",

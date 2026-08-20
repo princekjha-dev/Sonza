@@ -22,5 +22,6 @@ object SpacingTokens {
     val SpaceLg = Lg
     val SpaceXl = Xl
     val Space2Xl = Xxl
+    val Space2xl = Xxl
 }
 

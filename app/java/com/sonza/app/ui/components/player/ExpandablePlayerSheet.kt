@@ -143,8 +143,8 @@ fun ExpandablePlayerSheet(
     // For YT_MUSIC, we reduce the visual gap (approx 12dp)
     // to sit flush against the navbar content.
     val stylePaddingOffset = when (style) {
-        MiniPlayerStyle.YT_MUSIC -> with(density) { 14.dp.toPx() }
-        MiniPlayerStyle.LIQUID_GLASS -> with(density) { 6.dp.toPx() }
+        MiniPlayerStyle.YT_MUSIC -> with(density) { 2.dp.toPx() }
+        MiniPlayerStyle.LIQUID_GLASS -> with(density) { 4.dp.toPx() }
         else -> with(density) { 2.dp.toPx() }
     }
     val adjustedBottomPadding = (bottomPadding - stylePaddingOffset).coerceAtLeast(0f)

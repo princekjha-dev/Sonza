@@ -2,6 +2,7 @@ package com.sonza.app.ui.components.player.miniplayer
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,7 +22,6 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -32,6 +32,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -43,7 +45,21 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.sonza.app.core.model.Song
 import com.sonza.app.ui.components.DominantColors
+import com.sonza.app.ui.theme.ElevationTokens
+import com.sonza.app.ui.theme.RadiusTokens
+import com.sonza.app.ui.theme.SonzaOnBackground
+import com.sonza.app.ui.theme.SonzaOnSurfaceVariant
+import com.sonza.app.ui.theme.SonzaOutline
+import com.sonza.app.ui.theme.SonzaSurface
+import com.sonza.app.ui.theme.SonzaTypography
+import com.sonza.app.ui.theme.SpacingTokens
 
+/**
+ * Compact Floating Mini Player per Part Q (Q34–Q58).
+ *
+ * Sits above the Bottom Navigation with rounded corners, subtle elevation,
+ * clear typography hierarchy, responsive playback controls, and live progress line.
+ */
 @Composable
 fun YTMusicMiniPlayer(
     song: Song,
@@ -59,12 +75,13 @@ fun YTMusicMiniPlayer(
     artworkShape: String = "ROUNDED_SQUARE",
     modifier: Modifier = Modifier
 ) {
-    val effectiveAlpha = 1f - userAlpha
-    
+    val effectiveAlpha = (1f - userAlpha).coerceIn(0f, 1f)
+    val miniPlayerShape = RoundedCornerShape(RadiusTokens.Md)
+
     val artShape = when (artworkShape) {
         "CIRCLE", "VINYL" -> androidx.compose.foundation.shape.CircleShape
         "SQUARE" -> androidx.compose.ui.graphics.RectangleShape
-        else -> RoundedCornerShape(4.dp)
+        else -> RoundedCornerShape(RadiusTokens.Sm)
     }
 
     val highResThumbnail = androidx.compose.runtime.remember(song.thumbnailUrl) {
@@ -73,155 +90,156 @@ fun YTMusicMiniPlayer(
 
     val vinylRotation = rememberMiniPlayerVinylRotation(artworkShape, isPlaying)
 
-    Surface(
+    Box(
         modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onTap),
-        color = Color.Transparent,
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(dominantColors.primary.copy(alpha = effectiveAlpha))
-        ) {
-            Column {
-                // Top Divider for better separation when attached to navbar
-                HorizontalDivider(
-                    thickness = 0.5.dp,
-                    color = dominantColors.onBackground.copy(alpha = 0.1f)
+            .padding(horizontal = SpacingTokens.SpaceSm, vertical = SpacingTokens.SpaceXs)
+            .shadow(
+                elevation = ElevationTokens.Level2,
+                shape = miniPlayerShape,
+                ambientColor = Color.Black.copy(alpha = 0.35f),
+                spotColor = Color.Black.copy(alpha = 0.25f)
+            )
+            .clip(miniPlayerShape)
+            .background(SonzaSurface.copy(alpha = 0.95f * effectiveAlpha))
+            .background(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(
+                        dominantColors.accentMuted.copy(alpha = 0.20f * effectiveAlpha),
+                        dominantColors.primary.copy(alpha = 0.08f * effectiveAlpha)
+                    )
                 )
-
-                // Fixed height container for controls (64dp - 2dp progress bar approx)
-                Row(
+            )
+            .border(
+                width = 0.75.dp,
+                color = SonzaOutline.copy(alpha = 0.6f),
+                shape = miniPlayerShape
+            )
+            .clickable(onClick = onTap)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp)
+                    .padding(horizontal = SpacingTokens.SpaceMd),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Album Art - square with rounded corners
+                Box(
                     modifier = Modifier
-                        .height(62.dp)
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .size(44.dp)
+                        .graphicsLayer { rotationZ = vinylRotation() }
+                        .clip(artShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Album Art - square and slightly larger
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .graphicsLayer { rotationZ = vinylRotation() }
-                            .clip(artShape)
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (highResThumbnail != null) {
-                            AsyncImage(
-                                model = highResThumbnail,
-                                contentDescription = song.title,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.MusicNote,
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    // Song Info
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = song.title,
-                            style = MaterialTheme.typography.titleSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                letterSpacing = 0.sp
-                            ),
-                            color = dominantColors.onBackground,
-                            maxLines = 1,
-                            modifier = Modifier.basicMarquee()
+                    if (highResThumbnail != null) {
+                        AsyncImage(
+                            model = highResThumbnail,
+                            contentDescription = song.title,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
                         )
-                        Text(
-                            text = song.artist,
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontSize = 12.sp,
-                                letterSpacing = 0.sp
-                            ),
-                            color = dominantColors.onBackground.copy(alpha = 0.7f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    // Controls
-                    IconButton(
-                        onClick = onPlayPause,
-                        modifier = Modifier.size(44.dp)
-                    ) {
-                        if (isLoading) {
-                            androidx.compose.material3.CircularProgressIndicator(
-                                color = dominantColors.onBackground,
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        } else {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (isPlaying) "Pause" else "Play",
-                                tint = dominantColors.onBackground,
-                                modifier = Modifier.size(30.dp)
-                            )
-                        }
-                    }
-
-                    IconButton(
-                        onClick = onNext,
-                        modifier = Modifier.size(44.dp)
-                    ) {
+                    } else {
                         Icon(
-                            imageVector = Icons.Default.SkipNext,
-                            contentDescription = "Next",
-                            tint = dominantColors.onBackground,
-                            modifier = Modifier.size(30.dp)
+                            imageVector = Icons.Default.MusicNote,
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp),
+                            tint = SonzaOnSurfaceVariant
                         )
-                    }
-                    
-                    if (!isPlaying) {
-                        IconButton(
-                            onClick = onClose,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = dominantColors.onBackground,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
                     }
                 }
-                
-                // Progress bar at the bottom of the mini player
-                LinearProgressIndicator(
-                    progress = progressProvider,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(2.dp),
-                    trackColor = Color.Transparent,
-                    color = dominantColors.accent,
-                    strokeCap = StrokeCap.Butt
-                )
-                
-                // Bottom Divider for navbar separation
-                HorizontalDivider(
-                    thickness = 0.5.dp,
-                    color = dominantColors.onBackground.copy(alpha = 0.15f)
-                )
+
+                Spacer(modifier = Modifier.width(SpacingTokens.SpaceMd))
+
+                // Song Info
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = song.title,
+                        style = SonzaTypography.TitleMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp
+                        ),
+                        color = SonzaOnBackground,
+                        maxLines = 1,
+                        modifier = Modifier.basicMarquee()
+                    )
+                    Text(
+                        text = song.artist,
+                        style = SonzaTypography.BodyMedium.copy(
+                            fontSize = 12.sp
+                        ),
+                        color = SonzaOnSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
+
+                // Play/Pause Button
+                IconButton(
+                    onClick = onPlayPause,
+                    modifier = Modifier.size(38.dp)
+                ) {
+                    if (isLoading) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            color = dominantColors.accent,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isPlaying) "Pause" else "Play",
+                            tint = dominantColors.accent,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
+
+                // Next Button
+                IconButton(
+                    onClick = onNext,
+                    modifier = Modifier.size(38.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SkipNext,
+                        contentDescription = "Next",
+                        tint = SonzaOnBackground,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+
+                if (!isPlaying) {
+                    IconButton(
+                        onClick = onClose,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = SonzaOnSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             }
+
+            // Progress bar at the bottom edge
+            LinearProgressIndicator(
+                progress = progressProvider,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(2.dp),
+                trackColor = Color.Transparent,
+                color = dominantColors.accent,
+                strokeCap = StrokeCap.Butt
+            )
         }
     }
 }
+

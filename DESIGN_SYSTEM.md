@@ -265,6 +265,31 @@ Defined in: `com.sonza.app.ui.components.StateComponents.kt`
 
 ---
 
+## Part Q — Search Results Screen & Mini Player Redesign
+- **Search Results Density & List Rows:** Replaced heavy generic cards with high-density, compact music list rows (56dp height, 48dp artwork, primary bold title, subordinate artist/metadata, 20dp `MoreVert` action icon, 0.97 scale tap feedback). Redundant "Song • " text removed.
+- **Horizontal Category Pills:** Replaced generic segmented button with horizontally scrollable pill-shaped category tabs (`All`, `Songs`, `Videos`, `Albums`, `Artists`, `Playlists`) featuring 150ms smooth animated color and border transitions.
+- **Curated "All" Results Tab:** Structured music grouping with artists carousel, albums carousel, playlists carousel, and compact song list rows.
+- **Dynamic Content Insets:** Inset calculation (`navBarPadding + navBarHeight + miniPlayerHeight + 16.dp`) ensures the last result row scrolls completely above the floating Mini Player and Bottom Navigation.
+- **Floating Mini Player:** Elevated floating player container (`RadiusTokens.Md` / 12dp rounded corners, subtle shadow/blur, 8dp margins) sitting above the bottom navigation bar with responsive playback controls, vinyl spin artwork, marquee title, and edge progress line.
+- **Zero Technical Terminology:** Absolute elimination of technical backend strings ("HQ Audio", "HQ source busy", "YouTube fallback", "Resolver") in user-facing search and playback components.
+
+---
+
+## Part P — Settings Screen Redesign & Data Cleanup
+- **Information Architecture:** Reorganized Settings into clean functional groups: *Account*, *Player & Audio*, *General & Appearance*, *Storage & Data*, *About & Support*, and *Updates*.
+- **Reusable `SonzaSettingsRow`:** Unified row component with 40dp tinted squircle icon box, `SonzaTypography.TitleMedium` (15sp SemiBold) title, `SonzaTypography.BodyMedium` (13sp) subtitle, forward indicator/badge/switch, 0.97 tap bounce feedback, and `Role.Button`/`Role.Switch` TalkBack semantics.
+- **Dynamic Version Sourcing:** Version dynamically retrieved directly from `BuildConfig.VERSION_NAME` ("2.6.5.1"), eliminating static/stale version strings.
+- **Real Destinations & Data Integrity:**
+  - *Support Sonza:* Navigates to the native Support & feedback destination (`Destination.Support`).
+  - *Credits:* Navigates to Developers, Contributors & open-source libraries (`Destination.Credits`).
+  - *Privacy Policy:* Opens real URL (`https://princekjha-dev.github.io/Sonza-Website/sonza-privacy.html`).
+  - *About Sonza:* Navigates to About destination (`Destination.About`).
+  - *Update Channel:* Allows selection between configured channels (Stable, Beta, Nightly).
+  - *Check for Updates:* Performs real OTA check via `UpdateViewModel` with user-friendly messages ("You're up to date", "Update available", "Couldn't check for updates") with zero technical HTTP/stack trace exposure.
+- **Dynamic Bottom Insets:** Full edge-to-edge calculation ensuring "Check for Updates" is fully accessible above the Bottom Navigation Bar and Mini Player.
+
+---
+
 ## Change Log
 
 | Date | Change | Component(s) affected |
@@ -279,3 +304,7 @@ Defined in: `com.sonza.app.ui.components.StateComponents.kt`
 | 2026-08-20 | Part F Completed: YouTube Music Default Search Source (Default search tab set to YouTube Music with immediate data flow, search bar focused on search input, HQ Audio tab preserved for cross-catalogue search) | `SearchViewModel.kt`, `SearchScreen.kt`, `DESIGN_SYSTEM.md` |
 | 2026-08-20 | Part L Completed: Bottom Navigation Redesign (Solid non-bleeding elevated surface, 4 balanced columns for Home, Search, Your Library, Settings, 24dp Material Symbols, Manrope LabelSmall typography, Role.Tab TalkBack accessibility, 150ms animated transitions, edge-to-edge system insets) | `ExpressiveBottomNav.kt`, `TvNavigationRail.kt`, `AdaptiveNavigationRail.kt`, `DESIGN_SYSTEM.md` |
 | 2026-08-21 | Part M Completed: Search Experience Redesign (3-phase music search flow, source-agnostic search bar, recent search history persistence & deletion, TalkBack accessibility semantics, two-step back handler, animated transitions, YouTube Music default results) | `SearchScreen.kt`, `SearchViewModel.kt`, `SessionManager.kt`, `DESIGN_SYSTEM.md` |
+| 2026-08-21 | Part Q Completed: Search Results Screen Redesign & Rebuild (Compact 56dp music result rows, horizontal category pill navigation, structured All tab carousels, dynamic bottom insets for floating mini player, zero technical source strings) | `SearchScreen.kt`, `StandardMiniPlayer.kt`, `YTMusicMiniPlayer.kt`, `ExpandablePlayerSheet.kt`, `DESIGN_SYSTEM.md` |
+| 2026-08-21 | Part P Completed: Settings Screen Redesign & Data Cleanup (Reorganized sections into clear hierarchy, unified `SonzaSettingsRow` component with 0.97 bounce feedback, dynamic `BuildConfig.VERSION_NAME` 2.6.5.1, live OTA update check without technical leakage, real Support/Credits/Privacy Policy/About destinations, dynamic bottom insets) | `SettingsScreen.kt`, `SettingsViewModel.kt`, `NavGraph.kt`, `DESIGN_SYSTEM.md` |
+
+

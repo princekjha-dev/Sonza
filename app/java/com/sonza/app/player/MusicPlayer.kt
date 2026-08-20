@@ -1538,27 +1538,15 @@ class MusicPlayer @Inject constructor(
     }
 
     /**
-     * If the user has HQ Audio selected but [song] ended up falling back to YouTube,
-     * tell them once (per song, per queue) with the reason recorded by the last hybrid
-     * resolve. No-op when the song played from HQ, when HQ isn't the selected source,
-     * or when we've already notified for this song.
+     * Silent Fallback (Part O): Internal source fallback happens silently without
+     * displaying intrusive technical messages to the user.
      */
     private fun notifyHqFallbackIfNeeded(song: Song) {
         val reason = hqFallbackReason[song.id] ?: return
         if (reason == HqFallbackReason.NONE) return
         if (hqNoticeShown[song.id] != null) return
         hqNoticeShown.put(song.id, true)
-        val title = song.title.ifBlank { "this song" }
-        val msg = when (reason) {
-            HqFallbackReason.SOURCE_BUSY -> "HQ source busy — playing “$title” from YouTube"
-            else -> "No HQ version found — playing “$title” from YouTube"
-        }
-        scope.launch(Dispatchers.Main) {
-            com.sonza.app.util.SnackbarUtil.showMessage(
-                msg,
-                com.sonza.app.util.SnackbarUtil.Duration.SHORT
-            )
-        }
+        android.util.Log.d("MusicPlayer", "Silent fallback for '${song.title}' reason: $reason")
     }
 
     private suspend fun remoteStreamUrlFor(song: Song): String? {

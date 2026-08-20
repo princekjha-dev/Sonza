@@ -155,7 +155,7 @@ data class SettingsUiState(
     val filterLocalByDurationEnabled: Boolean = false,
     val localDurationFilterThreshold: Int = 30, // seconds
     // Updater
-    val currentVersion: String = "",
+    val currentVersion: String = com.sonza.app.BuildConfig.VERSION_NAME,
     val updateChannel: UpdateChannel = UpdateChannel.STABLE
 )
 

@@ -1,9 +1,10 @@
 package com.sonza.app.ui.screens
 
 import android.content.Intent
-import com.sonza.app.R
 import android.net.Uri
-import android.provider.Settings
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,12 +33,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.HeadsetMic
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lyrics
@@ -52,26 +55,28 @@ import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider as M3HorizontalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -84,28 +89,61 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import org.koin.compose.viewmodel.koinViewModel
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import com.sonza.app.ui.viewmodel.SettingsViewModel
+import com.sonza.app.BuildConfig
+import com.sonza.app.R
+import com.sonza.app.core.model.Song
 import com.sonza.app.core.model.UpdateChannel
-import com.sonza.app.updater.UpdateViewModel
-import com.sonza.app.ui.theme.SquircleShape
 import com.sonza.app.ui.components.BetaBadge
+import com.sonza.app.ui.components.LocalSonzaDynamicColors
+import com.sonza.app.ui.components.SettingsCard
+import com.sonza.app.ui.components.bounceClick
+import com.sonza.app.ui.components.glass.GlassModalBottomSheet
+import com.sonza.app.ui.theme.MotionTokens
+import com.sonza.app.ui.theme.RadiusTokens
+import com.sonza.app.ui.theme.SonzaColors
+import com.sonza.app.ui.theme.SonzaOnBackground
+import com.sonza.app.ui.theme.SonzaOnSurfaceVariant
+import com.sonza.app.ui.theme.SonzaOutline
+import com.sonza.app.ui.theme.SonzaSurface
+import com.sonza.app.ui.theme.SonzaSurfaceVariant
+import com.sonza.app.ui.theme.SonzaTypography
+import com.sonza.app.ui.theme.SpacingTokens
+import com.sonza.app.ui.theme.SquircleShape
+import com.sonza.app.ui.viewmodel.SettingsViewModel
+import com.sonza.app.updater.UpdateState
+import com.sonza.app.updater.UpdateViewModel
+import com.sonza.app.util.SnackbarUtil
 import com.sonza.app.util.dpadFocusable
 import kotlinx.coroutines.launch
-import com.sonza.app.ui.components.SettingsCard
-import com.sonza.app.ui.components.SettingsSwitchRow
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * Settings screen with Material 3 Expressive design and organized categories.
+ * Sonza Settings Screen — Part P Redesign & Data Cleanup.
+ *
+ * Implements a clean, intentional music settings layout:
+ * - Clear section hierarchy (Storage & Data, About & Support, Updates, Audio & Features).
+ * - Unified reusable SonzaSettingsRow with 0.97 touch bounce and TalkBack accessibility.
+ * - Dynamically sourced app version from BuildConfig.VERSION_NAME (2.6.5.1).
+ * - Real live update checking with user-friendly feedback.
+ * - Real destinations for Support, Credits, Privacy Policy, and About.
+ * - Dynamic bottom insets ensuring the last item is never obscured by navigation or player.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = koinViewModel(),
     updateViewModel: UpdateViewModel = koinViewModel(),
+    currentSong: Song? = null,
     onLoginClick: () -> Unit = {},
     onPlaybackClick: () -> Unit = {},
     onAppearanceClick: () -> Unit = {},
@@ -121,16 +159,25 @@ fun SettingsScreen(
     onDiscordClick: () -> Unit = {},
     onAISettingsClick: () -> Unit = {},
     onUpdaterClick: () -> Unit = {}
-    )
- {
+) {
     val uiState by viewModel.uiState.collectAsState()
+    val updateState by updateViewModel.updateState.collectAsState()
+    val dynamicColors = LocalSonzaDynamicColors.current
+    val accentColor = dynamicColors.accent
+    val uriHandler = LocalUriHandler.current
+    val scope = rememberCoroutineScope()
+
     var showSignOutDialog by remember { mutableStateOf(false) }
     var showAccountsSheet by remember { mutableStateOf(false) }
     var showUpdateChannelSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
 
-    // Flat search index over every reachable setting so "crossfade" or "seekbar"
-    // deep-links to its screen instead of a guessing game through sub-menus.
+    // Dynamic inset calculation to prevent Mini Player & Bottom Nav from covering content
+    val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val navBarHeight = 64.dp
+    val miniPlayerHeight = if (currentSong != null) 64.dp else 0.dp
+    val dynamicBottomInset = navBarPadding + navBarHeight + miniPlayerHeight + SpacingTokens.Space2Xl
+
     var settingsQuery by remember { mutableStateOf("") }
     val settingsSearchIndex = remember {
         listOf(
@@ -143,21 +190,46 @@ fun SettingsScreen(
             SettingsSearchEntry("Advanced", "Diagnostics, experimental & extra options", "advanced misc diagnostics experimental logs developer", Icons.Default.Tune, onMiscClick),
             SettingsSearchEntry("Storage Manager", "Manage downloads & cache", "storage downloads cache clear space data", Icons.Default.Storage, onStorageClick),
             SettingsSearchEntry("Listening stats", "Your listening activity", "stats statistics listening history wrapped activity", Icons.Default.Info, onStatsClick),
-            SettingsSearchEntry("Support the project", "Donate to help development", "support donate sponsor project", Icons.Default.Favorite, onSupportClick),
-            SettingsSearchEntry("Credits", "Developers & Libraries", "credits developers libraries licenses", Icons.Default.Person, onCreditsClick),
-            SettingsSearchEntry("About Sonza", "Version & app info", "about version app info changelog", Icons.Default.Album, onAboutClick),
-            SettingsSearchEntry("Check for Updates", "App updates and changelogs", "update updates ota check changelog", Icons.Default.SystemUpdate, onUpdaterClick)
+            SettingsSearchEntry("Support Sonza", "Help support Sonza's development", "support donate sponsor project", Icons.Default.Favorite, onSupportClick),
+            SettingsSearchEntry("Credits", "Developers, contributors & open-source libraries", "credits developers libraries licenses", Icons.Default.Group, onCreditsClick),
+            SettingsSearchEntry("About Sonza", "Version ${uiState.currentVersion}", "about version app info changelog", Icons.Default.Info, onAboutClick),
+            SettingsSearchEntry("Privacy Policy", "How Sonza handles your data", "privacy policy terms security data", Icons.Default.Security) {
+                uriHandler.openUri("https://princekjha-dev.github.io/Sonza-Website/sonza-privacy.html")
+            },
+            SettingsSearchEntry("Update Channel", uiState.updateChannel.label, "update channel stable beta nightly", Icons.Default.SystemUpdate) {
+                showUpdateChannelSheet = true
+            },
+            SettingsSearchEntry("Check for Updates", "Check for app updates", "update updates ota check changelog", Icons.Default.Download, onUpdaterClick)
         )
     }
-    
-    // Floating Player
-    val scope = rememberCoroutineScope()
+
     val floatingPlayerEnabled by viewModel.dynamicIslandEnabled.collectAsState(initial = false)
     val sponsorBlockEnabled by viewModel.sponsorBlockEnabled.collectAsState(initial = true)
 
+    // Handle update check state toasts
+    LaunchedEffect(updateState) {
+        when (val state = updateState) {
+            is UpdateState.NoUpdate -> {
+                SnackbarUtil.showSuccess("You're up to date")
+                updateViewModel.resetUpdateState()
+            }
+            is UpdateState.UpdateAvailable -> {
+                SnackbarUtil.showSuccess("Update available: v${state.info.versionName}")
+            }
+            is UpdateState.Error -> {
+                SnackbarUtil.showWarning("Couldn't check for updates")
+                updateViewModel.resetUpdateState()
+            }
+            else -> {}
+        }
+    }
+
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SonzaColors.Background)
+            .statusBarsPadding(),
+        containerColor = SonzaColors.Background,
         contentWindowInsets = WindowInsets.statusBars
     ) { paddingValues ->
         Box(
@@ -170,456 +242,384 @@ fun SettingsScreen(
                 modifier = Modifier
                     .widthIn(max = 640.dp)
                     .fillMaxSize(),
-                contentPadding = PaddingValues(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 80.dp)
+                contentPadding = PaddingValues(bottom = dynamicBottomInset)
             ) {
-            item {
-                Text(
-                    text = "Settings",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .padding(top = 24.dp, bottom = 16.dp)
-                )
-            }
-
-            item {
-                OutlinedTextField(
-                    value = settingsQuery,
-                    onValueChange = { settingsQuery = it },
-                    placeholder = { Text(androidx.compose.ui.res.stringResource(R.string.msg_search_settings)) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 8.dp)
-                )
-            }
-
-            if (settingsQuery.isNotBlank()) {
-                val q = settingsQuery.trim().lowercase()
-                val matches = settingsSearchIndex.filter {
-                    it.title.lowercase().contains(q) || it.subtitle.lowercase().contains(q) || it.keywords.contains(q)
-                }
+                // Main Header
                 item {
-                    if (matches.isEmpty()) {
-                        Text(
-                            text = "No settings match \"$settingsQuery\"",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
-                        )
-                    } else {
-                        SettingsCard(flat = true, modifier = Modifier.padding(horizontal = 16.dp)) {
-                            matches.forEachIndexed { index, entry ->
-                                if (index > 0) HorizontalDivider()
-                                SettingsNavigationItem(
-                                    icon = entry.icon,
-                                    title = entry.title,
-                                    subtitle = entry.subtitle,
-                                    onClick = entry.onClick
-                                )
+                    Text(
+                        text = "Settings",
+                        style = SonzaTypography.Headline,
+                        fontWeight = FontWeight.Bold,
+                        color = SonzaOnBackground,
+                        modifier = Modifier
+                            .padding(horizontal = SpacingTokens.SpaceLg)
+                            .padding(top = SpacingTokens.SpaceLg, bottom = SpacingTokens.SpaceSm)
+                    )
+                }
+
+                // Search Bar in Settings
+                item {
+                    OutlinedTextField(
+                        value = settingsQuery,
+                        onValueChange = { settingsQuery = it },
+                        placeholder = {
+                            Text(
+                                text = "Search settings",
+                                style = SonzaTypography.BodyLarge,
+                                color = SonzaOnSurfaceVariant
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                tint = SonzaOnSurfaceVariant
+                            )
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(RadiusTokens.Lg),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = SpacingTokens.SpaceLg)
+                            .padding(bottom = SpacingTokens.SpaceMd)
+                    )
+                }
+
+                if (settingsQuery.isNotBlank()) {
+                    val q = settingsQuery.trim().lowercase()
+                    val matches = settingsSearchIndex.filter {
+                        it.title.lowercase().contains(q) || it.subtitle.lowercase().contains(q) || it.keywords.contains(q)
+                    }
+                    item {
+                        if (matches.isEmpty()) {
+                            Text(
+                                text = "No settings match \"$settingsQuery\"",
+                                style = SonzaTypography.BodyMedium,
+                                color = SonzaOnSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceLg)
+                            )
+                        } else {
+                            SettingsCard(flat = true, modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)) {
+                                matches.forEachIndexed { index, entry ->
+                                    if (index > 0) HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg))
+                                    SonzaSettingsRow(
+                                        icon = entry.icon,
+                                        title = entry.title,
+                                        description = entry.subtitle,
+                                        accentColor = accentColor,
+                                        onClick = entry.onClick
+                                    )
+                                }
                             }
                         }
                     }
-                }
-            } else {
+                } else {
 
-            // --- Account Section ---
-            item {
-                SettingsSectionTitle("Account")
-                SettingsCard(flat = true, modifier = Modifier.padding(horizontal = 16.dp)) {
-                    if (uiState.isLoggedIn) {
-                        // User Info
-                        ListItem(
-                            headlineContent = {
-                                Text(
-                                    text = uiState.userName ?: "Signed in",
-                                    fontWeight = FontWeight.SemiBold,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            },
-                            supportingContent = {
-                                val email = uiState.storedAccounts.firstOrNull()?.email
-                                if (email != null) {
-                                    Text(
-                                        text = email,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                } else {
-                                    Text(
-                                        text = "YouTube Music connected",
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                }
-                            },
-                            leadingContent = {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier.padding(end = 4.dp)
+                    // ── 1. Account Section ──
+                    item {
+                        SonzaSectionHeader("Account")
+                        SettingsCard(flat = true, modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)) {
+                            if (uiState.isLoggedIn) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(SpacingTokens.SpaceLg),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     if (uiState.userAvatarUrl != null) {
                                         AsyncImage(
                                             model = uiState.userAvatarUrl,
                                             contentDescription = "Avatar",
                                             modifier = Modifier
-                                                .size(56.dp)
+                                                .size(52.dp)
                                                 .clip(SquircleShape)
-                                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, SquircleShape)
+                                                .border(1.dp, SonzaOutline.copy(alpha = 0.5f), SquircleShape)
                                         )
                                     } else {
                                         Surface(
                                             shape = SquircleShape,
-                                            color = MaterialTheme.colorScheme.primaryContainer,
-                                            modifier = Modifier.size(56.dp)
+                                            color = accentColor.copy(alpha = 0.15f),
+                                            modifier = Modifier.size(52.dp)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Person,
                                                 contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                tint = accentColor,
                                                 modifier = Modifier.padding(14.dp)
                                             )
                                         }
                                     }
-                                }
-                            },
-                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
-                        
-                        HorizontalDivider()
 
-                        // Account Actions
-                        SettingsActionItem(
-                            icon = Icons.Default.SwitchAccount,
-                            title = "Switch Account",
-                            onClick = { 
-                                viewModel.fetchAvailableAccounts()
-                                showAccountsSheet = true 
+                                    Spacer(modifier = Modifier.width(SpacingTokens.SpaceMd))
+
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = uiState.userName ?: "Signed in",
+                                            style = SonzaTypography.TitleMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = SonzaOnBackground
+                                        )
+                                        val email = uiState.storedAccounts.firstOrNull()?.email
+                                        Text(
+                                            text = email ?: "YouTube Music connected",
+                                            style = SonzaTypography.BodyMedium,
+                                            color = SonzaOnSurfaceVariant
+                                        )
+                                    }
+                                }
+
+                                HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg))
+
+                                SonzaSettingsRow(
+                                    icon = Icons.Default.SwitchAccount,
+                                    title = "Switch Account",
+                                    description = "Change active YouTube Music session",
+                                    accentColor = accentColor,
+                                    onClick = {
+                                        viewModel.fetchAvailableAccounts()
+                                        showAccountsSheet = true
+                                    }
+                                )
+
+                                HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg))
+
+                                SonzaSettingsRow(
+                                    icon = Icons.AutoMirrored.Filled.Logout,
+                                    title = "Sign Out",
+                                    description = "Disconnect account from this device",
+                                    accentColor = MaterialTheme.colorScheme.error,
+                                    iconTint = MaterialTheme.colorScheme.error,
+                                    onClick = { showSignOutDialog = true }
+                                )
+                            } else {
+                                SonzaSettingsRow(
+                                    icon = Icons.AutoMirrored.Filled.Login,
+                                    title = "Sign in to YouTube Music",
+                                    description = "Sync your playlists, likes, and library",
+                                    accentColor = accentColor,
+                                    onClick = onLoginClick
+                                )
                             }
-                        )
-                        
-                        SettingsActionItem(
-                            icon = Icons.AutoMirrored.Filled.Logout,
-                            title = "Sign Out",
-                            titleColor = MaterialTheme.colorScheme.error,
-                            iconColor = MaterialTheme.colorScheme.error,
-                            onClick = { showSignOutDialog = true }
-                        )
-                    } else {
-                        // Sign In Prompt
-                        ListItem(
-                            headlineContent = { Text("Sign in to YouTube Music", fontWeight = FontWeight.SemiBold) },
-                            supportingContent = { Text("Sync playlists and library") },
-                            leadingContent = {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(SquircleShape)
-                                        .background(MaterialTheme.colorScheme.primaryContainer),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.Login,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                            },
-                            trailingContent = {
-                                Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, null, modifier = Modifier.size(14.dp))
-                            },
-                            modifier = Modifier
-                                .dpadFocusable(onClick = onLoginClick, shape = SquircleShape)
-                                .clip(SquircleShape),
-                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            // --- Appearance Section ---
-            item {
-                SettingsSectionTitle("Appearance")
-                SettingsCard(flat = true, modifier = Modifier.padding(horizontal = 16.dp)) {
-                    SettingsNavigationItem(
-                        icon = Icons.Default.DarkMode,
-                        title = "Appearance",
-                        subtitle = "Theme, dark mode, colors",
-                        onClick = onAppearanceClick
-                    )
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            // --- General Section ---
-            item {
-                SettingsSectionTitle("General")
-                SettingsCard(flat = true, modifier = Modifier.padding(horizontal = 16.dp)) {
-                    SettingsSwitchRow(
-                        icon = Icons.Default.VisibilityOff,
-                        title = "Incognito Mode",
-                        subtitle = "Stop history & activity sharing",
-                        checked = uiState.incognitoModeEnabled,
-                        onCheckedChange = { viewModel.setIncognitoModeEnabled(it) }
-                    )
-                    
-                    HorizontalDivider()
-                    
-                    SettingsSwitchRow(
-                        icon = Icons.Default.PictureInPicture,
-                        title = "Dynamic Island / Floating Player",
-                        subtitle = "Floating player overlay (PiP) when app is backgrounded",
-                        checked = floatingPlayerEnabled,
-                        onCheckedChange = { enabled ->
-                            scope.launch { viewModel.setDynamicIslandEnabled(enabled) }
                         }
-                    )
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            // --- Bluetooth Section ---
-            item {
-                SettingsSectionTitle("Bluetooth")
-                SettingsCard(flat = true, modifier = Modifier.padding(horizontal = 16.dp)) {
-                    SettingsSwitchRow(
-                        icon = Icons.Default.HeadsetMic,
-                        title = "Bluetooth Autoplay",
-                        subtitle = "Resume when connecting to devices",
-                        checked = uiState.bluetoothAutoplayEnabled,
-                        onCheckedChange = { scope.launch { viewModel.setBluetoothAutoplayEnabled(it) } }
-                    )
-
-                    HorizontalDivider()
-
-                    SettingsSwitchRow(
-                        icon = Icons.Default.Lyrics,
-                        title = "Announce Songs",
-                        subtitle = "Speak title when song changes (TTS)",
-                        checked = uiState.speakSongDetailsEnabled,
-                        onCheckedChange = { scope.launch { viewModel.setSpeakSongDetailsEnabled(it) } }
-                    )
-
-                    if (uiState.speakSongDetailsEnabled) {
-                        HorizontalDivider()
-                        SettingsSwitchRow(
-                            icon = Icons.Default.HeadsetMic,
-                            title = "Bluetooth only",
-                            subtitle = "Only announce while a Bluetooth output is connected",
-                            checked = uiState.announceBluetoothOnly,
-                            onCheckedChange = { viewModel.setAnnounceBluetoothOnly(it) }
-                        )
-
-                        HorizontalDivider()
-                        SettingsSliderItem(
-                            icon = Icons.Default.Lyrics,
-                            title = "Announcement volume",
-                            subtitle = "${uiState.announceTtsVolume}% — voice loudness",
-                            value = uiState.announceTtsVolume.toFloat(),
-                            valueRange = 0f..100f,
-                            steps = 19,
-                            onValueChange = { viewModel.setAnnounceTtsVolume(it.toInt()) }
-                        )
-
-                        HorizontalDivider()
-                        SettingsSliderItem(
-                            icon = Icons.Default.MusicNote,
-                            title = "Music duck volume",
-                            subtitle = "${uiState.announceDuckVolume}% — music volume while announcing",
-                            value = uiState.announceDuckVolume.toFloat(),
-                            valueRange = 0f..100f,
-                            steps = 19,
-                            onValueChange = { viewModel.setAnnounceDuckVolume(it.toInt()) }
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            // --- Player & Audio ---
-            item {
-                SettingsSectionTitle("Player & Audio")
-                SettingsCard(flat = true, modifier = Modifier.padding(horizontal = 16.dp)) {
-                    SettingsNavigationItem(
-                        icon = Icons.Default.GraphicEq,
-                        title = "Playback",
-                        subtitle = "Audio quality, gapless, equalizer",
-                        onClick = onPlaybackClick
-                    )
-                    
-                    HorizontalDivider()
-                    
-                    SettingsNavigationItem(
-                        icon = Icons.Default.Tune,
-                        title = "Customization",
-                        subtitle = "Player UI, artwork style",
-                        onClick = onCustomizationClick
-                    )
-
-                    HorizontalDivider()
-
-                    SettingsNavigationItem(
-                        icon = Icons.Default.Psychology,
-                        title = "AI Assistant",
-                        subtitle = "OpenAI, Anthropic, Gemini",
-                        badge = { BetaBadge() },
-                        onClick = onAISettingsClick
-                    )
+                        Spacer(modifier = Modifier.height(SpacingTokens.SpaceLg))
                     }
 
-                Spacer(modifier = Modifier.height(24.dp))
-            }
+                    // ── 2. Player & Audio ──
+                    item {
+                        SonzaSectionHeader("Player & Audio")
+                        SettingsCard(flat = true, modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)) {
+                            SonzaSettingsRow(
+                                icon = Icons.Default.GraphicEq,
+                                title = "Playback",
+                                description = "Audio quality, gapless, equalizer & crossfade",
+                                accentColor = accentColor,
+                                onClick = onPlaybackClick
+                            )
 
-            // --- Integrations ---
-            item {
-                SettingsSectionTitle("Integrations")
-                SettingsCard(flat = true, modifier = Modifier.padding(horizontal = 16.dp)) {
-                    SettingsSwitchRow(
-                        icon = Icons.Default.FastForward,
-                        title = "Enable SponsorBlock",
-                        subtitle = "Automatically skip non-music segments",
-                        checked = sponsorBlockEnabled,
-                        onCheckedChange = { scope.launch { viewModel.setSponsorBlockEnabled(it) } }
-                    )
-                    
-                    if (sponsorBlockEnabled) {
-                        HorizontalDivider()
-                        SettingsNavigationItem(
-                            icon = Icons.Default.FastForward,
-                            title = "SponsorBlock Settings",
-                            subtitle = "Configure segment types to skip",
-                            onClick = onSponsorBlockClick
-                        )
+                            HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg))
+
+                            SonzaSettingsRow(
+                                icon = Icons.Default.Tune,
+                                title = "Customization",
+                                description = "Player UI, artwork style, seekbar & animations",
+                                accentColor = accentColor,
+                                onClick = onCustomizationClick
+                            )
+
+                            HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg))
+
+                            SonzaSettingsRow(
+                                icon = Icons.Default.Psychology,
+                                title = "AI Assistant",
+                                description = "Smart music suggestions with AI models",
+                                trailingBadge = { BetaBadge() },
+                                accentColor = accentColor,
+                                onClick = onAISettingsClick
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(SpacingTokens.SpaceLg))
                     }
 
-                    HorizontalDivider()
+                    // ── 3. General & Appearance ──
+                    item {
+                        SonzaSectionHeader("General & Appearance")
+                        SettingsCard(flat = true, modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)) {
+                            SonzaSettingsRow(
+                                icon = Icons.Default.DarkMode,
+                                title = "Appearance",
+                                description = "Theme, dark mode, colors & background style",
+                                accentColor = accentColor,
+                                onClick = onAppearanceClick
+                            )
 
-                    // Last.fm Integration
-                    val isLastFmConnected = uiState.lastFmUsername != null
-                    SettingsNavigationItem(
-                        icon = Icons.Default.MusicNote,
-                        title = "Last.fm",
-                        subtitle = if (isLastFmConnected) "Connected as ${uiState.lastFmUsername}" else "Scrobble your listening history",
-                        onClick = onLastFmClick
-                    )
+                            HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg))
+
+                            SonzaSettingsSwitchRow(
+                                icon = Icons.Default.VisibilityOff,
+                                title = "Incognito Mode",
+                                description = "Pause listening history and activity logging",
+                                checked = uiState.incognitoModeEnabled,
+                                accentColor = accentColor,
+                                onCheckedChange = { viewModel.setIncognitoModeEnabled(it) }
+                            )
+
+                            HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg))
+
+                            SonzaSettingsSwitchRow(
+                                icon = Icons.Default.PictureInPicture,
+                                title = "Floating Player Overlay",
+                                description = "Picture-in-Picture mode when backgrounded",
+                                checked = floatingPlayerEnabled,
+                                accentColor = accentColor,
+                                onCheckedChange = { enabled ->
+                                    scope.launch { viewModel.setDynamicIslandEnabled(enabled) }
+                                }
+                            )
+
+                            HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg))
+
+                            SonzaSettingsSwitchRow(
+                                icon = Icons.Default.HeadsetMic,
+                                title = "Bluetooth Autoplay",
+                                description = "Resume playback when bluetooth connects",
+                                checked = uiState.bluetoothAutoplayEnabled,
+                                accentColor = accentColor,
+                                onCheckedChange = { scope.launch { viewModel.setBluetoothAutoplayEnabled(it) } }
+                            )
+
+                            HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg))
+
+                            SonzaSettingsRow(
+                                icon = Icons.Default.Tune,
+                                title = "Advanced Options",
+                                description = "Lyrics providers, experimental options & logs",
+                                accentColor = accentColor,
+                                onClick = onMiscClick
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(SpacingTokens.SpaceLg))
+                    }
+
+                    // ── 4. Storage & Data ──
+                    item {
+                        SonzaSectionHeader("Storage & Data")
+                        SettingsCard(flat = true, modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)) {
+                            SonzaSettingsRow(
+                                icon = Icons.Default.Storage,
+                                title = "Storage Manager",
+                                description = "Manage downloads, cache & offline storage",
+                                accentColor = accentColor,
+                                onClick = onStorageClick
+                            )
+
+                            HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg))
+
+                            SonzaSettingsRow(
+                                icon = Icons.Default.Info,
+                                title = "Listening Stats",
+                                description = "Your listening activity, top songs & recap",
+                                accentColor = accentColor,
+                                onClick = onStatsClick
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(SpacingTokens.SpaceLg))
+                    }
+
+                    // ── 5. About & Support ──
+                    item {
+                        SonzaSectionHeader("About & Support")
+                        SettingsCard(flat = true, modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)) {
+                            SonzaSettingsRow(
+                                icon = Icons.Default.Favorite,
+                                title = "Support Sonza",
+                                description = "Help support Sonza's development",
+                                accentColor = accentColor,
+                                onClick = onSupportClick
+                            )
+
+                            HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg))
+
+                            SonzaSettingsRow(
+                                icon = Icons.Default.Group,
+                                title = "Credits",
+                                description = "Developers, contributors & open-source libraries",
+                                accentColor = accentColor,
+                                onClick = onCreditsClick
+                            )
+
+                            HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg))
+
+                            SonzaSettingsRow(
+                                icon = Icons.Default.Security,
+                                title = "Privacy Policy",
+                                description = "How Sonza handles your data",
+                                accentColor = accentColor,
+                                onClick = {
+                                    uriHandler.openUri("https://princekjha-dev.github.io/Sonza-Website/sonza-privacy.html")
+                                }
+                            )
+
+                            HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg))
+
+                            val displayVersion = if (uiState.currentVersion.isNotBlank()) "Version ${uiState.currentVersion}" else "Version ${BuildConfig.VERSION_NAME}"
+                            SonzaSettingsRow(
+                                icon = Icons.Default.Info,
+                                title = "About Sonza",
+                                description = displayVersion,
+                                accentColor = accentColor,
+                                onClick = onAboutClick
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(SpacingTokens.SpaceLg))
+                    }
+
+                    // ── 6. Updates ──
+                    item {
+                        SonzaSectionHeader("Updates")
+                        SettingsCard(flat = true, modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)) {
+                            SonzaSettingsRow(
+                                icon = Icons.Default.SystemUpdate,
+                                title = "Update Channel",
+                                description = uiState.updateChannel.label,
+                                accentColor = accentColor,
+                                onClick = { showUpdateChannelSheet = true }
+                            )
+
+                            HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg))
+
+                            val isChecking = updateState is UpdateState.Checking
+                            SonzaSettingsRow(
+                                icon = Icons.Default.Download,
+                                title = "Check for Updates",
+                                description = if (isChecking) "Checking for updates..." else "Check for the latest Sonza version",
+                                trailingBadge = if (isChecking) {
+                                    {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 2.dp,
+                                            color = accentColor
+                                        )
+                                    }
+                                } else null,
+                                accentColor = accentColor,
+                                onClick = {
+                                    if (!isChecking) {
+                                        updateViewModel.checkForUpdate(
+                                            currentVersionCode = BuildConfig.VERSION_CODE,
+                                            isNightly = uiState.updateChannel == UpdateChannel.NIGHTLY
+                                        )
+                                    }
+                                }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(SpacingTokens.SpaceXl))
+                    }
                 }
-                Spacer(modifier = Modifier.height(24.dp))
             }
-
-            // --- Misc Section ---
-            item {
-                SettingsSectionTitle("Advanced")
-                SettingsCard(flat = true, modifier = Modifier.padding(horizontal = 16.dp)) {
-                    SettingsNavigationItem(
-                        icon = Icons.Default.Tune,
-                        title = "Advanced",
-                        subtitle = "Diagnostics, experimental & extra options",
-                        onClick = onMiscClick
-                    )
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            // --- Storage & Data ---
-            item {
-                SettingsSectionTitle("Storage & Data")
-                SettingsCard(flat = true, modifier = Modifier.padding(horizontal = 16.dp)) {
-                    SettingsNavigationItem(
-                        icon = Icons.Default.Storage,
-                        title = "Storage Manager",
-                        subtitle = "Manage downloads & cache",
-                        onClick = onStorageClick
-                    )
-                    
-                    HorizontalDivider()
-                    
-                    SettingsNavigationItem(
-                        icon = Icons.Default.Info,
-                        title = "Listening stats",
-                        subtitle = "Your listening activity",
-                        onClick = onStatsClick
-                    )
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            // --- Support & About ---
-            item {
-                SettingsSectionTitle("About & Support")
-                SettingsCard(flat = true, modifier = Modifier.padding(horizontal = 16.dp)) {
-                    SettingsNavigationItem(
-                        icon = Icons.Default.Favorite,
-                        title = "Support the project",
-                        subtitle = "Donate to help development",
-                        onClick = onSupportClick
-                    )
-                    
-                    HorizontalDivider()
-
-                     SettingsNavigationItem(
-                        icon = Icons.Default.Person,
-                        title = "Credits",
-                        subtitle = "Developers & Libraries",
-                        onClick = onCreditsClick
-                    )
-
-                    HorizontalDivider()
-                    
-                    SettingsNavigationItem(
-                        icon = Icons.Default.Album,
-                        title = "About Sonza",
-                        subtitle = "Version ${uiState.currentVersion}",
-                        onClick = onAboutClick
-                    )
-
-                    HorizontalDivider()
-
-                    val context = androidx.compose.ui.platform.LocalContext.current
-                    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
-                    SettingsNavigationItem(
-                        icon = Icons.Default.Security,
-                        title = "Privacy Policy",
-                        subtitle = "How Sonza handles your data",
-                        onClick = { uriHandler.openUri("https://princekjha-dev.github.io/Sonza-Website/sonza-privacy.html") }
-                    )
-
-                    HorizontalDivider()
-
-                    SettingsNavigationItem(
-                        icon = Icons.Default.SystemUpdate,
-                        title = "Update Channel",
-                        subtitle = uiState.updateChannel.label,
-                        onClick = { showUpdateChannelSheet = true }
-                    )
-
-                    HorizontalDivider()
-
-                    SettingsNavigationItem(
-                        icon = Icons.Default.SystemUpdate,
-                        title = "Check for Updates",
-                        subtitle = "Check for app updates and changelogs",
-                        onClick = onUpdaterClick
-                    )
-                }
-                Spacer(modifier = Modifier.height(32.dp))
-            }
-            } // end of settingsQuery.isBlank() sections
-        }
         }
     }
-    
-    // --- Dialogs ---
-    
-    // Sign Out Warning Dialog
+
+    // ── Dialogs & Bottom Sheets ──
+
     if (showSignOutDialog) {
         AlertDialog(
             onDismissRequest = { showSignOutDialog = false },
@@ -631,8 +631,21 @@ fun SettingsScreen(
                     modifier = Modifier.size(32.dp)
                 )
             },
-            title = { Text(text = "Sign out?", fontWeight = FontWeight.Bold) },
-            text = { Text(text = "You will be disconnected from the current account.") },
+            title = {
+                Text(
+                    text = "Sign out?",
+                    style = SonzaTypography.TitleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = SonzaOnBackground
+                )
+            },
+            text = {
+                Text(
+                    text = "You will be disconnected from YouTube Music on this device.",
+                    style = SonzaTypography.BodyMedium,
+                    color = SonzaOnSurfaceVariant
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -642,58 +655,63 @@ fun SettingsScreen(
                         showSignOutDialog = false
                     }
                 ) {
-                    Text(text = "Sign Out", color = MaterialTheme.colorScheme.error)
+                    Text(text = "Sign Out", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showSignOutDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showSignOutDialog = false }) {
+                    Text("Cancel", color = SonzaOnBackground)
+                }
             },
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            shape = SquircleShape
+            containerColor = SonzaSurface,
+            shape = RoundedCornerShape(RadiusTokens.Lg)
         )
     }
 
     // Accounts Bottom Sheet
     if (showAccountsSheet) {
-        com.sonza.app.ui.components.glass.GlassModalBottomSheet(
+        GlassModalBottomSheet(
             onDismissRequest = { showAccountsSheet = false },
             sheetState = sheetState,
-            fallbackContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+            fallbackContainerColor = SonzaSurface,
+            contentColor = SonzaOnBackground,
+            shape = RoundedCornerShape(topStart = RadiusTokens.Lg, topEnd = RadiusTokens.Lg)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 32.dp)
+                    .padding(bottom = SpacingTokens.Space2xl)
             ) {
                 Text(
                     text = "Switch Account",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = SonzaTypography.TitleLarge,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+                    color = SonzaOnBackground,
+                    modifier = Modifier.padding(horizontal = SpacingTokens.SpaceXl, vertical = SpacingTokens.SpaceLg)
                 )
 
                 if (uiState.availableAccounts.isNotEmpty()) {
                     Text(
                         text = "Channels",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = SonzaTypography.TitleMedium,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                        color = SonzaOnSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = SpacingTokens.SpaceXl, vertical = SpacingTokens.SpaceSm)
                     )
-                    
+
                     uiState.availableAccounts.forEach { account ->
                         val isCurrent = account.authUserIndex == (uiState.storedAccounts.firstOrNull { it.email == "current" }?.authUserIndex ?: 0) &&
-                                        account.name == (uiState.storedAccounts.firstOrNull { it.email == "current" }?.name ?: "")
-                        
+                                account.name == (uiState.storedAccounts.firstOrNull { it.email == "current" }?.name ?: "")
+
                         ListItem(
-                            headlineContent = { 
+                            headlineContent = {
                                 Text(
-                                    account.name, 
-                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal 
+                                    account.name,
+                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                    color = SonzaOnBackground
                                 )
                             },
-                            supportingContent = { Text(account.email) },
+                            supportingContent = { Text(account.email, color = SonzaOnSurfaceVariant) },
                             leadingContent = {
                                 AsyncImage(
                                     model = account.avatarUrl,
@@ -702,8 +720,8 @@ fun SettingsScreen(
                                         .size(40.dp)
                                         .clip(SquircleShape)
                                         .border(
-                                            if (isCurrent) 1.5.dp else 0.dp, 
-                                            MaterialTheme.colorScheme.primary, 
+                                            if (isCurrent) 1.5.dp else 0.dp,
+                                            accentColor,
                                             SquircleShape
                                         )
                                 )
@@ -713,37 +731,39 @@ fun SettingsScreen(
                                 .dpadFocusable(
                                     onClick = {
                                         viewModel.switchAccount(account)
-                                        scope.launch { sheetState.hide() }.invokeOnCompletion { 
-                                            showAccountsSheet = false 
+                                        scope.launch { sheetState.hide() }.invokeOnCompletion {
+                                            showAccountsSheet = false
                                         }
                                     },
                                     shape = SquircleShape
                                 )
-                                .padding(horizontal = 8.dp),
+                                .padding(horizontal = SpacingTokens.SpaceSm),
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
                     }
-                    HorizontalDivider()
+                    HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f))
                 }
 
                 if (uiState.storedAccounts.isNotEmpty()) {
                     Text(
                         text = "Saved Sessions",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = SonzaTypography.TitleMedium,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                        color = SonzaOnSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = SpacingTokens.SpaceXl, vertical = SpacingTokens.SpaceSm)
                     )
                     uiState.storedAccounts.forEach { account ->
                         val isCurrent = account.email == (uiState.storedAccounts.firstOrNull { it.email == "current" }?.email ?: "")
-                        
+
                         ListItem(
-                            headlineContent = { 
+                            headlineContent = {
                                 Text(
-                                    account.name, 
-                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal 
+                                    account.name,
+                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                    color = SonzaOnBackground
                                 )
                             },
-                            supportingContent = { Text(account.email) },
+                            supportingContent = { Text(account.email, color = SonzaOnSurfaceVariant) },
                             leadingContent = {
                                 AsyncImage(
                                     model = account.avatarUrl,
@@ -752,8 +772,8 @@ fun SettingsScreen(
                                         .size(40.dp)
                                         .clip(SquircleShape)
                                         .border(
-                                            if (isCurrent) 1.5.dp else 0.dp, 
-                                            MaterialTheme.colorScheme.primary, 
+                                            if (isCurrent) 1.5.dp else 0.dp,
+                                            accentColor,
                                             SquircleShape
                                         )
                                 )
@@ -761,8 +781,8 @@ fun SettingsScreen(
                             trailingContent = {
                                 Icon(
                                     Icons.Default.Close,
-                                    "Remove",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    contentDescription = "Remove account session",
+                                    tint = SonzaOnSurfaceVariant,
                                     modifier = Modifier
                                         .clickable { viewModel.removeAccount(account.email) }
                                         .padding(8.dp)
@@ -773,34 +793,32 @@ fun SettingsScreen(
                                 .dpadFocusable(
                                     onClick = {
                                         viewModel.switchAccount(account)
-                                        scope.launch { sheetState.hide() }.invokeOnCompletion { 
-                                            showAccountsSheet = false 
+                                        scope.launch { sheetState.hide() }.invokeOnCompletion {
+                                            showAccountsSheet = false
                                         }
                                     },
                                     shape = SquircleShape
                                 )
-                                .padding(horizontal = 8.dp),
+                                .padding(horizontal = SpacingTokens.SpaceSm),
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider()
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(SpacingTokens.SpaceLg))
                 }
 
                 ListItem(
-                    headlineContent = { Text("Add another account", fontWeight = FontWeight.Medium) },
+                    headlineContent = { Text("Add another account", fontWeight = FontWeight.Medium, color = SonzaOnBackground) },
                     leadingContent = {
                         Surface(
                             shape = SquircleShape,
-                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            color = SonzaSurfaceVariant,
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
-                                Icons.Default.Person, 
-                                null, 
+                                Icons.Default.Person,
+                                null,
                                 modifier = Modifier.padding(10.dp),
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                tint = SonzaOnSurfaceVariant
                             )
                         }
                     },
@@ -809,236 +827,282 @@ fun SettingsScreen(
                         .dpadFocusable(
                             onClick = {
                                 viewModel.clearWebViewCookies()
-                                scope.launch { sheetState.hide() }.invokeOnCompletion { 
-                                    showAccountsSheet = false 
+                                scope.launch { sheetState.hide() }.invokeOnCompletion {
+                                    showAccountsSheet = false
                                     onLoginClick()
                                 }
                             },
                             shape = SquircleShape
                         )
-                        .padding(horizontal = 8.dp),
+                        .padding(horizontal = SpacingTokens.SpaceSm),
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                 )
             }
         }
     }
 
-
     // Update Channel Bottom Sheet
     if (showUpdateChannelSheet) {
-        com.sonza.app.ui.components.glass.GlassModalBottomSheet(
+        GlassModalBottomSheet(
             onDismissRequest = { showUpdateChannelSheet = false },
-            fallbackContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+            fallbackContainerColor = SonzaSurface,
+            contentColor = SonzaOnBackground,
+            shape = RoundedCornerShape(topStart = RadiusTokens.Lg, topEnd = RadiusTokens.Lg)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 32.dp)
+                    .padding(bottom = SpacingTokens.Space2xl)
             ) {
                 Text(
                     text = "Update Channel",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = SonzaTypography.TitleLarge,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+                    color = SonzaOnBackground,
+                    modifier = Modifier.padding(horizontal = SpacingTokens.SpaceXl, vertical = SpacingTokens.SpaceLg)
                 )
 
                 UpdateChannel.entries.forEach { channel ->
                     val isSelected = uiState.updateChannel == channel
-                    ListItem(
-                        headlineContent = { Text(channel.label) },
-                        leadingContent = {
-                            androidx.compose.material3.RadioButton(
-                                selected = isSelected,
-                                onClick = { 
-                                    viewModel.setUpdateChannel(channel)
-                                    showUpdateChannelSheet = false
-                                }
-                            )
-                        },
-                        modifier = Modifier.dpadFocusable(
-                            onClick = { 
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                viewModel.setUpdateChannel(channel)
+                                showUpdateChannelSheet = false
+                            }
+                            .padding(horizontal = SpacingTokens.SpaceXl, vertical = SpacingTokens.SpaceMd),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = isSelected,
+                            onClick = {
                                 viewModel.setUpdateChannel(channel)
                                 showUpdateChannelSheet = false
                             },
-                            shape = SquircleShape
-                        ),
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                    )
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = accentColor,
+                                unselectedColor = SonzaOnSurfaceVariant
+                            )
+                        )
+                        Spacer(modifier = Modifier.width(SpacingTokens.SpaceMd))
+                        Text(
+                            text = channel.label,
+                            style = SonzaTypography.BodyLarge.copy(
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            ),
+                            color = SonzaOnBackground
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-// --- Components ---
+// ──────────────────────────────────────────
+// Reusable Sonza Settings Components
+// ──────────────────────────────────────────
 
+/**
+ * Reusable Settings Section Title per Part P requirements.
+ */
 @Composable
-private fun SettingsSectionTitle(title: String) {
-    com.sonza.app.ui.components.SettingsSectionTitle(
-        title = title,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        fontWeight = FontWeight.SemiBold,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            start = 16.dp, end = 16.dp, top = 8.dp, bottom = 6.dp
-        )
+private fun SonzaSectionHeader(title: String) {
+    Text(
+        text = title,
+        style = SonzaTypography.TitleSmall.copy(
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp
+        ),
+        color = SonzaOnSurfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                start = SpacingTokens.SpaceLg + SpacingTokens.SpaceXs,
+                end = SpacingTokens.SpaceLg,
+                top = SpacingTokens.SpaceSm,
+                bottom = SpacingTokens.SpaceXs
+            )
     )
 }
 
+/**
+ * Reusable Sonza Settings Row.
+ *
+ * Structure:
+ * [Tinted Icon Box]   Title
+ *                     Description                 [ > / Badge ]
+ */
 @Composable
-private fun HorizontalDivider() {
-    M3HorizontalDivider(
-        modifier = Modifier.padding(horizontal = 16.dp),
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
-    )
-}
-
-@Composable
-private fun SettingsNavigationItem(
+private fun SonzaSettingsRow(
     icon: ImageVector,
     title: String,
-    subtitle: String? = null,
-    badge: @Composable (() -> Unit)? = null,
+    description: String? = null,
+    accentColor: Color,
+    iconTint: Color = accentColor,
+    trailingBadge: @Composable (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
-    ListItem(
-        headlineContent = { 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(title, fontWeight = FontWeight.Medium)
-                if (badge != null) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    badge()
-                }
-            }
-        },
-        supportingContent = subtitle?.let { { Text(it, maxLines = 1) } },
-        leadingContent = {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(SquircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon, 
-                    contentDescription = null, 
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        },
-        trailingContent = {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                contentDescription = null,
-                modifier = Modifier.size(12.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-            )
-        },
+    Surface(
         modifier = Modifier
-            .dpadFocusable(onClick = onClick, shape = SquircleShape)
-            .clip(SquircleShape),
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-    )
-}
-
-@Composable
-private fun SettingsActionItem(
-    icon: ImageVector,
-    title: String,
-    onClick: () -> Unit,
-    titleColor: Color = MaterialTheme.colorScheme.onSurface,
-    iconColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
-) {
-    ListItem(
-        headlineContent = { Text(title, fontWeight = FontWeight.Medium, color = titleColor) },
-        leadingContent = {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(SquircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon, 
-                    contentDescription = null, 
-                    tint = if (titleColor == MaterialTheme.colorScheme.error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        },
-        modifier = Modifier
-            .dpadFocusable(onClick = onClick, shape = SquircleShape)
-            .clip(SquircleShape),
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-    )
-}
-
-@Composable
-private fun SettingsSliderItem(
-    icon: ImageVector?,
-    title: String,
-    subtitle: String? = null,
-    value: Float,
-    valueRange: ClosedFloatingPointRange<Float>,
-    steps: Int = 0,
-    onValueChange: (Float) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onClick)
+            .semantics {
+                role = Role.Button
+                contentDescription = "$title, ${description ?: ""}, button"
+            },
+        color = Color.Transparent
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (icon != null) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(SquircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(16.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceMd),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Icon in squircle tinted box
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(RadiusTokens.Sm))
+                    .background(iconTint.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(20.dp)
+                )
             }
+
+            Spacer(modifier = Modifier.width(SpacingTokens.SpaceMd))
+
+            // Title & Description
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, fontWeight = FontWeight.Medium)
-                if (subtitle != null) {
+                Text(
+                    text = title,
+                    style = SonzaTypography.TitleMedium.copy(
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = SonzaOnBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (!description.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = description,
+                        style = SonzaTypography.BodyMedium.copy(fontSize = 13.sp),
+                        color = SonzaOnSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
+            }
+
+            // Trailing action or badge
+            if (trailingBadge != null) {
+                Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
+                trailingBadge()
+            } else {
+                Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                    contentDescription = null,
+                    tint = SonzaOnSurfaceVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.size(13.dp)
+                )
             }
         }
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = valueRange,
-            steps = steps,
-            colors = SliderDefaults.colors(
-                thumbColor = MaterialTheme.colorScheme.primary,
-                activeTrackColor = MaterialTheme.colorScheme.primary
-            ),
-            modifier = Modifier.padding(top = 4.dp)
-        )
     }
 }
+
 /**
- * One row of the flat settings search index: a destination plus the keywords
- * users actually type for the options living inside it.
+ * Reusable Settings Switch Row.
  */
+@Composable
+private fun SonzaSettingsSwitchRow(
+    icon: ImageVector,
+    title: String,
+    description: String? = null,
+    checked: Boolean,
+    accentColor: Color,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .semantics {
+                role = Role.Switch
+                contentDescription = "$title, ${description ?: ""}, ${if (checked) "enabled" else "disabled"}"
+            },
+        color = Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceMd),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(RadiusTokens.Sm))
+                    .background(accentColor.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(SpacingTokens.SpaceMd))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = SonzaTypography.TitleMedium.copy(
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = SonzaOnBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (!description.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = description,
+                        style = SonzaTypography.BodyMedium.copy(fontSize = 13.sp),
+                        color = SonzaOnSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
+
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = accentColor,
+                    uncheckedThumbColor = SonzaOnSurfaceVariant,
+                    uncheckedTrackColor = SonzaSurfaceVariant
+                )
+            )
+        }
+    }
+}
+
 private data class SettingsSearchEntry(
     val title: String,
     val subtitle: String,
@@ -1046,3 +1110,4 @@ private data class SettingsSearchEntry(
     val icon: ImageVector,
     val onClick: () -> Unit
 )
+
