@@ -54,10 +54,10 @@ fun AdaptiveNavigationRail(
     modifier: Modifier = Modifier
 ) {
     val navItems = listOf(
-        TabletNavItem(Destination.Home, "Home", Icons.Outlined.Home, Icons.Filled.Home),
-        TabletNavItem(Destination.Search, "Search", Icons.Outlined.Search, Icons.Filled.Search),
-        TabletNavItem(Destination.Library, "Library", Icons.Outlined.LibraryMusic, Icons.Filled.LibraryMusic),
-        TabletNavItem(Destination.Settings, "Settings", Icons.Outlined.Settings, Icons.Filled.Settings)
+        TabletNavItem(Destination.Home, androidx.compose.ui.res.stringResource(com.sonza.app.R.string.nav_home), Icons.Outlined.Home, Icons.Filled.Home),
+        TabletNavItem(Destination.Search, androidx.compose.ui.res.stringResource(com.sonza.app.R.string.nav_search), Icons.Outlined.Search, Icons.Filled.Search),
+        TabletNavItem(Destination.Library, androidx.compose.ui.res.stringResource(com.sonza.app.R.string.nav_library), Icons.Outlined.LibraryMusic, Icons.Filled.LibraryMusic),
+        TabletNavItem(Destination.Settings, androidx.compose.ui.res.stringResource(com.sonza.app.R.string.nav_settings), Icons.Outlined.Settings, Icons.Filled.Settings)
     )
 
     NavigationRail(

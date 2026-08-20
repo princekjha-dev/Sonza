@@ -513,6 +513,20 @@ class SearchViewModel @Inject constructor(
         }
     }
     
+    fun removeRecentSearch(item: RecentSearchItem) {
+        viewModelScope.launch {
+            sessionManager.removeRecentSearch(item.id)
+            loadRecentSearches()
+        }
+    }
+
+    fun removeRecentSearchById(id: String) {
+        viewModelScope.launch {
+            sessionManager.removeRecentSearch(id)
+            loadRecentSearches()
+        }
+    }
+
     fun clearRecentSearches() {
         viewModelScope.launch {
             sessionManager.clearRecentSearches()

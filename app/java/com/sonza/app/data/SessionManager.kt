@@ -2812,6 +2812,54 @@ class SessionManager @Inject constructor(
         context.dataStore.edit { it.remove(RECENT_SEARCHES_KEY) }
     }
 
+    suspend fun removeRecentSearch(itemId: String) = withContext(Dispatchers.IO) {
+        val currentSearches = getRecentSearches().toMutableList()
+        currentSearches.removeAll { it.id == itemId }
+        val jsonArray = JSONArray()
+        currentSearches.forEach { searchItem ->
+            val obj = JSONObject()
+            when (searchItem) {
+                is RecentSearchItem.SongItem -> {
+                    val s = searchItem.song
+                    obj.put("item_type", "SONG")
+                    obj.put("id", s.id)
+                    obj.put("title", s.title)
+                    obj.put("artist", s.artist)
+                    obj.put("album", s.album)
+                    obj.put("thumbnailUrl", s.thumbnailUrl ?: "")
+                    obj.put("duration", s.duration)
+                    obj.put("source", s.source.name)
+                }
+                is RecentSearchItem.AlbumItem -> {
+                    val a = searchItem.album
+                    obj.put("item_type", "ALBUM")
+                    obj.put("id", a.id)
+                    obj.put("title", a.title)
+                    obj.put("artist", a.artist)
+                    obj.put("thumbnailUrl", a.thumbnailUrl ?: "")
+                    obj.put("description", a.description ?: "")
+                    obj.put("year", a.year ?: "")
+                }
+                is RecentSearchItem.PlaylistItem -> {
+                    val p = searchItem.playlist
+                    obj.put("item_type", "PLAYLIST")
+                    obj.put("id", p.id)
+                    obj.put("title", p.title)
+                    obj.put("author", p.author)
+                    obj.put("thumbnailUrl", p.thumbnailUrl ?: "")
+                    obj.put("description", p.description ?: "")
+                }
+                is RecentSearchItem.QueryItem -> {
+                    obj.put("item_type", "QUERY")
+                    obj.put("query", searchItem.query)
+                }
+            }
+            jsonArray.put(obj)
+        }
+        encryptedPrefs.edit().putString("recent_searches", jsonArray.toString()).apply()
+        context.dataStore.edit { it.remove(RECENT_SEARCHES_KEY) }
+    }
+
     suspend fun clearRecentSearches() {
         withContext(Dispatchers.IO) {
             encryptedPrefs.edit().remove("recent_searches").apply()

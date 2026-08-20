@@ -56,10 +56,10 @@ fun TvNavigationRail(
     modifier: Modifier = Modifier
 ) {
     val navItems = listOf(
-        TvNavItem(Destination.Home, "Home", Icons.Outlined.Home, Icons.Filled.Home),
-        TvNavItem(Destination.Search, "Search", Icons.Outlined.Search, Icons.Filled.Search),
-        TvNavItem(Destination.Library, "Library", Icons.Outlined.LibraryMusic, Icons.Filled.LibraryMusic),
-        TvNavItem(Destination.Settings, "Settings", Icons.Outlined.Settings, Icons.Filled.Settings)
+        TvNavItem(Destination.Home, androidx.compose.ui.res.stringResource(com.sonza.app.R.string.nav_home), Icons.Outlined.Home, Icons.Filled.Home),
+        TvNavItem(Destination.Search, androidx.compose.ui.res.stringResource(com.sonza.app.R.string.nav_search), Icons.Outlined.Search, Icons.Filled.Search),
+        TvNavItem(Destination.Library, androidx.compose.ui.res.stringResource(com.sonza.app.R.string.nav_library), Icons.Outlined.LibraryMusic, Icons.Filled.LibraryMusic),
+        TvNavItem(Destination.Settings, androidx.compose.ui.res.stringResource(com.sonza.app.R.string.nav_settings), Icons.Outlined.Settings, Icons.Filled.Settings)
     )
 
     NavigationRail(

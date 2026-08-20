@@ -165,7 +165,8 @@ Spotify's Circular and Apple's SF Pro, and avoids default-Roboto "templated" fee
 - **Active:** filled icon variant (`Icons.Filled.*`), dynamic `accent` tint (falls back to fixed brand blue `SonzaDefaultAccent` outside a playback context), `label-small` (12sp Manrope) `SemiBold` (600) label visible.
 - **Inactive:** outlined icon variant (`Icons.Outlined.*`), `on-surface-variant` (`#A1A1A8`) tint, `label-small` (12sp Manrope) `Medium` (500) label visible.
 - **Iconography:** standard 24dp Material Symbols Rounded/Icons (`Home`, `Search`, `LibraryMusic`, `Settings`).
-- **Surface:** `elevation-2` blur treatment on fixed shell `surface` (`#17171A`), 64dp standard content height, extending edge-to-edge behind system navigation bar with `navigationBarsPadding()` on content items. Top border `outline` @ 60% with `radius-md` top corners.
+- **Surface:** Solid non-bleeding elevated shell `surface` (`#17171A`), 64dp standard content height, extending edge-to-edge behind system navigation bar with `navigationBarsPadding()` on content items. Top border `outline` @ 60% with `radius-md` top corners and `Elevation2` shadow.
+- **Accessibility:** Full touch targets (`fillMaxHeight()`, min 48dp), `Role.Tab` semantics with dynamic TalkBack announcements (`"Home, selected"`, `"Search"`, `"Your Library"`, `"Settings"`).
 - **Transition:** 150ms `FastOutSlowInEasing` color transition on tab change (`NavSelectionDuration`). Zero layout shift on state change.
 - Defined in: `ExpressiveBottomNav.kt` (`ExpressiveBottomNav`, `StandardNavBar`, `LiquidGlassNavBar`)
 
@@ -214,6 +215,12 @@ Wraps existing ViewModel data in a UI-state sealed class (`Loading` / `Success` 
 
 Defined in: `com.sonza.app.ui.components.StateComponents.kt`
 
+### 6.8 Search Flow (3-Phase Model)
+- **Phase 1: Initial Discovery Screen:** Source-agnostic landing. Displays large "Search" headline, resting search bar ("Search for songs, artists, or albums"), recent searches preview (if history exists), and "Browse all" category tiles with vibrant gradients. Zero technical source labels.
+- **Phase 2: Active Search Mode:** Smooth animated transition upon tapping search bar. Displays leading `←` back arrow and trailing `X` clear button. `BackHandler` dismisses keyboard and exits active mode on first press. When query is empty, displays recent search history with individual delete `X` buttons (TalkBack: "Remove X from search history") and "Clear all" button, or `SonzaEmptyState` if history is empty. As user types, shows live query suggestions.
+- **Phase 3: Search Results Mode:** Preserves query in search bar. Displays category filter chips ([All], [Songs], [Videos], [Albums], [Artists], [Playlists]). YouTube Music default search catalogue. Rich result items with 0.97 scale feedback, `SearchResultsSkeleton` during load, `SonzaEmptyState` for zero results, and `SonzaErrorState` for failures.
+- Defined in: `SearchScreen.kt`, `SearchViewModel.kt`, `SessionManager.kt`
+
 ---
 
 ## Part 7 — Iconography
@@ -249,6 +256,15 @@ Defined in: `com.sonza.app.ui.components.StateComponents.kt`
 
 ---
 
+## Part M — Search Experience Redesign
+- Consolidated search logic into 3-phase flow.
+- Added recent history persistence and deletion UI.
+- Implemented full TalkBack semantics for search controls.
+- Defined source-agnostic search bar requirements.
+- Standardized YouTube Music integration for search results.
+
+---
+
 ## Change Log
 
 | Date | Change | Component(s) affected |
@@ -261,5 +277,5 @@ Defined in: `com.sonza.app.ui.components.StateComponents.kt`
 | 2026-08-20 | Phase 4b Completed: Search & Home Design-System Alignment, Emoji elimination with 20dp Material Symbols, Interactive Sonza result cards (scale 0.97 / 100ms), State Components (`SonzaEmptyState`, `SonzaErrorState`, `SonzaBanner`), and Media3 Notification Channel alignment (`media_playback_channel`) | `StateComponents.kt`, `MoodChips.kt`, `SearchScreen.kt`, `HomeComponents.kt`, `HomeScreen.kt`, `MusicPlayerService.kt`, `RemoteAudioRepository.kt` |
 | 2026-08-20 | Part E Completed: Bottom Navigation Visual Consistency Fix (Standardized 24dp Material Icons with `LibraryMusic`, Manrope 12sp `SonzaTypography.LabelSmall`, fixed shell `SonzaSurface` blur-behind container with edge-to-edge support, 64dp standard height, 150ms `MotionTokens.NavSelectionDuration` transitions without layout shift) | `ExpressiveBottomNav.kt`, `TvNavigationRail.kt`, `MainActivity.kt`, `DESIGN_SYSTEM.md` |
 | 2026-08-20 | Part F Completed: YouTube Music Default Search Source (Default search tab set to YouTube Music with immediate data flow, search bar focused on search input, HQ Audio tab preserved for cross-catalogue search) | `SearchViewModel.kt`, `SearchScreen.kt`, `DESIGN_SYSTEM.md` |
-
-
+| 2026-08-20 | Part L Completed: Bottom Navigation Redesign (Solid non-bleeding elevated surface, 4 balanced columns for Home, Search, Your Library, Settings, 24dp Material Symbols, Manrope LabelSmall typography, Role.Tab TalkBack accessibility, 150ms animated transitions, edge-to-edge system insets) | `ExpressiveBottomNav.kt`, `TvNavigationRail.kt`, `AdaptiveNavigationRail.kt`, `DESIGN_SYSTEM.md` |
+| 2026-08-21 | Part M Completed: Search Experience Redesign (3-phase music search flow, source-agnostic search bar, recent search history persistence & deletion, TalkBack accessibility semantics, two-step back handler, animated transitions, YouTube Music default results) | `SearchScreen.kt`, `SearchViewModel.kt`, `SessionManager.kt`, `DESIGN_SYSTEM.md` |
