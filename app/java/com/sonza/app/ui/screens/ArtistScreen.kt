@@ -48,7 +48,6 @@ import com.sonza.app.ui.components.BounceButton
 import com.sonza.app.ui.components.bounceClick
 import com.sonza.app.util.ImageUtils
 import com.sonza.app.ui.theme.PillShape
-import com.sonza.app.ui.components.NewReleaseCard
 import com.sonza.app.ui.components.PremiumLoadingScreen
 import com.sonza.app.ui.components.player.MultipleArtistsDialog
 import com.sonza.app.ui.components.rememberDominantColors

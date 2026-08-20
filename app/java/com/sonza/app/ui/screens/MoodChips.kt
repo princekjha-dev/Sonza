@@ -84,7 +84,20 @@ fun MoodChipsSection(
     onMoodSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+
+    // Smoothly ensure selected chip is scrolled into view when selection changes
+    androidx.compose.runtime.LaunchedEffect(selectedMood) {
+        val targetIndex = MOODS.indexOfFirst {
+            (selectedMood == null && it.name == "All") || it.name == selectedMood
+        }
+        if (targetIndex >= 0) {
+            listState.animateScrollToItem(targetIndex)
+        }
+    }
+
     LazyRow(
+        state = listState,
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(horizontal = SpacingTokens.SpaceLg),
         horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceSm)

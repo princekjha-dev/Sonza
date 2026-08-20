@@ -1,20 +1,11 @@
 package com.sonza.app.ui.screens
 
+import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -22,83 +13,73 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Radio
-import androidx.compose.material.icons.filled.Refresh
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.repeatOnLifecycle
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material.icons.filled.WbSunny
-import androidx.compose.material.icons.filled.WbTwilight
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
-import android.content.Intent
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshotFlow
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.koin.compose.viewmodel.koinViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import com.sonza.app.core.model.Album
 import com.sonza.app.core.model.HomeItem
 import com.sonza.app.core.model.HomeSection
-import com.sonza.app.core.model.HomeSectionType
 import com.sonza.app.core.model.PlaylistDisplayItem
 import com.sonza.app.core.model.Song
-import com.sonza.app.core.model.Album
-import com.sonza.app.ui.components.HomeLoadingSkeleton
-import com.sonza.app.ui.components.SongMenuBottomSheet
-import com.sonza.app.ui.components.AddToPlaylistSheet
-import com.sonza.app.ui.viewmodel.PlaylistManagementViewModel
-import com.sonza.app.ui.viewmodel.HomeEvent
+import com.sonza.app.ui.components.*
+import com.sonza.app.ui.theme.*
+import com.sonza.app.ui.utils.LocalDeviceFormFactor
 import com.sonza.app.ui.utils.animateEnter
+import com.sonza.app.ui.viewmodel.HomeEvent
 import com.sonza.app.ui.viewmodel.HomeViewModel
+import com.sonza.app.ui.viewmodel.PlaylistManagementViewModel
 import com.sonza.app.util.ImageUtils
-import com.sonza.app.util.dpadFocusable
-import com.sonza.app.ui.theme.QuickAccessShape
-import com.sonza.app.ui.theme.SquircleShape
-import com.sonza.app.ui.theme.PillShape
-import androidx.compose.ui.graphics.Shape
-import java.util.Calendar
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * Home screen with Spotify-style "Good Morning" grid and dynamic visuals.
+ * Completely rebuilt Home Screen around the editorial music-discovery architecture (Part P):
+ * - Clean compact Header with Sonza identity.
+ * - Dynamic Featured / Spotlight Hero at the top using real data.
+ * - Category / Mood chips with zero emojis and Material Symbols.
+ * - Compact horizontal content rails with high content density.
+ * - Distinct visual patterns: Pattern A (Square cards), Pattern B (Compact rows),
+ *   Pattern C (Chart cards), Pattern D (Video cards), Pattern E (Explore).
+ * - Responsive card sizing, Manrope typography, and dynamic accent color tokens.
+ * - Seamless insets for edge-to-edge, mini-player, and bottom navigation.
  */
 @Composable
 fun HomeScreen(
@@ -118,26 +99,23 @@ fun HomeScreen(
     val context = LocalContext.current
     val sessionManager = remember { com.sonza.app.data.SessionManager(context) }
     val animatedBackgroundEnabled by sessionManager.playerAnimatedBackgroundFlow.collectAsStateWithLifecycle(initialValue = true)
-    
-    // Song Menu State
+    val isAlbumArtDynamicColorsEnabled by sessionManager.albumArtDynamicColorsEnabledFlow.collectAsStateWithLifecycle(initialValue = true)
+
+    // Song Options Menu State
     var showSongMenu by remember { mutableStateOf(false) }
     var selectedSong: Song? by remember { mutableStateOf(null) }
 
-    // Stable callback reference — avoids creating new lambdas per section item
     val onSongMoreClickHandler = remember {
         { song: Song ->
             selectedSong = song
             showSongMenu = true
         }
     }
-    
+
     val playlistMgmtState by playlistViewModel.uiState.collectAsStateWithLifecycle()
-    val isAlbumArtDynamicColorsEnabled by sessionManager.albumArtDynamicColorsEnabledFlow.collectAsStateWithLifecycle(initialValue = true)
-    
     val lazyListState = rememberLazyListState()
 
-    // Handle Events — collected lifecycle-aware so UI actions (sheets, scroll)
-    // aren't dispatched against a paused/destroyed screen.
+    // Lifecycle-aware event observation
     val homeLifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(homeLifecycleOwner) {
         homeLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -151,16 +129,14 @@ fun HomeScreen(
                             lazyListState.animateScrollToItem(0)
                         }
                     }
-                    is HomeEvent.Refresh -> {
-                       // Refresh is already triggered in ViewModel, which sets isRefreshing = true
-                    }
+                    is HomeEvent.Refresh -> {}
                 }
             }
         }
     }
 
-    // Handle messages from PlaylistManagement
-    androidx.compose.runtime.LaunchedEffect(playlistMgmtState.successMessage, playlistMgmtState.errorMessage) {
+    // Playlist feedback messages
+    LaunchedEffect(playlistMgmtState.successMessage, playlistMgmtState.errorMessage) {
         playlistMgmtState.successMessage?.let {
             com.sonza.app.util.SnackbarUtil.showMessage(it)
             playlistViewModel.clearMessages()
@@ -171,16 +147,15 @@ fun HomeScreen(
         }
     }
 
-    // Dynamic Background Colors - Respect user preference for dynamic colors
-    val actualDominantColors = com.sonza.app.ui.components.rememberDominantColors(
+    // Dynamic accent & dominant colors
+    val actualDominantColors = rememberDominantColors(
         imageUrl = currentSong?.thumbnailUrl ?: uiState.recommendations.firstOrNull()?.thumbnailUrl
     )
-    
+
     val dominantColors = if (isAlbumArtDynamicColorsEnabled) {
         actualDominantColors
     } else {
-        // Fallback to Material You theme colors when dynamic colors are disabled
-        com.sonza.app.ui.components.DominantColors(
+        DominantColors(
             primary = MaterialTheme.colorScheme.primaryContainer,
             secondary = MaterialTheme.colorScheme.secondaryContainer,
             accent = MaterialTheme.colorScheme.tertiaryContainer,
@@ -188,44 +163,64 @@ fun HomeScreen(
         )
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // fluid mesh gradient background
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Fluid background
         if (animatedBackgroundEnabled) {
-            com.sonza.app.ui.components.MeshGradientBackground(
-                dominantColors = dominantColors
-            )
+            MeshGradientBackground(dominantColors = dominantColors)
         } else {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
+                    .background(SonzaBackground)
             )
         }
 
-        // Content
+        // Home Content State Machine
         when {
-            uiState.isLoading && uiState.homeSections.isEmpty() -> {
+            uiState.isLoading && uiState.homeSections.isEmpty() && uiState.recommendations.isEmpty() -> {
                 HomeLoadingSkeleton()
             }
+
             uiState.error != null && uiState.homeSections.isEmpty() && uiState.recommendations.isEmpty() -> {
-                // Full-screen error state
-                ErrorState(
-                    message = uiState.error ?: "Something went wrong",
-                    onRetry = { viewModel.refresh() },
-                    modifier = Modifier.fillMaxSize().statusBarsPadding()
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    SonzaErrorState(
+                        title = "Couldn't load music",
+                        message = uiState.error,
+                        onRetry = { viewModel.refresh() }
+                    )
+                }
             }
-            uiState.homeSections.isNotEmpty() || uiState.recommendations.isNotEmpty() -> {
-                // Infinite scroll detection — trigger slightly earlier for seamless loading
+
+            !uiState.isLoading && uiState.homeSections.isEmpty() && uiState.recommendations.isEmpty() && uiState.personalizedSections.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    SonzaEmptyState(
+                        title = "Welcome to Sonza",
+                        description = "Start listening to discover personalized recommendations and trending tracks.",
+                        icon = Icons.Rounded.Search,
+                        actionText = "Explore Music",
+                        onActionClick = { onExploreClick("FEmusic_explore", "Explore") }
+                    )
+                }
+            }
+
+            else -> {
+                // Infinite scroll detection for smooth discovery feed
                 LaunchedEffect(lazyListState, uiState.isLoadingMore) {
                     snapshotFlow {
                         val layoutInfo = lazyListState.layoutInfo
                         val totalItems = layoutInfo.totalItemsCount
                         val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-                        // Trigger when 8 items from bottom and NOT already loading
-                        lastVisibleIndex >= totalItems - 8 && totalItems > 0 && !uiState.isLoadingMore
+                        lastVisibleIndex >= totalItems - 6 && totalItems > 0 && !uiState.isLoadingMore
                     }
                         .distinctUntilChanged()
                         .filter { it }
@@ -234,76 +229,177 @@ fun HomeScreen(
                         }
                 }
 
-                val state = rememberPullToRefreshState()
+                val pullRefreshState = rememberPullToRefreshState()
 
                 PullToRefreshBox(
                     isRefreshing = uiState.isRefreshing,
                     onRefresh = { viewModel.refresh() },
-                    state = state,
+                    state = pullRefreshState,
                     modifier = Modifier
                         .fillMaxSize()
                         .statusBarsPadding(),
                     indicator = {
-                        val dynamicColors = com.sonza.app.ui.components.LocalSonzaDynamicColors.current
+                        val dynamicColors = LocalSonzaDynamicColors.current
                         PullToRefreshDefaults.LoadingIndicator(
-                            state = state,
+                            state = pullRefreshState,
                             isRefreshing = uiState.isRefreshing,
                             modifier = Modifier.align(Alignment.TopCenter),
                             color = dynamicColors.accent,
-                            containerColor = com.sonza.app.ui.theme.SonzaSurfaceVariant
+                            containerColor = SonzaSurfaceVariant
                         )
                     }
                 ) {
+                    val formFactor = LocalDeviceFormFactor.current
+                    val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                    val navBarHeight = if (formFactor.isPhoneLike) 64.dp else 0.dp
+                    val isMiniPlayerVisible = currentSong != null
+                    val miniPlayerHeight = if (isMiniPlayerVisible) 64.dp else 0.dp
+                    val targetBottomPadding = navBarPadding + navBarHeight + miniPlayerHeight + 24.dp
+
+                    val animatedBottomPadding by animateDpAsState(
+                        targetValue = targetBottomPadding,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        ),
+                        label = "homeBottomContentPadding"
+                    )
+
+                    // Hero Content Derived from Real Available Data
+                    val heroContent = remember(currentSong, uiState.recommendations, uiState.filteredSections, uiState.personalizedSections) {
+                        when {
+                            currentSong != null -> {
+                                FeaturedHeroData(
+                                    title = currentSong.title,
+                                    subtitle = currentSong.artist,
+                                    thumbnailUrl = currentSong.thumbnailUrl,
+                                    tag = "NOW PLAYING",
+                                    onClick = { onSongClick(listOf(currentSong), 0) }
+                                )
+                            }
+                            uiState.recommendations.isNotEmpty() -> {
+                                val song = uiState.recommendations.first()
+                                FeaturedHeroData(
+                                    title = song.title,
+                                    subtitle = song.artist,
+                                    thumbnailUrl = song.thumbnailUrl,
+                                    tag = "MADE FOR YOU",
+                                    onClick = { onSongClick(uiState.recommendations, 0) }
+                                )
+                            }
+                            uiState.filteredSections.isNotEmpty() -> {
+                                val firstItem = uiState.filteredSections.first().items.firstOrNull()
+                                when (firstItem) {
+                                    is HomeItem.SongItem -> FeaturedHeroData(
+                                        title = firstItem.song.title,
+                                        subtitle = firstItem.song.artist,
+                                        thumbnailUrl = firstItem.song.thumbnailUrl,
+                                        tag = "SPOTLIGHT",
+                                        onClick = { onSongClick(listOf(firstItem.song), 0) }
+                                    )
+                                    is HomeItem.PlaylistItem -> FeaturedHeroData(
+                                        title = firstItem.playlist.name,
+                                        subtitle = firstItem.playlist.uploaderName,
+                                        thumbnailUrl = firstItem.playlist.thumbnailUrl,
+                                        tag = "FEATURED PLAYLIST",
+                                        onClick = { onPlaylistClick(firstItem.playlist) }
+                                    )
+                                    is HomeItem.AlbumItem -> FeaturedHeroData(
+                                        title = firstItem.album.title,
+                                        subtitle = firstItem.album.artist,
+                                        thumbnailUrl = firstItem.album.thumbnailUrl,
+                                        tag = "FEATURED ALBUM",
+                                        onClick = { onAlbumClick(firstItem.album) }
+                                    )
+                                    else -> null
+                                }
+                            }
+                            uiState.personalizedSections.isNotEmpty() -> {
+                                val firstItem = uiState.personalizedSections.first().items.firstOrNull()
+                                when (firstItem) {
+                                    is HomeItem.SongItem -> FeaturedHeroData(
+                                        title = firstItem.song.title,
+                                        subtitle = firstItem.song.artist,
+                                        thumbnailUrl = firstItem.song.thumbnailUrl,
+                                        tag = "RECOMMENDED",
+                                        onClick = { onSongClick(listOf(firstItem.song), 0) }
+                                    )
+                                    is HomeItem.PlaylistItem -> FeaturedHeroData(
+                                        title = firstItem.playlist.name,
+                                        subtitle = firstItem.playlist.uploaderName,
+                                        thumbnailUrl = firstItem.playlist.thumbnailUrl,
+                                        tag = "RECOMMENDED PLAYLIST",
+                                        onClick = { onPlaylistClick(firstItem.playlist) }
+                                    )
+                                    is HomeItem.AlbumItem -> FeaturedHeroData(
+                                        title = firstItem.album.title,
+                                        subtitle = firstItem.album.artist,
+                                        thumbnailUrl = firstItem.album.thumbnailUrl,
+                                        tag = "RECOMMENDED ALBUM",
+                                        onClick = { onAlbumClick(firstItem.album) }
+                                    )
+                                    else -> null
+                                }
+                            }
+                            else -> null
+                        }
+                    }
+
                     LazyColumn(
                         state = lazyListState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 140.dp),
-                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                        contentPadding = PaddingValues(bottom = animatedBottomPadding),
+                        verticalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceXs)
                     ) {
-                        // Greeting & Profile Header
+                        // 1. Top Header
                         if (uiState.homeSectionsVisibility.contains("greeting")) {
-                            item(key = "header", contentType = "header") {
-                                val glassCfg = com.sonza.app.ui.components.glass.rememberLiquidGlassConfig()
-                                if (glassCfg.enabled) {
-                                    // Frosted top bar to match the Liquid Glass nav bar.
-                                    com.sonza.app.ui.components.glass.GlassCard(
-                                        modifier = Modifier
-                                            .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 4.dp)
-                                            .animateEnter(index = 0),
-                                        shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp)
-                                    ) {
-                                        ProfileHeader(
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                            avatarUrl = uiState.userAvatarUrl,
-                                            onHistoryClick = onHistoryClick,
-                                            onListenTogetherClick = onListenTogetherClick
-                                        )
-                                    }
-                                } else {
-                                    ProfileHeader(
-                                        modifier = Modifier
-                                            .padding(start = 12.dp, end = 8.dp, top = 10.dp, bottom = 4.dp)
-                                            .animateEnter(index = 0),
-                                        avatarUrl = uiState.userAvatarUrl,
-                                        onHistoryClick = onHistoryClick,
-                                        onListenTogetherClick = onListenTogetherClick
-                                    )
-                                }
+                            item(key = "home_top_header", contentType = "header") {
+                                HomeTopHeader(
+                                    avatarUrl = uiState.userAvatarUrl,
+                                    onHistoryClick = onHistoryClick,
+                                    onListenTogetherClick = onListenTogetherClick,
+                                    modifier = Modifier.animateEnter(index = 0)
+                                )
                             }
                         }
 
-                        // Mood Chips Section
+                        // 2. Category / Mood Chips
                         if (uiState.homeSectionsVisibility.contains("mood_chips")) {
                             item(key = "mood_chips", contentType = "mood_chips") {
                                 MoodChipsSection(
                                     selectedMood = uiState.selectedMood,
                                     onMoodSelected = viewModel::onMoodSelected,
-                                    modifier = Modifier.animateEnter(index = 1)
+                                    modifier = Modifier
+                                        .padding(vertical = SpacingTokens.SpaceXs)
+                                        .animateEnter(index = 1)
                                 )
                             }
                         }
 
-                        // Personalized "For You" Banner — shown when logged in
+                        // 3. Featured / Spotlight Hero Card (P4 & P5)
+                        if (heroContent != null && uiState.selectedMood == null) {
+                            item(key = "featured_hero", contentType = "hero") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(
+                                            horizontal = SpacingTokens.SpaceLg,
+                                            vertical = SpacingTokens.SpaceXs
+                                        )
+                                        .animateEnter(index = 2)
+                                ) {
+                                    FeaturedHeroCard(
+                                        title = heroContent.title,
+                                        subtitle = heroContent.subtitle,
+                                        thumbnailUrl = heroContent.thumbnailUrl,
+                                        tag = heroContent.tag,
+                                        onClick = heroContent.onClick
+                                    )
+                                }
+                            }
+                        }
+
+                        // 4. Personalized "For You" Banner (Logged-in)
                         if (uiState.isLoggedIn && uiState.homeSectionsVisibility.contains("for_you_banner")) {
                             item(key = "for_you_banner", contentType = "for_you_banner") {
                                 AnimatedVisibility(
@@ -314,262 +410,57 @@ fun HomeScreen(
                                         onStartRadio = onStartRadio,
                                         onDismiss = viewModel::onDismissForYouBanner,
                                         modifier = Modifier
-                                            .padding(horizontal = 16.dp)
-                                            .animateEnter(index = 2)
+                                            .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceXs)
+                                            .animateEnter(index = 3)
                                     )
                                 }
                             }
                         }
 
-                        // Recommended Artists (Last.fm)
-                        if (uiState.recommendedArtists.isNotEmpty() && uiState.homeSectionsVisibility.contains("recommendations")) {
-                            item(key = "recommended_artists", contentType = "artists") {
-                                RecommendedArtistsSection(
-                                    artists = uiState.recommendedArtists,
-                                    modifier = Modifier.animateEnter(index = 2)
-                                )
-                            }
-                        }
-
-                        // Recommended Tracks (Last.fm)
-                        if (uiState.recommendedTracks.isNotEmpty() && uiState.homeSectionsVisibility.contains("recommendations")) {
-                            item(key = "recommended_tracks", contentType = "tracks") {
-                                RecommendedTracksSection(
-                                    tracks = uiState.recommendedTracks,
-                                    modifier = Modifier.animateEnter(index = 3)
-                                )
-                            }
-                        }
-
-                        // Speed dial — YouTube-Music quick-access grid of top picks
+                        // 5. Best New Songs / Quick Picks (Pattern B: Compact List Rows)
                         if (uiState.recommendations.isNotEmpty() && uiState.homeSectionsVisibility.contains("quick_picks")) {
-                            item(key = "speed_dial", contentType = "speed_dial") {
-                                SpeedDialGrid(
-                                    songs = uiState.recommendations,
-                                    currentSong = currentSong,
-                                    userName = uiState.userName,
-                                    avatarUrl = uiState.userAvatarUrl,
+                            item(key = "quick_picks_section", contentType = "quick_picks") {
+                                CompactSongRowsSection(
+                                    section = HomeSection(
+                                        title = "Quick picks",
+                                        items = uiState.recommendations.map { HomeItem.SongItem(it) }
+                                    ),
                                     onSongClick = onSongClick,
-                                    onShuffleClick = viewModel::playRandomMix,
+                                    onPlaylistClick = onPlaylistClick,
+                                    onAlbumClick = onAlbumClick,
+                                    onSongMoreClick = onSongMoreClickHandler,
                                     modifier = Modifier.animateEnter(index = 4)
                                 )
                             }
                         }
 
-                        // Sections Loop
+                        // 6. Recommended Artists (Last.fm)
+                        if (uiState.recommendedArtists.isNotEmpty() && uiState.homeSectionsVisibility.contains("recommendations")) {
+                            item(key = "recommended_artists", contentType = "artists") {
+                                RecommendedArtistsSection(
+                                    artists = uiState.recommendedArtists,
+                                    modifier = Modifier.animateEnter(index = 5)
+                                )
+                            }
+                        }
+
+                        // 7. Recommended Tracks (Last.fm)
+                        if (uiState.recommendedTracks.isNotEmpty() && uiState.homeSectionsVisibility.contains("recommendations")) {
+                            item(key = "recommended_tracks", contentType = "tracks") {
+                                RecommendedTracksSection(
+                                    tracks = uiState.recommendedTracks,
+                                    modifier = Modifier.animateEnter(index = 6)
+                                )
+                            }
+                        }
+
+                        // 8. Primary Content Sections Loop (YouTube / Backend Catalogue)
                         if (uiState.homeSectionsVisibility.contains("youtube_sections")) {
                             itemsIndexed(
                                 items = uiState.filteredSections,
                                 key = { _, section -> section.title },
                                 contentType = { _, section -> section.type }
                             ) { index, section ->
-                            val enterModifier = Modifier.animateEnter(index = index)
-                            
-                            when (section.type) {
-                                HomeSectionType.LargeCardWithList -> {
-                                    com.sonza.app.ui.components.LargeCardWithListSection(
-                                        section = section,
-                                        onSongClick = onSongClick,
-                                        onPlaylistClick = onPlaylistClick,
-                                        onAlbumClick = onAlbumClick,
-                                        onSongMoreClick = onSongMoreClickHandler,
-                                        modifier = enterModifier,
-                                    )
-                                }
-                                HomeSectionType.Grid -> {
-                                    com.sonza.app.ui.components.GridSection(
-                                        section = section,
-                                        onSongClick = onSongClick,
-                                        onPlaylistClick = onPlaylistClick,
-                                        onAlbumClick = onAlbumClick,
-                                        onSongMoreClick = onSongMoreClickHandler,
-                                        modifier = enterModifier,
-                                    )
-                                }
-                                HomeSectionType.VerticalList -> {
-                                    com.sonza.app.ui.components.VerticalListSection(
-                                        section = section,
-                                        onSongClick = onSongClick,
-                                        onPlaylistClick = onPlaylistClick,
-                                        onAlbumClick = onAlbumClick,
-                                        onSongMoreClick = onSongMoreClickHandler,
-                                        modifier = enterModifier,
-                                    )
-                                }
-                                HomeSectionType.HorizontalCarousel -> {
-                                    com.sonza.app.ui.components.HorizontalCarouselSection(
-                                        section = section,
-                                        onSongClick = onSongClick,
-                                        onPlaylistClick = onPlaylistClick,
-                                        onAlbumClick = onAlbumClick,
-                                        onSongMoreClick = onSongMoreClickHandler,
-                                        modifier = enterModifier,
-                                    )
-                                }
-                                HomeSectionType.CommunityCarousel -> {
-                                    com.sonza.app.ui.components.CommunityCarouselSection(
-                                        section = section,
-                                        onSongClick = onSongClick,
-                                        onPlaylistClick = onPlaylistClick,
-                                        onAlbumClick = onAlbumClick,
-                                        onStartRadio = onStartRadio,
-                                        onSavePlaylist = { playlist ->
-                                            com.sonza.app.util.SnackbarUtil.showSuccess("Saved ${playlist.name} to Library")
-                                        },
-                                        onSongMoreClick = onSongMoreClickHandler,
-                                        modifier = enterModifier
-                                    )
-                                }
-                                HomeSectionType.QuickPicks -> {
-                                    com.sonza.app.ui.components.QuickPicksSection(
-                                        section = section,
-                                        onSongClick = onSongClick,
-                                        onPlaylistClick = onPlaylistClick,
-                                        onAlbumClick = onAlbumClick,
-                                        onSongMoreClick = onSongMoreClickHandler,
-                                        modifier = enterModifier,
-                                    )
-                                }
-                                HomeSectionType.ExploreGrid -> {
-                                    com.sonza.app.ui.components.ExploreGridSection(
-                                        section = section,
-                                        onExploreItemClick = onExploreClick,
-                                        modifier = enterModifier
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Personalized Recommendation Sections (artist mixes, discovery, forgotten favorites, time-based)
-                        if (uiState.personalizedSections.isNotEmpty() && uiState.homeSectionsVisibility.contains("personalized")) {
-                            // Personalized section header
-                            item(key = "personalized_header", contentType = "personalized_header") {
-                                PersonalizedSectionHeader(
-                                    modifier = Modifier
-                                        .padding(horizontal = 16.dp)
-                                        .animateEnter(index = 0)
-                                )
-                            }
-
-                            itemsIndexed(
-                                items = uiState.personalizedSections,
-                                key = { _, section -> "personalized_${section.title}" },
-                                contentType = { _, section -> "personalized_${section.type}" }
-                            ) { index, section ->
-                                val enterModifier = Modifier.animateEnter(index = index)
-
-                                when (section.type) {
-                                    HomeSectionType.QuickPicks -> {
-                                        com.sonza.app.ui.components.QuickPicksSection(
-                                            section = section,
-                                            onSongClick = onSongClick,
-                                            onPlaylistClick = onPlaylistClick,
-                                            onAlbumClick = onAlbumClick,
-                                            onSongMoreClick = onSongMoreClickHandler,
-                                            modifier = enterModifier,
-                                        )
-                                    }
-                                    else -> {
-                                        // Personalized rows get the vinyl-disc treatment so
-                                        // they read distinctly from regular YouTube carousels.
-                                        com.sonza.app.ui.components.PersonalizedMixCarousel(
-                                            section = section,
-                                            onSongClick = onSongClick,
-                                            onPlaylistClick = onPlaylistClick,
-                                            onAlbumClick = onAlbumClick,
-                                            modifier = enterModifier,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Genre-Based Discovery Sections ("Because you like Pop", "Your R&B Mix", etc.)
-                        if (uiState.genreSections.isNotEmpty() && uiState.homeSectionsVisibility.contains("genres")) {
-                            item(key = "genre_header", contentType = "genre_header") {
-                                SectionDividerHeader(
-                                    title = "Your Genres",
-                                    subtitle = "Because of your taste",
-                                    modifier = Modifier
-                                        .padding(horizontal = 16.dp)
-                                        .animateEnter(index = 0)
-                                )
-                            }
-
-                            itemsIndexed(
-                                items = uiState.genreSections,
-                                key = { _, section -> "genre_${section.title}" },
-                                contentType = { _, section -> "genre_${section.type}" }
-                            ) { index, section ->
-                                val enterModifier = Modifier.animateEnter(index = index)
-                                // Genre rows get a tinted ring + tag-chip header so each
-                                // "Because you like X" feels visually labeled by genre.
-                                com.sonza.app.ui.components.GenreCarousel(
-                                    section = section,
-                                    onSongClick = onSongClick,
-                                    onPlaylistClick = onPlaylistClick,
-                                    onAlbumClick = onAlbumClick,
-                                    modifier = enterModifier,
-                                )
-                            }
-                        }
-
-                        // Context-Aware Sections (time-of-day, listening patterns)
-                        if (uiState.contextSections.isNotEmpty() && uiState.homeSectionsVisibility.contains("contextual")) {
-                            itemsIndexed(
-                                items = uiState.contextSections,
-                                key = { _, section -> "context_${section.title}" },
-                                contentType = { _, section -> "context_${section.type}" }
-                            ) { index, section ->
-                                val enterModifier = Modifier.animateEnter(index = index)
-                                com.sonza.app.ui.components.HorizontalCarouselSection(
-                                    section = section,
-                                    onSongClick = onSongClick,
-                                    onPlaylistClick = onPlaylistClick,
-                                    onAlbumClick = onAlbumClick,
-                                    onSongMoreClick = onSongMoreClickHandler,
-                                    modifier = enterModifier,
-                                )
-                            }
-                        }
-
-                        // Detected Mood Banner
-                        uiState.detectedMood?.let { mood ->
-                            if (uiState.selectedMood == null && uiState.homeSectionsVisibility.contains("mood_banner")) {
-                                item(key = "mood_banner", contentType = "mood_banner") {
-                                    DetectedMoodBanner(
-                                        mood = mood,
-                                        onExplore = { viewModel.onMoodSelected(mood) },
-                                        modifier = Modifier
-                                            .padding(horizontal = 16.dp)
-                                            .animateEnter(index = 12)
-                                    )
-                                }
-                            }
-                        }
-
-                        // Create a Mix Section (Quick Access)
-                        if (uiState.homeSectionsVisibility.contains("create_mix")) {
-                            item(key = "create_mix", contentType = "create_mix") {
-                                 Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                                     HomeSectionHeader(title = "More specifically")
-                                     Spacer(modifier = Modifier.height(12.dp))
-                                     CreateMixCard(onClick = onCreateMixClick)
-                                 }
-                            }
-                        }
-
-                        // ──────────────────────────────────────────────────
-                        // "More for you" — Scroll-loaded sections (varied styles)
-                        // ──────────────────────────────────────────────────
-                        if (uiState.moreSections.isNotEmpty() && uiState.homeSectionsVisibility.contains("youtube_sections")) {
-                            itemsIndexed(
-                                items = uiState.moreSections,
-                                key = { _, section -> "more_${section.title}" },
-                                contentType = { _, section -> "more_${section.type}" }
-                            ) { index, section ->
-                                val enterModifier = Modifier.animateEnter(index = index)
                                 RenderHomeSection(
                                     section = section,
                                     onSongClick = onSongClick,
@@ -578,48 +469,150 @@ fun HomeScreen(
                                     onExploreClick = onExploreClick,
                                     onStartRadio = onStartRadio,
                                     onSongMoreClick = onSongMoreClickHandler,
-                                    modifier = enterModifier
+                                    modifier = Modifier.animateEnter(index = 7 + index)
                                 )
                             }
                         }
 
-                        // Loading More Indicator
+                        // 9. Personalized Recommendation Sections
+                        if (uiState.personalizedSections.isNotEmpty() && uiState.homeSectionsVisibility.contains("personalized")) {
+                            itemsIndexed(
+                                items = uiState.personalizedSections,
+                                key = { _, section -> "personalized_${section.title}" },
+                                contentType = { _, section -> "personalized_${section.type}" }
+                            ) { index, section ->
+                                RenderHomeSection(
+                                    section = section,
+                                    onSongClick = onSongClick,
+                                    onPlaylistClick = onPlaylistClick,
+                                    onAlbumClick = onAlbumClick,
+                                    onExploreClick = onExploreClick,
+                                    onStartRadio = onStartRadio,
+                                    onSongMoreClick = onSongMoreClickHandler,
+                                    modifier = Modifier.animateEnter(index = 20 + index)
+                                )
+                            }
+                        }
+
+                        // 10. Genre-Based Discovery Sections ("Because you like Pop", etc.)
+                        if (uiState.genreSections.isNotEmpty() && uiState.homeSectionsVisibility.contains("genres")) {
+                            itemsIndexed(
+                                items = uiState.genreSections,
+                                key = { _, section -> "genre_${section.title}" },
+                                contentType = { _, section -> "genre_${section.type}" }
+                            ) { index, section ->
+                                HorizontalSquareCardsSection(
+                                    section = section,
+                                    onSongClick = onSongClick,
+                                    onPlaylistClick = onPlaylistClick,
+                                    onAlbumClick = onAlbumClick,
+                                    onSongMoreClick = onSongMoreClickHandler,
+                                    modifier = Modifier.animateEnter(index = 30 + index)
+                                )
+                            }
+                        }
+
+                        // 11. Context-Aware Sections (Time of day / Patterns)
+                        if (uiState.contextSections.isNotEmpty() && uiState.homeSectionsVisibility.contains("contextual")) {
+                            itemsIndexed(
+                                items = uiState.contextSections,
+                                key = { _, section -> "context_${section.title}" },
+                                contentType = { _, section -> "context_${section.type}" }
+                            ) { index, section ->
+                                RenderHomeSection(
+                                    section = section,
+                                    onSongClick = onSongClick,
+                                    onPlaylistClick = onPlaylistClick,
+                                    onAlbumClick = onAlbumClick,
+                                    onExploreClick = onExploreClick,
+                                    onStartRadio = onStartRadio,
+                                    onSongMoreClick = onSongMoreClickHandler,
+                                    modifier = Modifier.animateEnter(index = 40 + index)
+                                )
+                            }
+                        }
+
+                        // 12. Detected Mood Banner
+                        uiState.detectedMood?.let { mood ->
+                            if (uiState.selectedMood == null && uiState.homeSectionsVisibility.contains("mood_banner")) {
+                                item(key = "mood_banner", contentType = "mood_banner") {
+                                    DetectedMoodBanner(
+                                        mood = mood,
+                                        onExplore = { viewModel.onMoodSelected(mood) },
+                                        modifier = Modifier
+                                            .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceSm)
+                                            .animateEnter(index = 50)
+                                    )
+                                }
+                            }
+                        }
+
+                        // 13. Create a Mix Action Card
+                        if (uiState.homeSectionsVisibility.contains("create_mix")) {
+                            item(key = "create_mix", contentType = "create_mix") {
+                                Column(modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceSm)) {
+                                    CreateMixCard(onClick = onCreateMixClick)
+                                }
+                            }
+                        }
+
+                        // 14. Scroll-Loaded "More to Explore" Feed
+                        if (uiState.moreSections.isNotEmpty() && uiState.homeSectionsVisibility.contains("youtube_sections")) {
+                            itemsIndexed(
+                                items = uiState.moreSections,
+                                key = { _, section -> "more_${section.title}" },
+                                contentType = { _, section -> "more_${section.type}" }
+                            ) { index, section ->
+                                RenderHomeSection(
+                                    section = section,
+                                    onSongClick = onSongClick,
+                                    onPlaylistClick = onPlaylistClick,
+                                    onAlbumClick = onAlbumClick,
+                                    onExploreClick = onExploreClick,
+                                    onStartRadio = onStartRadio,
+                                    onSongMoreClick = onSongMoreClickHandler,
+                                    modifier = Modifier.animateEnter(index = 60 + index)
+                                )
+                            }
+                        }
+
+                        // 15. Loading More Indicator
                         if (uiState.isLoadingMore) {
                             item(key = "loading_more", contentType = "loading_more") {
                                 LoadingMoreIndicator(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 32.dp)
+                                        .padding(vertical = SpacingTokens.Space2Xl)
                                 )
                             }
                         }
 
-                        // End-of-Feed or App Footer
+                        // 16. End of Feed Card
                         if (uiState.hasReachedEnd) {
                             item(key = "end_of_feed", contentType = "end_of_feed") {
                                 EndOfFeedCard(
                                     onStartRadio = onStartRadio,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                                        .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceSm)
                                 )
                             }
                         }
 
-                        // App Footer
-                        item(key = "footer", contentType = "footer") {
+                        // 17. App Footer
+                        item(key = "app_footer", contentType = "footer") {
                             AppFooter(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 24.dp)
+                                    .padding(vertical = SpacingTokens.Space2Xl)
                             )
                         }
                     }
                 }
             }
         }
-        
-        // Song Options Menu
+
+        // Song Options Menu Bottom Sheet
         selectedSong?.let { song ->
             SongMenuBottomSheet(
                 isVisible = showSongMenu,
@@ -658,7 +651,6 @@ fun HomeScreen(
 
         // Add to Playlist Sheet
         val playlistUiState by playlistViewModel.uiState.collectAsStateWithLifecycle()
-        
         if (playlistUiState.showAddToPlaylistSheet && playlistUiState.selectedSongs.isNotEmpty()) {
             AddToPlaylistSheet(
                 songs = playlistUiState.selectedSongs,
@@ -678,738 +670,171 @@ fun HomeScreen(
 }
 
 // -----------------------------------------------------------------------------
-// New & Refactored Components
+// Data Classes & Helper Components
 // -----------------------------------------------------------------------------
 
-@Composable
-fun QuickAccessGrid(
-    items: List<Song>,
-    modifier: Modifier = Modifier,
-    onItemClick: (Song) -> Unit
-) {
-    Column(
-        modifier = modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Create rows of 2
-        val chunkedItems = items.chunked(2)
-        chunkedItems.forEach { rowItems ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                rowItems.forEach { song ->
-                    QuickAccessCard(
-                        song = song,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp), // Fixed height for quick access
-                        onClick = { onItemClick(song) }
-                    )
-                }
-                // Fill empty space if odd number
-                if (rowItems.size == 1) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}
+private data class FeaturedHeroData(
+    val title: String,
+    val subtitle: String,
+    val thumbnailUrl: String?,
+    val tag: String,
+    val onClick: () -> Unit
+)
 
 @Composable
-fun QuickAccessCard(
-    song: Song,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    val context = LocalContext.current
-    val highResThumbnail = remember(song.thumbnailUrl) {
-        ImageUtils.getHighResThumbnailUrl(song.thumbnailUrl, size = 544)
-    }
-    
-    // Darker surface for contrast
-    Surface(
-        modifier = modifier.bounceClick(
-            shape = QuickAccessShape,
-            onClick = onClick
-        ),
-        shape = QuickAccessShape, 
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), 
-        tonalElevation = 2.dp
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(highResThumbnail)
-                    .crossfade(true)
-                    .size(160)
-                    .build(),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(56.dp) // Match height
-                    .clip(RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp))
-                    .background(Color.DarkGray),
-                contentScale = ContentScale.Crop
-            )
-            
-            Text(
-                text = song.title,
-                modifier = Modifier
-                    .padding(horizontal = 8.dp)
-                    .weight(1f),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-
-/**
- * Time-aware gradient hero banner. Replaces the plain greeting Row with a
- * full-width band tinted by hour-of-day (dawn/day/dusk/night) so the top of
- * Home doesn't blend into the rest of the feed.
- */
-@Composable
-private fun ProfileHeader(
-    modifier: Modifier = Modifier,
-    avatarUrl: String? = null,
-    onHistoryClick: () -> Unit = {},
-    onListenTogetherClick: () -> Unit = {}
-) {
-    // YouTube-Music-style compact top bar: brand wordmark on the leading edge,
-    // a row of round actions + account avatar on the trailing edge. Sonza
-    // keeps its own logo + wordmark and theme accent instead of YTM's red.
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            modifier = Modifier.weight(1f),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            com.sonza.app.ui.components.AppLogo(
-                modifier = Modifier
-                    .size(30.dp)
-                    .clip(RoundedCornerShape(8.dp))
-            )
-            Text(
-                text = "Sonza",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Black,
-                color = MaterialTheme.colorScheme.onSurface,
-                letterSpacing = (-0.5).sp
-            )
-        }
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Listen Together — a Sonza-specific action kept in the bar.
-            TopBarAction(
-                icon = Icons.Default.Group,
-                contentDescription = "Listen Together",
-                onClick = onListenTogetherClick
-            )
-            // Activity / history — mirrors YTM's notification bell slot.
-            TopBarAction(
-                icon = Icons.Default.History,
-                contentDescription = "Recent activity",
-                onClick = onHistoryClick,
-                showDot = true
-            )
-
-            Spacer(modifier = Modifier.width(4.dp))
-
-            // Account avatar
-            Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp))
-                    .clickable(onClick = onHistoryClick),
-                contentAlignment = Alignment.Center
-            ) {
-                if (!avatarUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(avatarUrl)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = "Account",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Account",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * A round, borderless top-bar action button in the YouTube-Music idiom, with an
- * optional accent dot to signal pending activity (Sonza flourish).
- */
-@Composable
-private fun TopBarAction(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    contentDescription: String,
-    onClick: () -> Unit,
-    showDot: Boolean = false
-) {
-    Box(
-        modifier = Modifier
-            .size(42.dp)
-            .clip(CircleShape)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(23.dp)
-        )
-        if (showDot) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 9.dp, end = 9.dp)
-                    .size(7.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary)
-            )
-        }
-    }
-}
-
-/**
- * YouTube-Music "Speed dial" — a compact 3-column grid of the user's top picks
- * with the artwork title overlaid. The currently-playing tile gets a white ring,
- * exactly like YTM. Sonza keeps its squircle-ish 14dp tiles + bounce press.
- */
-@Composable
-private fun SpeedDialGrid(
-    songs: List<Song>,
-    currentSong: Song?,
-    userName: String?,
-    avatarUrl: String?,
-    onSongClick: (List<Song>, Int) -> Unit,
-    onShuffleClick: () -> Unit,
+private fun ForYouBanner(
+    onStartRadio: () -> Unit,
+    onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (songs.isEmpty()) return
-    // 8 picks + a permanent "shuffle" tile in the last cell (3x3 grid), mirroring
-    // YouTube Music's speed dial where the trailing tile shuffles your mix.
-    val items = remember(songs) { songs.take(8) }
-    // Cell indices: 0..items.lastIndex are songs, the final index is the shuffle tile.
-    val cellCount = items.size + 1
-    val rows = remember(cellCount) { (0 until cellCount).chunked(3) }
+    val dynamicColors = LocalSonzaDynamicColors.current
 
-    Column(modifier = modifier) {
-        // YTM-style header: account avatar + name above the "Speed dial" title.
-        if (!userName.isNullOrBlank()) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(RadiusTokens.Lg),
+        color = SonzaSurfaceVariant,
+        tonalElevation = 1.dp
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
             Row(
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceMd),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .size(26.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)),
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(RadiusTokens.Sm))
+                        .background(dynamicColors.accent.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (!avatarUrl.isNullOrBlank()) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(avatarUrl)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-                Text(
-                    text = userName.uppercase(),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 0.5.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-        Text(
-            text = "Speed dial",
-            style = com.sonza.app.ui.theme.SonzaTypography.Headline,
-            color = com.sonza.app.ui.theme.SonzaOnBackground,
-            modifier = Modifier.padding(start = com.sonza.app.ui.theme.SpacingTokens.SpaceLg, end = com.sonza.app.ui.theme.SpacingTokens.SpaceLg, bottom = com.sonza.app.ui.theme.SpacingTokens.SpaceMd)
-        )
-        Column(
-            modifier = Modifier.padding(horizontal = com.sonza.app.ui.theme.SpacingTokens.SpaceLg),
-            verticalArrangement = Arrangement.spacedBy(com.sonza.app.ui.theme.SpacingTokens.SpaceSm)
-        ) {
-            rows.forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(com.sonza.app.ui.theme.SpacingTokens.SpaceSm)) {
-                    row.forEach { cellIndex ->
-                        if (cellIndex < items.size) {
-                            val song = items[cellIndex]
-                            SpeedDialTile(
-                                song = song,
-                                isPlaying = song.id == currentSong?.id,
-                                onClick = { onSongClick(items, cellIndex) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        } else {
-                            ShuffleTile(
-                                onClick = onShuffleClick,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                    repeat(3 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
-                }
-            }
-        }
-    }
-}
-
-/**
- * The trailing "shuffle" tile of the speed dial per Part 6.1.
- */
-@Composable
-private fun ShuffleTile(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val dynamicColors = com.sonza.app.ui.components.LocalSonzaDynamicColors.current
-    val shape = RoundedCornerShape(com.sonza.app.ui.theme.RadiusTokens.Lg)
-    val scrimBrush = remember {
-        Brush.verticalGradient(
-            listOf(Color.Transparent, Color.Black.copy(alpha = 0.80f))
-        )
-    }
-    Box(
-        modifier = modifier
-            .aspectRatio(1f)
-            .clip(shape)
-            .background(com.sonza.app.ui.theme.SonzaSurfaceVariant)
-            .bounceClick(scaleDown = com.sonza.app.ui.theme.MotionTokens.CardTapScale, onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.Shuffle,
-            contentDescription = "Shuffle play",
-            tint = dynamicColors.accent,
-            modifier = Modifier.size(32.dp)
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .background(scrimBrush)
-                .padding(horizontal = com.sonza.app.ui.theme.SpacingTokens.SpaceSm, vertical = 6.dp)
-        ) {
-            Text(
-                text = "Shuffle",
-                style = com.sonza.app.ui.theme.SonzaTypography.LabelSmall.copy(fontWeight = FontWeight.Bold),
-                color = com.sonza.app.ui.theme.SonzaOnBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-@Composable
-private fun SpeedDialTile(
-    song: Song,
-    isPlaying: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-    val dynamicColors = com.sonza.app.ui.components.LocalSonzaDynamicColors.current
-    val shape = RoundedCornerShape(com.sonza.app.ui.theme.RadiusTokens.Lg)
-    val thumb = remember(song.thumbnailUrl) {
-        ImageUtils.getHighResThumbnailUrl(song.thumbnailUrl) ?: song.thumbnailUrl
-    }
-    val scrimBrush = remember {
-        Brush.verticalGradient(
-            listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
-        )
-    }
-    Box(
-        modifier = modifier
-            .aspectRatio(1f)
-            .clip(shape)
-            .bounceClick(scaleDown = com.sonza.app.ui.theme.MotionTokens.CardTapScale, onClick = onClick)
-    ) {
-        AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(thumb)
-                .crossfade(true)
-                .size(300)
-                .build(),
-            contentDescription = song.title,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .background(scrimBrush)
-                .padding(horizontal = com.sonza.app.ui.theme.SpacingTokens.SpaceSm, vertical = 6.dp)
-        ) {
-            Text(
-                text = song.title,
-                style = com.sonza.app.ui.theme.SonzaTypography.LabelSmall.copy(fontWeight = FontWeight.Bold),
-                color = Color.White,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        if (isPlaying) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .border(2.dp, dynamicColors.accent, shape)
-            )
-        }
-    }
-}
-
-// Unused local cards removed for cleanliness
-
-// -----------------------------------------------------------------------------
-// Unified Section Renderer — dispatches by HomeSectionType
-// -----------------------------------------------------------------------------
-
-/**
- * Render any [HomeSection] by dispatching to the correct composable based on its [HomeSectionType].
- * Used for moreSections to avoid copy-pasting the when-block.
- */
-@Composable
-private fun RenderHomeSection(
-    section: HomeSection,
-    onSongClick: (List<Song>, Int) -> Unit,
-    onPlaylistClick: (PlaylistDisplayItem) -> Unit,
-    onAlbumClick: (Album) -> Unit,
-    onExploreClick: (String, String) -> Unit,
-    onStartRadio: () -> Unit,
-    onSongMoreClick: (Song) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    when (section.type) {
-        HomeSectionType.QuickPicks -> {
-            com.sonza.app.ui.components.QuickPicksSection(
-                section = section,
-                onSongClick = onSongClick,
-                onPlaylistClick = onPlaylistClick,
-                onAlbumClick = onAlbumClick,
-                onSongMoreClick = onSongMoreClick,
-                modifier = modifier,
-            )
-        }
-        HomeSectionType.LargeCardWithList -> {
-            com.sonza.app.ui.components.LargeCardWithListSection(
-                section = section,
-                onSongClick = onSongClick,
-                onPlaylistClick = onPlaylistClick,
-                onAlbumClick = onAlbumClick,
-                onSongMoreClick = onSongMoreClick,
-                modifier = modifier,
-            )
-        }
-        HomeSectionType.Grid -> {
-            com.sonza.app.ui.components.GridSection(
-                section = section,
-                onSongClick = onSongClick,
-                onPlaylistClick = onPlaylistClick,
-                onAlbumClick = onAlbumClick,
-                onSongMoreClick = onSongMoreClick,
-                modifier = modifier,
-            )
-        }
-        HomeSectionType.VerticalList -> {
-            com.sonza.app.ui.components.VerticalListSection(
-                section = section,
-                onSongClick = onSongClick,
-                onPlaylistClick = onPlaylistClick,
-                onAlbumClick = onAlbumClick,
-                onSongMoreClick = onSongMoreClick,
-                modifier = modifier,
-            )
-        }
-        HomeSectionType.CommunityCarousel -> {
-            com.sonza.app.ui.components.CommunityCarouselSection(
-                section = section,
-                onSongClick = onSongClick,
-                onPlaylistClick = onPlaylistClick,
-                onAlbumClick = onAlbumClick,
-                onStartRadio = onStartRadio,
-                onSongMoreClick = onSongMoreClick,
-                modifier = modifier,
-            )
-        }
-        HomeSectionType.ExploreGrid -> {
-            com.sonza.app.ui.components.ExploreGridSection(
-                section = section,
-                onExploreItemClick = onExploreClick,
-                modifier = modifier
-            )
-        }
-        else -> {
-            com.sonza.app.ui.components.HorizontalCarouselSection(
-                section = section,
-                onSongClick = onSongClick,
-                onPlaylistClick = onPlaylistClick,
-                onAlbumClick = onAlbumClick,
-                onSongMoreClick = onSongMoreClick,
-                modifier = modifier,
-            )
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------
-// End-of-Feed Card — unique ending element
-// -----------------------------------------------------------------------------
-
-/**
- * A visually distinctive "End of Feed" card shown when the user has scrolled
- * through all content. Offers a personal radio as the next action.
- */
-@Composable
-private fun EndOfFeedCard(
-    onStartRadio: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-    ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 32.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                        SquircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Radio,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Text(
-                text = "You've explored it all",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = "Start a personal radio for endless music tailored to you",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Surface(
-                modifier = Modifier.bounceClick(
-                    scaleDown = com.sonza.app.ui.theme.MotionTokens.CardTapScale,
-                    onClick = onStartRadio
-                ),
-                shape = PillShape,
-                color = MaterialTheme.colorScheme.primary
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
                     Icon(
-                        imageVector = Icons.Default.PlayArrow,
+                        imageVector = Icons.Default.Radio,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(18.dp)
+                        tint = dynamicColors.accent,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(SpacingTokens.SpaceMd))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Made for you",
+                        style = SonzaTypography.TitleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = SonzaOnBackground
                     )
                     Text(
-                        text = "Start Your Radio",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimary
+                        text = "Endless radio based on your taste",
+                        style = SonzaTypography.BodySmall,
+                        color = SonzaOnSurfaceVariant
                     )
                 }
+
+                Surface(
+                    shape = RoundedCornerShape(RadiusTokens.Pill),
+                    color = dynamicColors.accent,
+                    modifier = Modifier.bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onStartRadio)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            tint = dynamicColors.onAccent,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Text(
+                            text = "Radio",
+                            style = SonzaTypography.LabelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = dynamicColors.onAccent
+                        )
+                    }
+                }
+            }
+
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .size(20.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Dismiss",
+                    tint = SonzaOnSurfaceVariant.copy(alpha = 0.6f),
+                    modifier = Modifier.size(14.dp)
+                )
             }
         }
-        }
     }
 }
 
-// -----------------------------------------------------------------------------
-// Error State & Loading
-// -----------------------------------------------------------------------------
-
-@Composable
-private fun ErrorState(
-    message: String,
-    onRetry: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier.padding(32.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        com.sonza.app.ui.components.SonzaErrorState(
-            title = "Couldn't load content",
-            message = message,
-            onRetry = onRetry
-        )
-    }
-}
-
-@Composable
-private fun LoadingMoreIndicator(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier,
-        contentAlignment = Alignment.Center
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Dancing equalizer bars instead of a generic spinner — feels
-            // like the app is "listening" while it loads more.
-            EqualizerGlyph(
-                barColor = MaterialTheme.colorScheme.primary,
-                barCount = 5,
-                height = 24.dp,
-                barWidth = 3.dp
-            )
-            Text(
-                text = "Loading more for you...",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Medium
-            )
-        }
-    }
-}
-
-/**
- * Detected mood banner — shows when the engine auto-detects the user's current mood.
- * The leading badge animates a 4-bar equalizer so the banner feels live and
- * "listening to you" instead of a static notification.
- */
 @Composable
 private fun DetectedMoodBanner(
     mood: String,
     onExplore: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val dynamicColors = LocalSonzaDynamicColors.current
+
     Surface(
         modifier = modifier
-            .fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
+            .fillMaxWidth()
+            .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onExplore),
+        shape = RoundedCornerShape(RadiusTokens.Lg),
+        color = SonzaSurfaceVariant,
+        tonalElevation = 1.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onExplore)
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceMd),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(36.dp)
-                    .background(
-                        MaterialTheme.colorScheme.tertiaryContainer,
-                        RoundedCornerShape(10.dp)
-                    ),
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(RadiusTokens.Sm))
+                    .background(dynamicColors.accent.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 EqualizerGlyph(
-                    barColor = MaterialTheme.colorScheme.tertiary,
+                    barColor = dynamicColors.accent,
                     barCount = 4,
                     height = 18.dp,
                     barWidth = 2.5.dp
                 )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(SpacingTokens.SpaceMd))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Feeling $mood?",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    style = SonzaTypography.TitleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = SonzaOnBackground
                 )
                 Text(
-                    text = "Tap to explore",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "Tap to explore music for this mood",
+                    style = SonzaTypography.BodySmall,
+                    color = SonzaOnSurfaceVariant
                 )
             }
 
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f)
+                shape = RoundedCornerShape(RadiusTokens.Pill),
+                color = dynamicColors.accent.copy(alpha = 0.14f)
             ) {
                 Text(
                     text = "Explore",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.tertiary,
+                    style = SonzaTypography.LabelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = dynamicColors.accent,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
                 )
             }
@@ -1417,184 +842,52 @@ private fun DetectedMoodBanner(
     }
 }
 
-/**
- * Section divider header with title and subtitle — used between major recommendation categories.
- */
 @Composable
-private fun SectionDividerHeader(
-    title: String,
-    subtitle: String,
-    modifier: Modifier = Modifier
-) {
-    Column(modifier = modifier.fillMaxWidth()) {
+private fun CreateMixCard(onClick: () -> Unit) {
+    val dynamicColors = LocalSonzaDynamicColors.current
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(72.dp)
+            .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onClick),
+        shape = RoundedCornerShape(RadiusTokens.Lg),
+        color = SonzaSurfaceVariant,
+        tonalElevation = 1.dp
+    ) {
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = SpacingTokens.SpaceLg),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Accent bar
             Box(
                 modifier = Modifier
-                    .width(3.dp)
-                    .height(28.dp)
-                    .background(
-                        MaterialTheme.colorScheme.primary,
-                        RoundedCornerShape(2.dp)
-                    )
-            )
-            Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    letterSpacing = (-0.3).sp
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------
-// Existing Helpers & Footer (Refined)
-// -----------------------------------------------------------------------------
-
-@Composable
-private fun HomeSectionHeader(
-    title: String,
-    onSeeAllClick: (() -> Unit)? = null
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            letterSpacing = (-0.3).sp
-        )
-        if (onSeeAllClick != null) {
-            Text(
-                text = "SEE ALL",
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .clip(androidx.compose.foundation.shape.CircleShape)
-                    .clickable(onClick = onSeeAllClick)
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                letterSpacing = 0.5.sp
-            )
-        }
-    }
-}
-
-private fun getGreeting(userName: String? = null): String {
-    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-    val timeGreeting = when {
-        hour < 12 -> "Good morning"
-        hour < 17 -> "Good afternoon"
-        hour < 21 -> "Good evening"
-        else -> "Good night"
-    }
-    return if (!userName.isNullOrBlank()) "$timeGreeting, $userName" else timeGreeting
-}
-
-/**
- * "Create a Mix" CTA, redesigned. Dashed primary-tinted border + a slow
- * horizontal shimmer sweep make it read as an *action* (not content) and
- * stand apart from the surrounding cards.
- */
-@Composable
-private fun CreateMixCard(
-    onClick: () -> Unit
-) {
-    val transition = rememberInfiniteTransition(label = "createMixShimmer")
-    val shimmer by transition.animateFloat(
-        initialValue = -1f,
-        targetValue = 2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2400, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "shimmerOffset"
-    )
-
-    val borderColor = MaterialTheme.colorScheme.primary
-    val shimmerStart = MaterialTheme.colorScheme.primary.copy(alpha = 0f)
-    val shimmerMid = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(76.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.18f))
-            .drawBehind {
-                val stroke = androidx.compose.ui.graphics.drawscope.Stroke(
-                    width = 2.dp.toPx(),
-                    pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(
-                        floatArrayOf(12.dp.toPx(), 8.dp.toPx()), 0f
-                    )
-                )
-                drawRoundRect(
-                    color = borderColor,
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx(), 16.dp.toPx()),
-                    style = stroke
-                )
-
-                // Shimmer sweep — diagonal gradient that crosses the card.
-                val sweepWidthPx = size.width * 0.4f
-                val sweepX = (size.width + sweepWidthPx) * shimmer - sweepWidthPx
-                drawRect(
-                    brush = Brush.linearGradient(
-                        colors = listOf(shimmerStart, shimmerMid, shimmerStart),
-                        start = androidx.compose.ui.geometry.Offset(sweepX, 0f),
-                        end = androidx.compose.ui.geometry.Offset(sweepX + sweepWidthPx, size.height)
-                    )
-                )
-            }
-            .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(dynamicColors.accent),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(24.dp)
+                    tint = dynamicColors.onAccent,
+                    modifier = Modifier.size(22.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(modifier = Modifier.width(SpacingTokens.SpaceMd))
 
             Column {
                 Text(
                     text = "Create your own mix",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    style = SonzaTypography.TitleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = SonzaOnBackground
                 )
                 Text(
-                    text = "Pick artists to get started",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "Pick artists and genres to get started",
+                    style = SonzaTypography.BodySmall,
+                    color = SonzaOnSurfaceVariant
                 )
             }
         }
@@ -1602,46 +895,110 @@ private fun CreateMixCard(
 }
 
 @Composable
-private fun Modifier.bounceClick(
-    scaleDown: Float = com.sonza.app.ui.theme.MotionTokens.CardTapScale,
-    shape: Shape = RoundedCornerShape(8.dp),
-    onClick: () -> Unit
-): Modifier {
-    var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) scaleDown else 1f,
-        animationSpec = tween(
-            durationMillis = com.sonza.app.ui.theme.MotionTokens.CardTapDuration,
-            easing = FastOutSlowInEasing
-        ),
-        label = "bounce"
-    )
+private fun EndOfFeedCard(
+    onStartRadio: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val dynamicColors = LocalSonzaDynamicColors.current
 
-    return this
-        .graphicsLayer {
-            scaleX = scale
-            scaleY = scale
-            clip = true
-            this.shape = shape
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(RadiusTokens.Lg),
+        color = SonzaSurfaceVariant.copy(alpha = 0.4f)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = SpacingTokens.SpaceXl, vertical = SpacingTokens.Space2Xl)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(dynamicColors.accent.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Radio,
+                    contentDescription = null,
+                    tint = dynamicColors.accent,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(SpacingTokens.SpaceLg))
+
+            Text(
+                text = "You've explored it all",
+                style = SonzaTypography.TitleMedium.copy(fontWeight = FontWeight.Bold),
+                color = SonzaOnBackground,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(SpacingTokens.SpaceXs))
+
+            Text(
+                text = "Start a personalized radio for continuous music discovery",
+                style = SonzaTypography.BodyMedium,
+                color = SonzaOnSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(SpacingTokens.SpaceLg))
+
+            Surface(
+                modifier = Modifier.bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onStartRadio),
+                shape = RoundedCornerShape(RadiusTokens.Pill),
+                color = dynamicColors.accent
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        tint = dynamicColors.onAccent,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = "Start Your Radio",
+                        style = SonzaTypography.LabelLarge.copy(fontWeight = FontWeight.Bold),
+                        color = dynamicColors.onAccent
+                    )
+                }
+            }
         }
-        .dpadFocusable(
-            shape = shape,
-            focusedScale = 1.05f,
-            borderColor = MaterialTheme.colorScheme.primary
-        )
-        .pointerInput(Unit) {
-            detectTapGestures(
-                onPress = {
-                    isPressed = true
-                    try {
-                        tryAwaitRelease()
-                    } finally {
-                        isPressed = false
-                    }
-                },
-                onTap = { onClick() }
+    }
+}
+
+@Composable
+private fun LoadingMoreIndicator(modifier: Modifier = Modifier) {
+    val dynamicColors = LocalSonzaDynamicColors.current
+
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceMd)
+        ) {
+            EqualizerGlyph(
+                barColor = dynamicColors.accent,
+                barCount = 5,
+                height = 20.dp,
+                barWidth = 3.dp
+            )
+            Text(
+                text = "Loading more for you...",
+                style = SonzaTypography.BodySmall.copy(fontWeight = FontWeight.Medium),
+                color = SonzaOnSurfaceVariant
             )
         }
+    }
 }
 
 @Composable
@@ -1649,231 +1006,79 @@ private fun AppFooter(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = 40.dp, bottom = 32.dp)
-            .padding(horizontal = 24.dp),
+            .padding(top = SpacingTokens.Space2Xl, bottom = SpacingTokens.SpaceXl)
+            .padding(horizontal = SpacingTokens.SpaceLg),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Surface(
-            modifier = Modifier.size(56.dp),
-            shape = RoundedCornerShape(14.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+            modifier = Modifier.size(48.dp),
+            shape = RoundedCornerShape(RadiusTokens.Md),
+            color = SonzaSurfaceVariant.copy(alpha = 0.5f)
         ) {
             Box(contentAlignment = Alignment.Center) {
-                com.sonza.app.ui.components.AppLogo(
-                    modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)),
-                    contentDescription = null,
+                AppLogo(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clip(RoundedCornerShape(RadiusTokens.Sm)),
+                    contentDescription = null
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(SpacingTokens.SpaceMd))
 
         Text(
             text = "Sonza",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            style = SonzaTypography.TitleMedium.copy(fontWeight = FontWeight.Bold),
+            color = SonzaOnBackground
         )
-        
+
         val versionName = com.sonza.app.BuildConfig.VERSION_NAME
         Text(
             text = "v$versionName",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+            style = SonzaTypography.BodySmall.copy(fontSize = 11.sp),
+            color = SonzaOnSurfaceVariant.copy(alpha = 0.6f)
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(SpacingTokens.SpaceLg))
 
         Text(
             text = "\u00A9 2026 Prince Kumar Jha",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+            style = SonzaTypography.BodySmall.copy(fontSize = 11.sp),
+            color = SonzaOnSurfaceVariant.copy(alpha = 0.4f)
         )
     }
 }
 
-/**
- * "For You" banner — a visually distinct personalized section shown when logged in.
- * Provides quick access to personalized radio and shows the user that content is tailored.
- */
 @Composable
-private fun ForYouBanner(
-    onStartRadio: () -> Unit,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-    ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .background(
-                            MaterialTheme.colorScheme.primaryContainer,
-                            RoundedCornerShape(12.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Radio,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(14.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Made for you",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Based on your listening history",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Surface(
-                    modifier = Modifier
-                        .bounceClick(
-                            shape = RoundedCornerShape(20.dp),
-                            onClick = onStartRadio
-                        ),
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.primary
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Text(
-                            text = "Radio",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-                }
-            }
-
-            // Close button in top-right
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .size(24.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Dismiss",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-        }
-    }
-}
-
-/**
- * Personalized section header — a clean bold title that separates
- * recommendation rows from standard YouTube home sections.
- */
-@Composable
-private fun PersonalizedSectionHeader(modifier: Modifier = Modifier) {
-    Text(
-        text = "Made for you",
-        style = MaterialTheme.typography.titleLarge,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onSurface,
-        letterSpacing = (-0.3).sp,
-        modifier = modifier.fillMaxWidth()
-    )
-}
-
-@Composable
-fun RecommendedArtistsSection(
+private fun RecommendedArtistsSection(
     artists: List<com.sonza.app.lastfm.RecommendedArtist>,
     modifier: Modifier = Modifier,
     onArtistClick: (String) -> Unit = {}
 ) {
     if (artists.isEmpty()) return
 
-    Column(modifier = modifier.padding(vertical = 16.dp)) {
+    Column(modifier = modifier) {
         HomeSectionHeader(title = "Recommended Artists")
-        Spacer(modifier = Modifier.height(16.dp))
-        
+
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = PaddingValues(horizontal = SpacingTokens.SpaceLg),
+            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceMd)
         ) {
             val uniqueArtists = artists.distinctBy { it.name }
-            items(
-                items = uniqueArtists,
-                key = { it.name }
-            ) { artist ->
-                ArtistCard(artist = artist, onClick = { onArtistClick(artist.name) })
+            items(uniqueArtists, key = { it.name }) { artist ->
+                ArtistCircleCard(artist = artist, onClick = { onArtistClick(artist.name) })
             }
         }
     }
 }
 
 @Composable
-fun RecommendedTracksSection(
-    tracks: List<com.sonza.app.lastfm.RecommendedTrack>,
-    modifier: Modifier = Modifier,
-    onTrackClick: (com.sonza.app.lastfm.RecommendedTrack) -> Unit = {}
-) {
-    if (tracks.isEmpty()) return
-
-    Column(modifier = modifier.padding(vertical = 16.dp)) {
-        HomeSectionHeader(title = "Recommended Tracks")
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            val uniqueTracks = tracks.distinctBy { it.name }
-            items(
-                items = uniqueTracks,
-                key = { it.name }
-            ) { track ->
-                TrackCard(track = track, onClick = { onTrackClick(track) })
-            }
-        }
-    }
-}
-
-@Composable
-fun ArtistCard(
+private fun ArtistCircleCard(
     artist: com.sonza.app.lastfm.RecommendedArtist,
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
-    // Get the largest image
     val imageUrl = artist.image.lastOrNull()?.url ?: ""
     val highResUrl = remember(imageUrl) {
         ImageUtils.getHighResThumbnailUrl(imageUrl, size = 320) ?: imageUrl
@@ -1882,14 +1087,14 @@ fun ArtistCard(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .width(110.dp)
-            .bounceClick(onClick = onClick)
+            .width(105.dp)
+            .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onClick)
     ) {
         Surface(
-            modifier = Modifier.size(100.dp),
-            shape = androidx.compose.foundation.shape.CircleShape,
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            shadowElevation = 4.dp
+            modifier = Modifier.size(96.dp),
+            shape = CircleShape,
+            color = SonzaSurfaceVariant,
+            tonalElevation = 1.dp
         ) {
             AsyncImage(
                 model = ImageRequest.Builder(context)
@@ -1900,35 +1105,52 @@ fun ArtistCard(
                 contentDescription = artist.name,
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(androidx.compose.foundation.shape.CircleShape),
+                    .clip(CircleShape),
                 contentScale = ContentScale.Crop
             )
         }
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(SpacingTokens.SpaceSm))
         Text(
             text = artist.name,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
+            style = SonzaTypography.TitleSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 13.sp),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurface
+            color = SonzaOnBackground
         )
     }
 }
 
-/**
- * Wide horizontal track card — thumbnail on the left, title + artist + a
- * trailing play affordance on the right. Width 280dp so two cards fit a
- * peeking carousel viewport. Spotify-style layout that contrasts with the
- * square album/playlist cards used elsewhere.
- */
 @Composable
-fun TrackCard(
+private fun RecommendedTracksSection(
+    tracks: List<com.sonza.app.lastfm.RecommendedTrack>,
+    modifier: Modifier = Modifier,
+    onTrackClick: (com.sonza.app.lastfm.RecommendedTrack) -> Unit = {}
+) {
+    if (tracks.isEmpty()) return
+
+    Column(modifier = modifier) {
+        HomeSectionHeader(title = "Recommended Tracks")
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = SpacingTokens.SpaceLg),
+            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceMd)
+        ) {
+            val uniqueTracks = tracks.distinctBy { it.name }
+            items(uniqueTracks, key = { it.name }) { track ->
+                TrackCard(track = track, onClick = { onTrackClick(track) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrackCard(
     track: com.sonza.app.lastfm.RecommendedTrack,
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
+    val dynamicColors = LocalSonzaDynamicColors.current
     val imageUrl = track.image.lastOrNull()?.url ?: ""
     val highResUrl = remember(imageUrl) {
         ImageUtils.getHighResThumbnailUrl(imageUrl, size = 256) ?: imageUrl
@@ -1936,14 +1158,14 @@ fun TrackCard(
 
     Row(
         modifier = Modifier
-            .width(280.dp)
-            .height(72.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .bounceClick(onClick = onClick)
-            .padding(8.dp),
+            .width(260.dp)
+            .height(64.dp)
+            .clip(RoundedCornerShape(RadiusTokens.Lg))
+            .background(SonzaSurfaceVariant)
+            .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onClick)
+            .padding(SpacingTokens.SpaceSm),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceMd)
     ) {
         AsyncImage(
             model = ImageRequest.Builder(context)
@@ -1953,26 +1175,25 @@ fun TrackCard(
                 .build(),
             contentDescription = track.name,
             modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+                .size(48.dp)
+                .clip(RoundedCornerShape(RadiusTokens.Sm))
+                .background(SonzaSurfaceVariant),
             contentScale = ContentScale.Crop
         )
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = track.name,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
+                style = SonzaTypography.TitleSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 14.sp),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface
+                color = SonzaOnBackground
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = track.artist.name,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = SonzaTypography.BodySmall,
+                color = SonzaOnSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1980,31 +1201,21 @@ fun TrackCard(
 
         Box(
             modifier = Modifier
-                .size(36.dp)
+                .size(32.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                .background(dynamicColors.accent.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.PlayArrow,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
+                tint = dynamicColors.accent,
+                modifier = Modifier.size(18.dp)
             )
         }
     }
 }
 
-// -----------------------------------------------------------------------------
-// Animated micro-elements — used by Phase-4 Detected Mood / For You banners and
-// the LoadingMore indicator.
-// -----------------------------------------------------------------------------
-
-/**
- * Vertical-bar audio equalizer. Each bar runs an out-of-phase animation so
- * the row reads as live audio, not a generic spinner. Kept lightweight —
- * one infinite-transition, all bars share its driver.
- */
 @Composable
 private fun EqualizerGlyph(
     barColor: Color,
@@ -2014,7 +1225,6 @@ private fun EqualizerGlyph(
     modifier: Modifier = Modifier
 ) {
     val transition = rememberInfiniteTransition(label = "equalizer")
-    // Per-bar phase offsets give the dance an organic, non-mechanical feel.
     val phases = remember(barCount) {
         when (barCount) {
             3 -> floatArrayOf(0f, 0.33f, 0.66f)
@@ -2044,7 +1254,7 @@ private fun EqualizerGlyph(
                 animationSpec = infiniteRepeatable(
                     animation = tween(
                         durationMillis = durations[i],
-                        easing = androidx.compose.animation.core.FastOutSlowInEasing,
+                        easing = FastOutSlowInEasing,
                         delayMillis = (phases[i] * 400f).toInt()
                     ),
                     repeatMode = RepeatMode.Reverse
@@ -2061,4 +1271,3 @@ private fun EqualizerGlyph(
         }
     }
 }
-
