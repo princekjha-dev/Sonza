@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sonza.app.data.SessionManager
+import com.sonza.app.core.model.Playlist
 import com.sonza.app.core.model.DownloadState
 import com.sonza.app.core.model.OutputDevice
 import com.sonza.app.core.model.PlayerState
@@ -530,14 +531,10 @@ class PlayerViewModel @Inject constructor(
         // can't land after the user moved on (or tapped like) and revert the button.
         likeCheckJob?.cancel()
         likeCheckJob = viewModelScope.launch {
-            val isLiked = if (sessionManager.isLoggedIn()) {
-                // Signed-in: source of truth is the user's YT Music "Liked Music" playlist
-                val likedSongs = youTubeRepository.getLikedMusic()
-                likedSongs.any { it.id == song.id }
-            } else {
-                // Signed-out: local-only like state from listening history
-                listeningHistoryRepository.isSongLiked(song.id)
-            }
+            val isLiked = libraryRepository.isSongInPlaylist("LM", song.id) ||
+                listeningHistoryRepository.isSongLiked(song.id) ||
+                (sessionManager.isLoggedIn() && youTubeRepository.getLikedMusic().any { it.id == song.id })
+
             // Only apply if this is still the current song — guards against a stale
             // result overwriting state after a transition.
             if (musicPlayer.playerState.value.currentSong?.id == song.id) {
@@ -1253,41 +1250,54 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             val isSignedIn = sessionManager.isLoggedIn()
             val currentLikeState = knownCurrentLikeState
-                ?: listeningHistoryRepository.isSongLiked(song.id)
+                ?: (libraryRepository.isSongInPlaylist("LM", song.id) || listeningHistoryRepository.isSongLiked(song.id))
             val newLikeState = !currentLikeState
             val rating = if (newLikeState) "LIKE" else "INDIFFERENT"
 
-            // Signed-in: round-trip via YT Music so the user's account stays in sync.
-            // Signed-out: skip the API entirely and treat the local store as the
-            // source of truth — the like still toggles and persists locally.
-            val syncedToYtMusic = if (isSignedIn) {
-                youTubeRepository.rateSong(song.id, rating)
-            } else {
-                false
-            }
-
-            if (isSignedIn && !syncedToYtMusic) {
-                // YT Music rejected the change (network drop, cookie expired, …).
-                // Don't lie to the user by flipping the local UI — bail out.
-                return@launch
-            }
-
+            // 1. Immediately update player state if this is the current song
             if (isCurrent) {
                 musicPlayer.updateLikeStatus(newLikeState)
             }
 
+            // 2. Persist to LibraryRepository ("LM" playlist) so Liked playlist and counts update immediately
+            try {
+                if (newLikeState) {
+                    libraryRepository.savePlaylist(
+                        Playlist(
+                            id = "LM",
+                            title = "Liked Songs",
+                            author = "You",
+                            thumbnailUrl = song.thumbnailUrl,
+                            songs = emptyList()
+                        )
+                    )
+                    libraryRepository.addSongToPlaylist("LM", song)
+                } else {
+                    libraryRepository.removeSongFromPlaylist("LM", song.id)
+                }
+            } catch (e: Exception) {
+                Log.e("PlayerViewModel", "Error updating Liked playlist in libraryRepository: ${e.message}", e)
+            }
+
+            // 3. Persist to listening history and notify recommendation engine
             recommendationEngine.onSongLikeChanged(song, newLikeState)
-            // Use the song-aware variant so songs that haven't been played yet
-            // (queue / search results) still get a persistent like row.
             listeningHistoryRepository.markSongAsLiked(song, newLikeState)
 
+            // 4. If signed in, sync rating to YouTube Music in background
             if (isSignedIn) {
-                if (newLikeState) {
-                    if (youTubeRepository.isOnline()) {
-                        youTubeRepository.getLikedMusic(fetchAll = false)
+                try {
+                    val syncedToYtMusic = youTubeRepository.rateSong(song.id, rating)
+                    if (syncedToYtMusic) {
+                        if (newLikeState) {
+                            if (youTubeRepository.isOnline()) {
+                                youTubeRepository.getLikedMusic(fetchAll = false)
+                            }
+                        } else {
+                            youTubeRepository.removeFromLikedCache(song.id)
+                        }
                     }
-                } else {
-                    youTubeRepository.removeFromLikedCache(song.id)
+                } catch (e: Exception) {
+                    Log.w("PlayerViewModel", "Failed to sync like rating to YouTube Music: ${e.message}")
                 }
             }
         }

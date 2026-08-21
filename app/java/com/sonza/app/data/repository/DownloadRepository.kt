@@ -1919,27 +1919,36 @@ class DownloadRepository @Inject constructor(
         for (c in candidates) {
             val cTitle = normalize(c.title)
             if (cTitle.isEmpty()) continue
-            val titleOverlap = targetTitle.intersect(cTitle).size.toDouble() / targetTitle.size
-            if (titleOverlap < 0.5) continue
+            val inter = targetTitle.intersect(cTitle).size.toDouble()
+            val titleRecall = inter / targetTitle.size
+            val titlePrecision = inter / cTitle.size
+            if (titleRecall < 0.85 || titlePrecision < 0.70) continue
+            val titleF1 = 2.0 * titleRecall * titlePrecision / (titleRecall + titlePrecision)
+            if (titleF1 < 0.80) continue
 
             var durBonus = 0.0
             if (song.duration > 0 && c.duration > 0) {
                 val diff = kotlin.math.abs(song.duration - c.duration)
-                if (diff > 15_000L) continue
-                durBonus = (1.0 - diff / 15_000.0) * 0.15
+                if (diff > 8_000L) continue
+                durBonus = (1.0 - diff / 8_000.0) * 0.15
             }
 
             val cArtist = normalize(c.artist)
-            val artistOverlap = if (targetArtist.isEmpty() || cArtist.isEmpty()) 0.0
+            val artistKnown = targetArtist.isNotEmpty() && cArtist.isNotEmpty()
+            val artistOverlap = if (!artistKnown) 0.0
                 else targetArtist.intersect(cArtist).size.toDouble() / targetArtist.size
 
-            val score = titleOverlap + artistOverlap * 0.5 + durBonus
-            if (score > bestScore) {
+            // Strict artist gate: reject candidate if both artists are known and have zero overlap
+            if (artistKnown && artistOverlap == 0.0) continue
+
+            val score = titleF1 + artistOverlap * 0.5 + durBonus
+            val requiredFloor = if (artistKnown && artistOverlap > 0.3) 0.85 else 0.90
+            if (score >= requiredFloor && score > bestScore) {
                 bestScore = score
                 best = c
             }
         }
-        return if (bestScore >= 0.6) best else null
+        return best
     }
 
     private fun cleanSongTitle(title: String): String {

@@ -863,6 +863,8 @@ class MusicPlayer @Inject constructor(
                 val controller = mediaController ?: return@let
                 val index = controller.currentMediaItemIndex
 
+                android.util.Log.i("MusicPlayer", "[PLAYER_TRANSITION] mediaId=${item.mediaId}, reason=$reason, index=$index")
+
                 // Guard against stale transitions while playSong is actively setting a new song.
                 // When setMediaItems is called, ExoPlayer can emit a PLAYLIST_CHANGED transition
                 // for the discarded item. We must not overwrite the newly requested song.
@@ -1628,13 +1630,13 @@ class MusicPlayer @Inject constructor(
             val artistOverlap = if (!artistKnown) 0.0
                 else targetArtist.intersect(cArtist).size.toDouble() / targetArtist.size
 
-            // Artist gate: when BOTH artists are known but share no tokens at all, reject
-            if (artistKnown && artistOverlap == 0.0 && !(titleF1 >= 0.95 && durationKnown)) continue
+            // Strict artist gate: when BOTH artists are known but share no tokens at all, reject immediately!
+            if (artistKnown && artistOverlap == 0.0) continue
 
             val score = titleF1 + artistOverlap * 0.5 + durBonus
 
             // High confidence floor required so we never play the wrong song
-            val requiredFloor = if (artistKnown && artistOverlap > 0.3) 0.80 else 0.90
+            val requiredFloor = if (artistKnown && artistOverlap > 0.3) 0.85 else 0.90
             if (score < requiredFloor) continue
 
             if (score > bestScore) {
@@ -1645,7 +1647,59 @@ class MusicPlayer @Inject constructor(
         return best
     }
 
+    /**
+     * Strict candidate validation when falling back from RemoteAudio to YouTube Search.
+     * Guarantees that only a confident match for the requested song is played.
+     */
+    private fun pickBestYouTubeMatch(song: Song, candidates: List<Song>): Song? {
+        if (candidates.isEmpty()) return null
+        val noise = setOf(
+            "official", "video", "audio", "lyrics", "lyric", "full", "song", "songs",
+            "hd", "4k", "mv", "feat", "ft", "with", "the", "remastered", "version",
+            "original", "soundtrack", "ost", "from", "movie"
+        )
+        fun normalize(s: String): Set<String> =
+            s.lowercase()
+                .replace(Regex("\\(.*?\\)|\\[.*?]"), " ")
+                .replace(Regex("[^a-z0-9\\s]"), " ")
+                .split(Regex("\\s+"))
+                .filter { it.isNotBlank() && it.length > 1 && it !in noise }
+                .toSet()
+
+        val targetTitle = normalize(song.title)
+        val targetArtist = normalize(song.artist)
+        if (targetTitle.isEmpty()) return null
+
+        var best: Song? = null
+        var bestScore = 0.0
+        for (c in candidates) {
+            val cTitle = normalize(c.title)
+            if (cTitle.isEmpty()) continue
+            val inter = targetTitle.intersect(cTitle).size.toDouble()
+            val titleRecall = inter / targetTitle.size
+            val titlePrecision = inter / cTitle.size
+            if (titleRecall < 0.80 || titlePrecision < 0.60) continue
+            val titleF1 = 2.0 * titleRecall * titlePrecision / (titleRecall + titlePrecision)
+            if (titleF1 < 0.70) continue
+
+            val cArtist = normalize(c.artist)
+            val artistKnown = targetArtist.isNotEmpty() && cArtist.isNotEmpty()
+            val artistOverlap = if (!artistKnown) 0.0
+                else targetArtist.intersect(cArtist).size.toDouble() / targetArtist.size
+
+            if (artistKnown && artistOverlap == 0.0) continue
+
+            val score = titleF1 + artistOverlap * 0.5
+            if (score > bestScore) {
+                bestScore = score
+                best = c
+            }
+        }
+        return if (bestScore >= 0.80) best else null
+    }
+
     private suspend fun resolveAndPlayCurrentItem(song: Song, index: Int, shouldPlay: Boolean = true) {
+        android.util.Log.i("MusicPlayer", "[SOURCE_RESOLUTION_START] trackId=${song.id}, title=${song.title}, artist=${song.artist}, index=$index")
         resolutionMutex.withLock {
             try {
                 _playerState.update { it.copy(isLoading = true, videoNotFound = false) }
@@ -1812,10 +1866,12 @@ class MusicPlayer @Inject constructor(
                     try {
                         when (song.source) {
                             SongSource.REMOTE -> {
-                                // RemoteAudio failed -> resolve via YouTube
-                                val ytId = kotlinx.coroutines.withTimeoutOrNull(8_000L) {
-                                    youTubeRepository.search(matchQuery, YouTubeRepository.FILTER_SONGS).firstOrNull()?.id
-                                }
+                                // RemoteAudio failed -> resolve via YouTube with strict candidate validation
+                                val candidates = kotlinx.coroutines.withTimeoutOrNull(8_000L) {
+                                    youTubeRepository.search(matchQuery, YouTubeRepository.FILTER_SONGS)
+                                } ?: emptyList()
+                                val ytMatch = pickBestYouTubeMatch(song, candidates)
+                                val ytId = ytMatch?.id
                                 if (!ytId.isNullOrBlank()) {
                                     streamUrl = kotlinx.coroutines.withTimeoutOrNull(8_000L) {
                                         youTubeRepository.getStreamUrl(ytId)
@@ -1918,25 +1974,32 @@ class MusicPlayer @Inject constructor(
                     )
                 }
 
+                android.util.Log.i("MusicPlayer", "[SOURCE_RESOLUTION_RESULT] requestedTrackId=${song.id}, resolvedUrl=${streamUrl.take(60)}")
+
                 val newMediaItem = mediaItemBuilder.build()
 
                 mediaController?.let { controller ->
-                    if (index < controller.mediaItemCount) {
-                        val currentItem = controller.getMediaItemAt(index)
-                        if (currentItem.mediaId == song.id) {
-                            val oldPos = controller.currentPosition
-                            controller.replaceMediaItem(index, newMediaItem)
-
-                            if (index == controller.currentMediaItemIndex) {
-                                controller.prepare()
-                                if (oldPos > 0) controller.seekTo(oldPos)
-                                if (shouldPlay) controller.play()
-                            }
-                            _playerState.update { it.copy(isLoading = false, error = null) }
-                        } else {
-                            _playerState.update { it.copy(isLoading = false) }
+                    var targetIndex = -1
+                    for (i in 0 until controller.mediaItemCount) {
+                        if (controller.getMediaItemAt(i).mediaId == song.id) {
+                            targetIndex = i
+                            break
                         }
+                    }
+
+                    if (targetIndex != -1) {
+                        val oldPos = controller.currentPosition
+                        android.util.Log.i("MusicPlayer", "[PLAYER_SET_MEDIA_ITEM] mediaId=${song.id}, index=$targetIndex")
+                        controller.replaceMediaItem(targetIndex, newMediaItem)
+
+                        if (targetIndex == controller.currentMediaItemIndex) {
+                            controller.prepare()
+                            if (oldPos > 0) controller.seekTo(oldPos)
+                            if (shouldPlay) controller.play()
+                        }
+                        _playerState.update { it.copy(isLoading = false, error = null) }
                     } else {
+                        android.util.Log.w("MusicPlayer", "[PLAYER_SET_MEDIA_ITEM] song ${song.id} no longer in controller timeline, discarding")
                         _playerState.update { it.copy(isLoading = false) }
                     }
                 }
@@ -2157,7 +2220,11 @@ class MusicPlayer @Inject constructor(
                                     val nextMediaId = controller.getMediaItemAt(nextIndex).mediaId
                                     if (nextMediaId == preloadedNextSongId) {
                                         val nextUri = controller.getMediaItemAt(nextIndex).localConfiguration?.uri?.toString()
-                                        if (!nextUri.isNullOrBlank() && !nextUri.contains("placeholder.invalid")) {
+                                        val isPlaceholder = nextUri.isNullOrBlank() ||
+                                            nextUri.contains("youtube.com/watch") ||
+                                            nextUri.contains("youtu.be") ||
+                                            nextUri.contains("placeholder.invalid")
+                                        if (!isPlaceholder) {
                                             controller.seekToNextMediaItem()
                                         }
                                     }
@@ -2422,14 +2489,26 @@ class MusicPlayer @Inject constructor(
      */
     private fun updateNextMediaItemWithPreloadedUrl(index: Int, song: Song, streamUrl: String) {
         mediaController?.let { controller ->
-            if (index < controller.mediaItemCount) {
+            var targetIndex = -1
+            if (index in 0 until controller.mediaItemCount && controller.getMediaItemAt(index).mediaId == song.id) {
+                targetIndex = index
+            } else {
+                for (i in 0 until controller.mediaItemCount) {
+                    if (controller.getMediaItemAt(i).mediaId == song.id) {
+                        targetIndex = i
+                        break
+                    }
+                }
+            }
+
+            if (targetIndex != -1) {
                 val newMediaItem = MediaItem.Builder()
                     .setUri(streamUrl)
                     .setMediaId(song.id)
                     .setCustomCacheKey(
-                    if (preloadedIsVideoMode) "${song.id}_${_playerState.value.videoQuality.name}" 
-                    else song.id
-                ) // CRITICAL: Stable cache key matching video/audio mode
+                        if (preloadedIsVideoMode) "${song.id}_${_playerState.value.videoQuality.name}" 
+                        else song.id
+                    )
                     .setMediaMetadata(
                         MediaMetadata.Builder()
                             .setTitle(song.title)
@@ -2443,12 +2522,11 @@ class MusicPlayer @Inject constructor(
                     )
                     .build()
                 
-                // Bug Fix: Use replaceMediaItem instead of remove+add to avoid
-                // triggering a spurious media item transition event
                 try {
-                    controller.replaceMediaItem(index, newMediaItem)
+                    android.util.Log.i("MusicPlayer", "[PRELOAD_UPDATE] Replaced mediaItem at $targetIndex for ${song.id}")
+                    controller.replaceMediaItem(targetIndex, newMediaItem)
                 } catch (e: Exception) {
-                   // Index might have changed or race condition
+                    android.util.Log.w("MusicPlayer", "[PRELOAD_UPDATE] Failed to replace media item at $targetIndex: ${e.message}")
                 }
             }
         }
@@ -2533,14 +2611,20 @@ class MusicPlayer @Inject constructor(
         // New queue → let HQ-fallback notices fire again for these songs.
         hqNoticeShown.evictAll()
 
-        android.util.Log.i("MusicPlayer", "[SONG_SELECTED] title=${song.title}, artist=${song.artist}")
-        android.util.Log.i("MusicPlayer", "[SONG_ID] id=${song.id}, source=${song.source}, queueSize=${queue.size}, startIndex=$startIndex")
+        val actualStartIndex = if (startIndex in queue.indices && queue[startIndex].id == song.id) {
+            startIndex
+        } else {
+            val found = queue.indexOfFirst { it.id == song.id }
+            if (found != -1) found else 0
+        }
+
+        android.util.Log.i("MusicPlayer", "[PLAY_REQUEST] trackId=${song.id}, title=${song.title}, artist=${song.artist}, startIndex=$actualStartIndex, queueSize=${queue.size}")
 
         playJob = scope.launch {
             _playerState.update {
                 it.copy(
                     queue = queue,
-                    currentIndex = startIndex,
+                    currentIndex = actualStartIndex,
                     currentSong = song,
                     isLoading = true
                 )
@@ -2551,11 +2635,11 @@ class MusicPlayer @Inject constructor(
 
                 // Optimization 1: Parallelize queue resolution.
                 // Building the list of MediaItems can be slow for large queues.
-                // Only the startIndex item actually performs network resolution here.
+                // Only the actualStartIndex item actually performs network resolution here.
                 val mediaItems = coroutineScope {
                     queue.mapIndexed { index, s ->
                         async {
-                            createMediaItem(s, index == startIndex, forceLow = (index == startIndex && forceLow))
+                            createMediaItem(s, index == actualStartIndex, forceLow = (index == actualStartIndex && forceLow))
                         }
                     }.awaitAll()
                 }
@@ -2567,8 +2651,8 @@ class MusicPlayer @Inject constructor(
                         crossfadeTriggered = false
                         if (controller.volume < 1f) controller.volume = 1f
 
-                        android.util.Log.i("MusicPlayer", "[PLAYER_PREPARE] setMediaItems(${mediaItems.size}, startIndex=$startIndex)")
-                        controller.setMediaItems(mediaItems, startIndex, startPositionMs.coerceAtLeast(0L))
+                        android.util.Log.i("MusicPlayer", "[PLAYER_PREPARE] setMediaItems(${mediaItems.size}, startIndex=$actualStartIndex)")
+                        controller.setMediaItems(mediaItems, actualStartIndex, startPositionMs.coerceAtLeast(0L))
                         controller.prepare()
                         if (autoPlay) {
                             android.util.Log.i("MusicPlayer", "[PLAYER_PLAY] autoPlay=true, playing controller")

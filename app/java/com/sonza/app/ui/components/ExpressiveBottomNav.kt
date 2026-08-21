@@ -74,6 +74,12 @@ fun ExpressiveBottomNav(
             selectedIcon = Icons.Filled.Home
         ),
         BottomNavItem(
+            destination = Destination.Search,
+            label = stringResource(R.string.nav_search),
+            unselectedIcon = Icons.Outlined.Search,
+            selectedIcon = Icons.Filled.Search
+        ),
+        BottomNavItem(
             destination = Destination.Library,
             label = stringResource(R.string.nav_library),
             unselectedIcon = Icons.Outlined.LibraryMusic,
@@ -84,12 +90,6 @@ fun ExpressiveBottomNav(
             label = stringResource(R.string.nav_settings),
             unselectedIcon = Icons.Outlined.Settings,
             selectedIcon = Icons.Filled.Settings
-        ),
-        BottomNavItem(
-            destination = Destination.Search,
-            label = stringResource(R.string.nav_search),
-            unselectedIcon = Icons.Outlined.Search,
-            selectedIcon = Icons.Filled.Search
         )
     )
 

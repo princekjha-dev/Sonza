@@ -228,7 +228,7 @@ class YouTubeRepository @Inject constructor(
                 val inter = targetTitle.intersect(cTitle).size.toDouble()
                 val titleRecall = inter / targetTitle.size
                 val titlePrecision = inter / cTitle.size
-                if (titleRecall < 0.75 || titlePrecision < 0.50) continue
+                if (titleRecall < 0.80 || titlePrecision < 0.60) continue
 
                 // Check artist overlap if both known
                 val cArtist = normalize(c.artist)
@@ -236,7 +236,8 @@ class YouTubeRepository @Inject constructor(
                 val artistOverlap = if (!artistKnown) 0.0
                     else targetArtist.intersect(cArtist).size.toDouble() / targetArtist.size
 
-                if (artistKnown && artistOverlap == 0.0 && titleRecall < 0.90) continue
+                // Artist gate: never match an unrelated artist's video
+                if (artistKnown && artistOverlap == 0.0) continue
 
                 // Found a confident match
                 return@withContext c.id

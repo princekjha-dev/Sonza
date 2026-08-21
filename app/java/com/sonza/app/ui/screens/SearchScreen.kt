@@ -228,7 +228,6 @@ fun SearchScreen(
                             top = SpacingTokens.SpaceMd,
                             bottom = SpacingTokens.SpaceXs
                         ),
-                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -236,22 +235,6 @@ fun SearchScreen(
                         style = SonzaTypography.PageTitle,
                         color = SonzaOnBackground
                     )
-
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(SonzaSurfaceVariant)
-                            .border(width = 1.dp, color = SonzaOutline.copy(alpha = 0.4f), shape = CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Search,
-                            contentDescription = "Search",
-                            tint = SonzaOnSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
                 }
             }
 

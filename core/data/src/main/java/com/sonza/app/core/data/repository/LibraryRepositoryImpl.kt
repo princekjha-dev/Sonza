@@ -165,6 +165,7 @@ class LibraryRepositoryImpl @Inject constructor(
 
     override suspend fun addSongToPlaylist(playlistId: String, song: Song) {
         val currentSongs = getCachedPlaylistSongs(playlistId)
+        if (currentSongs.any { it.id == song.id }) return
         appendPlaylistSongs(playlistId, listOf(song), currentSongs.size)
     }
 

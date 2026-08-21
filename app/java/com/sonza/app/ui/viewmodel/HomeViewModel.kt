@@ -103,7 +103,7 @@ class HomeViewModel @Inject constructor(
     private fun observeRecentlyPlayed() {
         viewModelScope.launch {
             sessionManager.recentlyPlayedFlow.collect { list ->
-                _uiState.update { it.copy(recentlyPlayed = list.take(4)) }
+                _uiState.update { it.copy(recentlyPlayed = list) }
             }
         }
     }

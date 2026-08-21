@@ -74,49 +74,20 @@ fun PlayerTopBar(
             contentAlignment = Alignment.Center
         ) {
             if (isYouTubeSong) {
-                // Icon-only pill switcher: Audio / Video
-                Row(
+                Box(
                     modifier = Modifier
-                        .wrapContentSize()
+                        .size(38.dp)
                         .clip(CircleShape)
-                        .background(dominantColors.onBackground.copy(alpha = 0.08f))
-                        .padding(3.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        .background(if (isVideoMode) dominantColors.accent.copy(alpha = 0.22f) else dominantColors.onBackground.copy(alpha = 0.08f))
+                        .bounceClick(scaleDown = MotionTokens.CardTapScale) { onVideoToggle() },
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Audio Mode Button
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(if (!isVideoMode) dominantColors.onBackground.copy(alpha = 0.16f) else Color.Transparent)
-                            .bounceClick(scaleDown = MotionTokens.CardTapScale) { if (isVideoMode) onVideoToggle() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Headphones,
-                            contentDescription = "Audio Mode",
-                            tint = if (!isVideoMode) dominantColors.onBackground else dominantColors.onBackground.copy(alpha = 0.5f),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    // Video Mode Button
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(if (isVideoMode) dominantColors.onBackground.copy(alpha = 0.16f) else Color.Transparent)
-                            .bounceClick(scaleDown = MotionTokens.CardTapScale) { if (!isVideoMode) onVideoToggle() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.OndemandVideo,
-                            contentDescription = "Video Mode",
-                            tint = if (isVideoMode) dominantColors.onBackground else dominantColors.onBackground.copy(alpha = 0.5f),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.OndemandVideo,
+                        contentDescription = "Video",
+                        tint = if (isVideoMode) dominantColors.accent else dominantColors.onBackground.copy(alpha = 0.85f),
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             } else {
                 Text(

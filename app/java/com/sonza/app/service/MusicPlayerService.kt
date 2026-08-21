@@ -383,6 +383,13 @@ class MusicPlayerService : MediaLibraryService() {
                         val isEmptyOrInvalid = currentUri.isNullOrBlank()
                         val needsResolution = isYouTubePlaceholder || isInvalidPlaceholder || isEmptyOrInvalid
 
+                        // If an active MediaController client (MusicPlayer) is connected, let it handle stream resolution
+                        // according to user preferences (HQ Audio, Video mode, etc.) to avoid duplicate racing replaceMediaItem calls.
+                        val hasConnectedControllers = mediaLibrarySession?.connectedControllers?.isNotEmpty() == true
+                        if (hasConnectedControllers) {
+                            return@let
+                        }
+
                         if (needsResolution && videoId.isNotEmpty()) {
                             if (serviceResolutionInProgress.compareAndSet(false, true)) {
                                 serviceScope.launch {

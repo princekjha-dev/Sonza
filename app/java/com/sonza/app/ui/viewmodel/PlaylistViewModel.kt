@@ -117,17 +117,29 @@ class PlaylistViewModel @Inject constructor(
         if (playlistId.startsWith("local_") || playlistId == "LM" || playlistId == "CACHED_ALL") {
             viewModelScope.launch {
                 libraryRepository.getCachedPlaylistSongsFlow(playlistId).collect { songs ->
-                    if (songs == _uiState.value.originalSongs) return@collect
+                    if (songs == _uiState.value.originalSongs && _uiState.value.playlist != null) return@collect
 
                     _uiState.update { state ->
-                        val updatedPlaylist = state.playlist?.copy(songs = songs)
+                        val basePlaylist = state.playlist ?: Playlist(
+                            id = playlistId,
+                            title = if (playlistId == "LM") "Liked" else "Local Playlist",
+                            author = "You",
+                            thumbnailUrl = initialThumbnail ?: songs.firstOrNull()?.thumbnailUrl,
+                            songs = songs
+                        )
+                        val updatedPlaylist = basePlaylist.copy(
+                            songs = songs,
+                            thumbnailUrl = state.playlist?.thumbnailUrl ?: initialThumbnail ?: songs.firstOrNull()?.thumbnailUrl
+                        )
                         state.copy(
                             playlist = updatedPlaylist,
-                            originalSongs = songs
+                            originalSongs = songs,
+                            isLoading = false
                         )
                     }
                     applySort()
-                }            }
+                }
+            }
         }
     }
 
@@ -690,6 +702,15 @@ class PlaylistViewModel @Inject constructor(
             if (isLocallyBackedPlaylist()) {
                 success = try {
                     libraryRepository.removeSongFromPlaylist(playlistId, song.id)
+                    if (playlistId == "LM") {
+                        val existing = listeningHistoryDao.getHistoryForSong(song.id)
+                        if (existing != null) {
+                            listeningHistoryDao.upsert(existing.copy(isLiked = false))
+                        }
+                        if (musicPlayer.playerState.value.currentSong?.id == song.id) {
+                            musicPlayer.updateLikeStatus(false)
+                        }
+                    }
                     true
                 } catch (e: Exception) {
                     false

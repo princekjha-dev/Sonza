@@ -404,9 +404,18 @@ fun HomeScreen(
                             }
                         }
 
-                        // 4.5. Recently Played Section (Exactly 4 items, newest to oldest)
+                        // 4. Recently Played Dynamic Horizontal Carousel Section
                         if (uiState.recentlyPlayed.isNotEmpty()) {
                             item(key = "recently_played_section", contentType = "recently_played") {
+                                val recentSongs = remember(uiState.recentlyPlayed) {
+                                    uiState.recentlyPlayed.map { it.song }.distinctBy { it.id }
+                                }
+                                val configuration = LocalConfiguration.current
+                                val screenWidth = configuration.screenWidthDp.dp
+                                val cardWidth = remember(screenWidth) {
+                                    ((screenWidth - 32.dp - 24.dp) / 2.35f).coerceIn(136.dp, 160.dp)
+                                }
+
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -417,18 +426,21 @@ fun HomeScreen(
                                         onSeeAllClick = onHistoryClick
                                     )
 
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = SpacingTokens.SpaceLg),
-                                        verticalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceXs)
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = SpacingTokens.SpaceLg),
+                                        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceMd)
                                     ) {
-                                        val recentSongs = uiState.recentlyPlayed.map { it.song }
-                                        recentSongs.forEachIndexed { index, song ->
-                                            CompactSongRow(
-                                                song = song,
+                                        itemsIndexed(
+                                            items = recentSongs,
+                                            key = { _, song -> "recent_${song.id}" }
+                                        ) { index, song ->
+                                            SquareMusicCard(
+                                                title = song.title,
+                                                subtitle = song.artist,
+                                                thumbnailUrl = song.thumbnailUrl,
                                                 onClick = { onSongClick(recentSongs, index) },
-                                                onMoreClick = { onSongMoreClickHandler(song) }
+                                                onMoreClick = { onSongMoreClickHandler(song) },
+                                                size = cardWidth
                                             )
                                         }
                                     }
