@@ -76,7 +76,7 @@ fun YTMusicMiniPlayer(
     modifier: Modifier = Modifier
 ) {
     val effectiveAlpha = (1f - userAlpha).coerceIn(0f, 1f)
-    val miniPlayerShape = RoundedCornerShape(24.dp)
+    val miniPlayerShape = RoundedCornerShape(16.dp)
 
     val artShape = when (artworkShape) {
         "CIRCLE", "VINYL" -> androidx.compose.foundation.shape.CircleShape
@@ -92,7 +92,9 @@ fun YTMusicMiniPlayer(
 
     Box(
         modifier = modifier
-            .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceXs)
+            .fillMaxWidth()
+            .height(52.dp)
+            .padding(horizontal = SpacingTokens.SpaceMd, vertical = 0.dp)
             .shadow(
                 elevation = 6.dp,
                 shape = miniPlayerShape,
@@ -100,7 +102,7 @@ fun YTMusicMiniPlayer(
                 spotColor = Color.Black.copy(alpha = 0.35f)
             )
             .clip(miniPlayerShape)
-            .background(SonzaSurface.copy(alpha = 0.90f * effectiveAlpha))
+            .background(SonzaSurface.copy(alpha = 0.92f * effectiveAlpha))
             .then(
                 if (!dominantColors.isIdle) {
                     Modifier.background(
@@ -120,18 +122,18 @@ fun YTMusicMiniPlayer(
             )
             .clickable(onClick = onTap)
     ) {
-        Column {
+        Column(modifier = Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(58.dp)
-                    .padding(start = 10.dp, end = 12.dp),
+                    .weight(1f)
+                    .padding(start = 8.dp, end = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Album Art - rounded corners
+                // Album Art - rounded corners (left-aligned)
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
+                        .size(38.dp)
                         .graphicsLayer { rotationZ = vinylRotation() }
                         .clip(artShape)
                         .background(MaterialTheme.colorScheme.surfaceVariant),
@@ -148,68 +150,71 @@ fun YTMusicMiniPlayer(
                         Icon(
                             imageVector = Icons.Default.MusicNote,
                             contentDescription = null,
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(18.dp),
                             tint = SonzaOnSurfaceVariant
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(SpacingTokens.SpaceMd))
+                Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
 
-                // Song Info
+                // Song Info (Title & Artist)
                 Column(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(vertical = 2.dp),
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
                         text = song.title,
-                        style = SonzaTypography.SongTitle,
+                        style = SonzaTypography.SongTitle.copy(fontSize = 14.sp),
                         color = SonzaOnBackground,
                         maxLines = 1,
                         modifier = Modifier.basicMarquee()
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = song.artist,
-                        style = SonzaTypography.ArtistSubtitle,
-                        color = SonzaOnSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    if (!song.artist.isNullOrBlank()) {
+                        Text(
+                            text = song.artist,
+                            style = SonzaTypography.ArtistSubtitle.copy(fontSize = 12.sp),
+                            color = SonzaOnSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
+                Spacer(modifier = Modifier.width(4.dp))
 
-                // Play/Pause Button
+                // Play/Pause Button (Right edge)
                 IconButton(
                     onClick = onPlayPause,
-                    modifier = Modifier.size(42.dp)
+                    modifier = Modifier.size(38.dp)
                 ) {
                     if (isLoading) {
                         com.sonza.app.ui.components.SonzaLoadingLogo(
                             color = SonzaOnBackground,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     } else {
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = if (isPlaying) "Pause" else "Play",
                             tint = SonzaOnBackground,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
 
-                // Next Button
+                // Next Button (Right edge)
                 IconButton(
                     onClick = onNext,
-                    modifier = Modifier.size(42.dp)
+                    modifier = Modifier.size(38.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.SkipNext,
                         contentDescription = "Next",
                         tint = SonzaOnBackground,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }

@@ -43,8 +43,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -100,7 +102,7 @@ import com.sonza.app.ui.components.player.miniplayer.CompactFloatingMiniPlayer
 import com.sonza.app.ui.components.LocalSonzaDynamicColors
 import com.sonza.app.ui.theme.SpacingTokens
 
-private val MiniPlayerHeight = 56.dp
+private val MiniPlayerHeight = 52.dp
 
 @Composable
 fun ExpandablePlayerSheet(
@@ -128,7 +130,13 @@ fun ExpandablePlayerSheet(
     isPhoneLike: Boolean = true,
     expandedContent: @Composable (onCollapse: () -> Unit) -> Unit
 ) {
-    val song = currentSong ?: return
+    var lastSong by remember { mutableStateOf<Song?>(currentSong) }
+    LaunchedEffect(currentSong) {
+        if (currentSong != null) {
+            lastSong = currentSong
+        }
+    }
+    val song = currentSong ?: lastSong ?: return
     val coroutineScope = rememberCoroutineScope()
     val dynamicColors = LocalSonzaDynamicColors.current
     val accentColor = dynamicColors.accent
@@ -208,7 +216,6 @@ fun ExpandablePlayerSheet(
                         val px = if (e >= 0f) (bottomPadding - adjustedBottomPadding) * (1f - e) else 0f
                         IntOffset(0, px.roundToInt())
                     }
-                    .padding(horizontal = if (isPhoneLike) SpacingTokens.SpaceMd else 0.dp)
                     .graphicsLayer {
                         translationX = horizontalDrag.value
                         alpha = (1f - expansion.value * 2.5f).coerceIn(0f, 1f)

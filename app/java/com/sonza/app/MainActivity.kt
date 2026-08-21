@@ -810,8 +810,8 @@ fun SonzaApp(
         val imePadding = androidx.compose.foundation.layout.WindowInsets.ime.asPaddingValues().calculateBottomPadding()
         val isKeyboardOpen = imePadding > 0.dp
         val shouldShowExpressiveBottomNav = showBottomNav && !isKeyboardOpen && !isPlayerExpanded && formFactor.isPhoneLike
-        val navBarHeight = if (shouldShowExpressiveBottomNav && formFactor != DeviceFormFactor.TV) 80.dp else 0.dp
-        val floatingSystemHeight = if (showMiniPlayer && !isKeyboardOpen && formFactor.isPhoneLike) 60.dp else 0.dp
+        val navBarHeight = if (shouldShowExpressiveBottomNav && formFactor != DeviceFormFactor.TV) com.sonza.app.ui.components.ExpressiveBottomNavTokens.NavBarHeight else 0.dp
+        val floatingSystemHeight = if (showMiniPlayer && !isKeyboardOpen && formFactor.isPhoneLike) 52.dp else 0.dp
         val snackbarBottomPadding = when {
             isPlayerExpanded -> navBarPadding + 12.dp
             showMiniPlayer && shouldShowExpressiveBottomNav -> navBarPadding + navBarHeight + floatingSystemHeight + 12.dp
@@ -925,8 +925,8 @@ fun SonzaApp(
                             .weight(1f)
                     ) {
                     // NavGraph content with its own bottom padding for the nav bar
-                    // We add EXTRA padding for the mini player (64dp) if it's visible
-                    val miniPlayerHeight = if (showMiniPlayer) 64.dp else 0.dp
+                    // We add EXTRA padding for the mini player (52dp) if it's visible
+                    val miniPlayerHeight = if (showMiniPlayer) 52.dp else 0.dp
                     
                     Box(
                         modifier = Modifier
@@ -1033,15 +1033,24 @@ fun SonzaApp(
 
     // Expandable Player Sheet - Overlay
     // Sits above Scaffold, aligned to bottom
-    if (showMiniPlayer) {
+    androidx.compose.animation.AnimatedVisibility(
+        visible = showMiniPlayer || isPlayerExpanded,
+        enter = fadeIn(androidx.compose.animation.core.tween(250)) + androidx.compose.animation.slideInVertically(
+            animationSpec = androidx.compose.animation.core.tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+        ) { it },
+        exit = fadeOut(androidx.compose.animation.core.tween(200)) + androidx.compose.animation.slideOutVertically(
+            animationSpec = androidx.compose.animation.core.tween(250, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+        ) { it },
+        modifier = Modifier.align(Alignment.BottomCenter)
+    ) {
         val density = LocalDensity.current
         val imePadding = androidx.compose.foundation.layout.WindowInsets.ime.asPaddingValues().calculateBottomPadding()
         val isKeyboardOpen = imePadding > 0.dp
         val bottomPaddingPx = if (formFactor.isPhoneLike) {
-            val navBarHeight = if (shouldShowExpressiveBottomNav) 80.dp else 0.dp
+            val navBarHeight = if (shouldShowExpressiveBottomNav) com.sonza.app.ui.components.ExpressiveBottomNavTokens.NavBarHeight else 0.dp
             with(density) { navBarPadding.toPx() + navBarHeight.toPx() }
         } else {
-            val navBarHeight = if (showBottomNav && !isKeyboardOpen && formFactor != DeviceFormFactor.TV) 80.dp else 0.dp
+            val navBarHeight = if (showBottomNav && !isKeyboardOpen && formFactor != DeviceFormFactor.TV) com.sonza.app.ui.components.ExpressiveBottomNavTokens.NavBarHeight else 0.dp
             with(density) { navBarPadding.toPx() + navBarHeight.toPx() }
         }
 
@@ -1099,7 +1108,7 @@ fun SonzaApp(
             onExpandChange = { expanded ->
                 if (expanded) playerViewModel.expandPlayer() else playerViewModel.collapsePlayer()
             },
-            modifier = Modifier.align(Alignment.BottomCenter),
+            modifier = Modifier.fillMaxWidth(),
             expandedContent = { onCollapse ->
                 // Collected HERE (not at the top scope) so the raw, ~400ms-ticking player
                 // state only recomposes the open player screen — never the nav host, mini

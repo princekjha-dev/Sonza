@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -73,7 +74,7 @@ fun StandardMiniPlayer(
 ) {
     val isApi31Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val effectiveAlpha = (1f - userAlpha).coerceIn(0f, 1f)
-    val miniPlayerShape = RoundedCornerShape(24.dp)
+    val miniPlayerShape = RoundedCornerShape(16.dp)
     val blurRadius = ElevationTokens.StandardBlurRadius.value
     
     val artShape = when (artworkShape) {
@@ -90,7 +91,9 @@ fun StandardMiniPlayer(
 
     Box(
         modifier = modifier
-            .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceXs)
+            .fillMaxWidth()
+            .height(52.dp)
+            .padding(horizontal = SpacingTokens.SpaceMd, vertical = 0.dp)
             .then(
                 if (!isApi31Plus) {
                     Modifier.shadow(
@@ -114,8 +117,8 @@ fun StandardMiniPlayer(
                 } else Modifier
             )
             .background(
-                color = if (isApi31Plus) SonzaSurface.copy(alpha = 0.82f * effectiveAlpha)
-                        else SonzaSurface.copy(alpha = 0.90f * effectiveAlpha)
+                color = if (isApi31Plus) SonzaSurface.copy(alpha = 0.85f * effectiveAlpha)
+                        else SonzaSurface.copy(alpha = 0.92f * effectiveAlpha)
             )
             // Subtle dynamic accent-muted wash (only when active)
             .then(
@@ -137,18 +140,18 @@ fun StandardMiniPlayer(
             )
             .clickable(onClick = onTap)
     ) {
-        Column {
+        Column(modifier = Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(58.dp)
-                    .padding(start = 10.dp, end = 12.dp),
+                    .weight(1f)
+                    .padding(start = 8.dp, end = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Album Art thumbnail
+                // Album Art thumbnail (Left-aligned)
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
+                        .size(38.dp)
                         .graphicsLayer { rotationZ = vinylRotation() }
                         .clip(artShape)
                         .background(MaterialTheme.colorScheme.surfaceVariant),
@@ -158,74 +161,78 @@ fun StandardMiniPlayer(
                         AsyncImage(
                             model = highResThumbnail,
                             contentDescription = song.title,
-                            modifier = Modifier.size(42.dp),
+                            modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Default.MusicNote,
                             contentDescription = null,
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(18.dp),
                             tint = SonzaOnSurfaceVariant
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(SpacingTokens.SpaceMd))
+                Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
 
                 // Song Title & Artist
                 Column(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(vertical = 2.dp),
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
                         text = song.title,
-                        style = SonzaTypography.SongTitle,
+                        style = SonzaTypography.SongTitle.copy(fontSize = 14.sp),
                         color = SonzaOnBackground,
                         maxLines = 1,
                         modifier = Modifier.basicMarquee()
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = song.artist,
-                        style = SonzaTypography.ArtistSubtitle,
-                        color = SonzaOnSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    if (!song.artist.isNullOrBlank()) {
+                        Text(
+                            text = song.artist,
+                            style = SonzaTypography.ArtistSubtitle.copy(fontSize = 12.sp),
+                            color = SonzaOnSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
+                Spacer(modifier = Modifier.width(4.dp))
 
-                // Play/Pause button
+                // Play/Pause button (Right edge)
                 IconButton(
                     onClick = onPlayPause,
-                    modifier = Modifier.size(42.dp)
+                    modifier = Modifier.size(38.dp)
                 ) {
                     if (isLoading) {
                         com.sonza.app.ui.components.SonzaLoadingLogo(
                             color = SonzaOnBackground,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     } else {
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = if (isPlaying) "Pause" else "Play",
                             tint = SonzaOnBackground,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
 
+                // Next Button (Right edge)
                 IconButton(
                     onClick = onNext,
-                    modifier = Modifier.size(42.dp)
+                    modifier = Modifier.size(38.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.SkipNext,
                         contentDescription = "Next",
                         tint = SonzaOnBackground,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }

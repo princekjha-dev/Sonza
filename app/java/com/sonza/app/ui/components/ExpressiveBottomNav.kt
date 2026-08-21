@@ -49,6 +49,10 @@ import com.sonza.app.ui.theme.SonzaBackground
 import com.sonza.app.ui.theme.SonzaOnSurfaceVariant
 import com.sonza.app.ui.theme.SonzaTypography
 
+object ExpressiveBottomNavTokens {
+    val NavBarHeight = 58.dp
+}
+
 /**
  * Clean & Minimal Sonza Bottom Navigation Bar (Idle / No-Music Playing State).
  *

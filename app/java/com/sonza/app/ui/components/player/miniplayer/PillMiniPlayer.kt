@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -54,6 +55,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.sonza.app.core.model.Song
 import com.sonza.app.ui.components.DominantColors
@@ -132,11 +134,13 @@ fun PillMiniPlayer(
 
     Surface(
         modifier = modifier
-            .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceXs)
-            .clip(RoundedCornerShape(24.dp))
+            .fillMaxWidth()
+            .height(52.dp)
+            .padding(horizontal = SpacingTokens.SpaceMd, vertical = 0.dp)
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onTap),
         color = Color.Transparent,
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(16.dp),
         tonalElevation = 4.dp,
         shadowElevation = 6.dp
     ) {
@@ -154,12 +158,13 @@ fun PillMiniPlayer(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 6.dp),
+                    .padding(start = 6.dp, end = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Left-aligned Artwork with circular progress track
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(40.dp)
                         .padding(2.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -199,7 +204,7 @@ fun PillMiniPlayer(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(4.dp)
+                            .padding(3.dp)
                             .graphicsLayer { rotationZ = vinylRotation() }
                             .clip(artShape)
                             .background(MaterialTheme.colorScheme.surfaceVariant),
@@ -223,34 +228,41 @@ fun PillMiniPlayer(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
 
+                // Title & Artist
                 Column(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(vertical = 2.dp),
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
                         text = song.title,
-                        style = SonzaTypography.SongTitle,
+                        style = SonzaTypography.SongTitle.copy(fontSize = 14.sp),
                         color = dominantColors.onBackground,
                         maxLines = 1,
                         modifier = Modifier.basicMarquee()
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = song.artist,
-                        style = SonzaTypography.ArtistSubtitle,
-                        color = dominantColors.onBackground.copy(alpha = 0.7f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    if (!song.artist.isNullOrBlank()) {
+                        Text(
+                            text = song.artist,
+                            style = SonzaTypography.ArtistSubtitle.copy(fontSize = 12.sp),
+                            color = dominantColors.onBackground.copy(alpha = 0.7f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
-                MiniPlayerButton(onClick = onPlayPause, size = 42.dp) {
+                Spacer(modifier = Modifier.width(4.dp))
+
+                // Play/Pause button (Right edge)
+                MiniPlayerButton(onClick = onPlayPause, size = 38.dp) {
                     if (isLoading) {
                         com.sonza.app.ui.components.SonzaLoadingLogo(
                             color = dominantColors.onBackground,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     } else {
                         AnimatedContent(
@@ -265,22 +277,23 @@ fun PillMiniPlayer(
                                 imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
                                 contentDescription = if (playing) "Pause" else "Play",
                                 tint = dominantColors.onBackground,
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
                 }
 
-                MiniPlayerButton(onClick = onNext, size = 42.dp) {
+                // Next button (Right edge)
+                MiniPlayerButton(onClick = onNext, size = 38.dp) {
                     Icon(
                         imageVector = Icons.Default.SkipNext,
                         contentDescription = "Next",
                         tint = dominantColors.onBackground,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
                 
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(2.dp))
             }
         }
     }

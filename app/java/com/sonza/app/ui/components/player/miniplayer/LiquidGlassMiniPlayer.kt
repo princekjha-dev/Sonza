@@ -52,6 +52,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.sonza.app.core.model.Song
 import com.sonza.app.ui.components.DominantColors
@@ -133,16 +134,17 @@ fun LiquidGlassMiniPlayer(
         ) { content() }
     }
 
-    val pillShape = RoundedCornerShape(24.dp)
+    val pillShape = RoundedCornerShape(16.dp)
 
     Box(
         modifier = modifier
-            .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceXs)
+            .fillMaxWidth()
+            .height(52.dp)
+            .padding(horizontal = SpacingTokens.SpaceMd, vertical = 0.dp)
     ) {
         LiquidGlassSurface(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(58.dp)
+                .fillMaxSize()
                 .clip(pillShape)
                 .clickable(onClick = onTap),
             shape = pillShape,
@@ -151,18 +153,18 @@ fun LiquidGlassMiniPlayer(
             tint = dominantColors.primary,
             isDarkTheme = isDarkTheme
         ) {
-            Column {
+            Column(modifier = Modifier.fillMaxSize()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
-                        .padding(start = 10.dp, end = 12.dp),
+                        .weight(1f)
+                        .padding(start = 8.dp, end = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Artwork
+                    // Artwork (Left-aligned)
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
+                            .size(38.dp)
                             .graphicsLayer { rotationZ = vinylRotation() }
                             .clip(artShape)
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
@@ -185,36 +187,41 @@ fun LiquidGlassMiniPlayer(
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(SpacingTokens.SpaceMd))
+                    Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
 
+                    // Title & Artist
                     Column(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(vertical = 2.dp),
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
                             text = song.title,
-                            style = SonzaTypography.SongTitle,
+                            style = SonzaTypography.SongTitle.copy(fontSize = 14.sp),
                             color = dominantColors.onBackground,
                             maxLines = 1,
                             modifier = Modifier.basicMarquee()
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = song.artist,
-                            style = SonzaTypography.ArtistSubtitle,
-                            color = dominantColors.onBackground.copy(alpha = 0.72f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        if (!song.artist.isNullOrBlank()) {
+                            Text(
+                                text = song.artist,
+                                style = SonzaTypography.ArtistSubtitle.copy(fontSize = 12.sp),
+                                color = dominantColors.onBackground.copy(alpha = 0.72f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
 
-                    Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
+                    Spacer(modifier = Modifier.width(4.dp))
 
-                    GlassButton(onClick = onPlayPause, size = 42.dp) {
+                    // Play/Pause Button (Right-anchored)
+                    GlassButton(onClick = onPlayPause, size = 38.dp) {
                         if (isLoading) {
                             com.sonza.app.ui.components.SonzaLoadingLogo(
                                 color = dominantColors.onBackground,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         } else {
                             AnimatedContent(
@@ -229,18 +236,19 @@ fun LiquidGlassMiniPlayer(
                                     imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
                                     contentDescription = if (playing) "Pause" else "Play",
                                     tint = dominantColors.onBackground,
-                                    modifier = Modifier.size(28.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
                     }
 
-                    GlassButton(onClick = onNext, size = 42.dp) {
+                    // Next Button (Right-anchored)
+                    GlassButton(onClick = onNext, size = 38.dp) {
                         Icon(
                             imageVector = Icons.Default.SkipNext,
                             contentDescription = "Next",
                             tint = dominantColors.onBackground,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
