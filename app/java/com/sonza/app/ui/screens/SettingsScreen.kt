@@ -174,9 +174,9 @@ fun SettingsScreen(
 
     // Dynamic inset calculation to prevent Mini Player & Bottom Nav from covering content
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val navBarHeight = 80.dp
-    val miniPlayerHeight = if (currentSong != null) 64.dp else 0.dp
-    val dynamicBottomInset = navBarPadding + navBarHeight + miniPlayerHeight + SpacingTokens.Space2Xl
+    val isMiniPlayerVisible = currentSong != null
+    val bottomSystemHeight = if (isMiniPlayerVisible) 64.dp else 80.dp
+    val dynamicBottomInset = navBarPadding + bottomSystemHeight + SpacingTokens.Space2Xl
 
     var settingsQuery by remember { mutableStateOf("") }
     val settingsSearchIndex = remember {

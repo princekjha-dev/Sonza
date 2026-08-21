@@ -90,7 +90,17 @@ import com.sonza.app.ui.components.player.miniplayer.YTMusicMiniPlayer
  * needs to provide a slot for the expanded content.
  */
 
-private val MiniPlayerHeight = 64.dp
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Search
+import com.sonza.app.navigation.Destination
+import com.sonza.app.ui.components.FloatingNavCircleButton
+import com.sonza.app.ui.components.player.miniplayer.CompactFloatingMiniPlayer
+import com.sonza.app.ui.components.LocalSonzaDynamicColors
+import com.sonza.app.ui.theme.SpacingTokens
+
+private val MiniPlayerHeight = 56.dp
 
 @Composable
 fun ExpandablePlayerSheet(
@@ -112,10 +122,16 @@ fun ExpandablePlayerSheet(
     style: MiniPlayerStyle = MiniPlayerStyle.YT_MUSIC,
     artworkShape: String = "ROUNDED_SQUARE",
     glassBlurAmount: Float = 50f,
+    currentDestination: Destination = Destination.Home,
+    onHomeClick: () -> Unit = {},
+    onSearchClick: () -> Unit = {},
+    isPhoneLike: Boolean = true,
     expandedContent: @Composable (onCollapse: () -> Unit) -> Unit
 ) {
     val song = currentSong ?: return
     val coroutineScope = rememberCoroutineScope()
+    val dynamicColors = LocalSonzaDynamicColors.current
+    val accentColor = dynamicColors.accent
 
     // Animation State
     val expansion = remember { Animatable(if (isExpanded) 1f else 0f) }
@@ -139,14 +155,7 @@ fun ExpandablePlayerSheet(
     val screenHeightPx = view.height.toFloat()
     val miniPlayerHeightPx = with(density) { MiniPlayerHeight.toPx() }
 
-    // Total drag range from (MiniPlayer + Nav Bar) to Full Screen
-    // For YT_MUSIC, we reduce the visual gap (approx 12dp)
-    // to sit flush against the navbar content.
-    val stylePaddingOffset = when (style) {
-        MiniPlayerStyle.YT_MUSIC -> with(density) { 2.dp.toPx() }
-        MiniPlayerStyle.LIQUID_GLASS -> with(density) { 4.dp.toPx() }
-        else -> with(density) { 2.dp.toPx() }
-    }
+    val stylePaddingOffset = 0f
     val adjustedBottomPadding = (bottomPadding - stylePaddingOffset).coerceAtLeast(0f)
 
     val collapsedHeightPx = miniPlayerHeightPx + adjustedBottomPadding
@@ -177,7 +186,6 @@ fun ExpandablePlayerSheet(
                 val placeable = measurable.measure(constraints.copy(minHeight = h, maxHeight = h))
                 layout(placeable.width, h) { placeable.place(0, 0) }
             }
-            // Removed pointerInput from here to allow clicks to pass through to Nav Bar in the transparent area
     ) {
         // ── Collapsed Mini Player Row ──
         // Visible when expansion < ~0.4 (fades out as it expands) or while it's being
@@ -190,108 +198,268 @@ fun ExpandablePlayerSheet(
         val horizontalDrag = remember { Animatable(0f) }
         val skipThresholdPx = with(density) { 96.dp.toPx() }
         if (showMiniPlayer) {
-            CollapsedMiniPlayer(
-                song = song,
-                isPlaying = isPlaying,
-                isLoading = isLoading,
-                dominantColors = dominantColors,
-                progressProvider = progressProvider,
-                onPlayPause = onPlayPause,
-                onNext = onNext,
-                onClose = onClose,
-                userAlpha = userAlpha,
-                style = style,
-                artworkShape = artworkShape,
-                glassBlurAmount = glassBlurAmount,
-                onTap = {
-                    coroutineScope.launch {
-                        expansion.animateTo(
-                            targetValue = 1f,
-                            animationSpec = tween(
-                                durationMillis = 350,
-                                easing = FastOutSlowInEasing
-                            )
-                        )
-                        onExpandChange(true)
-                    }
-                },
-                modifier = Modifier
-                     .fillMaxWidth()
-                     .height(MiniPlayerHeight)
-                     .align(Alignment.TopCenter)
-                     // When collapsed (expansion≈0), offset the mini player down to
-                     // close the gap. Read in the layout phase to avoid recomposition.
-                     .offset {
-                         val e = expansion.value
-                         val px = if (e >= 0f) (bottomPadding - adjustedBottomPadding) * (1f - e) else 0f
-                         IntOffset(0, px.roundToInt())
-                     }
-                     .graphicsLayer {
-                         // Follow the finger during a horizontal skip swipe.
-                         translationX = horizontalDrag.value
-                         // Base fade: the mini player fades out as the panel expands.
-                         alpha = (1f - expansion.value * 2.5f).coerceIn(0f, 1f)
-                         // Visual feedback for swipe down to dismiss. Use a
-                         // 1:1 mapping (drag distance → translation) so the
-                         // mini player follows the finger naturally, and
-                         // also fade as the user pulls it down so the
-                         // dismiss intent reads even before they reach the
-                         // threshold.
-                         if (expansion.value < 0f && swipeDownToDismissEnabled) {
-                             translationY = -expansion.value * dragRange
-                             alpha = (1f + expansion.value * 1.5f).coerceIn(0.25f, 1f)
-                         }
-                     }
-                     .zIndex(if (isExpanded) 0f else 1f)
-                     // Horizontal swipe → skip track (left = next, right = previous)
-                     .pointerInput(Unit) {
-                        detectHorizontalDragGestures(
-                            onDragEnd = {
-                                coroutineScope.launch {
-                                    val total = horizontalDrag.value
-                                    when {
-                                        total <= -skipThresholdPx -> onNext()
-                                        total >= skipThresholdPx -> onPrevious()
-                                    }
-                                    horizontalDrag.animateTo(0f, tween(200, easing = FastOutSlowInEasing))
-                                }
-                            },
-                            onDragCancel = {
-                                coroutineScope.launch {
-                                    horizontalDrag.animateTo(0f, tween(200, easing = FastOutSlowInEasing))
-                                }
-                            },
-                            onHorizontalDrag = { change, dragAmount ->
-                                change.consume()
-                                coroutineScope.launch {
-                                    horizontalDrag.snapTo(horizontalDrag.value + dragAmount)
-                                }
+            if (isPhoneLike) {
+                // Unified Floating Glass System: [ Home ○ ] — [ Mini Player ] — [ ○ Search ]
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(MiniPlayerHeight)
+                        .align(Alignment.TopCenter)
+                        .offset {
+                            val e = expansion.value
+                            val px = if (e >= 0f) (bottomPadding - adjustedBottomPadding) * (1f - e) else 0f
+                            IntOffset(0, px.roundToInt())
+                        }
+                        .padding(horizontal = SpacingTokens.SpaceMd)
+                        .graphicsLayer {
+                            translationX = horizontalDrag.value
+                            alpha = (1f - expansion.value * 2.5f).coerceIn(0f, 1f)
+                            if (expansion.value < 0f && swipeDownToDismissEnabled) {
+                                translationY = -expansion.value * dragRange
+                                alpha = (1f + expansion.value * 1.5f).coerceIn(0.25f, 1f)
                             }
-                        )
-                    }
-                     // Add gesture detection to MiniPlayer
-                     .pointerInput(swipeDownToDismissEnabled) {
-                        // Swipe-down-to-dismiss is gated on the user
-                        // setting. The dismiss threshold is intentionally
-                        // small (~5% of the drag range, ~25–35dp) so a
-                        // confident downward flick reliably triggers it
-                        // — the previous 10% threshold required a
-                        // long, deliberate drag that often felt unresponsive.
-                        val dismissThreshold = -0.05f
-                        detectVerticalDragGestures(
-                            onDragEnd = {
-                                coroutineScope.launch {
-                                    if (expansion.value <= dismissThreshold && swipeDownToDismissEnabled) {
-                                        // Animate the mini player off the bottom edge before
-                                        // calling onClose so the dismiss reads as motion
-                                        // rather than a hard cut.
-                                        expansion.animateTo(
-                                            targetValue = -0.6f,
-                                            animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
-                                        )
-                                        onClose()
-                                        expansion.snapTo(0f)
-                                    } else {
+                        }
+                        .zIndex(if (isExpanded) 0f else 1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceSm)
+                ) {
+                    // Floating Home Button
+                    FloatingNavCircleButton(
+                        icon = Icons.Outlined.Home,
+                        selectedIcon = Icons.Filled.Home,
+                        isSelected = currentDestination == Destination.Home,
+                        contentDescription = "Home",
+                        accentColor = accentColor,
+                        onClick = onHomeClick,
+                        size = 52.dp,
+                        modifier = Modifier.graphicsLayer {
+                            val navAlpha = (1f - expansion.value * 3f).coerceIn(0f, 1f)
+                            alpha = navAlpha
+                            scaleX = 0.85f + 0.15f * navAlpha
+                            scaleY = 0.85f + 0.15f * navAlpha
+                        }
+                    )
+
+                    // Compact Floating Mini Player (Center)
+                    CompactFloatingMiniPlayer(
+                        song = song,
+                        isPlaying = isPlaying,
+                        isLoading = isLoading,
+                        dominantColors = dominantColors,
+                        progressProvider = progressProvider,
+                        onPlayPause = onPlayPause,
+                        onNext = onNext,
+                        onPrevious = onPrevious,
+                        onClose = onClose,
+                        onTap = {
+                            coroutineScope.launch {
+                                expansion.animateTo(
+                                    targetValue = 1f,
+                                    animationSpec = tween(
+                                        durationMillis = 350,
+                                        easing = FastOutSlowInEasing
+                                    )
+                                )
+                                onExpandChange(true)
+                            }
+                        },
+                        accentColor = accentColor,
+                        userAlpha = userAlpha,
+                        artworkShape = artworkShape,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(54.dp)
+                            .pointerInput(Unit) {
+                                detectHorizontalDragGestures(
+                                    onDragEnd = {
+                                        coroutineScope.launch {
+                                            val total = horizontalDrag.value
+                                            when {
+                                                total <= -skipThresholdPx -> onNext()
+                                                total >= skipThresholdPx -> onPrevious()
+                                            }
+                                            horizontalDrag.animateTo(0f, tween(200, easing = FastOutSlowInEasing))
+                                        }
+                                    },
+                                    onDragCancel = {
+                                        coroutineScope.launch {
+                                            horizontalDrag.animateTo(0f, tween(200, easing = FastOutSlowInEasing))
+                                        }
+                                    },
+                                    onHorizontalDrag = { change, dragAmount ->
+                                        change.consume()
+                                        coroutineScope.launch {
+                                            horizontalDrag.snapTo(horizontalDrag.value + dragAmount)
+                                        }
+                                    }
+                                )
+                            }
+                            .pointerInput(swipeDownToDismissEnabled) {
+                                val dismissThreshold = -0.05f
+                                detectVerticalDragGestures(
+                                    onDragEnd = {
+                                        coroutineScope.launch {
+                                            if (expansion.value <= dismissThreshold && swipeDownToDismissEnabled) {
+                                                expansion.animateTo(
+                                                    targetValue = -0.6f,
+                                                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                                                )
+                                                onClose()
+                                                expansion.snapTo(0f)
+                                            } else {
+                                                val targetValue = if (expansion.value > 0.4f) 1f else 0f
+                                                expansion.animateTo(
+                                                    targetValue = targetValue,
+                                                    animationSpec = tween(
+                                                        durationMillis = 250,
+                                                        easing = FastOutSlowInEasing
+                                                    )
+                                                )
+                                                onExpandChange(targetValue == 1f)
+                                            }
+                                        }
+                                    },
+                                    onDragCancel = {
+                                        coroutineScope.launch {
+                                            val targetValue = if (expansion.value > 0.4f) 1f else 0f
+                                            expansion.animateTo(
+                                                targetValue = targetValue,
+                                                animationSpec = tween(
+                                                    durationMillis = 250,
+                                                    easing = FastOutSlowInEasing
+                                                )
+                                            )
+                                            onExpandChange(targetValue == 1f)
+                                        }
+                                    },
+                                    onVerticalDrag = { change, dragAmount ->
+                                        change.consume()
+                                        val delta = -dragAmount / dragRange
+                                        coroutineScope.launch {
+                                            val minExpansion = if (swipeDownToDismissEnabled) -0.7f else 0f
+                                            expansion.snapTo(
+                                                (expansion.value + delta).coerceIn(minExpansion, 1f)
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+                    )
+
+                    // Floating Search Button
+                    FloatingNavCircleButton(
+                        icon = Icons.Outlined.Search,
+                        selectedIcon = Icons.Filled.Search,
+                        isSelected = currentDestination == Destination.Search,
+                        contentDescription = "Search",
+                        accentColor = accentColor,
+                        onClick = onSearchClick,
+                        size = 52.dp,
+                        modifier = Modifier.graphicsLayer {
+                            val navAlpha = (1f - expansion.value * 3f).coerceIn(0f, 1f)
+                            alpha = navAlpha
+                            scaleX = 0.85f + 0.15f * navAlpha
+                            scaleY = 0.85f + 0.15f * navAlpha
+                        }
+                    )
+                }
+            } else {
+                // Tablet / Large Screen Layout: Standard full-width mini player bar
+                CollapsedMiniPlayer(
+                    song = song,
+                    isPlaying = isPlaying,
+                    isLoading = isLoading,
+                    dominantColors = dominantColors,
+                    progressProvider = progressProvider,
+                    onPlayPause = onPlayPause,
+                    onNext = onNext,
+                    onClose = onClose,
+                    userAlpha = userAlpha,
+                    style = style,
+                    artworkShape = artworkShape,
+                    glassBlurAmount = glassBlurAmount,
+                    onTap = {
+                        coroutineScope.launch {
+                            expansion.animateTo(
+                                targetValue = 1f,
+                                animationSpec = tween(
+                                    durationMillis = 350,
+                                    easing = FastOutSlowInEasing
+                                )
+                            )
+                            onExpandChange(true)
+                        }
+                    },
+                    modifier = Modifier
+                         .fillMaxWidth()
+                         .height(MiniPlayerHeight)
+                         .align(Alignment.TopCenter)
+                         .offset {
+                             val e = expansion.value
+                             val px = if (e >= 0f) (bottomPadding - adjustedBottomPadding) * (1f - e) else 0f
+                             IntOffset(0, px.roundToInt())
+                         }
+                         .graphicsLayer {
+                             translationX = horizontalDrag.value
+                             alpha = (1f - expansion.value * 2.5f).coerceIn(0f, 1f)
+                             if (expansion.value < 0f && swipeDownToDismissEnabled) {
+                                 translationY = -expansion.value * dragRange
+                                 alpha = (1f + expansion.value * 1.5f).coerceIn(0.25f, 1f)
+                             }
+                         }
+                         .zIndex(if (isExpanded) 0f else 1f)
+                         .pointerInput(Unit) {
+                            detectHorizontalDragGestures(
+                                onDragEnd = {
+                                    coroutineScope.launch {
+                                        val total = horizontalDrag.value
+                                        when {
+                                            total <= -skipThresholdPx -> onNext()
+                                            total >= skipThresholdPx -> onPrevious()
+                                        }
+                                        horizontalDrag.animateTo(0f, tween(200, easing = FastOutSlowInEasing))
+                                    }
+                                },
+                                onDragCancel = {
+                                    coroutineScope.launch {
+                                        horizontalDrag.animateTo(0f, tween(200, easing = FastOutSlowInEasing))
+                                    }
+                                },
+                                onHorizontalDrag = { change, dragAmount ->
+                                    change.consume()
+                                    coroutineScope.launch {
+                                        horizontalDrag.snapTo(horizontalDrag.value + dragAmount)
+                                    }
+                                }
+                            )
+                        }
+                         .pointerInput(swipeDownToDismissEnabled) {
+                            val dismissThreshold = -0.05f
+                            detectVerticalDragGestures(
+                                onDragEnd = {
+                                    coroutineScope.launch {
+                                        if (expansion.value <= dismissThreshold && swipeDownToDismissEnabled) {
+                                            expansion.animateTo(
+                                                targetValue = -0.6f,
+                                                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                                            )
+                                            onClose()
+                                            expansion.snapTo(0f)
+                                        } else {
+                                            val targetValue = if (expansion.value > 0.4f) 1f else 0f
+                                            expansion.animateTo(
+                                                targetValue = targetValue,
+                                                animationSpec = tween(
+                                                    durationMillis = 250,
+                                                    easing = FastOutSlowInEasing
+                                                )
+                                            )
+                                            onExpandChange(targetValue == 1f)
+                                        }
+                                    }
+                                },
+                                onDragCancel = {
+                                    coroutineScope.launch {
                                         val targetValue = if (expansion.value > 0.4f) 1f else 0f
                                         expansion.animateTo(
                                             targetValue = targetValue,
@@ -302,38 +470,21 @@ fun ExpandablePlayerSheet(
                                         )
                                         onExpandChange(targetValue == 1f)
                                     }
-                                }
-                            },
-                            onDragCancel = {
-                                coroutineScope.launch {
-                                    val targetValue = if (expansion.value > 0.4f) 1f else 0f
-                                    expansion.animateTo(
-                                        targetValue = targetValue,
-                                        animationSpec = tween(
-                                            durationMillis = 250,
-                                            easing = FastOutSlowInEasing
+                                },
+                                onVerticalDrag = { change, dragAmount ->
+                                    change.consume()
+                                    val delta = -dragAmount / dragRange
+                                    coroutineScope.launch {
+                                        val minExpansion = if (swipeDownToDismissEnabled) -0.7f else 0f
+                                        expansion.snapTo(
+                                            (expansion.value + delta).coerceIn(minExpansion, 1f)
                                         )
-                                    )
-                                    onExpandChange(targetValue == 1f)
+                                    }
                                 }
-                            },
-                            onVerticalDrag = { change, dragAmount ->
-                                change.consume()
-                                val delta = -dragAmount / dragRange
-                                coroutineScope.launch {
-                                    // Allow the mini player to be pulled
-                                    // further down (-0.7) so the user gets
-                                    // visual feedback throughout the drag,
-                                    // not just up to the dismiss threshold.
-                                    val minExpansion = if (swipeDownToDismissEnabled) -0.7f else 0f
-                                    expansion.snapTo(
-                                        (expansion.value + delta).coerceIn(minExpansion, 1f)
-                                    )
-                                }
-                            }
-                        )
-                    }
-             )
+                            )
+                        }
+                 )
+            }
         }
 
         // ── Expanded Full Player ──

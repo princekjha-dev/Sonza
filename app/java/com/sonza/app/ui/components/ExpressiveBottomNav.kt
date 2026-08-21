@@ -127,8 +127,9 @@ private fun StandardNavBar(
     backgroundColor: Color? = null
 ) {
     val dynamicColors = LocalSonzaDynamicColors.current
+    val accentColor = dynamicColors.accent
     val pillShape = RoundedCornerShape(32.dp)
-    val baseSurface = backgroundColor ?: SonzaSurface
+    val baseSurface = backgroundColor ?: MaterialTheme.colorScheme.surfaceContainer
 
     val selectedItemIndex = navItems
         .indexOfFirst { it.destination == currentDestination }
@@ -141,6 +142,17 @@ private fun StandardNavBar(
             easing = FastOutSlowInEasing
         ),
         label = "standardNavIndicatorIndex"
+    )
+
+    val animatedIndicatorBg by animateColorAsState(
+        targetValue = accentColor.copy(alpha = 0.20f),
+        animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
+        label = "navIndicatorBg"
+    )
+    val animatedIndicatorBorder by animateColorAsState(
+        targetValue = accentColor.copy(alpha = 0.40f),
+        animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
+        label = "navIndicatorBorder"
     )
 
     Box(
@@ -185,7 +197,7 @@ private fun StandardNavBar(
                 )
                 .border(
                     width = 0.75.dp,
-                    color = SonzaOutline.copy(alpha = 0.35f),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
                     shape = pillShape
                 )
         )
@@ -203,12 +215,12 @@ private fun StandardNavBar(
                         horizontal = 4.dp
                     )
                     .background(
-                        color = SonzaColors.BrandAccent.copy(alpha = 0.20f),
+                        color = animatedIndicatorBg,
                         shape = RoundedCornerShape(22.dp)
                     )
                     .border(
                         width = 0.75.dp,
-                        color = SonzaColors.BrandAccent.copy(alpha = 0.40f),
+                        color = animatedIndicatorBorder,
                         shape = RoundedCornerShape(22.dp)
                     )
             )
@@ -225,7 +237,7 @@ private fun StandardNavBar(
                 FloatingNavItem(
                     item = item,
                     isSelected = isSelected,
-                    accentColor = SonzaColors.BrandAccent,
+                    accentColor = accentColor,
                     onClick = {
                         if (currentDestination == item.destination) {
                             onReClick(item.destination)
@@ -254,8 +266,8 @@ private fun LiquidGlassNavBar(
 ) {
     val dynamicColors = LocalSonzaDynamicColors.current
     val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val surfaceColor = SonzaColors.Surface
-    val primaryColor = SonzaColors.BrandAccent
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val primaryColor = dynamicColors.accent
     val pillShape = RoundedCornerShape(32.dp)
     val glassIntensity = (1f - alpha.coerceIn(0f, 1f)).coerceAtLeast(0.05f)
 
@@ -274,8 +286,8 @@ private fun LiquidGlassNavBar(
     )
 
     val borderBrush = Brush.verticalGradient(
-        0.0f to SonzaColors.Outline.copy(alpha = 0.8f * glassIntensity),
-        0.4f to SonzaColors.Outline.copy(alpha = 0.4f * glassIntensity),
+        0.0f to MaterialTheme.colorScheme.outline.copy(alpha = 0.8f * glassIntensity),
+        0.4f to MaterialTheme.colorScheme.outline.copy(alpha = 0.4f * glassIntensity),
         1.0f to Color.Transparent
     )
 
@@ -292,6 +304,17 @@ private fun LiquidGlassNavBar(
             easing = FastOutSlowInEasing
         ),
         label = "liquidGlassNavIndicatorIndex"
+    )
+
+    val animatedLiquidBg by animateColorAsState(
+        targetValue = primaryColor.copy(alpha = 0.22f * glassIntensity),
+        animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
+        label = "liquidNavIndicatorBg"
+    )
+    val animatedLiquidBorder by animateColorAsState(
+        targetValue = primaryColor.copy(alpha = 0.45f * glassIntensity),
+        animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
+        label = "liquidNavIndicatorBorder"
     )
 
     Box(
@@ -348,12 +371,12 @@ private fun LiquidGlassNavBar(
                         horizontal = 4.dp
                     )
                     .background(
-                        color = primaryColor.copy(alpha = 0.22f * glassIntensity),
+                        color = animatedLiquidBg,
                         shape = RoundedCornerShape(22.dp)
                     )
                     .border(
                         width = 0.75.dp,
-                        color = primaryColor.copy(alpha = 0.45f * glassIntensity),
+                        color = animatedLiquidBorder,
                         shape = RoundedCornerShape(22.dp)
                     )
             )
@@ -379,7 +402,7 @@ private fun LiquidGlassNavBar(
                 FloatingNavItem(
                     item = item,
                     isSelected = isSelected,
-                    accentColor = SonzaColors.BrandAccent,
+                    accentColor = primaryColor,
                     onClick = {
                         if (currentDestination == item.destination) {
                             onReClick(item.destination)
@@ -406,8 +429,10 @@ private fun FloatingNavItem(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
+    val unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+
     val contentColor by animateColorAsState(
-        targetValue = if (isSelected) accentColor else SonzaColors.OnSurfaceVariant.copy(alpha = 0.75f),
+        targetValue = if (isSelected) accentColor else unselectedColor,
         animationSpec = tween(
             durationMillis = MotionTokens.NavSelectionDuration,
             easing = FastOutSlowInEasing

@@ -252,10 +252,9 @@ fun HomeScreen(
                 ) {
                     val formFactor = LocalDeviceFormFactor.current
                     val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                    val navBarHeight = if (formFactor.isPhoneLike) 80.dp else 0.dp
                     val isMiniPlayerVisible = currentSong != null
-                    val miniPlayerHeight = if (isMiniPlayerVisible) 64.dp else 0.dp
-                    val targetBottomPadding = navBarPadding + navBarHeight + miniPlayerHeight + 24.dp
+                    val bottomSystemHeight = if (isMiniPlayerVisible) 64.dp else (if (formFactor.isPhoneLike) 80.dp else 0.dp)
+                    val targetBottomPadding = navBarPadding + bottomSystemHeight + 20.dp
 
                     val animatedBottomPadding by animateDpAsState(
                         targetValue = targetBottomPadding,

@@ -161,16 +161,17 @@ fun SearchScreen(
     val dynamicColors = LocalSonzaDynamicColors.current
     val accentColor = dynamicColors.accent
 
-    // Dynamic inset calculation to prevent Mini Player, Bottom Nav, and Keyboard (IME) from covering content
+    // Dynamic inset calculation to prevent Mini Player & Bottom Nav from covering content when keyboard is closed
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val imePadding = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
-    val navBarHeight = 80.dp
-    val miniPlayerHeight = if (currentSong != null) 64.dp else 0.dp
-    val floatingSearchBarHeight = 56.dp
-    val dynamicBottomInset = maxOf(
-        navBarPadding + navBarHeight + miniPlayerHeight + floatingSearchBarHeight + SpacingTokens.SpaceLg,
-        imePadding + floatingSearchBarHeight + SpacingTokens.SpaceMd
-    )
+    val isKeyboardOpen = imePadding > 0.dp
+    val isMiniPlayerVisible = currentSong != null
+    val bottomSystemHeight = if (isMiniPlayerVisible) 64.dp else 80.dp
+    val contentBottomInset = if (isKeyboardOpen) {
+        SpacingTokens.SpaceMd
+    } else {
+        navBarPadding + bottomSystemHeight + SpacingTokens.SpaceMd
+    }
 
     // Intercept hardware/gesture back button:
     // First back exits active search mode and clears input focus.
@@ -215,12 +216,13 @@ fun SearchScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(SonzaColors.Background)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
+            .imePadding()
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
 
-            // Top Header: Clean prominent Search heading
+            // Top Header: Title with back action when active search / query
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -228,20 +230,87 @@ fun SearchScreen(
                         start = SpacingTokens.SpaceLg,
                         end = SpacingTokens.SpaceLg,
                         top = SpacingTokens.SpaceMd,
-                        bottom = SpacingTokens.SpaceSm
+                        bottom = SpacingTokens.SpaceXs
                     ),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (isSearchActive || uiState.query.isNotEmpty()) {
+                    IconButton(
+                        onClick = {
+                            if (uiState.query.isNotEmpty()) {
+                                viewModel.onQueryChange("")
+                            }
+                            isSearchActive = false
+                            focusManager.clearFocus()
+                        },
+                        modifier = Modifier
+                            .padding(end = SpacingTokens.SpaceSm)
+                            .size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                }
+
                 Text(
                     text = "Search",
                     style = SonzaTypography.PageTitle,
-                    color = SonzaOnBackground
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
-            // Results Category Navigation (Clean horizontally scrollable category pills under header when query is entered)
+            // Top Search Input Field
+            SonzaSearchInputField(
+                query = uiState.query,
+                onQueryChange = { newQuery ->
+                    viewModel.onQueryChange(newQuery)
+                    if (!isSearchActive) isSearchActive = true
+                },
+                onSearch = {
+                    viewModel.search()
+                    isSearchActive = false
+                    focusManager.clearFocus()
+                },
+                onFocusChanged = { isFocused ->
+                    if (isFocused) isSearchActive = true
+                },
+                onClearQuery = {
+                    viewModel.onQueryChange("")
+                    isSearchActive = false
+                    focusManager.clearFocus()
+                },
+                onVoiceSearchClick = {
+                    val intent = android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        putExtra(
+                            android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                            android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                        )
+                        putExtra(
+                            android.speech.RecognizerIntent.EXTRA_PROMPT,
+                            "Speak to search"
+                        )
+                    }
+                    try {
+                        voiceSearchLauncher.launch(intent)
+                    } catch (e: Exception) {
+                        com.sonza.app.util.SnackbarUtil.showWarning("Voice search not supported")
+                    }
+                },
+                accentColor = accentColor,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = SpacingTokens.SpaceLg,
+                        vertical = SpacingTokens.SpaceSm
+                    )
+            )
+
+            // Results Category Navigation (Horizontally scrollable category pills when query is entered)
             AnimatedVisibility(
-                visible = !isSearchActive && uiState.query.isNotBlank(),
+                visible = uiState.query.isNotBlank(),
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
@@ -253,361 +322,406 @@ fun SearchScreen(
                 )
             }
 
-            // Content Area: Suggestions View OR Recent Searches / Discovery View OR Results View
-            if (isSearchActive && uiState.showSuggestions && uiState.query.isNotBlank() && uiState.suggestions.isNotEmpty()) {
-                // Live Query Suggestions View
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = dynamicBottomInset)
-                ) {
-                    items(
-                        items = uiState.suggestions.take(8),
-                        key = { it }
-                    ) { suggestion ->
-                        SuggestionItem(
-                            suggestion = suggestion,
-                            accentColor = accentColor,
-                            onClick = {
-                                viewModel.onSuggestionClick(suggestion)
-                                isSearchActive = false
-                                focusManager.clearFocus()
-                            }
-                        )
-                    }
-                }
-            } else if (uiState.query.isBlank()) {
-                // Initial Landing / Recent Searches + Discovery View
-                LazyVerticalGrid(
-                    state = gridState,
-                    columns = GridCells.Fixed(1),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = dynamicBottomInset)
-                ) {
-                    // Recently Searched Section
-                    if (uiState.recentSearches.isNotEmpty()) {
-                        item(span = { GridItemSpan(maxLineSpan) }) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(
-                                        start = SpacingTokens.SpaceLg,
-                                        end = SpacingTokens.SpaceLg,
-                                        top = SpacingTokens.SpaceMd,
-                                        bottom = SpacingTokens.SpaceSm
-                                    ),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Recently Searched",
-                                    style = SonzaTypography.SectionTitle,
-                                    color = SonzaOnBackground
-                                )
-
-                                Text(
-                                    text = "Clear",
-                                    style = SonzaTypography.LabelLarge,
-                                    color = accentColor,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(RadiusTokens.Sm))
-                                        .clickable { viewModel.clearRecentSearches() }
-                                        .padding(horizontal = SpacingTokens.SpaceSm, vertical = SpacingTokens.SpaceXs)
-                                        .semantics { contentDescription = "Clear all recent search history" }
-                                )
-                            }
-                        }
-
+            // Content Area (Fills remaining height, responds smoothly to IME)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                if (isSearchActive && uiState.showSuggestions && uiState.query.isNotBlank() && uiState.suggestions.isNotEmpty()) {
+                    // Live Query Suggestions View
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = contentBottomInset)
+                    ) {
                         items(
-                            items = uiState.recentSearches,
-                            key = { it.id }
-                        ) { item ->
-                            ActiveSearchHistoryRow(
-                                item = item,
+                            items = uiState.suggestions.take(8),
+                            key = { it }
+                        ) { suggestion ->
+                            SuggestionItem(
+                                suggestion = suggestion,
+                                accentColor = accentColor,
                                 onClick = {
-                                    when (item) {
-                                        is RecentSearchItem.SongItem -> {
-                                            viewModel.addToRecentSearches(item.song)
-                                            onSongClick(listOf(item.song), 0)
-                                        }
-                                        is RecentSearchItem.AlbumItem -> {
-                                            viewModel.addToRecentSearches(item.album)
-                                            onAlbumClick(item.album)
-                                        }
-                                        is RecentSearchItem.PlaylistItem -> {
-                                            viewModel.addToRecentSearches(item.playlist)
-                                            onPlaylistClick(item.playlist.id)
-                                        }
-                                        is RecentSearchItem.ArtistItem -> {
-                                            viewModel.addToRecentSearches(item.artist)
-                                            onArtistClick(item.artist.id)
-                                        }
-                                        is RecentSearchItem.QueryItem -> {
-                                            viewModel.onRecentSearchClick(item)
-                                            isSearchActive = false
-                                            focusManager.clearFocus()
-                                        }
-                                    }
-                                },
-                                onDelete = {
-                                    viewModel.removeRecentSearch(item)
+                                    viewModel.onSuggestionClick(suggestion)
+                                    isSearchActive = false
+                                    focusManager.clearFocus()
                                 }
                             )
                         }
-                    } else if (isSearchActive) {
-                        item(span = { GridItemSpan(maxLineSpan) }) {
-                            SonzaEmptyState(
-                                title = "No recent searches",
-                                description = "Search for songs, artists, or albums to get started.",
-                                modifier = Modifier.padding(SpacingTokens.SpaceLg)
-                            )
-                        }
                     }
-
-                    // Browse Categories (shown on Discovery screen when not in active search)
-                    if (!isSearchActive && uiState.browseCategories.isNotEmpty()) {
-                        item(span = { GridItemSpan(maxLineSpan) }) {
-                            Text(
-                                text = "Browse all",
-                                style = SonzaTypography.SectionTitle,
-                                color = SonzaOnBackground,
-                                modifier = Modifier.padding(
-                                    start = SpacingTokens.SpaceLg,
-                                    end = SpacingTokens.SpaceLg,
-                                    top = SpacingTokens.SpaceLg,
-                                    bottom = SpacingTokens.SpaceSm
-                                )
-                            )
-                        }
-
-                        item(span = { GridItemSpan(maxLineSpan) }) {
+                } else if (uiState.query.isBlank()) {
+                    if (uiState.recentSearches.isEmpty()) {
+                        // Centered Empty State when no recent searches exist
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = SpacingTokens.SpaceXl)
+                                .padding(bottom = contentBottomInset),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(
-                                        start = SpacingTokens.SpaceLg,
-                                        end = SpacingTokens.SpaceLg,
-                                        top = SpacingTokens.SpaceSm,
-                                        bottom = SpacingTokens.SpaceMd
-                                    )
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
                             ) {
-                                uiState.browseCategories.chunked(2).forEach { rowItems ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(bottom = SpacingTokens.SpaceMd),
-                                        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceMd)
-                                    ) {
-                                        rowItems.forEach { category ->
-                                            BrowseCategoryCard(
-                                                category = category,
-                                                onClick = { viewModel.onCategoryClick(category) },
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                        }
-                                        if (rowItems.size == 1) {
-                                            Spacer(modifier = Modifier.weight(1f))
-                                        }
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.surfaceContainer,
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
+                                    modifier = Modifier.size(72.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Search,
+                                            contentDescription = null,
+                                            tint = accentColor,
+                                            modifier = Modifier.size(36.dp)
+                                        )
                                     }
                                 }
-                            }
-                        }
-                    }
-                }
-            } else {
-                // Results View (When Query is Entered)
-                LazyVerticalGrid(
-                    state = gridState,
-                    columns = GridCells.Fixed(1),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = dynamicBottomInset)
-                ) {
-                    // Loading Skeleton State (Q15: Matches result row layout)
-                    if (uiState.isLoading) {
-                        item(span = { GridItemSpan(maxLineSpan) }) {
-                            SearchResultsSkeleton(modifier = Modifier.padding(top = SpacingTokens.SpaceSm))
-                        }
-                    }
 
-                    // Results View (When Query is Entered)
-                    if (uiState.query.isNotBlank() && !uiState.isLoading) {
-                    if (uiState.resultFilter != ResultFilter.ALL) {
-                        when (uiState.resultFilter) {
-                            ResultFilter.SONGS, ResultFilter.VIDEOS -> {
-                                itemsIndexed(uiState.results, key = { _, song -> "song_${song.id}" }) { index, song ->
-                                    SearchResultItem(
-                                        song = song,
-                                        onClick = {
-                                            viewModel.addToRecentSearches(song)
-                                            onSongClick(uiState.results, index)
-                                        },
-                                        onArtistClick = onArtistClick,
-                                        onMoreClick = { selectedSong = song; showSongMenu = true }
-                                    )
-                                }
+                                Spacer(modifier = Modifier.height(SpacingTokens.SpaceLg))
+
+                                Text(
+                                    text = "No recent searches",
+                                    style = SonzaTypography.SectionTitle.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+
+                                Spacer(modifier = Modifier.height(SpacingTokens.SpaceXs))
+
+                                Text(
+                                    text = "Search for songs, artists, albums, lyrics, and more.",
+                                    style = SonzaTypography.BodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
                             }
-                            ResultFilter.ARTISTS -> {
-                                items(uiState.artistResults, key = { it.id }) { artist ->
-                                    ArtistSearchListItem(artist = artist, onClick = { onArtistClick(artist.id) })
-                                }
-                            }
-                            ResultFilter.ALBUMS -> {
-                                items(uiState.albumResults, key = { it.id }) { album ->
-                                    AlbumSearchListItem(
-                                        album = album,
-                                        onClick = { viewModel.addToRecentSearches(album); onAlbumClick(album) }
-                                    )
-                                }
-                            }
-                            ResultFilter.COMMUNITY_PLAYLISTS, ResultFilter.FEATURED_PLAYLISTS -> {
-                                items(uiState.playlistResults, key = { it.id }) { playlist ->
-                                    PlaylistSearchListItem(
-                                        playlist = playlist,
-                                        onClick = { viewModel.addToRecentSearches(playlist); onPlaylistClick(playlist.id) }
-                                    )
-                                }
-                            }
-                            else -> {}
                         }
                     } else {
-                        // ResultFilter.ALL (Curated Music Grouping per Q20 & Q21)
-                        if (uiState.artistResults.isNotEmpty()) {
+                        // Recent Searches + Browse Discovery View
+                        LazyVerticalGrid(
+                            state = gridState,
+                            columns = GridCells.Fixed(1),
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = contentBottomInset)
+                        ) {
+                            // Recently Searched Section Header
                             item(span = { GridItemSpan(maxLineSpan) }) {
-                                Column {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(
+                                            start = SpacingTokens.SpaceLg,
+                                            end = SpacingTokens.SpaceLg,
+                                            top = SpacingTokens.SpaceMd,
+                                            bottom = SpacingTokens.SpaceSm
+                                        ),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
                                     Text(
-                                        text = "Artists",
+                                        text = "Recently Searched",
                                         style = SonzaTypography.SectionTitle,
-                                        color = SonzaOnBackground,
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    )
+
+                                    Text(
+                                        text = "Clear",
+                                        style = SonzaTypography.LabelLarge,
+                                        color = accentColor,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(RadiusTokens.Sm))
+                                            .clickable { viewModel.clearRecentSearches() }
+                                            .padding(horizontal = SpacingTokens.SpaceSm, vertical = SpacingTokens.SpaceXs)
+                                            .semantics { contentDescription = "Clear all recent search history" }
+                                    )
+                                }
+                            }
+
+                            items(
+                                items = uiState.recentSearches,
+                                key = { it.id }
+                            ) { item ->
+                                ActiveSearchHistoryRow(
+                                    item = item,
+                                    onClick = {
+                                        when (item) {
+                                            is RecentSearchItem.SongItem -> {
+                                                viewModel.addToRecentSearches(item.song)
+                                                onSongClick(listOf(item.song), 0)
+                                            }
+                                            is RecentSearchItem.AlbumItem -> {
+                                                viewModel.addToRecentSearches(item.album)
+                                                onAlbumClick(item.album)
+                                            }
+                                            is RecentSearchItem.PlaylistItem -> {
+                                                viewModel.addToRecentSearches(item.playlist)
+                                                onPlaylistClick(item.playlist.id)
+                                            }
+                                            is RecentSearchItem.ArtistItem -> {
+                                                viewModel.addToRecentSearches(item.artist)
+                                                onArtistClick(item.artist.id)
+                                            }
+                                            is RecentSearchItem.QueryItem -> {
+                                                viewModel.onRecentSearchClick(item)
+                                                isSearchActive = false
+                                                focusManager.clearFocus()
+                                            }
+                                        }
+                                    },
+                                    onDelete = {
+                                        viewModel.removeRecentSearch(item)
+                                    }
+                                )
+                            }
+
+                            // Browse Categories (shown on Discovery screen when not in active search)
+                            if (!isSearchActive && uiState.browseCategories.isNotEmpty()) {
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    Text(
+                                        text = "Browse all",
+                                        style = SonzaTypography.SectionTitle,
+                                        color = MaterialTheme.colorScheme.onBackground,
                                         modifier = Modifier.padding(
                                             start = SpacingTokens.SpaceLg,
                                             end = SpacingTokens.SpaceLg,
-                                            top = SpacingTokens.SpaceSm
+                                            top = SpacingTokens.SpaceLg,
+                                            bottom = SpacingTokens.SpaceSm
                                         )
                                     )
-                                    LazyRow(
-                                        contentPadding = PaddingValues(horizontal = SpacingTokens.SpaceLg),
-                                        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceLg),
-                                        modifier = Modifier.padding(vertical = SpacingTokens.SpaceMd)
+                                }
+
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(
+                                                start = SpacingTokens.SpaceLg,
+                                                end = SpacingTokens.SpaceLg,
+                                                top = SpacingTokens.SpaceSm,
+                                                bottom = SpacingTokens.SpaceMd
+                                            )
                                     ) {
-                                        items(uiState.artistResults, key = { it.id }) { artist ->
-                                            ArtistSearchCard(artist = artist, onClick = { onArtistClick(artist.id) })
+                                        uiState.browseCategories.chunked(2).forEach { rowItems ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(bottom = SpacingTokens.SpaceMd),
+                                                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceMd)
+                                            ) {
+                                                rowItems.forEach { category ->
+                                                    BrowseCategoryCard(
+                                                        category = category,
+                                                        onClick = { viewModel.onCategoryClick(category) },
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                }
+                                                if (rowItems.size == 1) {
+                                                    Spacer(modifier = Modifier.weight(1f))
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
-
-                        if (uiState.albumResults.isNotEmpty()) {
+                    }
+                } else {
+                    // Results View (When Query is Entered)
+                    LazyVerticalGrid(
+                        state = gridState,
+                        columns = GridCells.Fixed(1),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = contentBottomInset)
+                    ) {
+                        // Loading Skeleton State
+                        if (uiState.isLoading) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
-                                Column {
-                                    Text(
-                                        text = "Albums",
-                                        style = SonzaTypography.SectionTitle,
-                                        color = SonzaOnBackground,
-                                        modifier = Modifier.padding(
-                                            start = SpacingTokens.SpaceLg,
-                                            end = SpacingTokens.SpaceLg,
-                                            top = SpacingTokens.SpaceSm
-                                        )
-                                    )
-                                    LazyRow(
-                                        contentPadding = PaddingValues(horizontal = SpacingTokens.SpaceLg),
-                                        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceMd),
-                                        modifier = Modifier.padding(vertical = SpacingTokens.SpaceMd)
-                                    ) {
+                                SearchResultsSkeleton(modifier = Modifier.padding(top = SpacingTokens.SpaceSm))
+                            }
+                        }
+
+                        // Results View
+                        if (uiState.query.isNotBlank() && !uiState.isLoading) {
+                            if (uiState.resultFilter != ResultFilter.ALL) {
+                                when (uiState.resultFilter) {
+                                    ResultFilter.SONGS, ResultFilter.VIDEOS -> {
+                                        itemsIndexed(uiState.results, key = { _, song -> "song_${song.id}" }) { index, song ->
+                                            SearchResultItem(
+                                                song = song,
+                                                onClick = {
+                                                    viewModel.addToRecentSearches(song)
+                                                    onSongClick(uiState.results, index)
+                                                },
+                                                onArtistClick = onArtistClick,
+                                                onMoreClick = { selectedSong = song; showSongMenu = true }
+                                            )
+                                        }
+                                    }
+                                    ResultFilter.ARTISTS -> {
+                                        items(uiState.artistResults, key = { it.id }) { artist ->
+                                            ArtistSearchListItem(artist = artist, onClick = { onArtistClick(artist.id) })
+                                        }
+                                    }
+                                    ResultFilter.ALBUMS -> {
                                         items(uiState.albumResults, key = { it.id }) { album ->
-                                            AlbumSearchCard(
+                                            AlbumSearchListItem(
                                                 album = album,
                                                 onClick = { viewModel.addToRecentSearches(album); onAlbumClick(album) }
                                             )
                                         }
                                     }
-                                }
-                            }
-                        }
-
-                        if (uiState.playlistResults.isNotEmpty()) {
-                            item(span = { GridItemSpan(maxLineSpan) }) {
-                                Column {
-                                    Text(
-                                        text = "Playlists",
-                                        style = SonzaTypography.SectionTitle,
-                                        color = SonzaOnBackground,
-                                        modifier = Modifier.padding(
-                                            start = SpacingTokens.SpaceLg,
-                                            end = SpacingTokens.SpaceLg,
-                                            top = SpacingTokens.SpaceSm
-                                        )
-                                    )
-                                    LazyRow(
-                                        contentPadding = PaddingValues(horizontal = SpacingTokens.SpaceLg),
-                                        horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceMd),
-                                        modifier = Modifier.padding(vertical = SpacingTokens.SpaceMd)
-                                    ) {
+                                    ResultFilter.COMMUNITY_PLAYLISTS, ResultFilter.FEATURED_PLAYLISTS -> {
                                         items(uiState.playlistResults, key = { it.id }) { playlist ->
-                                            PlaylistSearchCard(
+                                            PlaylistSearchListItem(
                                                 playlist = playlist,
                                                 onClick = { viewModel.addToRecentSearches(playlist); onPlaylistClick(playlist.id) }
                                             )
                                         }
                                     }
+                                    else -> {}
+                                }
+                            } else {
+                                // ResultFilter.ALL (Curated Grouping)
+                                if (uiState.artistResults.isNotEmpty()) {
+                                    item(span = { GridItemSpan(maxLineSpan) }) {
+                                        Column {
+                                            Text(
+                                                text = "Artists",
+                                                style = SonzaTypography.SectionTitle,
+                                                color = MaterialTheme.colorScheme.onBackground,
+                                                modifier = Modifier.padding(
+                                                    start = SpacingTokens.SpaceLg,
+                                                    end = SpacingTokens.SpaceLg,
+                                                    top = SpacingTokens.SpaceSm
+                                                )
+                                            )
+                                            LazyRow(
+                                                contentPadding = PaddingValues(horizontal = SpacingTokens.SpaceLg),
+                                                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceLg),
+                                                modifier = Modifier.padding(vertical = SpacingTokens.SpaceMd)
+                                            ) {
+                                                items(uiState.artistResults, key = { it.id }) { artist ->
+                                                    ArtistSearchCard(artist = artist, onClick = { onArtistClick(artist.id) })
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (uiState.albumResults.isNotEmpty()) {
+                                    item(span = { GridItemSpan(maxLineSpan) }) {
+                                        Column {
+                                            Text(
+                                                text = "Albums",
+                                                style = SonzaTypography.SectionTitle,
+                                                color = MaterialTheme.colorScheme.onBackground,
+                                                modifier = Modifier.padding(
+                                                    start = SpacingTokens.SpaceLg,
+                                                    end = SpacingTokens.SpaceLg,
+                                                    top = SpacingTokens.SpaceSm
+                                                )
+                                            )
+                                            LazyRow(
+                                                contentPadding = PaddingValues(horizontal = SpacingTokens.SpaceLg),
+                                                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceMd),
+                                                modifier = Modifier.padding(vertical = SpacingTokens.SpaceMd)
+                                            ) {
+                                                items(uiState.albumResults, key = { it.id }) { album ->
+                                                    AlbumSearchCard(
+                                                        album = album,
+                                                        onClick = { viewModel.addToRecentSearches(album); onAlbumClick(album) }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (uiState.playlistResults.isNotEmpty()) {
+                                    item(span = { GridItemSpan(maxLineSpan) }) {
+                                        Column {
+                                            Text(
+                                                text = "Playlists",
+                                                style = SonzaTypography.SectionTitle,
+                                                color = MaterialTheme.colorScheme.onBackground,
+                                                modifier = Modifier.padding(
+                                                    start = SpacingTokens.SpaceLg,
+                                                    end = SpacingTokens.SpaceLg,
+                                                    top = SpacingTokens.SpaceSm
+                                                )
+                                            )
+                                            LazyRow(
+                                                contentPadding = PaddingValues(horizontal = SpacingTokens.SpaceLg),
+                                                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceMd),
+                                                modifier = Modifier.padding(vertical = SpacingTokens.SpaceMd)
+                                            ) {
+                                                items(uiState.playlistResults, key = { it.id }) { playlist ->
+                                                    PlaylistSearchCard(
+                                                        playlist = playlist,
+                                                        onClick = { viewModel.addToRecentSearches(playlist); onPlaylistClick(playlist.id) }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (uiState.results.isNotEmpty()) {
+                                    item(span = { GridItemSpan(maxLineSpan) }) {
+                                        Text(
+                                            text = "Songs",
+                                            style = SonzaTypography.SectionTitle,
+                                            color = MaterialTheme.colorScheme.onBackground,
+                                            modifier = Modifier.padding(
+                                                start = SpacingTokens.SpaceLg,
+                                                end = SpacingTokens.SpaceLg,
+                                                top = SpacingTokens.SpaceSm,
+                                                bottom = SpacingTokens.SpaceXs
+                                            )
+                                        )
+                                    }
+                                    itemsIndexed(uiState.results, key = { _, song -> "main_song_${song.id}" }) { index, song ->
+                                        SearchResultItem(
+                                            song = song,
+                                            onClick = {
+                                                viewModel.addToRecentSearches(song)
+                                                onSongClick(uiState.results, index)
+                                            },
+                                            onArtistClick = onArtistClick,
+                                            onMoreClick = { selectedSong = song; showSongMenu = true }
+                                        )
+                                    }
                                 }
                             }
-                        }
 
-                        if (uiState.results.isNotEmpty()) {
-                            item(span = { GridItemSpan(maxLineSpan) }) {
-                                Text(
-                                    text = "Songs",
-                                    style = SonzaTypography.SectionTitle,
-                                    color = SonzaOnBackground,
-                                    modifier = Modifier.padding(
-                                        start = SpacingTokens.SpaceLg,
-                                        end = SpacingTokens.SpaceLg,
-                                        top = SpacingTokens.SpaceSm,
-                                        bottom = SpacingTokens.SpaceXs
-                                    )
-                                )
-                            }
-                            itemsIndexed(uiState.results, key = { _, song -> "main_song_${song.id}" }) { index, song ->
-                                SearchResultItem(
-                                    song = song,
-                                    onClick = {
-                                        viewModel.addToRecentSearches(song)
-                                        onSongClick(uiState.results, index)
-                                    },
-                                    onArtistClick = onArtistClick,
-                                    onMoreClick = { selectedSong = song; showSongMenu = true }
-                                )
-                            }
-                        }
-                    }
+                            // Empty or Error State for Results
+                            val hasAnyResult = uiState.results.isNotEmpty() ||
+                                    uiState.artistResults.isNotEmpty() ||
+                                    uiState.albumResults.isNotEmpty() ||
+                                    uiState.playlistResults.isNotEmpty()
 
-                        // Empty or Error State for Results (Q16, Q17: Clean user-friendly states)
-                        val hasAnyResult = uiState.results.isNotEmpty() ||
-                                uiState.artistResults.isNotEmpty() ||
-                                uiState.albumResults.isNotEmpty() ||
-                                uiState.playlistResults.isNotEmpty()
-
-                        if (!hasAnyResult) {
-                            item(span = { GridItemSpan(maxLineSpan) }) {
-                                if (uiState.error != null) {
-                                    SonzaErrorState(
-                                        title = "Couldn't load results",
-                                        message = "Check your connection and try again.",
-                                        onRetry = { viewModel.search(saveToHistory = false) },
-                                        modifier = Modifier.padding(SpacingTokens.SpaceLg)
-                                    )
-                                } else {
-                                    SonzaEmptyState(
-                                        title = "No results found",
-                                        description = "Try a different song, artist, or album keyword.",
-                                        icon = Icons.Rounded.SearchOff,
-                                        actionText = "Clear search",
-                                        onActionClick = { viewModel.onQueryChange("") },
-                                        modifier = Modifier.padding(SpacingTokens.SpaceLg)
-                                    )
+                            if (!hasAnyResult) {
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    if (uiState.error != null) {
+                                        SonzaErrorState(
+                                            title = "Couldn't load results",
+                                            message = "Check your connection and try again.",
+                                            onRetry = { viewModel.search(saveToHistory = false) },
+                                            modifier = Modifier.padding(SpacingTokens.SpaceLg)
+                                        )
+                                    } else {
+                                        SonzaEmptyState(
+                                            title = "No results found",
+                                            description = "Try a different song, artist, or album keyword.",
+                                            icon = Icons.Rounded.SearchOff,
+                                            actionText = "Clear search",
+                                            onActionClick = { viewModel.onQueryChange("") },
+                                            modifier = Modifier.padding(SpacingTokens.SpaceLg)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -616,149 +730,7 @@ fun SearchScreen(
             }
         }
 
-        // ── Floating Bottom Search Bar (Positioned directly above fixed bottom navigation) ──
-        val floatingBarBottomOffset = navBarPadding + navBarHeight + miniPlayerHeight + 10.dp
-
-        Surface(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .imePadding()
-                .padding(
-                    start = SpacingTokens.SpaceLg,
-                    end = SpacingTokens.SpaceLg,
-                    bottom = floatingBarBottomOffset
-                )
-                .fillMaxWidth()
-                .height(56.dp)
-                .shadow(
-                    elevation = 8.dp,
-                    shape = CircleShape,
-                    ambientColor = Color.Black.copy(alpha = 0.50f),
-                    spotColor = Color.Black.copy(alpha = 0.40f)
-                ),
-            shape = CircleShape,
-            color = SonzaSurface.copy(alpha = 0.95f),
-            border = BorderStroke(0.75.dp, SonzaOutline.copy(alpha = 0.35f))
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Leading Search Icon
-                Box(
-                    modifier = Modifier.size(40.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Search,
-                        contentDescription = "Search",
-                        tint = if (isSearchActive || uiState.query.isNotEmpty()) accentColor else SonzaOnSurfaceVariant,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-
-                // Search Text Input Field
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 4.dp),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    BasicTextField(
-                        value = uiState.query,
-                        onValueChange = {
-                            viewModel.onQueryChange(it)
-                            if (!isSearchActive) isSearchActive = true
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onFocusChanged { focusState ->
-                                if (focusState.isFocused) {
-                                    isSearchActive = true
-                                }
-                            },
-                        textStyle = SonzaTypography.BodyLarge.copy(
-                            color = SonzaOnBackground
-                        ),
-                        singleLine = true,
-                        cursorBrush = SolidColor(accentColor),
-                        keyboardOptions = KeyboardOptions(
-                            imeAction = ImeAction.Search
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onSearch = {
-                                viewModel.search()
-                                isSearchActive = false
-                                focusManager.clearFocus()
-                            }
-                        ),
-                        decorationBox = { innerTextField ->
-                            if (uiState.query.isEmpty()) {
-                                Text(
-                                    text = "Artists, Songs, Lyrics, and more...",
-                                    style = SonzaTypography.BodyLarge,
-                                    color = SonzaOnSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            innerTextField()
-                        }
-                    )
-                }
-
-                // Trailing Icons: Clear 'X' and Voice Search Mic
-                if (uiState.query.isNotEmpty()) {
-                    IconButton(
-                        onClick = {
-                            viewModel.onQueryChange("")
-                            focusManager.clearFocus()
-                            isSearchActive = false
-                        },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Clear,
-                            contentDescription = "Clear query",
-                            tint = SonzaOnBackground,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
-                IconButton(
-                    onClick = {
-                        val intent = android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                            putExtra(
-                                android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                                android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-                            )
-                            putExtra(
-                                android.speech.RecognizerIntent.EXTRA_PROMPT,
-                                "Speak to search"
-                            )
-                        }
-                        try {
-                            voiceSearchLauncher.launch(intent)
-                        } catch (e: Exception) {
-                            com.sonza.app.util.SnackbarUtil.showWarning("Voice search not supported")
-                        }
-                    },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Mic,
-                        contentDescription = "Voice search",
-                        tint = SonzaOnSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
-
-        // Bottom Sheets & Dialogs (Q27: Real supported actions only)
+        // Bottom Sheets & Dialogs
         if (showSongMenu && selectedSong != null) {
             val song = selectedSong!!
             SongMenuBottomSheet(
@@ -807,6 +779,133 @@ fun SearchScreen(
                 },
                 isLoggedIn = true
             )
+        }
+    }
+}
+
+/**
+ * Reusable prominent search input field with elevated container, focus glow, clear & mic actions.
+ */
+@Composable
+fun SonzaSearchInputField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onSearch: () -> Unit,
+    onFocusChanged: (Boolean) -> Unit,
+    onClearQuery: () -> Unit,
+    onVoiceSearchClick: () -> Unit,
+    accentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    var isFocused by remember { mutableStateOf(false) }
+
+    val animatedBorderColor by animateColorAsState(
+        targetValue = if (isFocused) accentColor.copy(alpha = 0.60f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+        animationSpec = tween(durationMillis = MotionTokens.NavSelectionDuration, easing = FastOutSlowInEasing),
+        label = "searchFieldBorder"
+    )
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .shadow(
+                elevation = if (isFocused) 6.dp else 2.dp,
+                shape = RoundedCornerShape(26.dp),
+                ambientColor = Color.Black.copy(alpha = 0.35f),
+                spotColor = Color.Black.copy(alpha = 0.25f)
+            ),
+        shape = RoundedCornerShape(26.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, animatedBorderColor)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Leading Search Icon
+            Box(
+                modifier = Modifier.size(36.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Search,
+                    contentDescription = "Search",
+                    tint = if (isFocused || query.isNotEmpty()) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            // Search Text Input Field
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 6.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                BasicTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { focusState ->
+                            isFocused = focusState.isFocused
+                            onFocusChanged(focusState.isFocused)
+                        },
+                    textStyle = SonzaTypography.BodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onBackground
+                    ),
+                    singleLine = true,
+                    cursorBrush = SolidColor(accentColor),
+                    keyboardOptions = KeyboardOptions(
+                        imeAction = ImeAction.Search
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onSearch = { onSearch() }
+                    ),
+                    decorationBox = { innerTextField ->
+                        if (query.isEmpty()) {
+                            Text(
+                                text = "Artists, Songs, Lyrics, and more...",
+                                style = SonzaTypography.BodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        innerTextField()
+                    }
+                )
+            }
+
+            // Trailing Icons: Clear 'X' and Voice Search Mic
+            if (query.isNotEmpty()) {
+                IconButton(
+                    onClick = onClearQuery,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Clear,
+                        contentDescription = "Clear query",
+                        tint = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            IconButton(
+                onClick = onVoiceSearchClick,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Mic,
+                    contentDescription = "Voice search",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }

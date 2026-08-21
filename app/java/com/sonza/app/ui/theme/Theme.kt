@@ -256,10 +256,6 @@ fun SonzaTheme(
         }
     } else null
 
-    val currentDynamicTokens = remember(animatedColors) {
-        animatedColors?.toSonzaDynamicColors() ?: com.sonza.app.ui.components.SonzaDynamicColors()
-    }
-
     var colorScheme = when {
         animatedColors != null -> {
             createColorSchemeFromDominantColors(animatedColors, darkTheme)
@@ -296,6 +292,46 @@ fun SonzaTheme(
             surfaceContainerLowest = Color.Black,
             scrim = Color.Black
         )
+    }
+
+    val targetAccent = if (animatedColors != null) animatedColors.accent else colorScheme.primary
+    val targetOnAccent = if (animatedColors != null) animatedColors.onAccent else colorScheme.onPrimary
+
+    val animatedAccent by animateColorAsState(
+        targetValue = targetAccent,
+        animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
+        label = "theme_resolved_accent"
+    )
+    val animatedOnAccent by animateColorAsState(
+        targetValue = targetOnAccent,
+        animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
+        label = "theme_resolved_on_accent"
+    )
+
+    val currentDynamicTokens = remember(animatedAccent, animatedOnAccent, colorScheme, animatedColors) {
+        if (animatedColors != null) {
+            animatedColors.toSonzaDynamicColors().copy(
+                accent = animatedAccent,
+                onAccent = animatedOnAccent,
+                accentMuted = animatedAccent.copy(alpha = 0.25f),
+                isIdle = false
+            )
+        } else {
+            com.sonza.app.ui.components.SonzaDynamicColors(
+                accent = animatedAccent,
+                accentMuted = animatedAccent.copy(alpha = 0.25f),
+                onAccent = animatedOnAccent,
+                background = colorScheme.background,
+                surface = colorScheme.surface,
+                surfaceVariant = colorScheme.surfaceVariant,
+                onBackground = colorScheme.onBackground,
+                onSurface = colorScheme.onSurface,
+                onSurfaceVariant = colorScheme.onSurfaceVariant,
+                outline = colorScheme.outline,
+                scrim = colorScheme.scrim,
+                isIdle = false
+            )
+        }
     }
     
     val view = LocalView.current

@@ -53,6 +53,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.filled.CloudOff
@@ -806,12 +807,16 @@ fun SonzaApp(
 
         val density = androidx.compose.ui.platform.LocalDensity.current
         val navBarPadding = androidx.compose.foundation.layout.WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-        val navBarHeight = if (showBottomNav && formFactor != DeviceFormFactor.TV) 80.dp else 0.dp
-        val miniPlayerHeight = if (showMiniPlayer) 64.dp else 0.dp
+        val imePadding = androidx.compose.foundation.layout.WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+        val isKeyboardOpen = imePadding > 0.dp
+        val shouldShowExpressiveBottomNav = showBottomNav && !showMiniPlayer && !isKeyboardOpen && formFactor.isPhoneLike
+        val navBarHeight = if (shouldShowExpressiveBottomNav && formFactor != DeviceFormFactor.TV) 80.dp else 0.dp
+        val floatingSystemHeight = if (showMiniPlayer && !isKeyboardOpen && formFactor.isPhoneLike) 64.dp else 0.dp
         val snackbarBottomPadding = when {
             isPlayerExpanded -> navBarPadding + 12.dp
-            showMiniPlayer -> miniPlayerHeight + navBarPadding + navBarHeight + 12.dp
-            else -> navBarPadding + navBarHeight + 12.dp
+            showMiniPlayer && formFactor.isPhoneLike -> navBarPadding + floatingSystemHeight + 12.dp
+            shouldShowExpressiveBottomNav -> navBarPadding + navBarHeight + 12.dp
+            else -> navBarPadding + 12.dp
         }
 
         // In Picture-in-Picture mode (Dynamic Island / Floating player), render lightweight PiP player directly
@@ -829,9 +834,13 @@ fun SonzaApp(
              Scaffold(
                 modifier = Modifier.fillMaxSize(),
                 bottomBar = {
-                    if (showBottomNav && formFactor.isPhoneLike) {
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = shouldShowExpressiveBottomNav,
+                        enter = fadeIn(androidx.compose.animation.core.tween(200)) + androidx.compose.animation.slideInVertically(androidx.compose.animation.core.tween(200)) { it },
+                        exit = fadeOut(androidx.compose.animation.core.tween(200)) + androidx.compose.animation.slideOutVertically(androidx.compose.animation.core.tween(200)) { it }
+                    ) {
                         Column {
-                            // Bottom navigation (phone only)
+                            // Bottom navigation (phone only when no song is playing)
                             val navBarAlpha by sessionManager.navBarAlphaFlow.collectAsStateWithLifecycle(initialValue = 1.0f)
                             val navBarBlur by sessionManager.navBarBlurFlow.collectAsStateWithLifecycle(initialValue = 60.0f)
                             val iosLiquidGlassEnabled by sessionManager.iosLiquidGlassEnabledFlow.collectAsStateWithLifecycle(initialValue = false)
@@ -1035,9 +1044,16 @@ fun SonzaApp(
     // Sits above Scaffold, aligned to bottom
     if (showMiniPlayer) {
         val density = LocalDensity.current
-        val navBarPadding = androidx.compose.foundation.layout.WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-        val navBarHeight = if (showBottomNav && formFactor != DeviceFormFactor.TV) 80.dp else 0.dp
-        val bottomPaddingPx = with(density) { navBarPadding.toPx() + navBarHeight.toPx() }
+        val imePadding = androidx.compose.foundation.layout.WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+        val isKeyboardOpen = imePadding > 0.dp
+        val bottomPaddingPx = if (formFactor.isPhoneLike) {
+            with(density) { navBarPadding.toPx() + 8.dp.toPx() }
+        } else {
+            val navBarHeight = if (showBottomNav && !isKeyboardOpen && formFactor != DeviceFormFactor.TV) 80.dp else 0.dp
+            with(density) { navBarPadding.toPx() + navBarHeight.toPx() }
+        }
+
+        val lastHomeClickTime = remember { mutableLongStateOf(0L) }
 
         ExpandablePlayerSheet(
             currentSong = playbackInfo.currentSong,
@@ -1056,6 +1072,38 @@ fun SonzaApp(
             artworkShape = artworkShape,
             glassBlurAmount = miniPlayerGlassBlur,
             swipeDownToDismissEnabled = swipeDownToDismissEnabled,
+            currentDestination = currentDestination,
+            onHomeClick = {
+                if (currentDestination == Destination.Home) {
+                    val currentTime = System.currentTimeMillis()
+                    if ((currentTime - lastHomeClickTime.longValue) < 500L) {
+                        homeViewModel.triggerRefresh()
+                    } else {
+                        homeViewModel.scrollToTop()
+                    }
+                    lastHomeClickTime.longValue = currentTime
+                } else {
+                    navController.navigate(Destination.Home) {
+                        popUpTo<Destination.Home> {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            },
+            onSearchClick = {
+                if (currentDestination != Destination.Search) {
+                    navController.navigate(Destination.Search) {
+                        popUpTo<Destination.Home> {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            },
+            isPhoneLike = formFactor.isPhoneLike,
             onExpandChange = { expanded ->
                 if (expanded) playerViewModel.expandPlayer() else playerViewModel.collapsePlayer()
             },

@@ -102,6 +102,9 @@ fun AdaptiveNavigationRail(
                 label = "navItemScale"
             )
 
+            val dynamicColors = LocalSonzaDynamicColors.current
+            val accentColor = dynamicColors.accent
+
             NavigationRailItem(
                 selected = isSelected,
                 onClick = { onDestinationChange(item.destination) },
@@ -124,11 +127,11 @@ fun AdaptiveNavigationRail(
                 },
                 alwaysShowLabel = true,
                 colors = NavigationRailItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                    selectedIconColor = accentColor,
+                    selectedTextColor = accentColor,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                    indicatorColor = accentColor.copy(alpha = 0.20f)
                 ),
                 modifier = Modifier.padding(vertical = 2.dp)
             )
