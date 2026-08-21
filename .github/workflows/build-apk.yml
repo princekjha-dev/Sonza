@@ -72,12 +72,13 @@ jobs:
           body: |
             ## 🎧 SONZA — Hear Music Differently.
             
-            ### High-Fidelity Audiophile Playback & Social Listening
+            ### High-Fidelity Audiophile Playback & Modern Experience
             - Lossless bit-perfect playback (FLAC / 24-bit / 96kHz / 192kHz)
             - 10-Band Parametric Equalizer (-12dB to +12dB) & DSP curve visualizer
             - Binaural Spatial Audio & Stereo Expander
             - Real-time Synchronized Lyrics with word-level highlighting
-            - Social Listen Together synchronized listening rooms
+            - Dynamic Home header with personalized user greeting & instant profile sync
+            - Consolidated Dynamic Island & Floating Mini Player
             - ReplayGain Loudness Normalization & anti-clipping limiter
             - Beat-synchronized musical haptics
             - Native Android MediaStore local library scanner
