@@ -10,7 +10,7 @@ data class ChangelogEntry(
 object ChangelogData {
     val entries = listOf(
         ChangelogEntry(
-            version = "2.6.5.1",
+            version = "2.6.5.0",
             date = "August 21, 2026",
             isLatest = true,
             changes = listOf(
@@ -18,14 +18,7 @@ object ChangelogData {
                 "Consolidated Dynamic Island & Mini Player: Streamlined floating playback overlay and unified gesture interactions for audio and video.",
                 "Architecture Streamlining: Removed legacy Listen Together network protocols and protobuf dependencies for faster, leaner app performance.",
                 "Editorial Home Feed Rebuild: Reimagined discovery feed with compact rails, spotlight hero, 4-row high-density song packs, and 16:9 videos.",
-                "Streamlined Search UX: Active search mode with clean landing categories, instant query history management, and zero clutter."
-            )
-        ),
-        ChangelogEntry(
-            version = "2.6.5.0",
-            date = "August 19, 2026",
-            isLatest = false,
-            changes = listOf(
+                "Streamlined Search UX: Active search mode with clean landing categories, instant query history management, and zero clutter.",
                 "Dynamic Island / Floating Player: Fixed Picture-in-Picture auto-enter on gesture navigation and home press, delivering smooth floating playback overlays for both audio and video modes.",
                 "Brand & Launcher Refresh: Rebuilt application launcher mipmaps and vector assets across all display densities with crisp high-resolution rendering.",
                 "Playlist Engine 2.0: Added multi-format playlist importer/exporter supporting M3U, M3U8 (with UTF-8 BOM & extended metadata), Sonza backup, and JSON formats.",

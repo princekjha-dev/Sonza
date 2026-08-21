@@ -811,10 +811,9 @@ fun SonzaApp(
         val isKeyboardOpen = imePadding > 0.dp
         val shouldShowExpressiveBottomNav = showBottomNav && !isKeyboardOpen && !isPlayerExpanded && formFactor.isPhoneLike
         val navBarHeight = if (shouldShowExpressiveBottomNav && formFactor != DeviceFormFactor.TV) com.sonza.app.ui.components.ExpressiveBottomNavTokens.NavBarHeight else 0.dp
-        val floatingSystemHeight = if (showMiniPlayer && !isKeyboardOpen && formFactor.isPhoneLike) 52.dp else 0.dp
+        val floatingSystemHeight = 0.dp
         val snackbarBottomPadding = when {
             isPlayerExpanded -> navBarPadding + 12.dp
-            showMiniPlayer && shouldShowExpressiveBottomNav -> navBarPadding + navBarHeight + floatingSystemHeight + 12.dp
             shouldShowExpressiveBottomNav -> navBarPadding + navBarHeight + 12.dp
             else -> navBarPadding + 12.dp
         }
@@ -871,6 +870,11 @@ fun SonzaApp(
                                         lastHomeClickTime.longValue = currentTime
                                     }
                                 },
+                                currentSong = playbackInfo.currentSong,
+                                isPlaying = playbackInfo.isPlaying,
+                                isLoading = playbackInfo.isLoading,
+                                onPlayPause = { playerViewModel.togglePlayPause() },
+                                onExpandPlayer = { playerViewModel.expandPlayer() },
                                 alpha = navBarAlpha,
                                 iosLiquidGlassEnabled = iosLiquidGlassEnabled,
                                 iosNavBarBlur = navBarBlur
@@ -925,8 +929,7 @@ fun SonzaApp(
                             .weight(1f)
                     ) {
                     // NavGraph content with its own bottom padding for the nav bar
-                    // We add EXTRA padding for the mini player (52dp) if it's visible
-                    val miniPlayerHeight = if (showMiniPlayer) 52.dp else 0.dp
+                    val miniPlayerHeight = 0.dp
                     
                     Box(
                         modifier = Modifier
@@ -1034,7 +1037,7 @@ fun SonzaApp(
     // Expandable Player Sheet - Overlay
     // Sits above Scaffold, aligned to bottom
     androidx.compose.animation.AnimatedVisibility(
-        visible = showMiniPlayer || isPlayerExpanded,
+        visible = isPlayerExpanded || (!formFactor.isPhoneLike && showMiniPlayer),
         enter = fadeIn(androidx.compose.animation.core.tween(250)) + androidx.compose.animation.slideInVertically(
             animationSpec = androidx.compose.animation.core.tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
         ) { it },

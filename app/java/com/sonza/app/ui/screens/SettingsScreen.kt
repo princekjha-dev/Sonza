@@ -131,7 +131,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * Implements a clean, intentional music settings layout:
  * - Clear section hierarchy (Storage & Data, About & Support, Updates, Audio & Features).
  * - Unified reusable SonzaSettingsRow with 0.97 touch bounce and TalkBack accessibility.
- * - Dynamically sourced app version from BuildConfig.VERSION_NAME (2.6.5.1).
+ * - Dynamically sourced app version from BuildConfig.VERSION_NAME (2.6.5.0).
  * - Real live update checking with user-friendly feedback.
  * - Real destinations for Support, Credits, Privacy Policy, and About.
  * - Dynamic bottom insets ensuring the last item is never obscured by navigation or player.
