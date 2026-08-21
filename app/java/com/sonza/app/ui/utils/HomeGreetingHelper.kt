@@ -147,46 +147,66 @@ object HomeGreetingHelper {
 
     /**
      * Generates the complete, context-aware greeting text.
+     * When [userName] is provided and non-blank, it is seamlessly integrated
+     * into both the blunt/default time-based greeting and mood-specific greetings.
      */
     fun getGreetingText(
+        userName: String? = null,
         currentSong: Song? = null,
         recentlyPlayed: List<RecentlyPlayed>? = null,
         hour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     ): String {
         val timePeriod = getTimePeriod(hour)
         val mood = detectMood(currentSong, recentlyPlayed)
+        val nameSuffix = if (!userName.isNullOrBlank()) ", ${userName.trim()}" else ""
+
+        val baseGreeting = when (timePeriod) {
+            TimePeriod.MORNING -> "Good morning$nameSuffix ☀️"
+            TimePeriod.AFTERNOON -> "Good afternoon$nameSuffix 🌤️"
+            TimePeriod.EVENING -> "Good evening$nameSuffix 🌆"
+            TimePeriod.NIGHT -> "Good night$nameSuffix 🌙"
+        }
 
         return when (mood) {
             ListeningMood.ROMANTIC -> when (timePeriod) {
-                TimePeriod.MORNING -> "Good morning ☀️ Feeling romantic today? ❤️"
-                TimePeriod.AFTERNOON -> "Good afternoon 🌤️ Love is in the air ❤️"
-                TimePeriod.EVENING -> "Good evening 🌆 In a romantic mood? ❤️"
-                TimePeriod.NIGHT -> "Good night 🌙 One more love song? ❤️"
+                TimePeriod.MORNING -> "$baseGreeting Feeling romantic today? ❤️"
+                TimePeriod.AFTERNOON -> "$baseGreeting Love is in the air ❤️"
+                TimePeriod.EVENING -> "$baseGreeting In a romantic mood? ❤️"
+                TimePeriod.NIGHT -> "$baseGreeting One more love song? ❤️"
             }
             ListeningMood.SAD -> when (timePeriod) {
-                TimePeriod.MORNING -> "Good morning ☀️ Feeling a little emotional? 💙"
-                TimePeriod.AFTERNOON -> "Good afternoon 🌤️ Feeling a little emotional? 💙"
-                TimePeriod.EVENING -> "Good evening 🌆 Feeling a little emotional? 💙"
-                TimePeriod.NIGHT -> "Good night 🌙 Some feelings need music 🎧"
+                TimePeriod.MORNING -> "$baseGreeting Feeling a little emotional? 💙"
+                TimePeriod.AFTERNOON -> "$baseGreeting Feeling a little emotional? 💙"
+                TimePeriod.EVENING -> "$baseGreeting Feeling a little emotional? 💙"
+                TimePeriod.NIGHT -> "$baseGreeting Some feelings need music 🎧"
             }
             ListeningMood.ENERGETIC -> when (timePeriod) {
-                TimePeriod.MORNING -> "Good morning ☀️ Ready to turn it up? 🔥"
-                TimePeriod.AFTERNOON -> "Good afternoon 🌤️ Ready to turn it up? 🔥"
-                TimePeriod.EVENING -> "Good evening 🌆 Ready to turn it up? 🔥"
-                TimePeriod.NIGHT -> "Good night 🌙 Still got energy? ⚡"
+                TimePeriod.MORNING -> "$baseGreeting Ready to turn it up? 🔥"
+                TimePeriod.AFTERNOON -> "$baseGreeting Ready to turn it up? 🔥"
+                TimePeriod.EVENING -> "$baseGreeting Ready to turn it up? 🔥"
+                TimePeriod.NIGHT -> "$baseGreeting Still got energy? ⚡"
             }
             ListeningMood.CHILL -> when (timePeriod) {
-                TimePeriod.MORNING -> "Good morning ☀️ Time to relax 🎧"
-                TimePeriod.AFTERNOON -> "Good afternoon 🌤️ Just vibing? 🌙"
-                TimePeriod.EVENING -> "Good evening 🌆 Just vibing? 🌙"
-                TimePeriod.NIGHT -> "Good night 🌙 Time to relax 🎧"
+                TimePeriod.MORNING -> "$baseGreeting Time to relax 🎧"
+                TimePeriod.AFTERNOON -> "$baseGreeting Just vibing? 🌙"
+                TimePeriod.EVENING -> "$baseGreeting Just vibing? 🌙"
+                TimePeriod.NIGHT -> "$baseGreeting Time to relax 🎧"
             }
-            null -> when (timePeriod) {
-                TimePeriod.MORNING -> "Good morning ☀️"
-                TimePeriod.AFTERNOON -> "Good afternoon 🌤️"
-                TimePeriod.EVENING -> "Good evening 🌆"
-                TimePeriod.NIGHT -> "Good night 🌙"
-            }
+            null -> baseGreeting
         }
     }
+
+    /**
+     * Overload for backward compatibility when userName is omitted positionally.
+     */
+    fun getGreetingText(
+        currentSong: Song?,
+        recentlyPlayed: List<RecentlyPlayed>?,
+        hour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+    ): String = getGreetingText(
+        userName = null,
+        currentSong = currentSong,
+        recentlyPlayed = recentlyPlayed,
+        hour = hour
+    )
 }

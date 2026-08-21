@@ -98,8 +98,9 @@ fun TabletHomeScreen(
         return
     }
 
-    val greetingText = remember(currentSong?.id, uiState.recentlyPlayed.firstOrNull()?.song?.id) {
+    val greetingText = remember(uiState.userName, currentSong?.id, uiState.recentlyPlayed.firstOrNull()?.song?.id) {
         com.sonza.app.ui.utils.HomeGreetingHelper.getGreetingText(
+            userName = uiState.userName,
             currentSong = currentSong,
             recentlyPlayed = uiState.recentlyPlayed
         )

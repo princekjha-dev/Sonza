@@ -153,7 +153,7 @@ class MusicPlayer @Inject constructor(
     private val songSourceOverrides = android.util.LruCache<String, MusicSource>(200)
     // Non-suspending mirror of the global source preference, kept current by the
     // musicSourceFlow collector in init. Used where we can't suspend (state ticks).
-    @Volatile private var globalMusicSource: MusicSource = MusicSource.REMOTE
+    @Volatile private var globalMusicSource: MusicSource = sessionManager.getCachedMusicSource()
 
     // Listening history tracking
     private var currentSongStartTime: Long = 0L
@@ -1527,7 +1527,7 @@ class MusicPlayer @Inject constructor(
             // confident match do we spend a second "title only" search (helps when the
             // YouTube artist string is noisy). Both go through the shared 429 backoff
             // gate and the search cache, so the second query is cheap on a cache hit.
-            val cleanTitle = cleanSongTitle(song.title)
+            val cleanTitle = cleanSongTitle(song.title, song.artist)
             val cleanArtist = cleanSongArtist(song.artist)
             val primaryQuery = if (cleanArtist.isNotEmpty()) "$cleanTitle $cleanArtist" else cleanTitle
             var match = pickBestRemoteMatch(song, searchTyped(primaryQuery))
@@ -1535,6 +1535,14 @@ class MusicPlayer @Inject constructor(
                 val titleOnly = cleanTitle
                 if (titleOnly.isNotEmpty() && !titleOnly.equals(primaryQuery, ignoreCase = true)) {
                     match = pickBestRemoteMatch(song, searchTyped(titleOnly))
+                }
+            }
+            if (match == null && song.artist.isNotBlank()) {
+                val rawTitleWithoutNoise = song.title.replace(Regex("\\(.*?\\)|\\{.*?\\}|\\[.*?\\]"), " ")
+                    .replace(Regex("(?i)\\b(official|video|audio|lyrics|hd|4k|mv)\\b"), " ")
+                    .trim()
+                if (rawTitleWithoutNoise.isNotEmpty() && !rawTitleWithoutNoise.equals(cleanTitle, ignoreCase = true)) {
+                    match = pickBestRemoteMatch(song, searchTyped(rawTitleWithoutNoise))
                 }
             }
             // Save the matched remote song id so lyrics repository can also fetch lyrics from HQ Audio Source
@@ -1596,18 +1604,16 @@ class MusicPlayer @Inject constructor(
     /**
      * Picks the most likely RemoteAudio equivalent of a YouTube [song]. Requires a
      * strong title-token overlap and, when both durations are known, a duration
-     * within ±7 s — this rejects remixes / live / sped-up versions.
+     * within ±12 s — this rejects remixes / live / sped-up versions.
      */
     private fun pickBestRemoteMatch(song: Song, candidates: List<Song>): Song? {
         if (candidates.isEmpty()) return null
-        // Boilerplate tokens that carry no identity — stripped so a YouTube title like
-        // "Tum Hi Ho (Official Video) | Aashiqui 2" matches the bare HQ "Tum Hi Ho".
         val noise = setOf(
-            "official", "video", "audio", "lyrics", "lyric", "full", "song", "songs",
+            "official", "video", "audio", "lyrics", "lyric", "lyrical", "full", "song", "songs",
             "hd", "4k", "mv", "feat", "ft", "with", "the", "remastered", "version",
             "original", "soundtrack", "ost", "from", "movie"
         )
-        fun normalize(s: String): Set<String> =
+        fun normalizeTokens(s: String): Set<String> =
             s.lowercase()
                 .replace(Regex("\\(.*?\\)|\\[.*?]"), " ") // drop (feat..)/[remix] etc.
                 .replace(Regex("[^a-z0-9\\s]"), " ")
@@ -1615,50 +1621,65 @@ class MusicPlayer @Inject constructor(
                 .filter { it.isNotBlank() && it.length > 1 && it !in noise }
                 .toSet()
 
-        val targetTitle = normalize(song.title)
-        val targetArtist = normalize(song.artist)
-        if (targetTitle.isEmpty()) return null
+        val fullTargetTitle = normalizeTokens(song.title)
+        val coreTargetTitle = normalizeTokens(cleanSongTitle(song.title, song.artist))
+        val targetArtist = normalizeTokens(song.artist)
+        val targetTitleNoArtist = if (targetArtist.isNotEmpty()) {
+            val diff = fullTargetTitle - targetArtist
+            if (diff.isNotEmpty()) diff else fullTargetTitle
+        } else fullTargetTitle
+
+        val effectiveTargetTitle = if (coreTargetTitle.isNotEmpty()) coreTargetTitle else targetTitleNoArtist
+        if (effectiveTargetTitle.isEmpty() && fullTargetTitle.isEmpty()) return null
 
         var best: Song? = null
         var bestScore = 0.0
         for (c in candidates) {
-            val cTitle = normalize(c.title)
+            val cTitle = normalizeTokens(c.title)
             if (cTitle.isEmpty()) continue
 
-            // Bidirectional title check. `recall` = how much of OUR title the candidate
-            // covers; `precision` = how much of the CANDIDATE'S title is actually ours.
-            // The old code only looked at recall, so "Tum Hi Ho" happily matched a
-            // different, padded song like "Tum Hi Ho Bandhu" (recall 1.0). Requiring
-            // precision too rejects candidates stuffed with extra, unrelated words.
-            val inter = targetTitle.intersect(cTitle).size.toDouble()
-            val titleRecall = inter / targetTitle.size
-            val titlePrecision = inter / cTitle.size
-            if (titleRecall < 0.85 || titlePrecision < 0.75) continue
-            // Harmonic mean (F1) of the two
-            val titleF1 = 2.0 * titleRecall * titlePrecision / (titleRecall + titlePrecision)
+            val interCore = effectiveTargetTitle.intersect(cTitle).size.toDouble()
+            val interFull = fullTargetTitle.intersect(cTitle).size.toDouble()
+            val inter = maxOf(interCore, interFull)
 
-            // Duration gate (only when both are known): reject anything beyond ±10s
+            val titleRecall = inter / cTitle.size
+            val titlePrecision = if (effectiveTargetTitle.isNotEmpty()) inter / effectiveTargetTitle.size else inter / fullTargetTitle.size
+
+            val isExactTitle = c.title.trim().equals(cleanSongTitle(song.title, song.artist), ignoreCase = true) ||
+                (titleRecall >= 0.99 && titlePrecision >= 0.70) ||
+                (titleRecall >= 0.75 && titlePrecision >= 0.99)
+
+            if (!isExactTitle && (titleRecall < 0.70 || titlePrecision < 0.50)) continue
+
+            val titleF1 = if (titleRecall + titlePrecision > 0) {
+                2.0 * titleRecall * titlePrecision / (titleRecall + titlePrecision)
+            } else 0.0
+
+            // Duration gate (only when both are known): reject anything beyond ±12s
             var durBonus = 0.0
-            var durationKnown = false
             if (song.duration > 0 && c.duration > 0) {
-                durationKnown = true
                 val diff = kotlin.math.abs(song.duration - c.duration)
-                if (diff > 10_000L) continue
-                durBonus = (1.0 - diff / 10_000.0) * 0.15
+                if (diff > 12_000L) continue
+                durBonus = (1.0 - diff / 12_000.0) * 0.20
             }
 
-            val cArtist = normalize(c.artist)
+            val cArtist = normalizeTokens(c.artist)
             val artistKnown = targetArtist.isNotEmpty() && cArtist.isNotEmpty()
-            val artistOverlap = if (!artistKnown) 0.0
-                else targetArtist.intersect(cArtist).size.toDouble() / targetArtist.size
+            val artistOverlap = if (!artistKnown) {
+                val titleArtistInter = fullTargetTitle.intersect(cArtist).size.toDouble()
+                if (cArtist.isNotEmpty() && titleArtistInter > 0) titleArtistInter / cArtist.size else 0.0
+            } else {
+                val directOverlap = targetArtist.intersect(cArtist).size.toDouble() / targetArtist.size
+                val titleOverlap = fullTargetTitle.intersect(cArtist).size.toDouble() / cArtist.size
+                maxOf(directOverlap, titleOverlap)
+            }
 
-            // Strict artist gate: when BOTH artists are known but share no tokens at all, reject immediately!
-            if (artistKnown && artistOverlap == 0.0) continue
+            // Strict artist gate: when both artists are known but share no tokens at all and no title overlap
+            if (artistKnown && artistOverlap == 0.0 && targetArtist.intersect(cTitle).isEmpty()) continue
 
-            val score = titleF1 + artistOverlap * 0.5 + durBonus
+            val score = (if (isExactTitle) 1.2 else titleF1) + artistOverlap * 0.6 + durBonus
 
-            // High confidence floor required so we never play the wrong song
-            val requiredFloor = if (artistKnown && artistOverlap > 0.3) 0.85 else 0.90
+            val requiredFloor = if (isExactTitle || (artistKnown && artistOverlap > 0.3)) 0.75 else 0.85
             if (score < requiredFloor) continue
 
             if (score > bestScore) {
@@ -3696,14 +3717,26 @@ class MusicPlayer @Inject constructor(
         }
     }
 
-    private fun cleanSongTitle(title: String): String {
-        var clean = title
-        clean = clean.replace(Regex("\\(.*?\\)|\\{.*?\\}|\\[.*?\\]"), " ")
+    private fun cleanSongTitle(title: String, artist: String = ""): String {
+        var clean = title.replace(Regex("\\(.*?\\)|\\{.*?\\}|\\[.*?\\]"), " ")
+        val cleanArtist = if (artist.isNotBlank()) cleanSongArtist(artist).lowercase() else ""
+
         val delimiters = listOf("|", "-", "–", "—", "•", "/")
         for (delim in delimiters) {
             if (clean.contains(delim)) {
-                val parts = clean.split(delim)
-                if (parts.isNotEmpty() && parts[0].trim().isNotEmpty()) {
+                val parts = clean.split(delim).map { it.trim() }.filter { it.isNotEmpty() }
+                if (parts.size >= 2) {
+                    val p0 = parts[0].lowercase()
+                    val p1 = parts[1].lowercase()
+                    if (cleanArtist.isNotEmpty() && (p0.contains(cleanArtist) || cleanArtist.contains(p0))) {
+                        clean = parts[1]
+                    } else if (cleanArtist.isNotEmpty() && (p1.contains(cleanArtist) || cleanArtist.contains(p1))) {
+                        clean = parts[0]
+                    } else {
+                        clean = parts[0]
+                    }
+                    break
+                } else if (parts.isNotEmpty()) {
                     clean = parts[0]
                     break
                 }
@@ -3718,7 +3751,7 @@ class MusicPlayer @Inject constructor(
         var clean = artist
         clean = clean.replace(Regex("(?i)-\\s*Topic"), " ")
         clean = clean.replace(Regex("\\(.*?\\)|\\{.*?\\}|\\[.*?\\]"), " ")
-        val separators = listOf(",", "&", "feat.", "feat", "ft.", "ft")
+        val separators = listOf(",", "&", "feat.", "feat", "ft.", "ft", "x", "/")
         for (sep in separators) {
             val idx = clean.lowercase().indexOf(sep)
             if (idx != -1) {

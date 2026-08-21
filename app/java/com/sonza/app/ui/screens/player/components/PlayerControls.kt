@@ -66,10 +66,11 @@ fun MainPlaybackControls(
     modifier: Modifier = Modifier
 ) {
     val haptics = com.sonza.app.ui.utils.rememberHaptics()
-    val playSize = if (compact) 68.dp else 80.dp
-    val playIconSize = if (compact) 34.dp else 42.dp
+    val playSize = if (compact) 64.dp else 76.dp
+    val playIconSize = if (compact) 32.dp else 38.dp
     val skipSize = if (compact) 48.dp else 56.dp
-    val skipIconSize = if (compact) 30.dp else 36.dp
+    val skipIconSize = if (compact) 28.dp else 34.dp
+    val buttonSpacing = if (compact) 20.dp else 32.dp
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -95,9 +96,9 @@ fun MainPlaybackControls(
             )
         }
 
-        Spacer(modifier = Modifier.size(if (compact) 24.dp else 36.dp))
+        Spacer(modifier = Modifier.size(buttonSpacing))
 
-        // Hero Play/Pause Button
+        // Hero Play/Pause Button - Visually Dominant
         val playCircleColor = dominantColors.onBackground
         val playIconTint = if (playCircleColor.luminance() > 0.5f) Color.Black else Color.White
         Box(
@@ -158,7 +159,7 @@ fun MainPlaybackControls(
             }
         }
 
-        Spacer(modifier = Modifier.size(if (compact) 24.dp else 36.dp))
+        Spacer(modifier = Modifier.size(buttonSpacing))
 
         // Next Track Button
         Box(
@@ -182,12 +183,12 @@ fun MainPlaybackControls(
 }
 
 /**
- * Secondary Controls Row: [Like] [Shuffle] [Repeat] [Queue] [Lyrics]
+ * Secondary Controls Row: [Lyrics] [Shuffle] [Repeat] [Equalizer/Device] [Queue]
  */
 @Composable
 fun SecondaryPlayerControls(
-    isFavorite: Boolean,
-    onToggleLike: () -> Unit,
+    isFavorite: Boolean = false,
+    onToggleLike: () -> Unit = {},
     shuffleEnabled: Boolean,
     onShuffleToggle: () -> Unit,
     repeatMode: RepeatMode,
@@ -195,43 +196,35 @@ fun SecondaryPlayerControls(
     onShowQueue: () -> Unit,
     onShowLyrics: () -> Unit,
     dominantColors: DominantColors,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onShowEqualizer: (() -> Unit)? = null
 ) {
     val haptics = com.sonza.app.ui.utils.rememberHaptics()
-    val buttonSize = 48.dp
-    val iconSize = 24.dp
+    val buttonSize = 44.dp
+    val iconSize = 22.dp
 
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Like / Favorite Button
+        // Lyrics Button
         Box(
             modifier = Modifier
                 .size(buttonSize)
                 .clip(CircleShape)
                 .bounceClick(scaleDown = MotionTokens.CardTapScale) {
-                    haptics.thump()
-                    onToggleLike()
+                    haptics.tick()
+                    onShowLyrics()
                 },
             contentAlignment = Alignment.Center
         ) {
-            AnimatedContent(
-                targetState = isFavorite,
-                transitionSpec = {
-                    (scaleIn(spring(Spring.DampingRatioMediumBouncy)) + fadeIn()) togetherWith
-                    (scaleOut() + fadeOut())
-                },
-                label = "likeFavoriteSwap"
-            ) { liked ->
-                Icon(
-                    imageVector = if (liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = if (liked) "Remove from favorites" else "Add to favorites",
-                    tint = if (liked) dominantColors.accent else dominantColors.onBackground.copy(alpha = 0.6f),
-                    modifier = Modifier.size(iconSize)
-                )
-            }
+            Icon(
+                imageVector = Icons.Default.Lyrics,
+                contentDescription = "Lyrics",
+                tint = dominantColors.onBackground.copy(alpha = 0.7f),
+                modifier = Modifier.size(iconSize)
+            )
         }
 
         // Shuffle Button
@@ -248,7 +241,7 @@ fun SecondaryPlayerControls(
             Icon(
                 imageVector = Icons.Default.Shuffle,
                 contentDescription = if (shuffleEnabled) "Shuffle on" else "Shuffle off",
-                tint = if (shuffleEnabled) dominantColors.accent else dominantColors.onBackground.copy(alpha = 0.6f),
+                tint = if (shuffleEnabled) dominantColors.accent else dominantColors.onBackground.copy(alpha = 0.7f),
                 modifier = Modifier.size(iconSize)
             )
         }
@@ -282,7 +275,7 @@ fun SecondaryPlayerControls(
                         RepeatMode.ALL -> "Repeat all"
                         RepeatMode.OFF -> "Repeat off"
                     },
-                    tint = if (mode != RepeatMode.OFF) dominantColors.accent else dominantColors.onBackground.copy(alpha = 0.6f),
+                    tint = if (mode != RepeatMode.OFF) dominantColors.accent else dominantColors.onBackground.copy(alpha = 0.7f),
                     modifier = Modifier.size(iconSize)
                 )
             }
@@ -302,26 +295,7 @@ fun SecondaryPlayerControls(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.QueueMusic,
                 contentDescription = "Queue",
-                tint = dominantColors.onBackground.copy(alpha = 0.6f),
-                modifier = Modifier.size(iconSize)
-            )
-        }
-
-        // Lyrics Button
-        Box(
-            modifier = Modifier
-                .size(buttonSize)
-                .clip(CircleShape)
-                .bounceClick(scaleDown = MotionTokens.CardTapScale) {
-                    haptics.tick()
-                    onShowLyrics()
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Lyrics,
-                contentDescription = "Lyrics",
-                tint = dominantColors.onBackground.copy(alpha = 0.6f),
+                tint = dominantColors.onBackground.copy(alpha = 0.7f),
                 modifier = Modifier.size(iconSize)
             )
         }

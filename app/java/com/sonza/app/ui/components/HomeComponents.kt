@@ -67,8 +67,9 @@ fun HomeTopHeader(
     modifier: Modifier = Modifier
 ) {
     val dynamicColors = LocalSonzaDynamicColors.current
-    val greetingText = remember(currentSong?.id, recentlyPlayed.firstOrNull()?.song?.id) {
+    val greetingText = remember(userName, currentSong?.id, recentlyPlayed.firstOrNull()?.song?.id) {
         com.sonza.app.ui.utils.HomeGreetingHelper.getGreetingText(
+            userName = userName,
             currentSong = currentSong,
             recentlyPlayed = recentlyPlayed
         )

@@ -64,206 +64,271 @@ fun SongInfoSection(
     activeAudioSource: com.sonza.app.core.model.MusicSource? = null,
     onSwitchAudioSource: () -> Unit = {}
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.Start
-    ) {
-        // Song Title
-        AnimatedContent(
-            targetState = song?.id,
-            transitionSpec = {
-                (slideInVertically(
-                    animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium)
-                ) { it / 3 } + fadeIn()) togetherWith
-                (slideOutVertically { -it / 3 } + fadeOut())
-            },
-            label = "songTitleTransition"
-        ) { _ ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = song?.title ?: "No song playing",
-                    style = if (compact) {
-                        SonzaTypography.TitleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = (-0.3).sp
-                        )
-                    } else {
-                        SonzaTypography.Headline.copy(
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = (-0.5).sp
-                        )
-                    },
-                    color = dominantColors.onBackground,
-                    maxLines = 1,
-                    modifier = Modifier
-                        .basicMarquee(iterations = Int.MAX_VALUE)
-                        .weight(1f, fill = false)
-                )
+    val haptics = com.sonza.app.ui.utils.rememberHaptics()
 
-                // AI EQ Indicator Badge
-                if (isAIEnabled) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Surface(
-                        color = dominantColors.accent.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(6.dp),
-                        border = androidx.compose.foundation.BorderStroke(0.5.dp, dominantColors.accent.copy(alpha = 0.3f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        // Left Column: Title + Artist + Indicators
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 12.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+            // Song Title
+            AnimatedContent(
+                targetState = song?.id,
+                transitionSpec = {
+                    (slideInVertically(
+                        animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium)
+                    ) { it / 3 } + fadeIn()) togetherWith
+                    (slideOutVertically { -it / 3 } + fadeOut())
+                },
+                label = "songTitleTransition"
+            ) { _ ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = song?.title ?: "No song playing",
+                        style = if (compact) {
+                            SonzaTypography.TitleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = (-0.3).sp,
+                                fontSize = 18.sp
+                            )
+                        } else {
+                            SonzaTypography.Headline.copy(
+                                fontSize = 21.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = (-0.4).sp
+                            )
+                        },
+                        color = dominantColors.onBackground,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .basicMarquee(iterations = Int.MAX_VALUE)
+                            .weight(1f, fill = false)
+                    )
+
+                    // AI EQ Indicator Badge
+                    if (isAIEnabled) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            color = dominantColors.accent.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(6.dp),
+                            border = androidx.compose.foundation.BorderStroke(0.5.dp, dominantColors.accent.copy(alpha = 0.3f))
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                modifier = Modifier.size(12.dp),
-                                tint = dominantColors.accent
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                "AI",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 9.sp
-                                ),
-                                color = dominantColors.accent
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            BetaBadge(
-                                containerColor = dominantColors.accent,
-                                contentColor = Color.White,
-                                modifier = Modifier.graphicsLayer { scaleX = 0.7f; scaleY = 0.7f }
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(11.dp),
+                                    tint = dominantColors.accent
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    "AI",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 9.sp
+                                    ),
+                                    color = dominantColors.accent
+                                )
+                            }
                         }
                     }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(if (compact) 2.dp else 4.dp))
+            Spacer(modifier = Modifier.height(if (compact) 1.dp else 3.dp))
 
-        // Artist & Album Line
-        val artistText = song?.artist ?: ""
-        val albumText = song?.album?.takeIf { it.isNotBlank() && !it.startsWith("Artist Radio:") }
-        val secondaryMetadata = if (albumText != null && !albumText.equals(artistText, ignoreCase = true)) {
-            "$artistText • $albumText"
-        } else {
-            artistText
-        }
-
-        Text(
-            text = secondaryMetadata,
-            style = if (compact) {
-                SonzaTypography.ArtistSubtitle.copy(
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Normal,
-                    letterSpacing = 0.sp
-                )
+            // Artist & Album Line
+            val artistText = song?.artist ?: ""
+            val albumText = song?.album?.takeIf { it.isNotBlank() && !it.startsWith("Artist Radio:") }
+            val secondaryMetadata = if (albumText != null && !albumText.equals(artistText, ignoreCase = true)) {
+                "$artistText • $albumText"
             } else {
-                SonzaTypography.ArtistSubtitle.copy(
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Normal,
-                    letterSpacing = 0.sp
-                )
-            },
-            color = dominantColors.onBackground.copy(alpha = 0.65f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .fillMaxWidth()
-                .basicMarquee(iterations = Int.MAX_VALUE)
-                .clickable {
-                    val target = song?.artistId ?: song?.artist
-                    target?.let { onArtistClick(it) }
-                }
-        )
+                artistText
+            }
 
-        // AI Processing Status Indicator
-        androidx.compose.animation.AnimatedVisibility(
-            visible = aiStatus != null,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(top = 4.dp)
+            Text(
+                text = secondaryMetadata,
+                style = if (compact) {
+                    SonzaTypography.ArtistSubtitle.copy(
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 0.sp
+                    )
+                } else {
+                    SonzaTypography.ArtistSubtitle.copy(
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 0.sp
+                    )
+                },
+                color = dominantColors.onBackground.copy(alpha = 0.65f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .basicMarquee(iterations = Int.MAX_VALUE)
+                    .clickable {
+                        val target = song?.artistId ?: song?.artist
+                        target?.let { onArtistClick(it) }
+                    }
+            )
+
+            // AI Processing Status Indicator
+            androidx.compose.animation.AnimatedVisibility(
+                visible = aiStatus != null,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
             ) {
-                val infiniteTransition = rememberInfiniteTransition(label = "aiPulse")
-                val alpha by infiniteTransition.animateFloat(
-                    initialValue = 0.4f,
-                    targetValue = 1f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(1000, easing = LinearEasing),
-                        repeatMode = RepeatMode.Reverse
-                    ),
-                    label = "aiPulseAlpha"
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 3.dp)
+                ) {
+                    val infiniteTransition = rememberInfiniteTransition(label = "aiPulse")
+                    val alpha by infiniteTransition.animateFloat(
+                        initialValue = 0.4f,
+                        targetValue = 1f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(1000, easing = LinearEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "aiPulseAlpha"
+                    )
 
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(dominantColors.accent.copy(alpha = alpha))
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = aiStatus ?: "",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 10.sp
-                    ),
-                    color = dominantColors.accent,
-                    modifier = Modifier.graphicsLayer { this.alpha = alpha }
+                    Box(
+                        modifier = Modifier
+                            .size(5.dp)
+                            .clip(CircleShape)
+                            .background(dominantColors.accent.copy(alpha = alpha))
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        text = aiStatus ?: "",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 10.sp
+                        ),
+                        color = dominantColors.accent,
+                        modifier = Modifier.graphicsLayer { this.alpha = alpha }
+                    )
+                }
+            }
+
+            // Sleep Timer indicator
+            androidx.compose.animation.AnimatedVisibility(
+                visible = sleepTimerOption != com.sonza.app.player.SleepTimerOption.OFF,
+                enter = fadeIn() + slideInVertically { -20 },
+                exit = fadeOut() + slideOutVertically { -20 }
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 3.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Timer,
+                        contentDescription = null,
+                        modifier = Modifier.size(if (compact) 12.dp else 13.dp),
+                        tint = dominantColors.accent.copy(alpha = 0.9f)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (sleepTimerOption == com.sonza.app.player.SleepTimerOption.END_OF_SONG) {
+                            "Sleep at end of song"
+                        } else {
+                            sleepTimerRemainingMs?.let { ms ->
+                                "Sleep in " + com.sonza.app.util.TimeUtil.formatPosition(ms)
+                            } ?: ""
+                        },
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 0.2.sp,
+                            fontSize = 11.sp
+                        ),
+                        color = dominantColors.accent.copy(alpha = 0.9f)
+                    )
+                }
+            }
+
+            // Download progress chip
+            val downloadProgress = LocalCurrentDownloadProgress.current
+            if (song != null && downloadProgress != null) {
+                Spacer(modifier = Modifier.height(if (compact) 2.dp else 3.dp))
+                DownloadProgressChip(
+                    progress = downloadProgress,
+                    dominantColors = dominantColors
                 )
             }
         }
 
-        // Sleep Timer indicator
-        androidx.compose.animation.AnimatedVisibility(
-            visible = sleepTimerOption != com.sonza.app.player.SleepTimerOption.OFF,
-            enter = fadeIn() + slideInVertically { -20 },
-            exit = fadeOut() + slideOutVertically { -20 }
+        // Right Column: Action Buttons (Favorite + More Options)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(top = 4.dp)
+            // Favorite Button
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isFavorite) dominantColors.accent.copy(alpha = 0.16f)
+                        else dominantColors.onBackground.copy(alpha = 0.08f)
+                    )
+                    .com.sonza.app.ui.components.bounceClick(scaleDown = com.sonza.app.ui.theme.MotionTokens.CardTapScale) {
+                        haptics.thump()
+                        onFavoriteClick()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                AnimatedContent(
+                    targetState = isFavorite,
+                    transitionSpec = {
+                        (scaleIn(spring(Spring.DampingRatioMediumBouncy)) + fadeIn()) togetherWith
+                        (scaleOut() + fadeOut())
+                    },
+                    label = "favoriteToggleAnim"
+                ) { fav ->
+                    Icon(
+                        imageVector = if (fav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = if (fav) "Remove from favorites" else "Add to favorites",
+                        tint = if (fav) dominantColors.accent else dominantColors.onBackground.copy(alpha = 0.8f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            // More Options Button
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(dominantColors.onBackground.copy(alpha = 0.08f))
+                    .com.sonza.app.ui.components.bounceClick(scaleDown = com.sonza.app.ui.theme.MotionTokens.CardTapScale) {
+                        haptics.tick()
+                        onMoreClick()
+                    },
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Timer,
-                    contentDescription = null,
-                    modifier = Modifier.size(if (compact) 12.dp else 14.dp),
-                    tint = dominantColors.accent.copy(alpha = 0.9f)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = if (sleepTimerOption == com.sonza.app.player.SleepTimerOption.END_OF_SONG) {
-                        "Sleep at end of song"
-                    } else {
-                        sleepTimerRemainingMs?.let { ms ->
-                            "Sleep in " + com.sonza.app.util.TimeUtil.formatPosition(ms)
-                        } ?: ""
-                    },
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 0.3.sp
-                    ),
-                    color = dominantColors.accent.copy(alpha = 0.9f)
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "Song options",
+                    tint = dominantColors.onBackground.copy(alpha = 0.8f),
+                    modifier = Modifier.size(20.dp)
                 )
             }
-        }
-
-        // Download progress chip
-        val downloadProgress = LocalCurrentDownloadProgress.current
-        if (song != null && downloadProgress != null) {
-            Spacer(modifier = Modifier.height(if (compact) 2.dp else 4.dp))
-            DownloadProgressChip(
-                progress = downloadProgress,
-                dominantColors = dominantColors
-            )
         }
     }
 }

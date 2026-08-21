@@ -111,12 +111,42 @@ object CacheModule {
         }
         
         // DefaultDataSource handles http/https/file/content/asset/etc.
-        val upstreamFactory = androidx.media3.datasource.DefaultDataSource.Factory(context, httpDataSourceFactory)
+        val defaultDataSourceFactory = androidx.media3.datasource.DefaultDataSource.Factory(context, httpDataSourceFactory)
+
+        // ResolvingDataSource automatically injects required headers (Referer + User-Agent) for RemoteAudio CDN requests
+        val resolvingFactory = androidx.media3.datasource.ResolvingDataSource.Factory(
+            defaultDataSourceFactory,
+            object : androidx.media3.datasource.ResolvingDataSource.Resolver {
+                override fun resolveDataSpec(dataSpec: androidx.media3.datasource.DataSpec): androidx.media3.datasource.DataSpec {
+                    val uriStr = dataSpec.uri.toString()
+                    val isRemoteAudio = uriStr.contains("saavncdn") ||
+                        uriStr.contains("jiosaavn") ||
+                        uriStr.contains(com.sonza.app.data.repository.remote.RemoteConstants.CDN_HOST) ||
+                        uriStr.contains(com.sonza.app.data.repository.remote.RemoteConstants.LEGACY_HOST_A) ||
+                        uriStr.contains(com.sonza.app.data.repository.remote.RemoteConstants.LEGACY_HOST_B)
+
+                    if (isRemoteAudio) {
+                        val headers = mutableMapOf<String, String>()
+                        headers.putAll(dataSpec.httpRequestHeaders)
+                        if (!headers.containsKey("Referer")) {
+                            headers["Referer"] = com.sonza.app.data.repository.remote.RemoteConstants.REFERER
+                        }
+                        if (!headers.containsKey("User-Agent")) {
+                            headers["User-Agent"] = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36"
+                        }
+                        return dataSpec.buildUpon()
+                            .setHttpRequestHeaders(headers)
+                            .build()
+                    }
+                    return dataSpec
+                }
+            }
+        )
         
         // CacheDataSource Factory
         return CacheDataSource.Factory()
             .setCache(cache)
-            .setUpstreamDataSourceFactory(upstreamFactory)
+            .setUpstreamDataSourceFactory(resolvingFactory)
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
     }
 
@@ -137,11 +167,40 @@ object CacheModule {
                 .setUserAgent("Sonza-User-Agent")
                 .setAllowCrossProtocolRedirects(true)
         }
+
+        val resolvingFactory = androidx.media3.datasource.ResolvingDataSource.Factory(
+            httpDataSourceFactory,
+            object : androidx.media3.datasource.ResolvingDataSource.Resolver {
+                override fun resolveDataSpec(dataSpec: androidx.media3.datasource.DataSpec): androidx.media3.datasource.DataSpec {
+                    val uriStr = dataSpec.uri.toString()
+                    val isRemoteAudio = uriStr.contains("saavncdn") ||
+                        uriStr.contains("jiosaavn") ||
+                        uriStr.contains(com.sonza.app.data.repository.remote.RemoteConstants.CDN_HOST) ||
+                        uriStr.contains(com.sonza.app.data.repository.remote.RemoteConstants.LEGACY_HOST_A) ||
+                        uriStr.contains(com.sonza.app.data.repository.remote.RemoteConstants.LEGACY_HOST_B)
+
+                    if (isRemoteAudio) {
+                        val headers = mutableMapOf<String, String>()
+                        headers.putAll(dataSpec.httpRequestHeaders)
+                        if (!headers.containsKey("Referer")) {
+                            headers["Referer"] = com.sonza.app.data.repository.remote.RemoteConstants.REFERER
+                        }
+                        if (!headers.containsKey("User-Agent")) {
+                            headers["User-Agent"] = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36"
+                        }
+                        return dataSpec.buildUpon()
+                            .setHttpRequestHeaders(headers)
+                            .build()
+                    }
+                    return dataSpec
+                }
+            }
+        )
         
         // CacheDataSource Factory
         return CacheDataSource.Factory()
             .setCache(cache)
-            .setUpstreamDataSourceFactory(httpDataSourceFactory)
+            .setUpstreamDataSourceFactory(resolvingFactory)
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
     }
 }

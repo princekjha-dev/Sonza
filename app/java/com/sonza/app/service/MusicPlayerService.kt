@@ -61,6 +61,9 @@ class MusicPlayerService : MediaLibraryService() {
     lateinit var youTubeRepository: com.sonza.app.data.repository.YouTubeRepository
 
     @Inject
+    lateinit var remoteAudioRepository: com.sonza.app.data.repository.RemoteAudioRepository
+
+    @Inject
     lateinit var downloadRepository: DownloadRepository
 
     @Inject
@@ -160,6 +163,92 @@ class MusicPlayerService : MediaLibraryService() {
     @Volatile
     private var wasPlayingBeforeSuppression: Boolean = false
 
+    @Volatile
+    private var wasPlayingBeforeInterruption: Boolean = false
+    @Volatile
+    private var pausedForTransientFocus: Boolean = false
+    @Volatile
+    private var pausedForCall: Boolean = false
+    private var telephonyCallback: Any? = null
+
+    private fun registerTelephonyListener() {
+        try {
+            val telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as? android.telephony.TelephonyManager ?: return
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                val callback = object : android.telephony.TelephonyCallback(), android.telephony.TelephonyCallback.CallStateListener {
+                    override fun onCallStateChanged(state: Int) {
+                        handleCallState(state)
+                    }
+                }
+                telephonyManager.registerTelephonyCallback(mainExecutor, callback)
+                telephonyCallback = callback
+            } else {
+                @Suppress("DEPRECATION")
+                val listener = object : android.telephony.PhoneStateListener() {
+                    @Deprecated("Deprecated in Java")
+                    override fun onCallStateChanged(state: Int, phoneNumber: String?) {
+                        handleCallState(state)
+                    }
+                }
+                @Suppress("DEPRECATION")
+                telephonyManager.listen(listener, android.telephony.PhoneStateListener.LISTEN_CALL_STATE)
+                telephonyCallback = listener
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("MusicPlayerService", "Failed to register telephony listener: ${e.message}")
+        }
+    }
+
+    private fun unregisterTelephonyListener() {
+        try {
+            val telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as? android.telephony.TelephonyManager ?: return
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                (telephonyCallback as? android.telephony.TelephonyCallback)?.let {
+                    telephonyManager.unregisterTelephonyCallback(it)
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                (telephonyCallback as? android.telephony.PhoneStateListener)?.let {
+                    telephonyManager.listen(it, android.telephony.PhoneStateListener.LISTEN_NONE)
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("MusicPlayerService", "Failed to unregister telephony listener: ${e.message}")
+        }
+        telephonyCallback = null
+    }
+
+    private fun handleCallState(state: Int) {
+        val player = mediaLibrarySession?.player ?: return
+        android.util.Log.d("MusicPlayerService", "handleCallState: state=$state, isPlaying=${player.isPlaying}, playWhenReady=${player.playWhenReady}")
+        when (state) {
+            android.telephony.TelephonyManager.CALL_STATE_RINGING,
+            android.telephony.TelephonyManager.CALL_STATE_OFFHOOK -> {
+                if (player.playWhenReady && player.playbackState != Player.STATE_IDLE && player.playbackState != Player.STATE_ENDED) {
+                    wasPlayingBeforeInterruption = true
+                    pausedForCall = true
+                    player.pause()
+                }
+            }
+            android.telephony.TelephonyManager.CALL_STATE_IDLE -> {
+                if (pausedForCall) {
+                    pausedForCall = false
+                    if (wasPlayingBeforeInterruption && !pausedForTransientFocus) {
+                        wasPlayingBeforeInterruption = false
+                        wasPlayingBeforeSuppression = false
+                        serviceScope.launch {
+                            if (sessionManager.isAutoResumeAfterCallEnabled()) {
+                                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    mediaLibrarySession?.player?.play()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private var audioSinkKickstartDone = false
     
     // Audio AR & Effects state
@@ -214,6 +303,7 @@ class MusicPlayerService : MediaLibraryService() {
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
+        registerTelephonyListener()
         
         createNotificationChannel()
         
@@ -563,22 +653,36 @@ class MusicPlayerService : MediaLibraryService() {
 
                 override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
                     super.onPlayWhenReadyChanged(playWhenReady, reason)
-                    // If playWhenReady was changed due to audio focus loss/gain
-                    if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS) {
+                    android.util.Log.d("MusicPlayerService", "onPlayWhenReadyChanged: playWhenReady=$playWhenReady, reason=$reason")
+                    if (!playWhenReady && (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST || reason == Player.PLAY_WHEN_READY_CHANGE_REASON_REMOTE)) {
+                        // User manually paused (from in-app UI, notification, lock-screen, or Bluetooth)
+                        wasPlayingBeforeInterruption = false
+                        pausedForTransientFocus = false
+                        pausedForCall = false
+                        wasPlayingBeforeSuppression = false
+                    } else if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS) {
                         serviceScope.launch {
                             val autoResume = sessionManager.isAutoResumeAfterCallEnabled()
-                            android.util.Log.d("MusicPlayerService", "onPlayWhenReadyChanged: playWhenReady=$playWhenReady, autoResume=$autoResume")
+                            android.util.Log.d("MusicPlayerService", "AudioFocusLoss change: playWhenReady=$playWhenReady, autoResume=$autoResume")
                             if (!playWhenReady) {
-                                // Focus lost: if auto-resume is disabled, permanently pause so it won't resume later
+                                wasPlayingBeforeInterruption = true
+                                pausedForTransientFocus = true
+                                wasPlayingBeforeSuppression = true
                                 if (!autoResume) {
-                                    android.util.Log.d("MusicPlayerService", "Focus lost. Auto-resume is disabled by user. Forcing permanent pause.")
                                     withContext(kotlinx.coroutines.Dispatchers.Main) {
                                         mediaLibrarySession?.player?.pause()
                                     }
                                 }
                             } else {
-                                // Focus regained: Media3 automatically restores playWhenReady to true.
-                                android.util.Log.d("MusicPlayerService", "Focus regained. playWhenReady is now true. Auto-resume is $autoResume.")
+                                if (wasPlayingBeforeInterruption && autoResume) {
+                                    wasPlayingBeforeInterruption = false
+                                    pausedForTransientFocus = false
+                                    wasPlayingBeforeSuppression = false
+                                } else if (!autoResume) {
+                                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                        mediaLibrarySession?.player?.pause()
+                                    }
+                                }
                             }
                         }
                     }
@@ -586,27 +690,34 @@ class MusicPlayerService : MediaLibraryService() {
 
                 override fun onPlaybackSuppressionReasonChanged(playbackSuppressionReason: Int) {
                     super.onPlaybackSuppressionReasonChanged(playbackSuppressionReason)
-                    if (playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE) {
-                        // Suppression starting (incoming call, transient focus loss,
-                        // nav announcement). Capture the playWhenReady state at this
-                        // exact moment so we can decide on resume: if the user had
-                        // already paused before this event, we must NOT wake playback
-                        // back up when suppression clears.
-                        wasPlayingBeforeSuppression = mediaLibrarySession?.player?.playWhenReady == true
+                    if (playbackSuppressionReason == Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS) {
+                        // Transient audio focus loss (Instagram Reel, TikTok, video, call)
+                        // STRICT RULE: Pause playback immediately rather than playing underneath or ducking
+                        val isPlaying = mediaLibrarySession?.player?.playWhenReady == true
+                        if (isPlaying) {
+                            wasPlayingBeforeInterruption = true
+                            pausedForTransientFocus = true
+                            wasPlayingBeforeSuppression = true
+                        }
                         android.util.Log.d(
                             "MusicPlayerService",
-                            "Suppression started (reason=$playbackSuppressionReason). wasPlayingBeforeSuppression=$wasPlayingBeforeSuppression",
+                            "Suppression started (TRANSIENT_AUDIO_FOCUS_LOSS). wasPlayingBeforeInterruption=$wasPlayingBeforeInterruption",
                         )
+                        mediaLibrarySession?.player?.pause()
+                        return
+                    } else if (playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE) {
+                        val isPlaying = mediaLibrarySession?.player?.playWhenReady == true
+                        if (isPlaying) {
+                            wasPlayingBeforeInterruption = true
+                            wasPlayingBeforeSuppression = true
+                        }
                         return
                     }
 
-                    // Suppression cleared. Only resume if playback was actually running
-                    // when suppression started AND the user has auto-resume enabled.
-                    val shouldResume = wasPlayingBeforeSuppression
-                    
-                    // Logic Fix: Only clear the flag if we are actually resuming or if focus is solid.
-                    // This prevents Instagram scrolls from accidentally clearing the 'was playing' state
-                    // while allowing phone calls to resume correctly.
+                    // Suppression cleared (reason == PLAYBACK_SUPPRESSION_REASON_NONE)
+                    val shouldResume = wasPlayingBeforeInterruption && !pausedForCall
+                    android.util.Log.d("MusicPlayerService", "Suppression cleared. shouldResume=$shouldResume, pausedForTransientFocus=$pausedForTransientFocus")
+
                     if (shouldResume) {
                         serviceScope.launch {
                             if (sessionManager.isAutoResumeAfterCallEnabled()) {
@@ -614,9 +725,13 @@ class MusicPlayerService : MediaLibraryService() {
                                 withContext(kotlinx.coroutines.Dispatchers.Main) {
                                     mediaLibrarySession?.player?.play()
                                 }
+                                wasPlayingBeforeInterruption = false
+                                pausedForTransientFocus = false
                                 wasPlayingBeforeSuppression = false
                             }
                         }
+                    } else {
+                        pausedForTransientFocus = false
                     }
                 }
                 
@@ -1717,15 +1832,37 @@ class MusicPlayerService : MediaLibraryService() {
             release()
             mediaLibrarySession = null
         }
+        unregisterTelephonyListener()
         playerListener = null
         super.onDestroy()
     }
 
     /**
      * Resolve a stream URL with retry logic, matching the phone-side behavior.
-     * This ensures Android Auto playback is as reliable as phone-initiated playback.
+     * This ensures Android Auto and background playback is as reliable as phone-initiated playback.
      */
-    private suspend fun resolveStreamUrlWithRetry(videoId: String): String? {
+    private suspend fun resolveStreamUrlWithRetry(videoId: String, song: com.sonza.app.core.model.Song? = null): String? {
+        val effectiveSong = song ?: cachedBrowseSongs[videoId]
+        val isHqSelected = sessionManager.getCachedMusicSource() == com.sonza.app.core.model.MusicSource.REMOTE
+        val isRemoteSong = effectiveSong?.source == com.sonza.app.core.model.SongSource.REMOTE
+
+        if (isRemoteSong) {
+            val hqUrl = kotlinx.coroutines.withTimeoutOrNull(10_000L) {
+                remoteAudioRepository.getStreamUrl(videoId, 320)
+            }
+            if (!hqUrl.isNullOrBlank()) return hqUrl
+        } else if (isHqSelected && effectiveSong != null) {
+            val query = "${effectiveSong.title} ${effectiveSong.artist}".trim()
+            val hqUrl = kotlinx.coroutines.withTimeoutOrNull(8_000L) {
+                val res = remoteAudioRepository.searchResult(query)
+                if (res is com.sonza.app.core.model.AppResult.Success && res.data.isNotEmpty()) {
+                    val match = res.data.firstOrNull()
+                    match?.let { remoteAudioRepository.getStreamUrl(it.id, 320) }
+                } else null
+            }
+            if (!hqUrl.isNullOrBlank()) return hqUrl
+        }
+
         var streamUrl: String? = null
         var attempts = 0
         while (streamUrl == null && attempts < 2) {

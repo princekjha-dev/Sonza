@@ -2617,20 +2617,28 @@ class SessionManager @Inject constructor(
     // Default source is HQ Audio (RemoteAudio, 320 kbps) — the VPS-hosted
     // catalogue is the out-of-the-box experience. Users who prefer YouTube
     // Music can switch back in Playback settings at any time.
+    fun getCachedMusicSource(): MusicSource {
+        val cached = encryptedPrefs.getString("music_source", null)
+        return cached?.let {
+            try { MusicSource.valueOf(it) } catch (e: Exception) { MusicSource.REMOTE }
+        } ?: MusicSource.REMOTE
+    }
+
     suspend fun getMusicSource(): MusicSource {
         val sourceName = context.dataStore.data.first()[MUSIC_SOURCE_KEY]
         return sourceName?.let {
             try { MusicSource.valueOf(it) } catch (e: Exception) { MusicSource.REMOTE }
-        } ?: MusicSource.REMOTE
+        } ?: getCachedMusicSource()
     }
 
     val musicSourceFlow: Flow<MusicSource> = context.dataStore.data.map { preferences ->
         preferences[MUSIC_SOURCE_KEY]?.let {
             try { MusicSource.valueOf(it) } catch (e: Exception) { MusicSource.REMOTE }
-        } ?: MusicSource.REMOTE
+        } ?: getCachedMusicSource()
     }
     
     suspend fun setMusicSource(source: MusicSource) {
+        encryptedPrefs.edit().putString("music_source", source.name).apply()
         context.dataStore.edit { preferences ->
             preferences[MUSIC_SOURCE_KEY] = source.name
         }
