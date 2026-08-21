@@ -366,6 +366,8 @@ fun HomeScreen(
                                 HomeTopHeader(
                                     avatarUrl = uiState.userAvatarUrl,
                                     userName = uiState.userName,
+                                    currentSong = currentSong,
+                                    recentlyPlayed = uiState.recentlyPlayed,
                                     onHistoryClick = onHistoryClick,
                                     onProfileClick = onProfileClick,
                                     modifier = Modifier.animateEnter(index = 0)

@@ -98,21 +98,11 @@ fun TabletHomeScreen(
         return
     }
 
-    val greeting = remember {
-        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        when {
-            hour < 12 -> "Good morning"
-            hour < 17 -> "Good afternoon"
-            else -> "Good evening"
-        }
-    }
-
-    val greetingText = remember(greeting, uiState.userName) {
-        if (!uiState.userName.isNullOrBlank()) {
-            "$greeting, ${uiState.userName}"
-        } else {
-            greeting
-        }
+    val greetingText = remember(currentSong?.id, uiState.recentlyPlayed.firstOrNull()?.song?.id) {
+        com.sonza.app.ui.utils.HomeGreetingHelper.getGreetingText(
+            currentSong = currentSong,
+            recentlyPlayed = uiState.recentlyPlayed
+        )
     }
 
     // Hero item from recommendations

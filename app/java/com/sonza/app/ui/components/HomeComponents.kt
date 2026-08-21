@@ -60,26 +60,18 @@ import java.util.Calendar
 fun HomeTopHeader(
     avatarUrl: String?,
     userName: String? = null,
+    currentSong: com.sonza.app.core.model.Song? = null,
+    recentlyPlayed: List<com.sonza.app.core.model.RecentlyPlayed> = emptyList(),
     onHistoryClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val dynamicColors = LocalSonzaDynamicColors.current
-    val greeting = remember {
-        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        when {
-            hour < 12 -> "Good morning"
-            hour < 17 -> "Good afternoon"
-            else -> "Good evening"
-        }
-    }
-
-    val greetingText = remember(greeting, userName) {
-        if (!userName.isNullOrBlank()) {
-            "$greeting, $userName"
-        } else {
-            greeting
-        }
+    val greetingText = remember(currentSong?.id, recentlyPlayed.firstOrNull()?.song?.id) {
+        com.sonza.app.ui.utils.HomeGreetingHelper.getGreetingText(
+            currentSong = currentSong,
+            recentlyPlayed = recentlyPlayed
+        )
     }
 
     Column(

@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -23,6 +25,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider as M3HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -39,7 +42,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.sonza.app.composeapp.ui.components.BetaBadge
 import com.sonza.app.core.model.ChatProxyModels
 
 /**
@@ -85,15 +87,11 @@ fun AISettingsScreen(
         contentPadding = contentPadding,
     ) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "AI Assistant",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                BetaBadge()
-            }
+            Text(
+                text = "AI Assistant",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
             Spacer(modifier = Modifier.height(16.dp))
         }
 
@@ -209,6 +207,7 @@ private fun ApiConfigSection(
 ) {
     var localApiKey by remember(apiKey) { mutableStateOf(apiKey) }
     var localModel by remember(model) { mutableStateOf(model) }
+    var showApiKey by remember { mutableStateOf(false) }
 
     Column {
         Text(
@@ -228,6 +227,15 @@ private fun ApiConfigSection(
             label = { Text("API Key") },
             placeholder = { Text(placeholder) },
             singleLine = true,
+            visualTransformation = if (showApiKey) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { showApiKey = !showApiKey }) {
+                    Icon(
+                        imageVector = if (showApiKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = if (showApiKey) "Hide API Key" else "Show API Key"
+                    )
+                }
+            },
             shape = RoundedCornerShape(12.dp),
         )
 
@@ -340,6 +348,8 @@ private fun ChatProxyConfigSection(
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        val availableModelCount = remember(models) { models.count { it != ChatProxyModels.RANDOM } }
+
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(10.dp),
@@ -349,7 +359,7 @@ private fun ChatProxyConfigSection(
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(
-                    text = "${ChatProxyModels.ALL.size} models available",
+                    text = "$availableModelCount models available",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,

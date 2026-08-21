@@ -428,7 +428,6 @@ fun SettingsScreen(
                                 icon = Icons.Default.Psychology,
                                 title = "AI Assistant",
                                 description = "Smart music suggestions with AI models",
-                                trailingBadge = { BetaBadge() },
                                 accentColor = accentColor,
                                 onClick = onAISettingsClick
                             )

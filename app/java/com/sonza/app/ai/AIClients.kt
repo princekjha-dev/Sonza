@@ -41,21 +41,32 @@ class OpenAIClient(private val apiKey: String, private val model: String) : AICl
 
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    val errBody = response.body?.string().orEmpty()
-                    return@withContext Result.failure(
-                        Exception("OpenAI error: ${response.code} ${response.message}${if (errBody.isNotBlank()) " — $errBody" else ""}")
-                    )
+                    val message = when (response.code) {
+                        401 -> "Invalid OpenAI API key. Please verify your credentials in Settings."
+                        403 -> "Access forbidden. Check your OpenAI account permissions."
+                        429 -> "OpenAI rate limit or quota exceeded. Please try again later."
+                        500, 502, 503 -> "OpenAI servers are temporarily unavailable (${response.code})."
+                        else -> "OpenAI request failed (HTTP ${response.code})."
+                    }
+                    return@withContext Result.failure(Exception(message))
                 }
                 val body = response.body?.string()
-                    ?: return@withContext Result.failure(Exception("OpenAI: empty response"))
+                    ?: return@withContext Result.failure(Exception("OpenAI returned an empty response."))
                 val jsonResponse = JSONObject(body)
-                val content = jsonResponse
-                    .getJSONArray("choices").getJSONObject(0)
+                val choices = jsonResponse.optJSONArray("choices")
+                if (choices == null || choices.length() == 0) {
+                    return@withContext Result.failure(Exception("OpenAI returned no response choices."))
+                }
+                val content = choices.getJSONObject(0)
                     .getJSONObject("message").getString("content")
-                Result.success(gson.fromJson(extractJsonObject(content), AudioEffectState::class.java))
+                val jsonContent = extractJsonObject(content)
+                if (jsonContent.isBlank()) {
+                    return@withContext Result.failure(Exception("OpenAI response could not be parsed."))
+                }
+                Result.success(gson.fromJson(jsonContent, AudioEffectState::class.java))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception(e.message ?: "Failed to connect to OpenAI."))
         }
     }
 }
@@ -82,23 +93,40 @@ class GeminiClient(private val apiKey: String, private val model: String) : AICl
                 }
             """.trimIndent().toRequestBody("application/json".toMediaType())
 
+            val cleanModel = model.removePrefix("models/")
             val request = Request.Builder()
-                // Key goes in the header, not the query string: query params leak into
-                // OkHttp logs, the HTTP tracer in di/AppModule, and any proxy access logs.
-                .url("https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent")
+                .url("https://generativelanguage.googleapis.com/v1beta/models/$cleanModel:generateContent")
                 .addHeader("x-goog-api-key", apiKey)
                 .post(requestBody)
                 .build()
 
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext Result.failure(Exception("Gemini error: ${response.code} ${response.message}\n${response.body?.string()}"))
-                val body = response.body?.string() ?: return@withContext Result.failure(Exception("Empty response"))
+                if (!response.isSuccessful) {
+                    val message = when (response.code) {
+                        400 -> "Invalid request for model '$cleanModel'."
+                        401, 403 -> "Invalid Gemini API key. Please check your key in Settings."
+                        404 -> "Gemini model '$cleanModel' not found."
+                        429 -> "Gemini quota or rate limit exceeded. Please wait a moment."
+                        500, 503 -> "Google AI service is temporarily unavailable (${response.code})."
+                        else -> "Gemini request failed (HTTP ${response.code})."
+                    }
+                    return@withContext Result.failure(Exception(message))
+                }
+                val body = response.body?.string() ?: return@withContext Result.failure(Exception("Gemini returned an empty response."))
                 val jsonResponse = JSONObject(body)
-                val content = jsonResponse.getJSONArray("candidates").getJSONObject(0).getJSONObject("content").getJSONArray("parts").getJSONObject(0).getString("text")
-                Result.success(gson.fromJson(extractJsonObject(content), AudioEffectState::class.java))
+                val candidates = jsonResponse.optJSONArray("candidates")
+                if (candidates == null || candidates.length() == 0) {
+                    return@withContext Result.failure(Exception("Gemini generated no response candidates."))
+                }
+                val content = candidates.getJSONObject(0).getJSONObject("content").getJSONArray("parts").getJSONObject(0).getString("text")
+                val jsonContent = extractJsonObject(content)
+                if (jsonContent.isBlank()) {
+                    return@withContext Result.failure(Exception("Gemini response format was invalid."))
+                }
+                Result.success(gson.fromJson(jsonContent, AudioEffectState::class.java))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception(e.message ?: "Failed to connect to Gemini."))
         }
     }
 }
@@ -133,14 +161,32 @@ class AnthropicClient(private val apiKey: String, private val model: String) : A
                 .build()
 
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext Result.failure(Exception("Anthropic error: ${response.code} ${response.message}"))
-                val body = response.body?.string() ?: return@withContext Result.failure(Exception("Empty response"))
+                if (!response.isSuccessful) {
+                    val message = when (response.code) {
+                        401 -> "Invalid Anthropic API key. Please check your credentials in Settings."
+                        403 -> "Access forbidden for Anthropic model '$model'."
+                        404 -> "Anthropic model '$model' not found."
+                        429 -> "Anthropic rate limit reached. Please wait a moment."
+                        500, 529 -> "Anthropic servers are currently overloaded (${response.code})."
+                        else -> "Anthropic request failed (HTTP ${response.code})."
+                    }
+                    return@withContext Result.failure(Exception(message))
+                }
+                val body = response.body?.string() ?: return@withContext Result.failure(Exception("Anthropic returned an empty response."))
                 val jsonResponse = JSONObject(body)
-                val content = jsonResponse.getJSONArray("content").getJSONObject(0).getString("text")
-                Result.success(gson.fromJson(extractJsonObject(content), AudioEffectState::class.java))
+                val contentArray = jsonResponse.optJSONArray("content")
+                if (contentArray == null || contentArray.length() == 0) {
+                    return@withContext Result.failure(Exception("Anthropic returned empty content."))
+                }
+                val content = contentArray.getJSONObject(0).getString("text")
+                val jsonContent = extractJsonObject(content)
+                if (jsonContent.isBlank()) {
+                    return@withContext Result.failure(Exception("Anthropic response could not be parsed."))
+                }
+                Result.success(gson.fromJson(jsonContent, AudioEffectState::class.java))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception(e.message ?: "Failed to connect to Anthropic."))
         }
     }
 }
@@ -159,7 +205,10 @@ class ChatProxyClient(
         songContext: SongContext?
     ): Result<AudioEffectState> = withContext(Dispatchers.IO) {
         val resolvedModel = ChatProxyModels.resolve(model)
-        val candidates = listOf(resolvedModel) + (fallbackModels?.map { ChatProxyModels.resolve(it) } ?: emptyList())
+        val defaultFallbacks = listOf("gpt-5", "chatgpt-4o-latest", "google/gemini-2.5-pro-preview-05-06", "meta-llama-3.3-70b-instruct")
+        val effectiveFallbacks = fallbackModels ?: defaultFallbacks
+        val candidates = (listOf(resolvedModel) + effectiveFallbacks.map { ChatProxyModels.resolve(it) })
+            .distinct()
 
         var lastError: Throwable? = null
 
@@ -174,7 +223,7 @@ class ChatProxyClient(
         }
 
         return@withContext Result.failure(
-            lastError ?: Exception("All ${candidates.size} models failed")
+            lastError ?: Exception("All available AI models failed. Please check network connection.")
         )
     }
 
@@ -193,22 +242,26 @@ class ChatProxyClient(
 
             val request = Request.Builder()
                 .url(url)
+                .header("User-Agent", "Mozilla/5.0 (Android; Mobile; Sonza-App)")
                 .get()
                 .build()
 
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    return Result.failure(Exception("Model '$modelToUse' failed: ${response.code} ${response.message}"))
+                    return Result.failure(Exception("Model '$modelToUse' unavailable (HTTP ${response.code})"))
                 }
-                val body = response.body?.string() ?: return Result.failure(Exception("Model '$modelToUse': Empty response"))
+                val body = response.body?.string() ?: return Result.failure(Exception("Empty response from model '$modelToUse'"))
                 val jsonResponse = JSONObject(body)
                 if (jsonResponse.has("error")) {
                     return Result.failure(Exception("Model '$modelToUse': ${jsonResponse.getString("error")}"))
                 }
-                val answer = jsonResponse.getString("answer")
+                val answer = jsonResponse.optString("answer", "")
+                if (answer.isBlank()) {
+                    return Result.failure(Exception("Model '$modelToUse' returned no answer."))
+                }
                 val jsonContent = extractJsonObject(answer)
                 if (jsonContent.isBlank()) {
-                    return Result.failure(Exception("Model '$modelToUse': Invalid response format"))
+                    return Result.failure(Exception("Model '$modelToUse' returned invalid response format."))
                 }
                 return Result.success(gson.fromJson(jsonContent, AudioEffectState::class.java))
             }

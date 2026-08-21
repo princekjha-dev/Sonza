@@ -110,6 +110,22 @@ data class SettingsUiState(
     val geminiModel: String = "gemini-1.5-pro",
     val chatProxyModel: String = "gpt-5",
     val selectedAiProvider: String = "CHAT_PROXY",
+    // AI Dynamic Catalogs & Validation
+    val chatProxyModels: List<String> = emptyList(),
+    val chatProxyModelsLoading: Boolean = false,
+    val chatProxyModelsError: String? = null,
+    val geminiModels: List<String> = com.sonza.app.ai.AIProviderManager.DEFAULT_GEMINI_MODELS,
+    val geminiModelsLoading: Boolean = false,
+    val geminiModelsError: String? = null,
+    val geminiValidationStatus: String? = null,
+    val openaiModels: List<String> = com.sonza.app.ai.AIProviderManager.DEFAULT_OPENAI_MODELS,
+    val openaiModelsLoading: Boolean = false,
+    val openaiModelsError: String? = null,
+    val openaiValidationStatus: String? = null,
+    val anthropicModels: List<String> = com.sonza.app.ai.AIProviderManager.DEFAULT_ANTHROPIC_MODELS,
+    val anthropicModelsLoading: Boolean = false,
+    val anthropicModelsError: String? = null,
+    val anthropicValidationStatus: String? = null,
     // Content Preferences
     val preferredLanguages: Set<String> = emptySet(),
     val youtubeHistorySyncEnabled: Boolean = false,
@@ -387,7 +403,15 @@ class SettingsViewModel @Inject constructor(
             sessionManager.chatProxyModelFlow.collect { value -> _uiState.update { it.copy(chatProxyModel = value) } }
         }
         viewModelScope.launch {
-            sessionManager.selectedAiProviderFlow.collect { value -> _uiState.update { it.copy(selectedAiProvider = value) } }
+            sessionManager.selectedAiProviderFlow.collect { value -> 
+                _uiState.update { it.copy(selectedAiProvider = value) }
+                when (value) {
+                    "CHAT_PROXY" -> loadChatProxyModels()
+                    "GEMINI" -> loadGeminiModels()
+                    "OPENAI" -> loadOpenAiModels()
+                    "ANTHROPIC" -> loadAnthropicModels()
+                }
+            }
         }
 
         viewModelScope.launch {
@@ -712,14 +736,110 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setOpenAiApiKey(value: String) = viewModelScope.launch { sessionManager.setOpenAiApiKey(value) }
+    fun setOpenAiApiKey(value: String) = viewModelScope.launch { 
+        sessionManager.setOpenAiApiKey(value)
+        _uiState.update { it.copy(openaiValidationStatus = null) }
+        loadOpenAiModels()
+    }
     fun setOpenAiModel(value: String) = viewModelScope.launch { sessionManager.setOpenAiModel(value) }
-    fun setAnthropicApiKey(value: String) = viewModelScope.launch { sessionManager.setAnthropicApiKey(value) }
+    fun setAnthropicApiKey(value: String) = viewModelScope.launch { 
+        sessionManager.setAnthropicApiKey(value)
+        _uiState.update { it.copy(anthropicValidationStatus = null) }
+        loadAnthropicModels()
+    }
     fun setAnthropicModel(value: String) = viewModelScope.launch { sessionManager.setAnthropicModel(value) }
-    fun setGeminiApiKey(value: String) = viewModelScope.launch { sessionManager.setGeminiApiKey(value) }
+    fun setGeminiApiKey(value: String) = viewModelScope.launch { 
+        sessionManager.setGeminiApiKey(value)
+        _uiState.update { it.copy(geminiValidationStatus = null) }
+        loadGeminiModels()
+    }
     fun setGeminiModel(value: String) = viewModelScope.launch { sessionManager.setGeminiModel(value) }
     fun setChatProxyModel(value: String) = viewModelScope.launch { sessionManager.setChatProxyModel(value) }
     fun setSelectedAiProvider(value: String) = viewModelScope.launch { sessionManager.setSelectedAiProvider(value) }
+
+    fun loadChatProxyModels(forceRefresh: Boolean = false) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(chatProxyModelsLoading = true, chatProxyModelsError = null) }
+            val result = com.sonza.app.ai.AIProviderManager.fetchChatProxyModels(forceRefresh)
+            result.onSuccess { models ->
+                _uiState.update { it.copy(chatProxyModels = models, chatProxyModelsLoading = false) }
+            }.onFailure { error ->
+                _uiState.update { it.copy(chatProxyModelsError = error.message, chatProxyModelsLoading = false) }
+            }
+        }
+    }
+
+    fun loadGeminiModels(forceRefresh: Boolean = false) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(geminiModelsLoading = true, geminiModelsError = null) }
+            val apiKey = _uiState.value.geminiApiKey
+            val result = com.sonza.app.ai.AIProviderManager.fetchGeminiModels(apiKey, forceRefresh)
+            result.onSuccess { models ->
+                _uiState.update { it.copy(geminiModels = models, geminiModelsLoading = false) }
+            }.onFailure { error ->
+                _uiState.update { it.copy(geminiModelsError = error.message, geminiModelsLoading = false) }
+            }
+        }
+    }
+
+    fun loadOpenAiModels(forceRefresh: Boolean = false) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(openaiModelsLoading = true, openaiModelsError = null) }
+            val apiKey = _uiState.value.openaiApiKey
+            val result = com.sonza.app.ai.AIProviderManager.fetchOpenAiModels(apiKey, forceRefresh)
+            result.onSuccess { models ->
+                _uiState.update { it.copy(openaiModels = models, openaiModelsLoading = false) }
+            }.onFailure { error ->
+                _uiState.update { it.copy(openaiModelsError = error.message, openaiModelsLoading = false) }
+            }
+        }
+    }
+
+    fun loadAnthropicModels(forceRefresh: Boolean = false) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(anthropicModelsLoading = true, anthropicModelsError = null) }
+            val apiKey = _uiState.value.anthropicApiKey
+            val result = com.sonza.app.ai.AIProviderManager.fetchAnthropicModels(apiKey, forceRefresh)
+            result.onSuccess { models ->
+                _uiState.update { it.copy(anthropicModels = models, anthropicModelsLoading = false) }
+            }.onFailure { error ->
+                _uiState.update { it.copy(anthropicModelsError = error.message, anthropicModelsLoading = false) }
+            }
+        }
+    }
+
+    fun validateApiKey(provider: String) {
+        viewModelScope.launch {
+            val key = when (provider.uppercase()) {
+                "GEMINI" -> _uiState.value.geminiApiKey
+                "OPENAI" -> _uiState.value.openaiApiKey
+                "ANTHROPIC" -> _uiState.value.anthropicApiKey
+                else -> ""
+            }
+
+            when (provider.uppercase()) {
+                "GEMINI" -> _uiState.update { it.copy(geminiValidationStatus = "validating") }
+                "OPENAI" -> _uiState.update { it.copy(openaiValidationStatus = "validating") }
+                "ANTHROPIC" -> _uiState.update { it.copy(anthropicValidationStatus = "validating") }
+            }
+
+            val result = com.sonza.app.ai.AIProviderManager.validateApiKey(provider, key)
+            result.onSuccess {
+                when (provider.uppercase()) {
+                    "GEMINI" -> _uiState.update { it.copy(geminiValidationStatus = "valid") }
+                    "OPENAI" -> _uiState.update { it.copy(openaiValidationStatus = "valid") }
+                    "ANTHROPIC" -> _uiState.update { it.copy(anthropicValidationStatus = "valid") }
+                }
+            }.onFailure { error ->
+                val msg = "error:${error.message ?: "Invalid key"}"
+                when (provider.uppercase()) {
+                    "GEMINI" -> _uiState.update { it.copy(geminiValidationStatus = msg) }
+                    "OPENAI" -> _uiState.update { it.copy(openaiValidationStatus = msg) }
+                    "ANTHROPIC" -> _uiState.update { it.copy(anthropicValidationStatus = msg) }
+                }
+            }
+        }
+    }
     
     private fun loadSettings() {
         viewModelScope.launch {
