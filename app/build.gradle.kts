@@ -159,6 +159,7 @@ dependencies {
     // Image Loading Coil 3
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
+    implementation(libs.coil.gif)
 
     // DI Hilt
     implementation(libs.hilt.android)

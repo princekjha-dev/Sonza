@@ -318,11 +318,8 @@ private fun ScanningState(accentColor: Color, contentColor: Color) {
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(40.dp),
-                strokeWidth = 3.dp,
-                color = accentColor,
-                strokeCap = StrokeCap.Round
+            SonzaLoadingIndicator(
+                modifier = Modifier.size(48.dp)
             )
             Spacer(modifier = Modifier.height(20.dp))
             Text(

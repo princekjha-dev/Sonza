@@ -326,9 +326,8 @@ fun LyricsScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.padding(32.dp)
                     ) {
-                        LoadingIndicator(
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(52.dp)
+                        com.sonza.app.ui.components.SonzaLoadingIndicator(
+                            modifier = Modifier.size(56.dp)
                         )
                         Spacer(modifier = Modifier.height(32.dp))
                         Text(
@@ -1467,9 +1466,8 @@ fun LyricsList(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     if (isSharing) {
-                        LoadingIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.primary
+                        com.sonza.app.ui.components.SonzaLoadingIndicator(
+                            modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(

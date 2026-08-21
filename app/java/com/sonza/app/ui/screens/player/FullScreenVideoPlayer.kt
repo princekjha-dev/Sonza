@@ -55,7 +55,7 @@ import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.VolumeDown
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.material3.LoadingIndicator
+import com.sonza.app.ui.components.SonzaLoadingIndicator
 import com.sonza.app.ui.components.SonzaLoadingLogo
 import com.sonza.app.ui.components.SonzaVideoLoadingIndicator
 import androidx.compose.material3.Icon
@@ -521,7 +521,7 @@ fun FullScreenVideoPlayer(
                             
                             BounceButton(onClick = { showDownloadSheet = true }) {
                                 when {
-                                    isVideoDownloading -> LoadingIndicator(color = dominantColors.primary, modifier = Modifier.size(18.dp))
+                                    isVideoDownloading -> SonzaLoadingIndicator(modifier = Modifier.size(18.dp))
                                     videoDownloaded -> Icon(Icons.Filled.CheckCircle, "Done", tint = dominantColors.accent, modifier = Modifier.size(24.dp).padding(8.dp))
                                     else -> Icon(Icons.Filled.SaveAlt, "Download", tint = Color.White, modifier = Modifier.size(24.dp).padding(8.dp))
                                 }

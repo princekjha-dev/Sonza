@@ -12,7 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
-import androidx.compose.material3.LoadingIndicator
+import com.sonza.app.ui.components.SonzaLoadingIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,7 +54,7 @@ fun TvHomeScreen(
 
     if (uiState.isLoading && uiState.homeSections.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            LoadingIndicator(color = MaterialTheme.colorScheme.primary)
+            SonzaLoadingIndicator(modifier = Modifier.size(64.dp))
         }
         return
     }

@@ -32,8 +32,6 @@ import com.sonza.app.ui.components.BetaBadge
 import com.sonza.app.ui.screens.player.formatDuration
 import com.sonza.app.ui.theme.SonzaTypography
 
-import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.CircularProgressIndicator
 
 /**
  * Per-current-song download progress (0f..1f), or null when the current song isn't downloading.
@@ -367,13 +365,9 @@ private fun DownloadProgressChip(
             .clickable { expanded = !expanded }
             .padding(horizontal = 8.dp, vertical = 3.dp)
     ) {
-        Box(modifier = Modifier.size(12.dp), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(
-                progress = { animatedProgress },
-                modifier = Modifier.size(12.dp),
-                color = dominantColors.accent,
-                strokeWidth = 1.5.dp,
-                trackColor = dominantColors.accent.copy(alpha = 0.25f)
+        Box(modifier = Modifier.size(14.dp), contentAlignment = Alignment.Center) {
+            com.sonza.app.ui.components.SonzaLoadingIndicator(
+                modifier = Modifier.size(14.dp)
             )
             Icon(
                 imageVector = Icons.Filled.Download,

@@ -37,7 +37,6 @@ import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbUp
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -338,10 +337,8 @@ private fun DownloadAction(
         ) { state ->
             when (state) {
                 DownloadState.DOWNLOADING -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = dominantColors.accent,
+                    com.sonza.app.ui.components.SonzaLoadingIndicator(
+                        modifier = Modifier.size(20.dp)
                     )
                 }
                 DownloadState.DOWNLOADED -> {

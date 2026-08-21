@@ -40,7 +40,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.LoadingIndicator
+import com.sonza.app.ui.components.SonzaLoadingIndicator
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -93,7 +93,7 @@ fun TabletHomeScreen(
 
     if (uiState.isLoading && uiState.homeSections.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            LoadingIndicator(color = MaterialTheme.colorScheme.primary)
+            SonzaLoadingIndicator(modifier = Modifier.size(64.dp))
         }
         return
     }
@@ -273,9 +273,8 @@ fun TabletHomeScreen(
                                 .padding(32.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            LoadingIndicator(
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(32.dp)
+                            SonzaLoadingIndicator(
+                                modifier = Modifier.size(36.dp)
                             )
                         }
                     }

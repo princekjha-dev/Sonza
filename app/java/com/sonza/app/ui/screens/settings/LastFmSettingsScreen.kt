@@ -17,7 +17,7 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
-import androidx.compose.material3.LoadingIndicator
+import com.sonza.app.ui.components.SonzaLoadingIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -267,7 +267,7 @@ fun LastFmSettingsScreen(
                     },
                     enabled = !isLoading && username.isNotBlank() && password.isNotBlank()
                 ) {
-                    if (isLoading) LoadingIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onPrimary)
+                    if (isLoading) SonzaLoadingIndicator(modifier = Modifier.size(18.dp))
                     else Text("Log In")
                 }
             },

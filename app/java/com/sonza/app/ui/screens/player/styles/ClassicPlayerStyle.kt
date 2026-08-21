@@ -48,6 +48,7 @@ import com.sonza.app.core.model.RepeatMode
 import com.sonza.app.data.repository.SponsorSegment
 import com.sonza.app.player.SleepTimerOption
 import com.sonza.app.ui.components.DominantColors
+import com.sonza.app.ui.components.SonzaLoadingIndicator
 import com.sonza.app.ui.components.SonzaVideoLoadingIndicator
 import com.sonza.app.ui.components.WaveformSeeker
 import com.sonza.app.core.model.SeekbarStyle
@@ -572,10 +573,8 @@ private fun ClassicBottomActions(
                 ) { state ->
                     when (state) {
                         com.sonza.app.core.model.DownloadState.DOWNLOADING -> {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(iconSize),
-                                strokeWidth = 2.dp,
-                                color = dominantColors.accent,
+                            SonzaLoadingIndicator(
+                                modifier = Modifier.size(iconSize)
                             )
                         }
                         com.sonza.app.core.model.DownloadState.DOWNLOADED -> {

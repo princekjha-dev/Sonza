@@ -33,7 +33,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -223,9 +222,8 @@ fun AddToPlaylistSheet(
                             .height(200.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        LoadingIndicator(
-                            modifier = Modifier.size(32.dp),
-                            color = MaterialTheme.colorScheme.primary
+                        SonzaLoadingIndicator(
+                            modifier = Modifier.size(48.dp)
                         )
                     }
                 } else if (playlists.isEmpty()) {
@@ -415,9 +413,8 @@ fun CreatePlaylistDialog(
                             shape = SquircleShape
                         ) {
                             if (isCreating) {
-                                LoadingIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    color = MaterialTheme.colorScheme.primary
+                                SonzaLoadingIndicator(
+                                    modifier = Modifier.size(18.dp)
                                 )
                             } else {
                                 Text("Create", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium)

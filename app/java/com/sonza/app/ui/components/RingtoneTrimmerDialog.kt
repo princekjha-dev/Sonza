@@ -133,9 +133,8 @@ fun RingtoneTrimmerDialog(
                     contentAlignment = Alignment.Center
                 ) {
                     if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(48.dp),
-                            color = accentColor
+                        SonzaLoadingIndicator(
+                            modifier = Modifier.size(48.dp)
                         )
                     } else {
                         IconButton(

@@ -10,7 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.material3.LoadingIndicator
+import com.sonza.app.ui.components.SonzaLoadingIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -51,11 +51,10 @@ fun MoodAndGenresScreen(
                 .padding(paddingValues)
         ) {
             if (uiState.isLoadingCategories) {
-                LoadingIndicator(
+                SonzaLoadingIndicator(
                     modifier = Modifier
-                        .size(48.dp)
-                        .align(Alignment.Center),
-                    color = MaterialTheme.colorScheme.primary
+                        .size(56.dp)
+                        .align(Alignment.Center)
                 )
             } else {
                 LazyVerticalGrid(
@@ -119,11 +118,10 @@ fun MoodAndGenresDetailScreen(
                 .padding(paddingValues)
         ) {
             if (uiState.isLoadingContent) {
-                LoadingIndicator(
+                SonzaLoadingIndicator(
                     modifier = Modifier
-                        .size(48.dp)
-                        .align(Alignment.Center),
-                    color = MaterialTheme.colorScheme.primary
+                        .size(56.dp)
+                        .align(Alignment.Center)
                 )
             } else {
                 LazyColumn(

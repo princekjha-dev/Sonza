@@ -411,7 +411,7 @@ fun ArtistScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = dominantColors.accent)
+                    com.sonza.app.ui.components.SonzaLoadingIndicator(modifier = Modifier.size(56.dp))
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = uiState.radioStatus ?: "Connecting...",
@@ -600,10 +600,8 @@ fun ImmersiveArtistHeader(
                         modifier = Modifier.height(48.dp).weight(1f)
                     ) {
                         if (isSubscribing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = if (isSubscribed) Color.White else Color.Black,
-                                strokeWidth = 2.dp
+                            com.sonza.app.ui.components.SonzaLoadingIndicator(
+                                modifier = Modifier.size(18.dp)
                             )
                         } else {
                             Text(

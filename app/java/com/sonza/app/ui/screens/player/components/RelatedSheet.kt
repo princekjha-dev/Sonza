@@ -146,7 +146,7 @@ fun RelatedSheet(
             if (isLoading && relatedSongs.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize().padding(bottom = 64.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = dominantColors.accent, strokeWidth = 3.dp, modifier = Modifier.size(40.dp))
+                        com.sonza.app.ui.components.SonzaLoadingIndicator(modifier = Modifier.size(48.dp))
                         Spacer(modifier = Modifier.height(16.dp))
                         Text("Finding similar music...", style = MaterialTheme.typography.bodyMedium, color = secondaryContentColor)
                     }

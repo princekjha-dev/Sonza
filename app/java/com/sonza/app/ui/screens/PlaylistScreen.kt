@@ -815,10 +815,8 @@ private fun PlaylistHeroHeader(
                     .background(dynamicColors.accentMuted.copy(alpha = 0.35f))
                     .padding(horizontal = 12.dp, vertical = 4.dp)
             ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(12.dp),
-                    strokeWidth = 2.dp,
-                    color = dynamicColors.accent
+                com.sonza.app.ui.components.SonzaLoadingIndicator(
+                    modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(

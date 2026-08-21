@@ -464,7 +464,7 @@ fun ModernQueueView(
                 if (isLoadingMore) {
                     item {
                         Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = dominantColors.accent, modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
+                            com.sonza.app.ui.components.SonzaLoadingIndicator(modifier = Modifier.size(32.dp))
                         }
                     }
                 }

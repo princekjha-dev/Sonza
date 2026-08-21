@@ -10,7 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.material3.LoadingIndicator
+import com.sonza.app.ui.components.SonzaLoadingIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -90,9 +90,8 @@ fun ArtistDiscographyScreen(
         ) {
             if (uiState.isLoading && items.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    LoadingIndicator(
-                        modifier = Modifier.size(48.dp),
-                        color = MaterialTheme.colorScheme.primary
+                    SonzaLoadingIndicator(
+                        modifier = Modifier.size(56.dp)
                     )
                 }
             } else if (items.isEmpty() && !uiState.isLoading) {

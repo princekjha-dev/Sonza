@@ -34,7 +34,6 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -75,10 +74,8 @@ fun AIEqPromptInput(
         ),
         trailingIcon = {
             if (isProcessing) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.primary
+                com.sonza.app.ui.components.SonzaLoadingIndicator(
+                    modifier = Modifier.size(24.dp)
                 )
             } else {
                 IconButton(
@@ -173,10 +170,8 @@ fun AIEqLogsPanel(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.5.dp,
-                            color = MaterialTheme.colorScheme.primary
+                        com.sonza.app.ui.components.SonzaLoadingIndicator(
+                            modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(

@@ -554,9 +554,8 @@ private fun LoadingView(onCancel: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.padding(24.dp)
     ) {
-        LoadingIndicator(
-            modifier = Modifier.size(48.dp),
-            color = MaterialTheme.colorScheme.primary
+        com.sonza.app.ui.components.SonzaLoadingIndicator(
+            modifier = Modifier.size(56.dp)
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(

@@ -179,7 +179,14 @@ fun HomeScreen(
         // Home Content State Machine
         when {
             uiState.isLoading && uiState.homeSections.isEmpty() && uiState.recommendations.isEmpty() -> {
-                HomeLoadingSkeleton()
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    com.sonza.app.ui.components.SonzaLoadingIndicator(modifier = Modifier.size(72.dp))
+                }
             }
 
             uiState.error != null && uiState.homeSections.isEmpty() && uiState.recommendations.isEmpty() -> {
@@ -240,14 +247,16 @@ fun HomeScreen(
                         .fillMaxSize()
                         .statusBarsPadding(),
                     indicator = {
-                        val dynamicColors = LocalSonzaDynamicColors.current
-                        PullToRefreshDefaults.LoadingIndicator(
-                            state = pullRefreshState,
-                            isRefreshing = uiState.isRefreshing,
-                            modifier = Modifier.align(Alignment.TopCenter),
-                            color = dynamicColors.accent,
-                            containerColor = SonzaSurfaceVariant
-                        )
+                        if (uiState.isRefreshing) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .padding(top = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                com.sonza.app.ui.components.SonzaLoadingIndicator(modifier = Modifier.size(36.dp))
+                            }
+                        }
                     }
                 ) {
                     val formFactor = LocalDeviceFormFactor.current
@@ -916,11 +925,8 @@ private fun LoadingMoreIndicator(modifier: Modifier = Modifier) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceMd)
         ) {
-            EqualizerGlyph(
-                barColor = dynamicColors.accent,
-                barCount = 5,
-                height = 20.dp,
-                barWidth = 3.dp
+            com.sonza.app.ui.components.SonzaLoadingIndicator(
+                modifier = Modifier.size(24.dp)
             )
             Text(
                 text = "Loading more for you...",

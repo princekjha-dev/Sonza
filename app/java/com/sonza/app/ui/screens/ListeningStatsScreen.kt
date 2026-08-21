@@ -145,9 +145,8 @@ fun ListeningStatsScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                LoadingIndicator(
-                    modifier = Modifier.size(48.dp),
-                    color = MaterialTheme.colorScheme.primary
+                com.sonza.app.ui.components.SonzaLoadingIndicator(
+                    modifier = Modifier.size(56.dp)
                 )
             }
         } else if (uiState.totalSongsPlayed == 0) {

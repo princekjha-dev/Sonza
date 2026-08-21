@@ -12,7 +12,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.material3.LoadingIndicator
+import com.sonza.app.ui.components.SonzaLoadingIndicator
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -548,9 +548,8 @@ fun LibraryTopBar(
                     label = "syncIndicator"
                 ) { syncing ->
                     if (syncing) {
-                        LoadingIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.primary
+                        SonzaLoadingIndicator(
+                            modifier = Modifier.size(24.dp)
                         )
                     } else {
                         Icon(

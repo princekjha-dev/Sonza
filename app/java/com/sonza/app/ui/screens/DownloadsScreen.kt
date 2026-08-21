@@ -56,7 +56,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.LoadingIndicator
+import com.sonza.app.ui.components.SonzaLoadingIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -1011,9 +1011,8 @@ private fun DownloadedSongCard(
                             .background(Color.Black.copy(alpha = 0.4f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        LoadingIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = Color.White
+                        SonzaLoadingIndicator(
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }

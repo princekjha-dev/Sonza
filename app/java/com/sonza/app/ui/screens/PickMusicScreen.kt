@@ -163,9 +163,8 @@ fun PickMusicScreen(
                     Box(modifier = Modifier.padding(paddingValues)) {
                         if (isLoading && searchResults.isEmpty()) {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                LoadingIndicator(
-                                    modifier = Modifier.size(40.dp),
-                                    color = MaterialTheme.colorScheme.primary
+                                com.sonza.app.ui.components.SonzaLoadingIndicator(
+                                    modifier = Modifier.size(48.dp)
                                 )
                             }
                         } else {
@@ -198,9 +197,8 @@ fun PickMusicScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        LoadingIndicator(
-                            modifier = Modifier.size(60.dp),
-                            color = MaterialTheme.colorScheme.primary
+                        com.sonza.app.ui.components.SonzaLoadingIndicator(
+                            modifier = Modifier.size(64.dp)
                         )
                         Spacer(modifier = Modifier.height(24.dp))
                         Text(

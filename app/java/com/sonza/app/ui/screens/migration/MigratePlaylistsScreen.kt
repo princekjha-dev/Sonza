@@ -577,11 +577,8 @@ private fun AnalyzingProgressView(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        CircularProgressIndicator(
-            progress = { if (total > 0) progress else 0.5f },
-            modifier = Modifier.size(72.dp),
-            color = SonzaColors.Primary,
-            trackColor = SonzaSurface
+        com.sonza.app.ui.components.SonzaLoadingIndicator(
+            modifier = Modifier.size(72.dp)
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -1006,8 +1003,7 @@ private fun MigratingProgressView(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        CircularProgressIndicator(
-            color = SonzaColors.Primary,
+        com.sonza.app.ui.components.SonzaLoadingIndicator(
             modifier = Modifier.size(64.dp)
         )
 
@@ -1275,7 +1271,7 @@ private fun ManualMatchSearchDialog(
 
                 if (uiState.isSearchingManual) {
                     Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(modifier = Modifier.size(32.dp), color = SonzaColors.Primary)
+                        com.sonza.app.ui.components.SonzaLoadingIndicator(modifier = Modifier.size(36.dp))
                     }
                 } else {
                     LazyColumn(
