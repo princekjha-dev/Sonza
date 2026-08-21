@@ -224,10 +224,7 @@ fun SearchScreen(
                 ) {
                     Text(
                         text = "Search",
-                        style = SonzaTypography.Display.copy(
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold
-                        ),
+                        style = SonzaTypography.PageTitle,
                         color = SonzaOnBackground
                     )
 
@@ -388,8 +385,7 @@ fun SearchScreen(
                                 ) {
                                     Text(
                                         text = "Recent searches",
-                                        style = SonzaTypography.TitleMedium,
-                                        fontWeight = FontWeight.Bold,
+                                        style = SonzaTypography.SectionTitle,
                                         color = SonzaOnBackground
                                     )
 
@@ -550,8 +546,7 @@ fun SearchScreen(
                                 Column {
                                     Text(
                                         text = "Artists",
-                                        style = SonzaTypography.TitleMedium,
-                                        fontWeight = FontWeight.Bold,
+                                        style = SonzaTypography.SectionTitle,
                                         color = SonzaOnBackground,
                                         modifier = Modifier.padding(
                                             start = SpacingTokens.SpaceLg,
@@ -577,8 +572,7 @@ fun SearchScreen(
                                 Column {
                                     Text(
                                         text = "Albums",
-                                        style = SonzaTypography.TitleMedium,
-                                        fontWeight = FontWeight.Bold,
+                                        style = SonzaTypography.SectionTitle,
                                         color = SonzaOnBackground,
                                         modifier = Modifier.padding(
                                             start = SpacingTokens.SpaceLg,
@@ -607,8 +601,7 @@ fun SearchScreen(
                                 Column {
                                     Text(
                                         text = "Playlists",
-                                        style = SonzaTypography.TitleMedium,
-                                        fontWeight = FontWeight.Bold,
+                                        style = SonzaTypography.SectionTitle,
                                         color = SonzaOnBackground,
                                         modifier = Modifier.padding(
                                             start = SpacingTokens.SpaceLg,
@@ -636,8 +629,7 @@ fun SearchScreen(
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 Text(
                                     text = "Songs",
-                                    style = SonzaTypography.TitleMedium,
-                                    fontWeight = FontWeight.Bold,
+                                    style = SonzaTypography.SectionTitle,
                                     color = SonzaOnBackground,
                                     modifier = Modifier.padding(
                                         start = SpacingTokens.SpaceLg,
@@ -894,10 +886,7 @@ private fun SearchResultItem(
             ) {
                 Text(
                     text = song.title,
-                    style = SonzaTypography.TitleMedium.copy(
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold
-                    ),
+                    style = SonzaTypography.SongTitle,
                     color = SonzaOnBackground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -912,7 +901,7 @@ private fun SearchResultItem(
                     val artistId = song.artistId
                     Text(
                         text = if (isVideo) "${song.artist} • Video" else song.artist,
-                        style = SonzaTypography.BodyMedium.copy(fontSize = 13.sp),
+                        style = SonzaTypography.ArtistSubtitle,
                         color = SonzaOnSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -990,10 +979,7 @@ fun ArtistSearchListItem(artist: Artist, onClick: () -> Unit) {
             ) {
                 Text(
                     text = artist.name,
-                    style = SonzaTypography.TitleMedium.copy(
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold
-                    ),
+                    style = SonzaTypography.SongTitle,
                     color = SonzaOnBackground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -1001,7 +987,7 @@ fun ArtistSearchListItem(artist: Artist, onClick: () -> Unit) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = artist.subscribers ?: "Artist",
-                    style = SonzaTypography.BodyMedium.copy(fontSize = 13.sp),
+                    style = SonzaTypography.ArtistSubtitle,
                     color = SonzaOnSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -1060,10 +1046,7 @@ fun AlbumSearchListItem(album: Album, onClick: () -> Unit) {
             ) {
                 Text(
                     text = album.title,
-                    style = SonzaTypography.TitleMedium.copy(
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold
-                    ),
+                    style = SonzaTypography.SongTitle,
                     color = SonzaOnBackground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -1072,7 +1055,7 @@ fun AlbumSearchListItem(album: Album, onClick: () -> Unit) {
                 val subtitle = (if (album.artist.isNotBlank()) album.artist else "") + (if (album.year != null) " • ${album.year}" else "")
                 Text(
                     text = subtitle.ifBlank { "Album" },
-                    style = SonzaTypography.BodyMedium.copy(fontSize = 13.sp),
+                    style = SonzaTypography.ArtistSubtitle,
                     color = SonzaOnSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -1131,10 +1114,7 @@ fun PlaylistSearchListItem(playlist: Playlist, onClick: () -> Unit) {
             ) {
                 Text(
                     text = playlist.title,
-                    style = SonzaTypography.TitleMedium.copy(
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold
-                    ),
+                    style = SonzaTypography.SongTitle,
                     color = SonzaOnBackground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -1142,7 +1122,7 @@ fun PlaylistSearchListItem(playlist: Playlist, onClick: () -> Unit) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = if (playlist.author.isNotBlank()) playlist.author else "Playlist",
-                    style = SonzaTypography.BodyMedium.copy(fontSize = 13.sp),
+                    style = SonzaTypography.ArtistSubtitle,
                     color = SonzaOnSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -1175,14 +1155,15 @@ private fun ArtistSearchCard(artist: Artist, onClick: () -> Unit) {
         Spacer(modifier = Modifier.height(SpacingTokens.SpaceSm))
         Text(
             text = artist.name,
-            style = SonzaTypography.BodyMedium.copy(fontWeight = FontWeight.SemiBold),
+            style = SonzaTypography.CardTitle,
             color = SonzaOnBackground,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+        Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = artist.subscribers ?: "Artist",
-            style = SonzaTypography.LabelSmall,
+            style = SonzaTypography.CardSubtitle,
             color = SonzaOnSurfaceVariant,
             maxLines = 1
         )
@@ -1211,15 +1192,16 @@ private fun PlaylistSearchCard(playlist: Playlist, onClick: () -> Unit) {
         Spacer(modifier = Modifier.height(SpacingTokens.SpaceSm))
         Text(
             text = playlist.title,
-            style = SonzaTypography.BodyMedium.copy(fontWeight = FontWeight.SemiBold),
+            style = SonzaTypography.CardTitle,
             color = SonzaOnBackground,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
         if (playlist.author.isNotBlank()) {
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = playlist.author,
-                style = SonzaTypography.LabelSmall,
+                style = SonzaTypography.CardSubtitle,
                 color = SonzaOnSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -1250,16 +1232,17 @@ private fun AlbumSearchCard(album: Album, onClick: () -> Unit) {
         Spacer(modifier = Modifier.height(SpacingTokens.SpaceSm))
         Text(
             text = album.title,
-            style = SonzaTypography.BodyMedium.copy(fontWeight = FontWeight.SemiBold),
+            style = SonzaTypography.CardTitle,
             color = SonzaOnBackground,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
         val subtitle = (if (album.artist.isNotBlank()) album.artist else "") + (if (album.year != null) " • ${album.year}" else "")
         if (subtitle.isNotBlank()) {
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
-                style = SonzaTypography.LabelSmall,
+                style = SonzaTypography.CardSubtitle,
                 color = SonzaOnSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

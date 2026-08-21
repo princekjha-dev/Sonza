@@ -56,6 +56,7 @@ import coil3.compose.AsyncImage
 import com.sonza.app.core.model.Song
 import com.sonza.app.ui.components.DominantColors
 import com.sonza.app.ui.components.glass.LiquidGlassSurface
+import com.sonza.app.ui.theme.SonzaTypography
 
 /**
  * iOS-style Liquid Glass mini player.
@@ -194,14 +195,15 @@ fun LiquidGlassMiniPlayer(
                 ) {
                     Text(
                         text = song.title,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = SonzaTypography.SongTitle,
                         color = dominantColors.onBackground,
                         maxLines = 1,
                         modifier = Modifier.basicMarquee()
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = song.artist,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = SonzaTypography.ArtistSubtitle,
                         color = dominantColors.onBackground.copy(alpha = 0.72f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis

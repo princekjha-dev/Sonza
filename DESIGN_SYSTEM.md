@@ -72,28 +72,28 @@ and Apple Music red).
 
 ## Part 2 — Typography
 
-Bold, confident hierarchy — Apple Music's biggest UI strength is type weight contrast, not
-just size. Lean into that.
+Unified, clean, confident hierarchy matching the premium music streaming reference:
 
-| Style | Size | Weight | Line Height | Usage |
-|---|---|---|---|---|
-| `display` | 34sp | Bold (700) | 40sp | Now Playing track title (expanded sheet) |
-| `headline` | 26sp | Bold (700) | 32sp | Screen titles ("Speed dial", "Listen again") |
-| `title-large` | 20sp | SemiBold (600) | 26sp | Section headers |
-| `title-medium` | 16sp | SemiBold (600) | 22sp | Card titles, mini-player track name |
-| `body-large` | 16sp | Regular (400) | 24sp | Primary readable text |
-| `body-medium` | 14sp | Regular (400) | 20sp | Secondary text, artist names |
-| `label-large` | 14sp | Medium (500) | 20sp | Buttons, chip labels |
-| `label-small` | 12sp | Medium (500) | 16sp | Timestamps, metadata, format badges |
+| Category / Semantic Token | Size | Weight | Line Height | Letter Spacing | Usage |
+|---|---|---|---|---|---|
+| `SonzaTypography.PageTitle` (`Display`) | 32sp | Bold (700) | 38sp | -0.5sp | Large top screen headers ("New", "Search", "Library") |
+| `SonzaTypography.SectionTitle` (`Headline`) | 20sp | Bold (700) | 26sp | -0.3sp | Standardized section headers ("Best New Songs", "New This Week", "Recent Releases") |
+| `SonzaTypography.Kicker` | 11sp | Bold (700) | 14sp | 0.8sp | Uppercase super-headers/badges ("UPDATED PLAYLIST", "NEW ALBUM") |
+| `SonzaTypography.SongTitle` (`TitleMedium`) | 15sp | SemiBold (600) | 20sp | 0sp | All song rows, list items, mini player track titles (1 line max) |
+| `SonzaTypography.ArtistSubtitle` (`BodyMedium`) | 13sp | Regular (400) | 18sp | 0.1sp | Subordinate artist names in song rows, list items, and descriptions |
+| `SonzaTypography.CardTitle` (`TitleSmall`) | 14sp | SemiBold (600) | 18sp | 0sp | Album/playlist/mix cards across carousels and discovery grids |
+| `SonzaTypography.CardSubtitle` (`BodySmall`) | 12sp | Regular (400) | 16sp | 0.1sp | Subordinate creator/track count/year on cards |
+| `SonzaTypography.NavLabel` (`LabelSmall`) | 11sp | Medium (500) / SemiBold (600) | 14sp | 0.2sp | Bottom navigation labels, tab indicators |
+| `SonzaTypography.Metadata` | 11sp | Medium (500) | 14sp | 0.2sp | Duration, format badges (LOSSLESS, HI-RES), timestamp indicators |
 
-**Font family:** `Manrope` — geometric, confident at bold weights, distinct from both
-Spotify's Circular and Apple's SF Pro, and avoids default-Roboto "templated" feel.
+**Font family:** `Manrope` — geometric variable font with weights Normal (400), Medium (500), SemiBold (600), Bold (700), ExtraBold (800).
 
-**Rules:**
-- Never go below `label-small` (12sp).
-- Track/song titles: 1 line + ellipsis in grids, 2 lines max in Now Playing.
-- Bold weight (700) reserved for titles only — never body text, to keep the hierarchy
-  Apple Music achieves.
+**Typography Rules:**
+1. **Identical Category Formatting**: All section headers (`Best New Songs`, `New This Week`, `Recent Releases`, `Latest Songs`, `Top Playlists`, etc.) must use `SonzaTypography.SectionTitle` (20sp Bold) with identical margin/padding across every screen.
+2. **Song Titles & Artist Subtitles**: Every song title across Home, Search, Library, Playlist, Album, and Artist screens must use `SonzaTypography.SongTitle` (15sp SemiBold) and `SonzaTypography.ArtistSubtitle` (13sp Regular).
+3. **Title-to-Subtitle Spacing**: Standardized to exactly `2.dp` (`SpacingTokens.Space2Xs`) for all song rows and card info columns.
+4. **Single-line Truncation**: Song titles and artist names in lists truncate with ellipsis at 1 line.
+5. **No Ad-Hoc Font Sizing**: Screens must not declare ad-hoc font sizes or random bold weights; all text must bind to `SonzaTypography` tokens.
 
 ---
 

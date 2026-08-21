@@ -215,12 +215,8 @@ fun HomeSectionHeader(
     ) {
         Text(
             text = title,
-            style = SonzaTypography.TitleLarge.copy(
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 20.sp
-            ),
+            style = SonzaTypography.SectionTitle,
             color = SonzaOnBackground,
-            letterSpacing = (-0.3).sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f, fill = false)
@@ -334,11 +330,7 @@ fun FeaturedHeroCard(
                 ) {
                     Text(
                         text = tag.uppercase(),
-                        style = SonzaTypography.LabelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 10.sp,
-                            letterSpacing = 0.8.sp
-                        ),
+                        style = SonzaTypography.Kicker,
                         color = dynamicColors.onAccent,
                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                     )
@@ -348,10 +340,7 @@ fun FeaturedHeroCard(
 
                 Text(
                     text = title,
-                    style = SonzaTypography.TitleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
-                    ),
+                    style = SonzaTypography.SectionTitle,
                     color = Color.White,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -359,7 +348,7 @@ fun FeaturedHeroCard(
 
                 Text(
                     text = subtitle,
-                    style = SonzaTypography.BodyMedium,
+                    style = SonzaTypography.ArtistSubtitle,
                     color = SonzaOnSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -396,7 +385,7 @@ fun FeaturedHeroCard(
  * Pattern A — Square Music / Playlist / Album Card per P9, P11, P12 & P14:
  * - Compact 1:1 square artwork (~140-155dp responsive width).
  * - Radius: RadiusTokens.Lg (16dp).
- * - Consistent 2-line title and 1-line artist/metadata.
+ * - Consistent 1-2 line title and 1-line artist/metadata.
  * - Tap feedback: scale 0.97, 100ms.
  */
 @Composable
@@ -466,7 +455,7 @@ fun SquareMusicCard(
                     ) {
                         Text(
                             text = badgeText.uppercase(),
-                            style = SonzaTypography.LabelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                            style = SonzaTypography.Kicker,
                             color = Color.White,
                             modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
                         )
@@ -480,10 +469,7 @@ fun SquareMusicCard(
         // Title (SemiBold, max 1 line)
         Text(
             text = title,
-            style = SonzaTypography.TitleSmall.copy(
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp
-            ),
+            style = SonzaTypography.CardTitle,
             color = SonzaOnBackground,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -494,10 +480,8 @@ fun SquareMusicCard(
         // Subtitle / Artist (Regular, 1 line)
         Text(
             text = subtitle,
-            style = SonzaTypography.BodySmall.copy(
-                fontSize = 12.sp,
-                color = SonzaOnSurfaceVariant
-            ),
+            style = SonzaTypography.CardSubtitle,
+            color = SonzaOnSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -540,10 +524,7 @@ fun CompactSongRow(
         if (rank != null) {
             Text(
                 text = "$rank",
-                style = SonzaTypography.TitleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
-                ),
+                style = SonzaTypography.SongTitle.copy(fontWeight = FontWeight.Bold),
                 color = if (rank <= 3) dynamicColors.accent else SonzaOnSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.width(28.dp)
@@ -607,10 +588,7 @@ fun CompactSongRow(
         ) {
             Text(
                 text = song.title,
-                style = SonzaTypography.TitleSmall.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp
-                ),
+                style = SonzaTypography.SongTitle,
                 color = if (isPlaying) dynamicColors.accent else SonzaOnBackground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -620,10 +598,8 @@ fun CompactSongRow(
 
             Text(
                 text = song.artist,
-                style = SonzaTypography.BodySmall.copy(
-                    fontSize = 12.sp,
-                    color = SonzaOnSurfaceVariant
-                ),
+                style = SonzaTypography.ArtistSubtitle,
+                color = SonzaOnSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -749,10 +725,7 @@ fun ChartCard(
 
         Text(
             text = title,
-            style = SonzaTypography.TitleSmall.copy(
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp
-            ),
+            style = SonzaTypography.CardTitle,
             color = SonzaOnBackground,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -762,10 +735,8 @@ fun ChartCard(
 
         Text(
             text = subtitle,
-            style = SonzaTypography.BodySmall.copy(
-                fontSize = 12.sp,
-                color = SonzaOnSurfaceVariant
-            ),
+            style = SonzaTypography.CardSubtitle,
+            color = SonzaOnSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -853,7 +824,7 @@ fun VideoContentCard(
                     ) {
                         Text(
                             text = durationText,
-                            style = SonzaTypography.LabelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Medium),
+                            style = SonzaTypography.Metadata,
                             color = Color.White,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
@@ -866,10 +837,7 @@ fun VideoContentCard(
 
         Text(
             text = title,
-            style = SonzaTypography.TitleSmall.copy(
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp
-            ),
+            style = SonzaTypography.CardTitle,
             color = SonzaOnBackground,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -879,10 +847,8 @@ fun VideoContentCard(
 
         Text(
             text = creator,
-            style = SonzaTypography.BodySmall.copy(
-                fontSize = 12.sp,
-                color = SonzaOnSurfaceVariant
-            ),
+            style = SonzaTypography.CardSubtitle,
+            color = SonzaOnSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )

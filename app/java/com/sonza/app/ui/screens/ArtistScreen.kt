@@ -48,6 +48,7 @@ import com.sonza.app.ui.components.BounceButton
 import com.sonza.app.ui.components.bounceClick
 import com.sonza.app.util.ImageUtils
 import com.sonza.app.ui.theme.PillShape
+import com.sonza.app.ui.theme.SonzaTypography
 import com.sonza.app.ui.components.PremiumLoadingScreen
 import com.sonza.app.ui.components.player.MultipleArtistsDialog
 import com.sonza.app.ui.components.rememberDominantColors
@@ -664,8 +665,7 @@ fun LatestReleaseSection(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = album.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
+                        style = com.sonza.app.ui.theme.SonzaTypography.SongTitle,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -676,7 +676,7 @@ fun LatestReleaseSection(
                             append(if (isSingle) "Single" else "Album")
                             if (album.year != null) append(" • ${album.year}")
                         },
-                        style = MaterialTheme.typography.bodySmall,
+                        style = com.sonza.app.ui.theme.SonzaTypography.ArtistSubtitle,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -740,29 +740,27 @@ fun TopSongRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = song.title,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = com.sonza.app.ui.theme.SonzaTypography.SongTitle,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    fontWeight = FontWeight.Bold
+                    overflow = TextOverflow.Ellipsis
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = song.artist,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = com.sonza.app.ui.theme.SonzaTypography.ArtistSubtitle,
                     color = dominantColors.accent,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.clickable { onArtistClick() },
-                    fontWeight = FontWeight.SemiBold
+                    modifier = Modifier.clickable { onArtistClick() }
                 )
             }
             
             Text(
                 text = formatDuration(song.duration),
-                style = MaterialTheme.typography.labelSmall,
+                style = com.sonza.app.ui.theme.SonzaTypography.Metadata,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 8.dp),
-                fontWeight = FontWeight.Medium
+                modifier = Modifier.padding(horizontal = 8.dp)
             )
             
             IconButton(
@@ -816,20 +814,19 @@ fun ArtistContentCard(
         Spacer(modifier = Modifier.height(10.dp))
         Text(
             text = title,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
+            style = com.sonza.app.ui.theme.SonzaTypography.CardTitle,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             color = MaterialTheme.colorScheme.onSurface
         )
         if (subtitle != null) {
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.labelSmall,
+                style = com.sonza.app.ui.theme.SonzaTypography.CardSubtitle,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Medium
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -1044,33 +1041,28 @@ fun SectionHeader(
             .fillMaxWidth()
             .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Bottom
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = title.uppercase(),
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontWeight = FontWeight.Black,
-                letterSpacing = 1.2.sp
-            ),
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            text = title,
+            style = SonzaTypography.SectionTitle,
+            color = MaterialTheme.colorScheme.onSurface
         )
         
         if (showSeeAll) {
             Surface(
                 onClick = onSeeAllClick,
                 shape = PillShape,
-                color = dominantColors.accent.copy(alpha = 0.1f),
+                color = dominantColors.accent.copy(alpha = 0.14f),
                 modifier = Modifier
                     .bounceClick(onClick = onSeeAllClick)
                     .dpadFocusable(onClick = onSeeAllClick, shape = PillShape)
             ) {
                 Text(
-                    text = stringResource(R.string.action_see_all).uppercase(),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Black,
+                    text = stringResource(R.string.action_see_all),
+                    style = SonzaTypography.LabelSmall.copy(fontWeight = FontWeight.SemiBold),
                     color = dominantColors.accent,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    letterSpacing = 1.sp
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
                 )
             }
         }

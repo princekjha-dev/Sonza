@@ -36,8 +36,7 @@ fun ExploreScreen(
                 title = { 
                     Text(
                         text = uiState.title,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        style = com.sonza.app.ui.theme.SonzaTypography.SectionTitle
                     ) 
                 },
                 navigationIcon = {

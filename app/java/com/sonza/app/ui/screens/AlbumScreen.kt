@@ -46,6 +46,7 @@ import com.sonza.app.util.ImageUtils
 import com.sonza.app.util.dpadFocusable
 import androidx.compose.ui.platform.LocalHapticFeedback
 import com.sonza.app.ui.components.ReorderableSongRow
+import com.sonza.app.ui.theme.SonzaTypography
 
 @Composable
 fun AlbumScreen(
@@ -497,21 +498,19 @@ private fun AlbumHeader(
         // Album Title
         Text(
             text = album.title,
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Bold
-            ),
+            style = SonzaTypography.Headline,
             color = contentColor,
             textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
         
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(2.dp))
         
         // Artist
         Text(
             text = album.artist,
-            style = MaterialTheme.typography.bodyMedium,
+            style = SonzaTypography.ArtistSubtitle,
             color = secondaryContentColor,
             textAlign = TextAlign.Center
         )
@@ -522,10 +521,10 @@ private fun AlbumHeader(
                 album.year?.let { append("$it • ") }
                 append(com.sonza.app.util.TimeUtil.formatSongCountAndDuration(album.songs))
             },
-            style = MaterialTheme.typography.bodySmall,
-            color = secondaryContentColor.copy(alpha = 0.5f),
+            style = SonzaTypography.Metadata,
+            color = secondaryContentColor.copy(alpha = 0.6f),
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 4.dp)
+            modifier = Modifier.padding(top = 2.dp)
         )
         
         // Description (if available)

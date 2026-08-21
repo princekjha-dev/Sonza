@@ -722,12 +722,12 @@ private fun ForYouBanner(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Made for you",
-                        style = SonzaTypography.TitleSmall.copy(fontWeight = FontWeight.Bold),
+                        style = SonzaTypography.CardTitle,
                         color = SonzaOnBackground
                     )
                     Text(
                         text = "Endless radio based on your taste",
-                        style = SonzaTypography.BodySmall,
+                        style = SonzaTypography.CardSubtitle,
                         color = SonzaOnSurfaceVariant
                     )
                 }
@@ -750,7 +750,7 @@ private fun ForYouBanner(
                         )
                         Text(
                             text = "Radio",
-                            style = SonzaTypography.LabelSmall.copy(fontWeight = FontWeight.Bold),
+                            style = SonzaTypography.LabelSmall.copy(fontWeight = FontWeight.SemiBold),
                             color = dynamicColors.onAccent
                         )
                     }
@@ -817,12 +817,12 @@ private fun DetectedMoodBanner(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Feeling $mood?",
-                    style = SonzaTypography.TitleSmall.copy(fontWeight = FontWeight.Bold),
+                    style = SonzaTypography.CardTitle,
                     color = SonzaOnBackground
                 )
                 Text(
                     text = "Tap to explore music for this mood",
-                    style = SonzaTypography.BodySmall,
+                    style = SonzaTypography.CardSubtitle,
                     color = SonzaOnSurfaceVariant
                 )
             }
@@ -833,7 +833,7 @@ private fun DetectedMoodBanner(
             ) {
                 Text(
                     text = "Explore",
-                    style = SonzaTypography.LabelSmall.copy(fontWeight = FontWeight.Bold),
+                    style = SonzaTypography.LabelSmall.copy(fontWeight = FontWeight.SemiBold),
                     color = dynamicColors.accent,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
                 )
@@ -881,12 +881,12 @@ private fun CreateMixCard(onClick: () -> Unit) {
             Column {
                 Text(
                     text = "Create your own mix",
-                    style = SonzaTypography.TitleSmall.copy(fontWeight = FontWeight.Bold),
+                    style = SonzaTypography.CardTitle,
                     color = SonzaOnBackground
                 )
                 Text(
                     text = "Pick artists and genres to get started",
-                    style = SonzaTypography.BodySmall,
+                    style = SonzaTypography.CardSubtitle,
                     color = SonzaOnSurfaceVariant
                 )
             }
@@ -931,7 +931,7 @@ private fun EndOfFeedCard(
 
             Text(
                 text = "You've explored it all",
-                style = SonzaTypography.TitleMedium.copy(fontWeight = FontWeight.Bold),
+                style = SonzaTypography.SectionTitle,
                 color = SonzaOnBackground,
                 textAlign = TextAlign.Center
             )
@@ -940,7 +940,7 @@ private fun EndOfFeedCard(
 
             Text(
                 text = "Start a personalized radio for continuous music discovery",
-                style = SonzaTypography.BodyMedium,
+                style = SonzaTypography.ArtistSubtitle,
                 color = SonzaOnSurfaceVariant,
                 textAlign = TextAlign.Center
             )
@@ -965,7 +965,7 @@ private fun EndOfFeedCard(
                     )
                     Text(
                         text = "Start Your Radio",
-                        style = SonzaTypography.LabelLarge.copy(fontWeight = FontWeight.Bold),
+                        style = SonzaTypography.LabelLarge,
                         color = dynamicColors.onAccent
                     )
                 }
@@ -994,7 +994,7 @@ private fun LoadingMoreIndicator(modifier: Modifier = Modifier) {
             )
             Text(
                 text = "Loading more for you...",
-                style = SonzaTypography.BodySmall.copy(fontWeight = FontWeight.Medium),
+                style = SonzaTypography.Metadata,
                 color = SonzaOnSurfaceVariant
             )
         }
@@ -1029,14 +1029,14 @@ private fun AppFooter(modifier: Modifier = Modifier) {
 
         Text(
             text = "Sonza",
-            style = SonzaTypography.TitleMedium.copy(fontWeight = FontWeight.Bold),
+            style = SonzaTypography.CardTitle,
             color = SonzaOnBackground
         )
 
         val versionName = com.sonza.app.BuildConfig.VERSION_NAME
         Text(
             text = "v$versionName",
-            style = SonzaTypography.BodySmall.copy(fontSize = 11.sp),
+            style = SonzaTypography.Metadata,
             color = SonzaOnSurfaceVariant.copy(alpha = 0.6f)
         )
 
@@ -1044,7 +1044,7 @@ private fun AppFooter(modifier: Modifier = Modifier) {
 
         Text(
             text = "\u00A9 2026 Prince Kumar Jha",
-            style = SonzaTypography.BodySmall.copy(fontSize = 11.sp),
+            style = SonzaTypography.Metadata,
             color = SonzaOnSurfaceVariant.copy(alpha = 0.4f)
         )
     }
@@ -1112,7 +1112,7 @@ private fun ArtistCircleCard(
         Spacer(modifier = Modifier.height(SpacingTokens.SpaceSm))
         Text(
             text = artist.name,
-            style = SonzaTypography.TitleSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 13.sp),
+            style = SonzaTypography.CardTitle,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
@@ -1184,7 +1184,7 @@ private fun TrackCard(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = track.name,
-                style = SonzaTypography.TitleSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 14.sp),
+                style = SonzaTypography.SongTitle,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 color = SonzaOnBackground
@@ -1192,7 +1192,7 @@ private fun TrackCard(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = track.artist.name,
-                style = SonzaTypography.BodySmall,
+                style = SonzaTypography.ArtistSubtitle,
                 color = SonzaOnSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

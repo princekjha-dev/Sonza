@@ -104,6 +104,7 @@ import com.sonza.app.ui.components.ExportPlaylistDialog
 import com.sonza.app.ui.components.MusicCard
 import com.sonza.app.ui.components.stylishScrollbar
 import com.sonza.app.ui.screens.ImportPlaylistScreen
+import com.sonza.app.ui.theme.SonzaTypography
 import com.sonza.app.ui.viewmodel.LibraryFilter
 import com.sonza.app.ui.viewmodel.LibrarySortOption
 import com.sonza.app.ui.viewmodel.LibraryViewMode
@@ -523,7 +524,7 @@ fun LibraryTopBar(
     ) {
         Text(
             text = "Library",
-            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold), // Smaller than displaySmall
+            style = SonzaTypography.PageTitle,
             color = MaterialTheme.colorScheme.onBackground
         )
         
@@ -906,14 +907,15 @@ fun GridPlaylistCard(
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = playlist.name,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+            style = SonzaTypography.CardTitle,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             color = MaterialTheme.colorScheme.onSurface
         )
+        Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = "Playlist • ${playlist.uploaderName}", // Placeholder logic
-            style = MaterialTheme.typography.bodySmall,
+            style = SonzaTypography.CardSubtitle,
             maxLines = 1,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -1002,10 +1004,11 @@ fun PlaylistsList(
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(playlist.name, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+                    Text(playlist.name, style = SonzaTypography.SongTitle, color = MaterialTheme.colorScheme.onSurface)
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = if (playlist.songCount > 0) "Playlist • ${playlist.songCount} songs" else "Playlist",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = SonzaTypography.ArtistSubtitle,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -1064,8 +1067,9 @@ fun OtherContentList(
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
-                            Text(album.title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
-                            Text(album.artist, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(album.title, style = SonzaTypography.SongTitle, color = MaterialTheme.colorScheme.onSurface)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(album.artist, style = SonzaTypography.ArtistSubtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -1091,7 +1095,11 @@ fun OtherContentList(
                             }
                         }
                         Spacer(modifier = Modifier.width(16.dp))
-                        Text(artist.name, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                        Column {
+                            Text(artist.name, style = SonzaTypography.SongTitle, color = MaterialTheme.colorScheme.onSurface)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("Artist", style = SonzaTypography.ArtistSubtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
             }
@@ -1122,8 +1130,9 @@ fun OtherContentList(
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
-                            Text(folderName, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
-                            Text("$songCount songs", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(folderName, style = SonzaTypography.SongTitle, color = MaterialTheme.colorScheme.onSurface)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("$songCount songs", style = SonzaTypography.ArtistSubtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }

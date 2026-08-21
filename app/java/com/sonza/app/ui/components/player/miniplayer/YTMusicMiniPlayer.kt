@@ -159,19 +159,15 @@ fun YTMusicMiniPlayer(
                 ) {
                     Text(
                         text = song.title,
-                        style = SonzaTypography.TitleMedium.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp
-                        ),
+                        style = SonzaTypography.SongTitle,
                         color = SonzaOnBackground,
                         maxLines = 1,
                         modifier = Modifier.basicMarquee()
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = song.artist,
-                        style = SonzaTypography.BodyMedium.copy(
-                            fontSize = 12.sp
-                        ),
+                        style = SonzaTypography.ArtistSubtitle,
                         color = SonzaOnSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis

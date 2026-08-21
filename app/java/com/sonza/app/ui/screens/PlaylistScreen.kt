@@ -55,6 +55,7 @@ import com.sonza.app.ui.viewmodel.PlaylistViewModel
 import com.sonza.app.util.dpadFocusable
 import androidx.compose.ui.platform.LocalHapticFeedback
 import com.sonza.app.ui.components.ReorderableSongRow
+import com.sonza.app.ui.theme.SonzaTypography
 
 @Composable
 fun PlaylistScreen(
@@ -716,16 +717,14 @@ private fun PlaylistHeader(
         // Playlist Title (below artwork)
         Text(
             text = playlist.title,
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Bold
-            ),
+            style = SonzaTypography.Headline,
             color = contentColor,
             textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
         
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(2.dp))
         
         // Staged Loading Progress
         if (isLoadingMore) {
@@ -742,7 +741,7 @@ private fun PlaylistHeader(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Loading more songs... (${playlist.songs.size}${totalSongCount?.let { " / $it" } ?: ""})",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = SonzaTypography.Metadata,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Medium
                 )
@@ -752,7 +751,7 @@ private fun PlaylistHeader(
             if (playlist.author.isNotBlank()) {
                 Text(
                     text = playlist.author,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = SonzaTypography.ArtistSubtitle,
                     color = secondaryContentColor,
                     textAlign = TextAlign.Center
                 )

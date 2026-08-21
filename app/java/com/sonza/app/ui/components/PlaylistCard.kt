@@ -117,15 +117,14 @@ fun PlaylistCard(
             ) {
                 Text(
                     text = playlist.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
+                    style = com.sonza.app.ui.theme.SonzaTypography.CardTitle,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = playlist.uploaderName,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = com.sonza.app.ui.theme.SonzaTypography.CardSubtitle,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -205,16 +204,13 @@ fun FeaturedPlaylistCard(
             ) {
                 Text(
                     text = playlist.name,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White,
-                    letterSpacing = (-0.5).sp
+                    style = com.sonza.app.ui.theme.SonzaTypography.SectionTitle,
+                    color = Color.White
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = playlist.uploaderName,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
+                    style = com.sonza.app.ui.theme.SonzaTypography.ArtistSubtitle,
                     color = Color.White.copy(alpha = 0.8f)
                 )
             }

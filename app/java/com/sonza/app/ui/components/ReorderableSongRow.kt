@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -168,17 +169,18 @@ fun LazyItemScope.ReorderableSongRow(
         ) {
             Text(
                 text = song.title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = com.sonza.app.ui.theme.SonzaTypography.SongTitle,
                 color = titleColor,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                fontWeight = FontWeight.Medium
+                overflow = TextOverflow.Ellipsis
             )
+
+            Spacer(modifier = Modifier.height(2.dp))
 
             Text(
                 text = song.artist,
-                style = MaterialTheme.typography.bodyMedium,
-                color = subtitleColor.copy(alpha = 0.6f),
+                style = com.sonza.app.ui.theme.SonzaTypography.ArtistSubtitle,
+                color = subtitleColor.copy(alpha = 0.7f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

@@ -1,8 +1,8 @@
-com.sonza.app.core.data-pngs-0 /home/naruto/Downloads/SONZA/core/data/build/generated/res/pngs/debug
-com.sonza.app.core.data-updated_navigation_xml-1 /home/naruto/Downloads/SONZA/core/data/build/generated/updated_navigation_xml/debug
-com.sonza.app.core.data-mergeDebugResources-2 /home/naruto/Downloads/SONZA/core/data/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
-com.sonza.app.core.data-mergeDebugResources-3 /home/naruto/Downloads/SONZA/core/data/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
-com.sonza.app.core.data-debug-4 /home/naruto/Downloads/SONZA/core/data/build/intermediates/merged_res/debug/mergeDebugResources
-com.sonza.app.core.data-debug-5 /home/naruto/Downloads/SONZA/core/data/build/intermediates/packaged_res/debug/packageDebugResources
-com.sonza.app.core.data-debug-6 /home/naruto/Downloads/SONZA/core/data/src/debug/res
-com.sonza.app.core.data-main-7 /home/naruto/Downloads/SONZA/core/data/src/main/res
+com.sonza.app.core.data-pngs-0 /home/naruto/Downloads/Sonza/core/data/build/generated/res/pngs/debug
+com.sonza.app.core.data-updated_navigation_xml-1 /home/naruto/Downloads/Sonza/core/data/build/generated/updated_navigation_xml/debug
+com.sonza.app.core.data-mergeDebugResources-2 /home/naruto/Downloads/Sonza/core/data/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
+com.sonza.app.core.data-mergeDebugResources-3 /home/naruto/Downloads/Sonza/core/data/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
+com.sonza.app.core.data-debug-4 /home/naruto/Downloads/Sonza/core/data/build/intermediates/merged_res/debug/mergeDebugResources
+com.sonza.app.core.data-debug-5 /home/naruto/Downloads/Sonza/core/data/build/intermediates/packaged_res/debug/packageDebugResources
+com.sonza.app.core.data-debug-6 /home/naruto/Downloads/Sonza/core/data/src/debug/res
+com.sonza.app.core.data-main-7 /home/naruto/Downloads/Sonza/core/data/src/main/res

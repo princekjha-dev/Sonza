@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -56,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.sonza.app.core.model.Song
 import com.sonza.app.ui.components.DominantColors
+import com.sonza.app.ui.theme.SonzaTypography
 
 @Composable
 fun PillMiniPlayer(
@@ -228,14 +230,15 @@ fun PillMiniPlayer(
                 ) {
                     Text(
                         text = song.title,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = SonzaTypography.SongTitle,
                         color = dominantColors.onBackground,
                         maxLines = 1,
                         modifier = Modifier.basicMarquee()
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = song.artist,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = SonzaTypography.ArtistSubtitle,
                         color = dominantColors.onBackground.copy(alpha = 0.7f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis

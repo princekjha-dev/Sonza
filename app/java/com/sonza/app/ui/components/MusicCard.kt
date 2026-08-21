@@ -176,8 +176,7 @@ fun MusicCard(
             ) {
                 Text(
                     text = song.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    style = com.sonza.app.ui.theme.SonzaTypography.SongTitle,
                     color = textColor ?: MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -185,7 +184,7 @@ fun MusicCard(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = song.artist,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = com.sonza.app.ui.theme.SonzaTypography.ArtistSubtitle,
                     color = subTextColor ?: MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -297,15 +296,15 @@ fun SquareSongCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = song.title,
-                    style = if (size > 150.dp) MaterialTheme.typography.titleSmall else MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
+                    style = com.sonza.app.ui.theme.SonzaTypography.CardTitle,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = song.artist,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = com.sonza.app.ui.theme.SonzaTypography.CardSubtitle,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
