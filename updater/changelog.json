@@ -4,7 +4,7 @@
       "versionName": "2.6.5.1",
       "versionCode": 2651,
       "date": "August 21, 2026",
-      "description": "• Editorial Home Feed Rebuild: Complete reimagination of discovery feed with compact horizontal rails, spotlight hero, 4-row high-density song packs, ranked charts, and 16:9 video content.\n• Streamlined Search UX: Dedicated active search mode with clean landing categories, instant query history management, and zero clutter.\n• Silent Audio Fallback: Seamless, uninterrupted background stream fallback without intrusive technical snackbars or resolver interruption.\n• Design System Consistency: Full alignment with Sonza design tokens, Manrope typography, and dynamic accent wash.",
+      "description": "• Real-Time Profile & Header: Instant authenticated user name and avatar synchronization on login, with dynamic time-of-day home greetings.\n• Consolidated Dynamic Island & Mini Player: Streamlined floating playback overlay and unified gesture interactions for audio and video.\n• Architecture Streamlining: Removed legacy Listen Together network protocols and protobuf dependencies for faster, leaner app performance.\n• Editorial Home Feed Rebuild: Reimagined discovery feed with compact rails, spotlight hero, 4-row high-density song packs, and 16:9 videos.\n• Streamlined Search UX: Active search mode with clean landing categories, instant query history management, and zero clutter.",
       "isMajorUpdate": false
     },
     {

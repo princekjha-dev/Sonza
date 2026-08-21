@@ -14,10 +14,11 @@ object ChangelogData {
             date = "August 21, 2026",
             isLatest = true,
             changes = listOf(
-                "Editorial Home Feed Rebuild: Complete reimagination of discovery feed with compact horizontal rails, spotlight hero, 4-row high-density song packs, ranked charts, and 16:9 video content.",
-                "Streamlined Search UX: Dedicated active search mode with clean landing categories, instant query history management, and zero clutter.",
-                "Silent Audio Fallback: Seamless, uninterrupted background stream fallback without intrusive technical snackbars or resolver interruption.",
-                "Design System Consistency: Full alignment with Sonza design tokens, Manrope typography, and dynamic accent wash."
+                "Real-Time Profile & Header: Instant authenticated user name and avatar synchronization on login, with dynamic time-of-day home greetings.",
+                "Consolidated Dynamic Island & Mini Player: Streamlined floating playback overlay and unified gesture interactions for audio and video.",
+                "Architecture Streamlining: Removed legacy Listen Together network protocols and protobuf dependencies for faster, leaner app performance.",
+                "Editorial Home Feed Rebuild: Reimagined discovery feed with compact rails, spotlight hero, 4-row high-density song packs, and 16:9 videos.",
+                "Streamlined Search UX: Active search mode with clean landing categories, instant query history management, and zero clutter."
             )
         ),
         ChangelogEntry(
