@@ -300,7 +300,9 @@ private fun YTMusicPortraitContent(
                 aiStatus = aiStatus,
                 showInlineLikeCapsule = false,
                 showTitleArrow = false,
-                onTitleArrowClick = actions.onNext
+                onTitleArrowClick = actions.onNext,
+                activeAudioSource = playbackInfo.activeAudioSource,
+                onSwitchAudioSource = actions.onSwitchAudioSource
             )
 
             Spacer(modifier = Modifier.height(if (isVeryShort) 10.dp else 16.dp))
@@ -326,7 +328,7 @@ private fun YTMusicPortraitContent(
                 dominantColors = dominantColors,
                 audioCodec = playerState.audioCodec,
                 audioBitrate = playerState.audioBitrate,
-                activeAudioSource = null,
+                activeAudioSource = playbackInfo.activeAudioSource,
                 horizontalPadding = 0.dp
             )
 
@@ -544,7 +546,9 @@ private fun YTMusicLandscapeContent(
                 aiStatus = aiStatus,
                 showInlineLikeCapsule = false,
                 showTitleArrow = false,
-                onTitleArrowClick = actions.onNext
+                onTitleArrowClick = actions.onNext,
+                activeAudioSource = playbackInfo.activeAudioSource,
+                onSwitchAudioSource = actions.onSwitchAudioSource
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -564,7 +568,10 @@ private fun YTMusicLandscapeContent(
             TimeLabelsWithQuality(
                 currentPositionProvider = positionProvider,
                 durationProvider = durationProvider,
-                dominantColors = dominantColors
+                dominantColors = dominantColors,
+                audioCodec = playerState.audioCodec,
+                audioBitrate = playerState.audioBitrate,
+                activeAudioSource = playbackInfo.activeAudioSource
             )
 
             Spacer(modifier = Modifier.height(16.dp))

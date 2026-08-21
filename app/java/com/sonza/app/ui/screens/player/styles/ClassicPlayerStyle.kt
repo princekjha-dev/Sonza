@@ -263,7 +263,8 @@ private fun ClassicPortraitContent(
                 durationProvider = durationProvider,
                 dominantColors = dominantColors,
                 audioCodec = playerState.audioCodec,
-                audioBitrate = playerState.audioBitrate
+                audioBitrate = playerState.audioBitrate,
+                activeAudioSource = playbackInfo.activeAudioSource
             )
 
             Spacer(modifier = Modifier.weight(if (isVeryShort) 0.1f else 0.4f))
@@ -349,7 +350,8 @@ private fun ClassicLandscapeContent(
                 durationProvider = durationProvider,
                 dominantColors = dominantColors,
                 audioCodec = playerState.audioCodec,
-                audioBitrate = playerState.audioBitrate
+                audioBitrate = playerState.audioBitrate,
+                activeAudioSource = playbackInfo.activeAudioSource
             )
             Spacer(modifier = Modifier.height(12.dp))
             

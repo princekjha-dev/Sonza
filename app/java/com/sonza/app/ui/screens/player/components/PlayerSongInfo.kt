@@ -291,11 +291,15 @@ fun TimeLabelsWithQuality(
         derivedStateOf { "-${formatDuration(durationProvider() - currentPositionProvider())}" }
     }
 
-    val formatLabel = remember(audioCodec, audioBitrate) {
+    val formatLabel = remember(audioCodec, audioBitrate, activeAudioSource) {
         val codecText = audioCodec?.uppercase()
         val bitrateText = audioBitrate?.let { "${it} kbps" }
+            ?: if (activeAudioSource == com.sonza.app.core.model.MusicSource.REMOTE) "320 kbps" else null
+        val sourceBadge = if (activeAudioSource == com.sonza.app.core.model.MusicSource.REMOTE) "HQ" else null
         when {
+            sourceBadge != null && bitrateText != null -> "$sourceBadge • $bitrateText"
             codecText != null && bitrateText != null -> "$codecText • $bitrateText"
+            sourceBadge != null -> sourceBadge
             codecText != null -> codecText
             bitrateText != null -> bitrateText
             else -> null
