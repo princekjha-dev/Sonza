@@ -251,7 +251,7 @@ class HomeViewModel @Inject constructor(
                 _uiState.update { 
                     it.copy(
                         homeSections = cachedSections, 
-                        filteredSections = cachedSections.filter { s -> !s.title.contains("Quick picks", ignoreCase = true) },
+                        filteredSections = cachedSections.filter { s -> !s.title.contains("Quick picks", ignoreCase = true) && !s.title.contains("radio", ignoreCase = true) },
                         recommendations = cachedQuickPicks,
                         isLoading = false,
                         error = null
@@ -285,7 +285,7 @@ class HomeViewModel @Inject constructor(
                 _uiState.update { 
                     it.copy(
                         homeSections = sections,
-                        filteredSections = sections.filter { s -> !s.title.contains("Quick picks", ignoreCase = true) },
+                        filteredSections = sections.filter { s -> !s.title.contains("Quick picks", ignoreCase = true) && !s.title.contains("radio", ignoreCase = true) },
                         isLoading = false,
                         isRefreshing = false,
                         error = null
@@ -369,7 +369,7 @@ class HomeViewModel @Inject constructor(
                 val sections = recommendationEngine.getPersonalizedHomeSections()
                 // Filter out "Quick picks" since it's shown separately
                 val extraSections = sections.filter { 
-                    !it.title.equals("Quick picks", ignoreCase = true) 
+                    !it.title.equals("Quick picks", ignoreCase = true) && !it.title.contains("radio", ignoreCase = true)
                 }
                 _uiState.update { it.copy(personalizedSections = extraSections) }
             } catch (e: Exception) {

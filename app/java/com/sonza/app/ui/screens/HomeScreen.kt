@@ -21,7 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -89,7 +88,6 @@ fun HomeScreen(
     onHistoryClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
     onExploreClick: (String, String) -> Unit = { _, _ -> },
-    onStartRadio: () -> Unit = {},
     onCreateMixClick: () -> Unit = {},
     currentSong: Song? = null,
     viewModel: HomeViewModel = koinViewModel(),
@@ -262,7 +260,7 @@ fun HomeScreen(
                     val formFactor = LocalDeviceFormFactor.current
                     val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
                     val isMiniPlayerVisible = currentSong != null
-                    val bottomSystemHeight = if (isMiniPlayerVisible) 64.dp else (if (formFactor.isPhoneLike) 80.dp else 0.dp)
+                    val bottomSystemHeight = if (isMiniPlayerVisible) 132.dp else (if (formFactor.isPhoneLike) 64.dp else 0.dp)
                     val targetBottomPadding = navBarPadding + bottomSystemHeight + 20.dp
 
                     val animatedBottomPadding by animateDpAsState(
@@ -398,23 +396,6 @@ fun HomeScreen(
                             }
                         }
 
-                        // 3. Personalized "For You" Banner (Logged-in)
-                        if (uiState.isLoggedIn && uiState.homeSectionsVisibility.contains("for_you_banner")) {
-                            item(key = "for_you_banner", contentType = "for_you_banner") {
-                                AnimatedVisibility(
-                                    visible = uiState.isForYouBannerVisible,
-                                    exit = fadeOut() + shrinkVertically()
-                                ) {
-                                    ForYouBanner(
-                                        onStartRadio = onStartRadio,
-                                        onDismiss = viewModel::onDismissForYouBanner,
-                                        modifier = Modifier
-                                            .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceXs)
-                                            .animateEnter(index = 2)
-                                    )
-                                }
-                            }
-                        }
 
                         // 4. Recently Played Dynamic Horizontal Carousel Section
                         if (uiState.recentlyPlayed.isNotEmpty()) {
@@ -510,7 +491,6 @@ fun HomeScreen(
                                     onPlaylistClick = onPlaylistClick,
                                     onAlbumClick = onAlbumClick,
                                     onExploreClick = onExploreClick,
-                                    onStartRadio = onStartRadio,
                                     onSongMoreClick = onSongMoreClickHandler,
                                     modifier = Modifier.animateEnter(index = 7 + index)
                                 )
@@ -530,7 +510,6 @@ fun HomeScreen(
                                     onPlaylistClick = onPlaylistClick,
                                     onAlbumClick = onAlbumClick,
                                     onExploreClick = onExploreClick,
-                                    onStartRadio = onStartRadio,
                                     onSongMoreClick = onSongMoreClickHandler,
                                     modifier = Modifier.animateEnter(index = 20 + index)
                                 )
@@ -568,7 +547,6 @@ fun HomeScreen(
                                     onPlaylistClick = onPlaylistClick,
                                     onAlbumClick = onAlbumClick,
                                     onExploreClick = onExploreClick,
-                                    onStartRadio = onStartRadio,
                                     onSongMoreClick = onSongMoreClickHandler,
                                     modifier = Modifier.animateEnter(index = 40 + index)
                                 )
@@ -612,7 +590,6 @@ fun HomeScreen(
                                     onPlaylistClick = onPlaylistClick,
                                     onAlbumClick = onAlbumClick,
                                     onExploreClick = onExploreClick,
-                                    onStartRadio = onStartRadio,
                                     onSongMoreClick = onSongMoreClickHandler,
                                     modifier = Modifier.animateEnter(index = 60 + index)
                                 )
@@ -702,99 +679,6 @@ private data class FeaturedHeroData(
     val onClick: () -> Unit
 )
 
-@Composable
-private fun ForYouBanner(
-    onStartRadio: () -> Unit,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val dynamicColors = LocalSonzaDynamicColors.current
-
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(RadiusTokens.Lg),
-        color = SonzaSurfaceVariant,
-        tonalElevation = 1.dp
-    ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceMd),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(RoundedCornerShape(RadiusTokens.Sm))
-                        .background(dynamicColors.accent.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Radio,
-                        contentDescription = null,
-                        tint = dynamicColors.accent,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(SpacingTokens.SpaceMd))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Made for you",
-                        style = SonzaTypography.CardTitle,
-                        color = SonzaOnBackground
-                    )
-                    Text(
-                        text = "Endless radio based on your taste",
-                        style = SonzaTypography.CardSubtitle,
-                        color = SonzaOnSurfaceVariant
-                    )
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(RadiusTokens.Pill),
-                    color = dynamicColors.accent,
-                    modifier = Modifier.bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onStartRadio)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            tint = dynamicColors.onAccent,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Text(
-                            text = "Radio",
-                            style = SonzaTypography.LabelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = dynamicColors.onAccent
-                        )
-                    }
-                }
-            }
-
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .size(20.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Dismiss",
-                    tint = SonzaOnSurfaceVariant.copy(alpha = 0.6f),
-                    modifier = Modifier.size(14.dp)
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun DetectedMoodBanner(

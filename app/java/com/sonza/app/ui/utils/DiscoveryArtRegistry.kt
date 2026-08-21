@@ -57,12 +57,6 @@ object DiscoveryArtRegistry {
             tintColor = 0xFF7986CB, // Lavender indigo
             browseQuery = "live concert performances"
         ),
-        "sonza radio" to DiscoveryArtMeta(
-            title = "Sonza Radio",
-            imageUrl = "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=800&auto=format&fit=crop",
-            tintColor = 0xFFE53935, // Coral crimson
-            browseQuery = "radio mix hits"
-        ),
         "coming soon" to DiscoveryArtMeta(
             title = "Coming Soon",
             imageUrl = "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800&auto=format&fit=crop",
@@ -221,7 +215,6 @@ object DiscoveryArtRegistry {
             key.contains("hip") || key.contains("rap") -> return curatedArt["hip-hop"]!!
             key.contains("holiday") || key.contains("festive") || key.contains("xmas") -> return curatedArt["holiday"]!!
             key.contains("live") -> return curatedArt["sonza live"]!!
-            key.contains("radio") -> return curatedArt["sonza radio"]!!
             key.contains("new") || key.contains("coming") || key.contains("release") -> return curatedArt["coming soon"]!!
             key.contains("spatial") || key.contains("atmos") || key.contains("lossless") -> return curatedArt["spatial audio"]!!
             key.contains("country") || key.contains("folk") -> return curatedArt["country"]!!
@@ -306,12 +299,6 @@ object DiscoveryArtRegistry {
             browseId = "SEARCH::live music performances",
             thumbnailUrl = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=800&auto=format&fit=crop",
             color = 0xFF7986CB
-        ),
-        BrowseCategory(
-            title = "Sonza Radio",
-            browseId = "SEARCH::radio mix hits",
-            thumbnailUrl = "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=800&auto=format&fit=crop",
-            color = 0xFFE53935
         ),
         BrowseCategory(
             title = "Coming Soon",

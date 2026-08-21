@@ -30,7 +30,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.CardDefaults
@@ -84,7 +83,6 @@ fun TabletHomeScreen(
     onAlbumClick: (Album) -> Unit,
     onHistoryClick: () -> Unit = {},
     onExploreClick: (String, String) -> Unit = { _, _ -> },
-    onStartRadio: () -> Unit = {},
     currentSong: Song? = null,
     viewModel: HomeViewModel = koinViewModel()
 ) {
@@ -205,25 +203,7 @@ fun TabletHomeScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
 
-                // Action buttons
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    FilledTonalButton(
-                        onClick = onStartRadio,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            Icons.Default.Radio,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Radio", style = MaterialTheme.typography.labelLarge)
-                    }
-                }
             }
 
             // ========================

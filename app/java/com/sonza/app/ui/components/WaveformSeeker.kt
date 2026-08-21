@@ -1,30 +1,16 @@
 package com.sonza.app.ui.components
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -38,47 +24,27 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.LinearWavyProgressIndicator
-import androidx.compose.material3.WavyProgressIndicatorDefaults
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.sonza.app.core.model.SeekbarStyle
 import com.sonza.app.core.model.SponsorCategory
 import com.sonza.app.data.repository.SponsorSegment
 import com.sonza.app.ui.sponsorblock.color
-import com.sonza.app.ui.components.seekbar.ClassicStyle
-import com.sonza.app.ui.components.seekbar.DotsStyle
-import com.sonza.app.ui.components.seekbar.GradientBarStyle
-import com.sonza.app.ui.components.seekbar.WaveLineStyle
-import com.sonza.app.ui.components.seekbar.WaveformStyle
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import kotlin.random.Random
-import kotlin.math.sin
-import com.sonza.app.core.model.SeekbarStyle
+import com.sonza.app.util.TimeUtil
 
 /**
- * Animated waveform seeker with multiple style options.
- * Long-press to change style.
+ * Clean, straight horizontal seekbar with smooth rounded track,
+ * clear played-progress section, and small circular thumb.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun WaveformSeeker(
     progressProvider: () -> Float,
@@ -87,67 +53,16 @@ fun WaveformSeeker(
     modifier: Modifier = Modifier,
     activeColor: Color = MaterialTheme.colorScheme.primary,
     inactiveColor: Color = MaterialTheme.colorScheme.surfaceVariant,
-    initialStyle: SeekbarStyle = SeekbarStyle.M3E_WAVY,
+    initialStyle: SeekbarStyle = SeekbarStyle.CLASSIC,
     onStyleChange: ((SeekbarStyle) -> Unit)? = null,
     duration: Long = 0L,
     sponsorSegments: List<SponsorSegment> = emptyList(),
-    // Inset between the seeker's bounds and the drawn track. Styles that want the
-    // track flush with the screen's content margin pass 0.dp.
     contentPadding: Dp = 8.dp
 ) {
-    // Current seekbar style - uses initial style from settings
-    var currentStyle by remember { mutableStateOf(initialStyle) }
-    var showStyleMenu by remember { mutableStateOf(false) }
-    
-    // Sync with external style changes
-    LaunchedEffect(initialStyle) {
-        currentStyle = initialStyle
-    }
-    
-    val shouldAnimateWave = isPlaying && (
-        currentStyle == SeekbarStyle.WAVEFORM ||
-            currentStyle == SeekbarStyle.WAVE_LINE ||
-            currentStyle == SeekbarStyle.DOTS ||
-            currentStyle == SeekbarStyle.M3E_WAVY ||
-            currentStyle == SeekbarStyle.NEON
-    )
-    
-    // Animation for wave movement only when needed
-    val wavePhase = if (shouldAnimateWave) {
-        val infiniteTransition = rememberInfiniteTransition(label = "wave")
-        val phase by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 360f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(3000, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart
-            ),
-            label = "wavePhase"
-        )
-        phase
-    } else {
-        0f
-    }
-
-    // M3E Wavy: spring-animated amplitude (1.2f when playing for better visibility, 0f when paused)
-    val wavyAmplitude by animateFloatAsState(
-        targetValue = if (isPlaying && currentStyle == SeekbarStyle.M3E_WAVY) 1.2f else 0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessVeryLow
-        ),
-        label = "wavyAmplitude"
-    )
-    
-    // Generate random wave amplitudes (simulating audio waveform)
-    val waveAmplitudes = remember {
-        List(100) { Random.nextFloat() * 0.6f + 0.4f }
-    }
-    
     var isDragging by remember { mutableStateOf(false) }
     var currentProgress by remember { mutableFloatStateOf(progressProvider()) }
     var dragX by remember { mutableFloatStateOf(0f) }
-    
+
     // Update currentProgress from external progress only when NOT dragging
     val externalProgress = progressProvider()
     LaunchedEffect(externalProgress) {
@@ -155,31 +70,36 @@ fun WaveformSeeker(
             currentProgress = externalProgress
         }
     }
-    
+
+    val animatedThumbRadius by animateDpAsState(
+        targetValue = if (isDragging) 8.dp else 5.5.dp,
+        animationSpec = spring(stiffness = 500f),
+        label = "thumbRadius"
+    )
+
     BoxWithConstraints(
         modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
-        val density = androidx.compose.ui.platform.LocalDensity.current
+        val density = LocalDensity.current
         val maxWidthPx = with(density) { maxWidth.toPx() }
 
         // Time Tooltip when dragging
         if (isDragging && duration > 0) {
             val seekTime = (currentProgress * duration).toLong()
-            val timeText = com.sonza.app.util.TimeUtil.formatPosition(seekTime)
-            
-            // Calculate horizontal offset to follow finger, constrained to seeker width
+            val timeText = TimeUtil.formatPosition(seekTime)
+
             val tooltipOffset = with(density) {
                 (dragX - (maxWidthPx / 2)).toDp()
             }
-            
+
             Surface(
                 modifier = Modifier
-                    .offset(x = tooltipOffset, y = (-45).dp),
+                    .offset(x = tooltipOffset, y = (-42).dp),
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(8.dp),
                 tonalElevation = 4.dp,
-                shadowElevation = 8.dp
+                shadowElevation = 6.dp
             ) {
                 Text(
                     text = timeText,
@@ -195,27 +115,15 @@ fun WaveformSeeker(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(60.dp)
+                .height(44.dp)
                 .graphicsLayer { clip = false }
                 .padding(horizontal = contentPadding)
-                .pointerInput(Unit) {
-                    awaitPointerEventScope {
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            // Gestures are handled below via specialized detect functions
-                            // This empty block is just to ensure pointer input is initialized
-                        }
-                    }
-                }
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onTap = { offset ->
                             val newProgress = (offset.x / size.width).coerceIn(0f, 1f)
                             currentProgress = newProgress
                             onSeek(newProgress)
-                        },
-                        onLongPress = {
-                            showStyleMenu = true
                         }
                     )
                 }
@@ -224,13 +132,14 @@ fun WaveformSeeker(
                         onDragStart = { offset ->
                             isDragging = true
                             dragX = offset.x
+                            val newProgress = (offset.x / size.width).coerceIn(0f, 1f)
+                            currentProgress = newProgress
                         },
                         onDragEnd = {
-                            // Don't deliver a stale seek if the player is no longer in a
-                            // valid state. A dismissed sheet / cleared queue drops duration
-                            // to 0, so an in-flight drag would otherwise seek an invalid
-                            // position on teardown.
                             if (duration > 0) onSeek(currentProgress)
+                            isDragging = false
+                        },
+                        onDragCancel = {
                             isDragging = false
                         },
                         onHorizontalDrag = { change, _ ->
@@ -242,490 +151,67 @@ fun WaveformSeeker(
                 }
         ) {
             Canvas(modifier = Modifier.matchParentSize()) {
-                if (size.width > 0f && size.height > 0f) {
-                    drawIntoCanvas { canvas ->
-                        val nativeCanvas = canvas.nativeCanvas
-                        val saveCount = nativeCanvas.saveLayer(0f, 0f, size.width, size.height, null)
+                val width = size.width
+                val height = size.height
+                if (width <= 0f || height <= 0f) return@Canvas
 
-                        try {
-                            when (currentStyle) {
-                                SeekbarStyle.WAVEFORM -> with(WaveformStyle) {
-                                    draw(
-                                        progress = currentProgress,
-                                        isPlaying = isPlaying,
-                                        wavePhase = wavePhase,
-                                        waveAmplitudes = waveAmplitudes,
-                                        activeColor = activeColor,
-                                        inactiveColor = inactiveColor,
-                                        isDragging = isDragging
-                                    )
-                                }
-                                SeekbarStyle.WAVE_LINE -> with(WaveLineStyle) {
-                                    draw(
-                                        progress = currentProgress,
-                                        isPlaying = isPlaying,
-                                        wavePhase = wavePhase,
-                                        activeColor = activeColor,
-                                        inactiveColor = inactiveColor,
-                                        isDragging = isDragging
-                                    )
-                                }
-                                SeekbarStyle.CLASSIC -> with(ClassicStyle) {
-                                    draw(
-                                        progress = currentProgress,
-                                        activeColor = activeColor,
-                                        inactiveColor = inactiveColor,
-                                        isDragging = isDragging
-                                    )
-                                }
-                                SeekbarStyle.DOTS -> with(DotsStyle) {
-                                    draw(
-                                        progress = currentProgress,
-                                        isPlaying = isPlaying,
-                                        wavePhase = wavePhase,
-                                        activeColor = activeColor,
-                                        inactiveColor = inactiveColor,
-                                        isDragging = isDragging
-                                    )
-                                }
-                                SeekbarStyle.GRADIENT_BAR -> with(GradientBarStyle) {
-                                    draw(
-                                        progress = currentProgress,
-                                        activeColor = activeColor,
-                                        inactiveColor = inactiveColor,
-                                        isDragging = isDragging
-                                    )
-                                }
-                                SeekbarStyle.NEON -> {
-                                    val centerY = size.height / 2
-                                    val trackHeight = 6.dp.toPx()
-                                    val progressX = currentProgress * size.width
-                                    
-                                    // Inactive line
-                                    drawLine(
-                                        color = inactiveColor.copy(alpha = 0.3f),
-                                        start = Offset(0f, centerY),
-                                        end = Offset(size.width, centerY),
-                                        strokeWidth = trackHeight,
-                                        cap = androidx.compose.ui.graphics.StrokeCap.Round
-                                    )
-                                    
-                                    // Active glowing line
-                                    // Glow effect
-                                    drawIntoCanvas { c ->
-                                        val paint = Paint().asFrameworkPaint().apply {
-                                            color = activeColor.toArgb()
-                                            setShadowLayer(15f, 0f, 0f, activeColor.toArgb())
-                                        }
-                                        c.nativeCanvas.drawLine(0f, centerY, progressX, centerY, paint)
-                                    }
-                                    
-                                    drawLine(
-                                        color = activeColor,
-                                        start = Offset(0f, centerY),
-                                        end = Offset(progressX, centerY),
-                                        strokeWidth = trackHeight,
-                                        cap = androidx.compose.ui.graphics.StrokeCap.Round
-                                    )
-                                    
-                                    // Custom Neon thumb - High glow diamond
-                                    val thumbSize = if (isDragging) 12.dp.toPx() else 9.dp.toPx()
-                                    drawIntoCanvas { c ->
-                                        val paint = Paint().asFrameworkPaint().apply {
-                                            color = Color.White.toArgb()
-                                            setShadowLayer(20f, 0f, 0f, activeColor.toArgb())
-                                        }
-                                        c.nativeCanvas.drawCircle(progressX, centerY, thumbSize, paint)
-                                    }
-                                    drawCircle(
-                                        color = Color.White,
-                                        radius = thumbSize * 0.5f,
-                                        center = Offset(progressX, centerY)
-                                    )
-                                }
-                                SeekbarStyle.BLOCKS -> {
-                                    val blockCount = 30
-                                    val blockWidth = size.width / blockCount
-                                    val padding = 4.dp.toPx()
-                                    val progressX = currentProgress * size.width
-                                    val centerY = size.height / 2
-                                    
-                                    for (i in 0 until blockCount) {
-                                        val startX = i * blockWidth + padding / 2
-                                        val blockProgress = (i + 1).toFloat() / blockCount
-                                        val color = if (currentProgress >= blockProgress) activeColor else inactiveColor.copy(alpha = 0.3f)
-                                        
-                                        drawRoundRect(
-                                            color = color,
-                                            topLeft = Offset(startX, size.height * 0.25f),
-                                            size = Size(blockWidth - padding, size.height * 0.5f),
-                                            cornerRadius = CornerRadius(2.dp.toPx())
-                                        )
-                                    }
-                                    
-                                    // Custom Block thumb
-                                    val thumbHeight = size.height * 0.7f
-                                    val thumbWidth = blockWidth * 1.2f
-                                    drawRoundRect(
-                                        color = activeColor,
-                                        topLeft = Offset(progressX - thumbWidth / 2, centerY - thumbHeight / 2),
-                                        size = Size(thumbWidth, thumbHeight),
-                                        cornerRadius = CornerRadius(2.dp.toPx())
-                                    )
-                                    // Glow for block
-                                    drawCircle(
-                                        brush = Brush.radialGradient(
-                                            colors = listOf(activeColor.copy(alpha = 0.3f), Color.Transparent),
-                                            center = Offset(progressX, centerY),
-                                            radius = thumbHeight
-                                        ),
-                                        radius = thumbHeight,
-                                        center = Offset(progressX, centerY)
-                                    )
-                                }
-                                SeekbarStyle.MATERIAL -> {
-                                    // Handled outside canvas via Slider
-                                }
-                                SeekbarStyle.M3E_WAVY -> {
-                                    // Handled outside canvas via LinearWavyProgressIndicator
-                                }
-                            }
+                val centerY = height / 2f
+                val trackHeight = 4.5.dp.toPx()
+                val cornerRadius = CornerRadius(trackHeight / 2f, trackHeight / 2f)
+                val clampedProgress = currentProgress.coerceIn(0f, 1f)
+                val progressX = clampedProgress * width
+                val thumbRadiusPx = animatedThumbRadius.toPx()
 
-                            // Draw Sponsor segments overlay
-                            if (duration > 0 && sponsorSegments.isNotEmpty()) {
-                                val durationSec = duration / 1000f
-                                sponsorSegments.forEach { segment ->
-                                    val startFraction = (segment.start / durationSec).coerceIn(0f, 1f)
-                                    val endFraction = (segment.end / durationSec).coerceIn(0f, 1f)
+                // 1. Inactive Background Track (smooth rounded straight line)
+                drawRoundRect(
+                    color = inactiveColor.copy(alpha = 0.35f),
+                    topLeft = Offset(0f, centerY - trackHeight / 2f),
+                    size = Size(width, trackHeight),
+                    cornerRadius = cornerRadius
+                )
 
-                                    val startX = startFraction * size.width
-                                    val endX = endFraction * size.width
-                                    val segWidth = endX - startX
-
-                                    if (segWidth > 0) {
-                                        val categoryColor = SponsorCategory.fromKey(segment.category)?.color ?: Color.Yellow
-
-                                        drawRect(
-                                            color = categoryColor,
-                                            topLeft = Offset(startX, 0f),
-                                            size = Size(segWidth, size.height),
-                                            blendMode = BlendMode.SrcAtop
-                                        )
-                                    }
-                                }
-                            }
-                        } finally {
-                            nativeCanvas.restoreToCount(saveCount)
-                        }
-                    }
+                // 2. Active Played-Progress Section (smooth rounded straight line)
+                if (progressX > 0f) {
+                    drawRoundRect(
+                        color = activeColor,
+                        topLeft = Offset(0f, centerY - trackHeight / 2f),
+                        size = Size(progressX, trackHeight),
+                        cornerRadius = cornerRadius
+                    )
                 }
-            }
-            
-            // Material Slider Overlay
-            if (currentStyle == SeekbarStyle.MATERIAL) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onLongPress = {
-                                    showStyleMenu = true
-                                }
+
+                // 3. Sponsor segments overlay (if present)
+                if (duration > 0 && sponsorSegments.isNotEmpty()) {
+                    val durationSec = duration / 1000f
+                    sponsorSegments.forEach { segment ->
+                        val startFraction = (segment.start / durationSec).coerceIn(0f, 1f)
+                        val endFraction = (segment.end / durationSec).coerceIn(0f, 1f)
+
+                        val startX = startFraction * width
+                        val endX = endFraction * width
+                        val segWidth = endX - startX
+
+                        if (segWidth > 0f) {
+                            val categoryColor = SponsorCategory.fromKey(segment.category)?.color ?: Color.Yellow
+
+                            drawRoundRect(
+                                color = categoryColor,
+                                topLeft = Offset(startX, centerY - trackHeight / 2f),
+                                size = Size(segWidth, trackHeight),
+                                cornerRadius = cornerRadius,
+                                blendMode = BlendMode.SrcAtop
                             )
                         }
-                ) {
-                    androidx.compose.material3.Slider(
-                        value = currentProgress,
-                        onValueChange = {
-                            currentProgress = it
-                            onSeek(it)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = androidx.compose.material3.SliderDefaults.colors(
-                            thumbColor = activeColor,
-                            activeTrackColor = activeColor,
-                            inactiveTrackColor = inactiveColor.copy(alpha = 0.5f)
-                        )
-                    )
+                    }
                 }
-            }
 
-            // M3E Wavy Progress Overlay
-            if (currentStyle == SeekbarStyle.M3E_WAVY) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(60.dp)
-                            .pointerInput(Unit) {
-                                detectTapGestures(
-                                    onTap = { offset ->
-                                        val newProgress = (offset.x / size.width).coerceIn(0f, 1f)
-                                        currentProgress = newProgress
-                                        onSeek(newProgress)
-                                    },
-                                    onLongPress = {
-                                        showStyleMenu = true
-                                    }
-                                )
-                            }
-                    ) {
-                        LinearWavyProgressIndicator(
-                            progress = { currentProgress },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .align(Alignment.Center),
-                            color = activeColor,
-                            trackColor = inactiveColor.copy(alpha = 0.3f),
-                            amplitude = { wavyAmplitude },
-                            wavelength = WavyProgressIndicatorDefaults.LinearDeterminateWavelength,
-                            waveSpeed = if (isPlaying)
-                                WavyProgressIndicatorDefaults.LinearDeterminateWavelength
-                            else
-                                0.dp
-                        )
-                    }
-                }
-            }
-        }
-        
-        // Style selection popup
-        if (showStyleMenu) {
-            Popup(
-                alignment = Alignment.Center,
-                onDismissRequest = { showStyleMenu = false },
-                properties = PopupProperties(focusable = false) // FIX: Set to false to prevent interaction issues
-            ) {
-                SeekbarStyleMenu(
-                    currentStyle = currentStyle,
-                    activeColor = activeColor,
-                    inactiveColor = inactiveColor,
-                    onStyleSelected = { style ->
-                        currentStyle = style
-                        onStyleChange?.invoke(style)
-                        showStyleMenu = false
-                    }
+                // 4. Small Circular Thumb at Current Position
+                drawCircle(
+                    color = activeColor,
+                    radius = thumbRadiusPx,
+                    center = Offset(progressX, centerY)
                 )
             }
         }
-    }
-}
-
-/**
- * Seekbar style selection menu with previews
- */
-@Composable
-private fun SeekbarStyleMenu(
-    currentStyle: SeekbarStyle,
-    activeColor: Color,
-    inactiveColor: Color,
-    onStyleSelected: (SeekbarStyle) -> Unit
-) {
-    Surface(
-        modifier = Modifier.padding(16.dp),
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shadowElevation = 16.dp,
-        tonalElevation = 8.dp
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Seekbar Style",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.SemiBold
-                ),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            SeekbarStyle.entries.forEach { style ->
-                StylePreviewItem(
-                    style = style,
-                    isSelected = style == currentStyle,
-                    activeColor = activeColor,
-                    inactiveColor = inactiveColor,
-                    onClick = { onStyleSelected(style) }
-                )
-                
-                if (style != SeekbarStyle.entries.last()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-            }
-        }
-    }
-}
-
-/**
- * Individual style preview item
- */
-@Composable
-private fun StylePreviewItem(
-    style: SeekbarStyle,
-    isSelected: Boolean,
-    activeColor: Color,
-    inactiveColor: Color,
-    onClick: () -> Unit
-) {
-    val backgroundColor by animateColorAsState(
-        targetValue = if (isSelected) activeColor.copy(alpha = 0.15f) else Color.Transparent,
-        animationSpec = spring(),
-        label = "bg"
-    )
-    
-    val borderColor by animateColorAsState(
-        targetValue = if (isSelected) activeColor else Color.Transparent,
-        animationSpec = spring(),
-        label = "border"
-    )
-    
-    val styleName = when (style) {
-        SeekbarStyle.WAVEFORM -> "Waveform"
-        SeekbarStyle.WAVE_LINE -> "Wave Line"
-        SeekbarStyle.CLASSIC -> "Classic"
-        SeekbarStyle.DOTS -> "Dots"
-        SeekbarStyle.GRADIENT_BAR -> "Gradient"
-        SeekbarStyle.NEON -> "Neon Glow"
-        SeekbarStyle.BLOCKS -> "Blocks"
-        SeekbarStyle.MATERIAL -> "Material 3"
-        SeekbarStyle.M3E_WAVY -> "M3 Expressive"
-    }
-    
-    // Preview amplitudes
-    val previewAmplitudes = remember {
-        List(20) { Random.nextFloat() * 0.6f + 0.4f }
-    }
-    
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(backgroundColor)
-            .border(1.5.dp, borderColor, RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Preview canvas
-        Canvas(
-            modifier = Modifier
-                .width(80.dp)
-                .height(30.dp)
-        ) {
-            val previewProgress = 0.6f
-            when (style) {
-                SeekbarStyle.WAVEFORM -> with(WaveformStyle) {
-                    drawPreview(previewProgress, previewAmplitudes, activeColor, inactiveColor)
-                }
-                SeekbarStyle.WAVE_LINE -> with(WaveLineStyle) {
-                    drawPreview(previewProgress, activeColor, inactiveColor)
-                }
-                SeekbarStyle.CLASSIC -> with(ClassicStyle) {
-                    drawPreview(previewProgress, activeColor, inactiveColor)
-                }
-                SeekbarStyle.DOTS -> with(DotsStyle) {
-                    drawPreview(previewProgress, activeColor, inactiveColor)
-                }
-                SeekbarStyle.GRADIENT_BAR -> with(GradientBarStyle) {
-                    drawPreview(previewProgress, activeColor, inactiveColor)
-                }
-                SeekbarStyle.NEON -> {
-                    val centerY = size.height / 2
-                    val stroke = 3.dp.toPx()
-                    drawLine(inactiveColor.copy(alpha = 0.3f), Offset(0f, centerY), Offset(size.width, centerY), stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                    drawLine(activeColor, Offset(0f, centerY), Offset(previewProgress * size.width, centerY), stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                    drawCircle(activeColor, radius = 5.dp.toPx(), center = Offset(previewProgress * size.width, centerY))
-                }
-                SeekbarStyle.BLOCKS -> {
-                    val count = 10
-                    val w = size.width / count
-                    for (i in 0 until count) {
-                        val color = if (previewProgress >= (i + 1).toFloat() / count) activeColor else inactiveColor.copy(alpha = 0.3f)
-                        drawRoundRect(color, Offset(i * w + 1.dp.toPx(), 5.dp.toPx()), Size(w - 2.dp.toPx(), size.height - 10.dp.toPx()), CornerRadius(2.dp.toPx()))
-                    }
-                }
-                SeekbarStyle.MATERIAL -> {
-                    val centerY = size.height / 2
-                    val trackHeight = 4.dp.toPx()
-                    // Track
-                    drawRoundRect(
-                        color = inactiveColor.copy(alpha = 0.5f),
-                        topLeft = Offset(0f, centerY - trackHeight / 2),
-                        size = Size(size.width, trackHeight),
-                        cornerRadius = CornerRadius(trackHeight / 2)
-                    )
-                    // Active Track
-                    drawRoundRect(
-                        color = activeColor,
-                        topLeft = Offset(0f, centerY - trackHeight / 2),
-                        size = Size(previewProgress * size.width, trackHeight),
-                        cornerRadius = CornerRadius(trackHeight / 2)
-                    )
-                    // Thumb
-                    drawCircle(
-                        color = activeColor,
-                        radius = 8.dp.toPx(),
-                        center = Offset(previewProgress * size.width, centerY)
-                    )
-                }
-                SeekbarStyle.M3E_WAVY -> {
-                    // Draw a mini wavy line as static preview using sine path
-                    val centerY = size.height / 2
-                    val amplitude = size.height * 0.25f
-                    val frequency = 0.12f
-                    val strokePx = 3.dp.toPx()
-
-                    // Inactive track — full width sine
-                    val inactivePath = androidx.compose.ui.graphics.Path().apply {
-                        moveTo(0f, centerY)
-                        var x = 0f
-                        while (x <= size.width) {
-                            val y = centerY + sin(x * frequency) * amplitude
-                            lineTo(x, y)
-                            x += 2f
-                        }
-                    }
-                    drawPath(
-                        path = inactivePath,
-                        color = inactiveColor.copy(alpha = 0.3f),
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokePx, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                    )
-
-                    // Active track — progress width sine
-                    val activePath = androidx.compose.ui.graphics.Path().apply {
-                        moveTo(0f, centerY)
-                        var x = 0f
-                        while (x <= previewProgress * size.width) {
-                            val y = centerY + sin(x * frequency) * amplitude
-                            lineTo(x, y)
-                            x += 2f
-                        }
-                    }
-                    drawPath(
-                        path = activePath,
-                        color = activeColor,
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokePx, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                    )
-                }
-            }
-        }
-        
-        Spacer(modifier = Modifier.width(12.dp))
-        
-        Text(
-            text = styleName,
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-            ),
-            color = if (isSelected) activeColor else MaterialTheme.colorScheme.onSurface
-        )
     }
 }

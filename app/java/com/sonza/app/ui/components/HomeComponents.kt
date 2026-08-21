@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
@@ -112,48 +111,32 @@ fun HomeTopHeader(
                 )
             }
 
-            // Trailing Actions
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceXs),
-                verticalAlignment = Alignment.CenterVertically
+            // Account Avatar
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(SonzaSurfaceVariant)
+                    .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onProfileClick),
+                contentAlignment = Alignment.Center
             ) {
-                // Activity / History
-                HomeTopBarAction(
-                    icon = Icons.Default.History,
-                    contentDescription = "Recent History",
-                    onClick = onHistoryClick,
-                    showDot = true
-                )
-
-                Spacer(modifier = Modifier.width(SpacingTokens.SpaceXs))
-
-                // Account Avatar
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .background(SonzaSurfaceVariant)
-                        .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onProfileClick),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (!avatarUrl.isNullOrBlank()) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(avatarUrl)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = "Account",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Account",
-                            tint = SonzaOnSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                if (!avatarUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(avatarUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Account",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Account",
+                        tint = SonzaOnSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }
@@ -170,41 +153,6 @@ fun HomeTopHeader(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-    }
-}
-
-@Composable
-private fun HomeTopBarAction(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    contentDescription: String,
-    onClick: () -> Unit,
-    showDot: Boolean = false
-) {
-    val dynamicColors = LocalSonzaDynamicColors.current
-
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = SonzaOnBackground,
-            modifier = Modifier.size(22.dp)
-        )
-        if (showDot) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 8.dp, end = 8.dp)
-                    .size(6.dp)
-                    .clip(CircleShape)
-                    .background(dynamicColors.accent)
-            )
-        }
     }
 }
 

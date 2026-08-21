@@ -480,7 +480,6 @@ fun CommunityCarouselSection(
     onSongClick: (List<Song>, Int) -> Unit,
     onPlaylistClick: (PlaylistDisplayItem) -> Unit,
     onAlbumClick: (Album) -> Unit,
-    onStartRadio: () -> Unit = {},
     onSavePlaylist: (PlaylistDisplayItem) -> Unit = {},
     onSongMoreClick: (Song) -> Unit = {},
     modifier: Modifier = Modifier
@@ -665,7 +664,6 @@ fun RenderHomeSection(
     onPlaylistClick: (PlaylistDisplayItem) -> Unit,
     onAlbumClick: (Album) -> Unit,
     onExploreClick: (String, String) -> Unit,
-    onStartRadio: () -> Unit = {},
     onSongMoreClick: (Song) -> Unit = {},
     modifier: Modifier = Modifier
 ) {

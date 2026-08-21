@@ -166,7 +166,7 @@ fun SearchScreen(
     val imePadding = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
     val isKeyboardOpen = imePadding > 0.dp
     val isMiniPlayerVisible = currentSong != null
-    val bottomSystemHeight = if (isMiniPlayerVisible) 64.dp else 80.dp
+    val bottomSystemHeight = if (isMiniPlayerVisible) 132.dp else 64.dp
     val contentBottomInset = if (isKeyboardOpen) {
         SpacingTokens.SpaceMd
     } else {

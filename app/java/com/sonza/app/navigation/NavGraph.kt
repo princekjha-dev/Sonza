@@ -71,7 +71,6 @@ fun NavGraph(
     onToggleAutoplay: () -> Unit,
     onToggleVideoMode: () -> Unit = {},
     onDismissVideoError: () -> Unit = {},
-    onStartRadio: (Song?, List<Song>?) -> Unit = { _, _ -> },
     onLoadMoreRadioSongs: () -> Unit = {},
     isRadioMode: Boolean = false,
     isLoadingMoreSongs: Boolean = false,
@@ -181,7 +180,6 @@ fun NavGraph(
                                 navController.navigate(Destination.Explore(browseId, title))
                             }
                         },
-                        onStartRadio = { onStartRadio(null, null) },
                         currentSong = playbackInfo.currentSong
                     )
                 }
@@ -221,7 +219,6 @@ fun NavGraph(
                                 navController.navigate(Destination.Explore(browseId, title))
                             }
                         },
-                        onStartRadio = { onStartRadio(null, null) },
                         onCreateMixClick = {
                             navController.navigate(Destination.PickMusic)
                         },
@@ -334,8 +331,7 @@ fun NavGraph(
         composable<Destination.Search> {
             SearchScreen(
                 onSongClick = { songs, index ->
-                    // Don't pass search results as queue — fetch recommendations instead
-                    onStartRadio(songs[index], null)
+                    onPlaySong(songs, index)
                 },
                 onArtistClick = { artistId ->
                     navController.navigate(Destination.Artist(artistId))
@@ -700,9 +696,6 @@ fun NavGraph(
                             thumbnailUrl = playlist.thumbnailUrl
                         )
                     )
-                },
-                onStartRadio = { songs ->
-                    onPlaySong(songs, 0)
                 }
             )
         }

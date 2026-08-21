@@ -69,7 +69,6 @@ fun ArtistScreen(
     onArtistClick: (ArtistPreview) -> Unit,
     onArtistIdClick: (String) -> Unit = {},
     onPlaylistClick: (Playlist) -> Unit,
-    onStartRadio: (List<Song>) -> Unit,
     viewModel: ArtistViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -151,8 +150,7 @@ fun ArtistScreen(
                             },
                             onSubscribe = viewModel::toggleSubscribe,
                             isSubscribed = currentArtist.isSubscribed,
-                            isSubscribing = uiState.isSubscribing,
-                            onStartRadio = { viewModel.startRadio(onStartRadio) }
+                            isSubscribing = uiState.isSubscribing
                         )
                     }
 
@@ -396,34 +394,6 @@ fun ArtistScreen(
                 }
             }
         }
-
-        // Radio Loading Overlay
-        AnimatedVisibility(
-            visible = uiState.isStartingRadio,
-            enter = fadeIn(),
-            exit = fadeOut()
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .clickable(enabled = false) {},
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    com.sonza.app.ui.components.SonzaLoadingIndicator(modifier = Modifier.size(56.dp))
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = uiState.radioStatus ?: "Connecting...",
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 32.dp)
-                    )
-                }
-            }
-        }
     }
 }
 
@@ -435,8 +405,7 @@ fun ImmersiveArtistHeader(
     onShuffle: () -> Unit,
     onSubscribe: () -> Unit,
     isSubscribed: Boolean,
-    isSubscribing: Boolean,
-    onStartRadio: () -> Unit
+    isSubscribing: Boolean
 ) {
     val context = LocalContext.current
     Box(
@@ -551,41 +520,19 @@ fun ImmersiveArtistHeader(
                     )
                 }
                 
-                Row(
+                IconButton(
+                    onClick = onShuffle,
                     modifier = Modifier
-                        .height(48.dp)
-                        .clip(PillShape)
-                        .background(Color.White.copy(alpha = 0.15f)),
-                    verticalAlignment = Alignment.CenterVertically
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.15f))
                 ) {
-                    IconButton(
-                        onClick = onShuffle,
-                        modifier = Modifier.padding(horizontal = 4.dp)
-                    ) {
-                        Icon(
-                             imageVector = Icons.Default.Shuffle,
-                             contentDescription = stringResource(R.string.action_shuffle),
-                             tint = Color.White,
-                             modifier = Modifier.size(22.dp)
-                        )
-                    }
-                    
-                    VerticalDivider(
-                        modifier = Modifier.height(24.dp).width(1.dp),
-                        color = Color.White.copy(alpha = 0.2f)
+                    Icon(
+                         imageVector = Icons.Default.Shuffle,
+                         contentDescription = stringResource(R.string.action_shuffle),
+                         tint = Color.White,
+                         modifier = Modifier.size(22.dp)
                     )
-
-                    IconButton(
-                        onClick = onStartRadio,
-                        modifier = Modifier.padding(horizontal = 4.dp)
-                    ) {
-                         Icon(
-                             imageVector = Icons.Default.Radio,
-                             contentDescription = stringResource(R.string.action_start_radio),
-                             tint = Color.White,
-                             modifier = Modifier.size(22.dp)
-                         )
-                    }
                 }
 
                 // Subscribe/Follow is a YouTube-only feature; hide it for RemoteAudio artists.

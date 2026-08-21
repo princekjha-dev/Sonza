@@ -827,14 +827,6 @@ class RemoteAudioRepository @Inject constructor(
                 }
             }
             
-            // 5. Radio
-            if (json.has("radio")) {
-                val radioList = json.getAsJsonArray("radio")
-                val items = parseHomeItems(radioList)
-                if (items.isNotEmpty()) {
-                    sections.add(com.sonza.app.core.model.HomeSection("Radio Stations 📻", items))
-                }
-            }
             
             // 6. Top Playlists (Global)
             if (json.has("top_playlists")) {
@@ -1094,45 +1086,7 @@ class RemoteAudioRepository @Inject constructor(
                 }
             } catch (e: Exception) { android.util.Log.e("RemoteAudio", "Trending albums fetch error", e) }
             
-            // 7. Editorial Picks / Radio Stations - Using content.getRadioStations
-            try {
-                val radioUrl = "$BASE_URL?${RemoteConstants.PARAM_CALL}${RemoteConstants.EP_RADIO_STATIONS}&_format=json&n=15"
-                val radioResponse = makeRequest(radioUrl)
-                val radioJson = JsonParser.parseString(radioResponse)
-                
-                val radioList = if (radioJson.isJsonObject && radioJson.asJsonObject.has("data")) {
-                    radioJson.asJsonObject.getAsJsonArray("data")
-                } else if (radioJson.isJsonArray) {
-                    radioJson.asJsonArray
-                } else {
-                    null
-                }
-                
-                if (radioList != null && radioList.size() > 0) {
-                    val radioItems = radioList.take(8).mapNotNull { radioElement ->
-                        val radioObj = radioElement.asJsonObject
-                        val radioId = (radioObj.get("id")?.asString 
-                            ?: radioObj.get("stationid")?.asString)?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                        val name = radioObj.get("name")?.asString 
-                            ?: radioObj.get("title")?.asString ?: "Radio"
-                        val image = radioObj.get("image")?.asString?.toHighResImage()
-                        
-                        com.sonza.app.core.model.HomeItem.PlaylistItem(
-                            com.sonza.app.core.model.PlaylistDisplayItem(
-                                id = "radio_$radioId",
-                                name = name.decodeHtml(),
-                                url = "",
-                                uploaderName = "Radio",
-                                thumbnailUrl = image,
-                                songCount = 0
-                            )
-                        )
-                    }
-                    if (radioItems.isNotEmpty()) {
-                        sections.add(com.sonza.app.core.model.HomeSection("Radio Stations 📻", radioItems))
-                    }
-                }
-            } catch (e: Exception) { android.util.Log.e("RemoteAudio", "Radio stations fetch error", e) }
+
             
         } catch (e: Exception) {
             android.util.Log.e("RemoteAudio", "Home sections error", e)

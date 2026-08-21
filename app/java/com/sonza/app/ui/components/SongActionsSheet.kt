@@ -52,7 +52,6 @@ fun SongActionsSheet(
     isFavorite: Boolean = false,
     isDisliked: Boolean = false,
     onSetRingtone: () -> Unit = {},
-    onStartRadio: () -> Unit = {},
     onPlaybackSpeed: () -> Unit = {},
     onEqualizerClick: () -> Unit = {},
     currentSpeed: Float = 1.0f,
@@ -210,19 +209,16 @@ fun SongActionsSheet(
                 
                 // List of Actions with Icons and Dividers
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        "PLAYBACK & QUEUE",
-                        style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp, fontWeight = FontWeight.Bold),
-                        color = contentColor.copy(alpha = 0.4f),
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
-                    )
-                    
                     if (!isFromQueue && !isCurrentlyPlaying) {
+                        Text(
+                            "PLAYBACK & QUEUE",
+                            style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp, fontWeight = FontWeight.Bold),
+                            color = contentColor.copy(alpha = 0.4f),
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
+                        )
                         ModernActionItem(Icons.Default.AddToQueue, "Add to Queue", contentColor, { handleAction(onAddToQueue) })
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
-                    ModernActionItem(Icons.Default.Radio, "Start Radio", contentColor, { handleAction(onStartRadio) })
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         "OPTIONS",
                         style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp, fontWeight = FontWeight.Bold),

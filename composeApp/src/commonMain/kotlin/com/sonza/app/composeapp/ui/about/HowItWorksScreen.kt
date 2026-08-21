@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Speed
@@ -173,7 +172,6 @@ fun HowItWorksScreen(
             Column {
                 FeatureItem(Icons.Outlined.Block, "No Ads", "Enjoy uninterrupted music without any advertisements", primaryColor)
                 FeatureItem(Icons.Default.Lyrics, "Live Lyrics", "Sing along with synced lyrics for most songs", primaryColor)
-                FeatureItem(Icons.Default.Radio, "Radio Mode", "Endless similar songs based on what you're listening to", primaryColor)
                 FeatureItem(Icons.Default.Speed, "Playback Speed", "Adjust speed from 0.5x to 2x for any song", primaryColor)
                 FeatureItem(Icons.Default.Timer, "Sleep Timer", "Fall asleep to your music with automatic stop", primaryColor, showDivider = false)
             }

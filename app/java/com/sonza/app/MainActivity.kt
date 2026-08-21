@@ -809,12 +809,12 @@ fun SonzaApp(
         val navBarPadding = androidx.compose.foundation.layout.WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         val imePadding = androidx.compose.foundation.layout.WindowInsets.ime.asPaddingValues().calculateBottomPadding()
         val isKeyboardOpen = imePadding > 0.dp
-        val shouldShowExpressiveBottomNav = showBottomNav && !showMiniPlayer && !isKeyboardOpen && formFactor.isPhoneLike
+        val shouldShowExpressiveBottomNav = showBottomNav && !isKeyboardOpen && !isPlayerExpanded && formFactor.isPhoneLike
         val navBarHeight = if (shouldShowExpressiveBottomNav && formFactor != DeviceFormFactor.TV) 80.dp else 0.dp
-        val floatingSystemHeight = if (showMiniPlayer && !isKeyboardOpen && formFactor.isPhoneLike) 64.dp else 0.dp
+        val floatingSystemHeight = if (showMiniPlayer && !isKeyboardOpen && formFactor.isPhoneLike) 60.dp else 0.dp
         val snackbarBottomPadding = when {
             isPlayerExpanded -> navBarPadding + 12.dp
-            showMiniPlayer && formFactor.isPhoneLike -> navBarPadding + floatingSystemHeight + 12.dp
+            showMiniPlayer && shouldShowExpressiveBottomNav -> navBarPadding + navBarHeight + floatingSystemHeight + 12.dp
             shouldShowExpressiveBottomNav -> navBarPadding + navBarHeight + 12.dp
             else -> navBarPadding + 12.dp
         }
@@ -961,15 +961,6 @@ fun SonzaApp(
                             onToggleAutoplay = { playerViewModel.toggleAutoplay() },
                             onToggleVideoMode = { playerViewModel.toggleVideoMode() },
                             onDismissVideoError = { playerViewModel.dismissVideoError() },
-                            onStartRadio = { song, initialQueue ->
-                                val targetSong = song ?: playbackInfo.currentSong
-                                if (targetSong != null) {
-                                    playerViewModel.startRadio(targetSong, initialQueue)
-                                } else {
-                                    // No song playing — start fully personalized radio from recommendations
-                                    playerViewModel.startPersonalizedRadio()
-                                }
-                            },
                             onLoadMoreRadioSongs = { playerViewModel.loadMoreAutoplaySongs() },
                             isRadioMode = isRadioMode,
                             isLoadingMoreSongs = isLoadingMoreSongs,
@@ -1047,7 +1038,8 @@ fun SonzaApp(
         val imePadding = androidx.compose.foundation.layout.WindowInsets.ime.asPaddingValues().calculateBottomPadding()
         val isKeyboardOpen = imePadding > 0.dp
         val bottomPaddingPx = if (formFactor.isPhoneLike) {
-            with(density) { navBarPadding.toPx() + 8.dp.toPx() }
+            val navBarHeight = if (shouldShowExpressiveBottomNav) 80.dp else 0.dp
+            with(density) { navBarPadding.toPx() + navBarHeight.toPx() }
         } else {
             val navBarHeight = if (showBottomNav && !isKeyboardOpen && formFactor != DeviceFormFactor.TV) 80.dp else 0.dp
             with(density) { navBarPadding.toPx() + navBarHeight.toPx() }
@@ -1146,11 +1138,6 @@ fun SonzaApp(
                     onToggleVideoMode = { playerViewModel.toggleVideoMode() },
                     onSwitchAudioSource = { playerViewModel.switchAudioSource() },
                     onDismissVideoError = { playerViewModel.dismissVideoError() },
-                    onStartRadio = {
-                         playbackInfo.currentSong?.let { 
-                             playerViewModel.startRadio(it, null)
-                         }
-                    },
                     onLoadMoreRadioSongs = { playerViewModel.loadMoreAutoplaySongs() },
                     onPlayFromQueue = { index ->
                         if (playerState.queue.isNotEmpty() && index in playerState.queue.indices) {

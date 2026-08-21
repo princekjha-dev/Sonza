@@ -20,7 +20,6 @@ import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.AddToQueue
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
@@ -56,7 +55,6 @@ fun MediaMenuBottomSheet(
     subtitle: String, // e.g. "48 songs"
     thumbnailUrl: String?,
     onShuffle: () -> Unit,
-    onStartRadio: () -> Unit,
     onPlayNext: () -> Unit,
     onAddToQueue: () -> Unit,
     onAddToPlaylist: () -> Unit,
@@ -134,25 +132,17 @@ fun MediaMenuBottomSheet(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Quick Actions Row (Shuffle & Radio)
+                // Quick Actions Row (Shuffle)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(horizontal = 16.dp)
                 ) {
                     QuickActionButton(
                         icon = Icons.Default.Shuffle,
                         label = "Shuffle",
                         onClick = { onShuffle(); onDismiss() },
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    QuickActionButton(
-                        icon = Icons.Default.Radio,
-                        label = "Start radio",
-                        onClick = { onStartRadio(); onDismiss() },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
 

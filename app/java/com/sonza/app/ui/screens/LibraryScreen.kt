@@ -377,7 +377,6 @@ fun LibraryScreen(
             subtitle = if (playlist.songCount > 0) "${playlist.songCount} songs" else "Playlist",
             thumbnailUrl = playlist.thumbnailUrl,
             onShuffle = { viewModel.shufflePlay(playlist.id) },
-            onStartRadio = { viewModel.shufflePlay(playlist.id) }, // You might want a real radio here
             onPlayNext = { viewModel.playNext(playlist.id) },
             onAddToQueue = { viewModel.addToQueue(playlist.id) },
             onAddToPlaylist = { },

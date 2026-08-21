@@ -30,8 +30,6 @@ data class ArtistUiState(
     val isLoading: Boolean = false,
     val error: ArtistError? = null,
     val isSubscribing: Boolean = false,
-    val isStartingRadio: Boolean = false,
-    val radioStatus: String? = null,
     val showMultipleArtistsDialog: Boolean = false,
     val currentArtistCredits: List<ArtistCreditInfo> = emptyList()
 )
@@ -182,60 +180,6 @@ class ArtistViewModel @Inject constructor(
                 } else {
                     _uiState.update { it.copy(isSubscribing = false) }
                 }
-            }
-        }
-    }
-
-    fun startRadio(onPlaylistReady: (List<Song>) -> Unit) {
-        val currentArtist = _uiState.value.artist ?: return
-        
-        viewModelScope.launch {
-            _uiState.update { 
-                it.copy(
-                    isStartingRadio = true,
-                    radioStatus = "Connecting with ${currentArtist.name} radio station..."
-                ) 
-            }
-            
-            try {
-                // Artist radio always uses YouTube — HQ Audio source only swaps playback.
-
-                // 1. Get radio ID
-                val radioId = currentArtist.channelId?.let { youTubeRepository.getArtistRadioId(it) }
-                val allSongs = mutableListOf<Song>()
-
-                if (radioId != null) {
-                    // 2. Fetch songs from this radio/playlist
-                    _uiState.update { it.copy(radioStatus = "Creating radio station...") }
-                    val playlist = youTubeRepository.getPlaylist(radioId)
-                    
-                    if (playlist.songs.isNotEmpty()) {
-                        // Tag songs as part of Artist Radio
-                        val radioSongs = playlist.songs.map { song ->
-                            song.copy(album = "Artist Radio: ${currentArtist.name}")
-                        }
-                        allSongs.addAll(radioSongs)
-                    }
-                }
-                
-                // 3. Supplement with more tracks from artist profile and search if needed
-                if (allSongs.size < 20) {
-                    _uiState.update { it.copy(radioStatus = "Searching for more ${currentArtist.name} tracks...") }
-                    val topSongs = youTubeRepository.getArtistTopSongs(currentArtist.name, currentArtist.id)
-                    allSongs.addAll(topSongs.filter { song -> 
-                        allSongs.none { it.id == song.id }
-                    })
-                }
-
-                if (allSongs.isNotEmpty()) {
-                    onPlaylistReady(allSongs.distinctBy { it.id })
-                } else {
-                    onPlaylistReady(currentArtist.songs)
-                }
-            } catch (e: Exception) {
-                onPlaylistReady(currentArtist.songs)
-            } finally {
-                _uiState.update { it.copy(isStartingRadio = false, radioStatus = null) }
             }
         }
     }

@@ -169,6 +169,8 @@ class MusicPlayerService : MediaLibraryService() {
     private var pausedForTransientFocus: Boolean = false
     @Volatile
     private var pausedForCall: Boolean = false
+    @Volatile
+    private var isPausingForCall: Boolean = false
     private var telephonyCallback: Any? = null
 
     private fun registerTelephonyListener() {
@@ -227,7 +229,12 @@ class MusicPlayerService : MediaLibraryService() {
                 if (player.playWhenReady && player.playbackState != Player.STATE_IDLE && player.playbackState != Player.STATE_ENDED) {
                     wasPlayingBeforeInterruption = true
                     pausedForCall = true
-                    player.pause()
+                    isPausingForCall = true
+                    try {
+                        player.pause()
+                    } finally {
+                        isPausingForCall = false
+                    }
                 }
             }
             android.telephony.TelephonyManager.CALL_STATE_IDLE -> {
@@ -653,13 +660,15 @@ class MusicPlayerService : MediaLibraryService() {
 
                 override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
                     super.onPlayWhenReadyChanged(playWhenReady, reason)
-                    android.util.Log.d("MusicPlayerService", "onPlayWhenReadyChanged: playWhenReady=$playWhenReady, reason=$reason")
+                    android.util.Log.d("MusicPlayerService", "onPlayWhenReadyChanged: playWhenReady=$playWhenReady, reason=$reason, isPausingForCall=$isPausingForCall")
                     if (!playWhenReady && (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST || reason == Player.PLAY_WHEN_READY_CHANGE_REASON_REMOTE)) {
-                        // User manually paused (from in-app UI, notification, lock-screen, or Bluetooth)
-                        wasPlayingBeforeInterruption = false
-                        pausedForTransientFocus = false
-                        pausedForCall = false
-                        wasPlayingBeforeSuppression = false
+                        if (!isPausingForCall) {
+                            // User manually paused (from in-app UI, notification, lock-screen, or Bluetooth)
+                            wasPlayingBeforeInterruption = false
+                            pausedForTransientFocus = false
+                            pausedForCall = false
+                            wasPlayingBeforeSuppression = false
+                        }
                     } else if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS) {
                         serviceScope.launch {
                             val autoResume = sessionManager.isAutoResumeAfterCallEnabled()
@@ -668,11 +677,6 @@ class MusicPlayerService : MediaLibraryService() {
                                 wasPlayingBeforeInterruption = true
                                 pausedForTransientFocus = true
                                 wasPlayingBeforeSuppression = true
-                                if (!autoResume) {
-                                    withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                        mediaLibrarySession?.player?.pause()
-                                    }
-                                }
                             } else {
                                 if (wasPlayingBeforeInterruption && autoResume) {
                                     wasPlayingBeforeInterruption = false
@@ -692,7 +696,7 @@ class MusicPlayerService : MediaLibraryService() {
                     super.onPlaybackSuppressionReasonChanged(playbackSuppressionReason)
                     if (playbackSuppressionReason == Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS) {
                         // Transient audio focus loss (Instagram Reel, TikTok, video, call)
-                        // STRICT RULE: Pause playback immediately rather than playing underneath or ducking
+                        // ExoPlayer automatically suppresses sound rendering while preserving playWhenReady state.
                         val isPlaying = mediaLibrarySession?.player?.playWhenReady == true
                         if (isPlaying) {
                             wasPlayingBeforeInterruption = true
@@ -703,7 +707,6 @@ class MusicPlayerService : MediaLibraryService() {
                             "MusicPlayerService",
                             "Suppression started (TRANSIENT_AUDIO_FOCUS_LOSS). wasPlayingBeforeInterruption=$wasPlayingBeforeInterruption",
                         )
-                        mediaLibrarySession?.player?.pause()
                         return
                     } else if (playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE) {
                         val isPlaying = mediaLibrarySession?.player?.playWhenReady == true
@@ -721,9 +724,12 @@ class MusicPlayerService : MediaLibraryService() {
                     if (shouldResume) {
                         serviceScope.launch {
                             if (sessionManager.isAutoResumeAfterCallEnabled()) {
-                                android.util.Log.d("MusicPlayerService", "Suppression cleared and was playing — resuming.")
+                                android.util.Log.d("MusicPlayerService", "Suppression cleared and was playing — ensuring playback resumes.")
                                 withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                    mediaLibrarySession?.player?.play()
+                                    val p = mediaLibrarySession?.player
+                                    if (p != null && !p.playWhenReady) {
+                                        p.play()
+                                    }
                                 }
                                 wasPlayingBeforeInterruption = false
                                 pausedForTransientFocus = false

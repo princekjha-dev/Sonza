@@ -406,7 +406,6 @@ fun PlaylistScreen(
                     subtitle = "${playlist.songs.size} songs",
                     thumbnailUrl = playlist.thumbnailUrl,
                     onShuffle = { onShufflePlay(playlist.songs) },
-                    onStartRadio = { onShufflePlay(playlist.songs) },
                     onPlayNext = { viewModel.playNext(playlist.songs) },
                     onAddToQueue = { viewModel.addToQueue(playlist.songs) },
                     onAddToPlaylist = {

@@ -311,7 +311,6 @@ fun AlbumScreen(
                         subtitle = "${album.songs.size} songs",
                         thumbnailUrl = album.thumbnailUrl,
                         onShuffle = { onShufflePlay(album.songs) },
-                        onStartRadio = { onShufflePlay(album.songs) },
                         onPlayNext = { viewModel.playNext(album.songs) },
                         onAddToQueue = { viewModel.addToQueue(album.songs) },
                         onAddToPlaylist = { 
