@@ -252,7 +252,7 @@ class MainActivity : ComponentActivity() {
 
             // Observe PiP enabled state globally
             LaunchedEffect(Unit) {
-                sessionManager.pipEnabledFlow.collect { enabled ->
+                sessionManager.dynamicIslandEnabledFlow.collect { enabled ->
                     isPipEnabled = enabled
                     pipHelper.updatePipParams(this@MainActivity, isPipEnabled)
                 }
@@ -1284,24 +1284,24 @@ fun SonzaApp(
         }
 
         // Dynamic Island Overlay (floating music pill near top camera cutout)
-        val rawPlayerState by playerViewModel.playerState.collectAsStateWithLifecycle(initialValue = com.sonza.app.core.model.PlayerState())
-        com.sonza.app.ui.components.dynamicisland.DynamicIsland(
-            currentSong = playbackInfo.currentSong,
-            isPlaying = playbackInfo.isPlaying,
-            currentPosition = rawPlayerState.currentPosition,
-            duration = rawPlayerState.duration,
-            isLiked = playbackInfo.isLiked,
-            isVisible = dynamicIslandEnabled && playbackInfo.currentSong != null && !isPlayerExpanded,
-            onPlayPause = { playerViewModel.togglePlayPause() },
-            onNext = { playerViewModel.seekToNext() },
-            onPrevious = { playerViewModel.seekToPrevious() },
-            onSeekTo = { playerViewModel.seekTo(it) },
-            onLikeToggle = { playerViewModel.likeCurrentSong() },
-            onOpenFullPlayer = { playerViewModel.expandPlayer() },
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .zIndex(90f)
-        )
+        if (dynamicIslandEnabled && playbackInfo.currentSong != null && !isPlayerExpanded) {
+            val rawPlayerState by playerViewModel.playerState.collectAsStateWithLifecycle(initialValue = com.sonza.app.core.model.PlayerState())
+            com.sonza.app.ui.components.dynamicisland.DynamicIsland(
+                currentSong = playbackInfo.currentSong,
+                isPlaying = playbackInfo.isPlaying,
+                currentPosition = rawPlayerState.currentPosition,
+                duration = rawPlayerState.duration,
+                isLiked = playbackInfo.isLiked,
+                onPlayPause = { playerViewModel.togglePlayPause() },
+                onNext = { playerViewModel.seekToNext() },
+                onPrevious = { playerViewModel.seekToPrevious() },
+                onSeekTo = { playerViewModel.seekTo(it) },
+                onLikeToggle = { playerViewModel.likeCurrentSong() },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .zIndex(90f)
+            )
+        }
 
         // Global Snackbar Host - Always on top
         SnackbarHost(

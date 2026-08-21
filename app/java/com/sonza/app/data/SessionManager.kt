@@ -115,10 +115,10 @@ class SessionManager @Inject constructor(
         
         private val MUSIC_SOURCE_KEY = stringPreferencesKey("music_source")
         // Hybrid playback: keep YouTube for browsing/metadata but stream the
+        // actual audio from RemoteAudio (HQ 320 kbps) when a matching track exists.
         private val PREFER_REMOTE_AUDIO_KEY = booleanPreferencesKey("prefer_remote_audio")
         private val DEV_MODE_KEY = stringPreferencesKey("_dx_mode")
         private val DYNAMIC_ISLAND_ENABLED_KEY = booleanPreferencesKey("dynamic_island_enabled")
-        private val PIP_ENABLED_KEY = booleanPreferencesKey("pip_enabled")
         
         private val SEEKBAR_STYLE_KEY = stringPreferencesKey("seekbar_style")
         private val ARTWORK_SHAPE_KEY = stringPreferencesKey("artwork_shape")
@@ -543,13 +543,10 @@ class SessionManager @Inject constructor(
         }
     }
 
-    // --- Floating Player & Dynamic Island ---
+    // --- Floating Player ---
     
     suspend fun isDynamicIslandEnabled(): Boolean = 
-        context.dataStore.data.first()[DYNAMIC_ISLAND_ENABLED_KEY] ?: true
-
-    suspend fun isPipEnabled(): Boolean =
-        context.dataStore.data.first()[PIP_ENABLED_KEY] ?: true
+        context.dataStore.data.first()[DYNAMIC_ISLAND_ENABLED_KEY] ?: false
 
     suspend fun isSponsorBlockEnabled(): Boolean =
         context.dataStore.data.first()[SPONSOR_BLOCK_ENABLED_KEY] ?: false
@@ -696,22 +693,12 @@ class SessionManager @Inject constructor(
     }
 
     val dynamicIslandEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
-        preferences[DYNAMIC_ISLAND_ENABLED_KEY] ?: true
+        preferences[DYNAMIC_ISLAND_ENABLED_KEY] ?: false
     }
     
     suspend fun setDynamicIslandEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[DYNAMIC_ISLAND_ENABLED_KEY] = enabled
-        }
-    }
-
-    val pipEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
-        preferences[PIP_ENABLED_KEY] ?: true
-    }
-
-    suspend fun setPipEnabled(enabled: Boolean) {
-        context.dataStore.edit { preferences ->
-            preferences[PIP_ENABLED_KEY] = enabled
         }
     }
     
