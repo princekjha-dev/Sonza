@@ -17,7 +17,15 @@ val SonzaOnError = Color(0xFF0B0B0D)
 val SonzaSuccess = Color(0xFF4ADE80)
 val SonzaWarning = Color(0xFFFBBF24)
 val SonzaScrim = Color(0x73000000) // 45% black overlay
-val SonzaDefaultAccent = Color(0xFF5B8DEF) // Fallback cool blue
+
+// Navigation & Brand Selected Tokens (Fixed brand blue for navigation tab selection & explicit UI buttons)
+val SonzaBrandAccent = Color(0xFF5B8DEF)
+val SonzaDefaultAccent = SonzaBrandAccent // Backward-compatible alias
+
+// Playback Color System (Strictly separated from Navigation Brand Accent)
+val SonzaIdleAccent = Color(0xFFA1A1A8) // Neutral on-surface-variant gray for inactive/idle playback
+val SonzaIdleAccentMuted = Color(0x1FFFFFFF) // 12% white neutral muted
+val SonzaActivePlaybackBlue = Color(0xFF5B8DEF) // Genuine active playback indicator
 
 object SonzaColors {
     val Background = SonzaBackground
@@ -32,7 +40,12 @@ object SonzaColors {
     val Success = SonzaSuccess
     val Warning = SonzaWarning
     val Scrim = SonzaScrim
-    val DefaultAccent = SonzaDefaultAccent
+    val BrandAccent = SonzaBrandAccent
+    val DefaultAccent = SonzaBrandAccent
+    val IdleAccent = SonzaIdleAccent
+    val IdleAccentMuted = SonzaIdleAccentMuted
+    val ActivePlayback = SonzaActivePlaybackBlue
+    val Primary = SonzaBrandAccent
 }
 
 // Primary - Deep Electric Purple

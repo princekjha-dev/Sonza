@@ -65,6 +65,8 @@ sealed class Destination {
     data object ListenTogether : Destination()
     @Serializable
     data object Changelog : Destination()
+    @Serializable
+    data object MigratePlaylists : Destination()
 
     @Serializable
     data class Playlist(

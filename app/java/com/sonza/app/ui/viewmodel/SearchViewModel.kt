@@ -521,6 +521,13 @@ class SearchViewModel @Inject constructor(
             loadRecentSearches()
         }
     }
+
+    fun addToRecentSearches(artist: Artist) {
+        viewModelScope.launch {
+            sessionManager.addRecentSearch(RecentSearchItem.ArtistItem(artist))
+            loadRecentSearches()
+        }
+    }
     
     fun removeRecentSearch(item: RecentSearchItem) {
         viewModelScope.launch {

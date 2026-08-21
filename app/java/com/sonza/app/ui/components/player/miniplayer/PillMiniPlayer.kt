@@ -163,7 +163,7 @@ fun PillMiniPlayer(
                         .padding(2.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    val activeColor = dominantColors.accent
+                    val activeColor = if (isPlaying) dominantColors.accent else com.sonza.app.ui.theme.SonzaColors.IdleAccent
                     val trackColor = dominantColors.onBackground.copy(alpha = 0.2f)
                     
                     Canvas(modifier = Modifier.fillMaxSize()) {

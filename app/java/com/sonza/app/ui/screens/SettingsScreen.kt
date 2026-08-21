@@ -157,7 +157,8 @@ fun SettingsScreen(
     onLastFmClick: () -> Unit = {},
     onDiscordClick: () -> Unit = {},
     onAISettingsClick: () -> Unit = {},
-    onUpdaterClick: () -> Unit = {}
+    onUpdaterClick: () -> Unit = {},
+    onMigratePlaylistsClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val updateState by updateViewModel.updateState.collectAsState()
@@ -507,6 +508,16 @@ fun SettingsScreen(
                                 description = "Manage downloads, cache & offline storage",
                                 accentColor = accentColor,
                                 onClick = onStorageClick
+                            )
+
+                            HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg))
+
+                            SonzaSettingsRow(
+                                icon = Icons.Default.Download,
+                                title = "Migrate Playlists",
+                                description = "Bring your playlists from other music services",
+                                accentColor = accentColor,
+                                onClick = onMigratePlaylistsClick
                             )
 
                             HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg))

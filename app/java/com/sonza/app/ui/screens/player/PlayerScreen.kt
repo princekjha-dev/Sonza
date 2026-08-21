@@ -798,7 +798,7 @@ fun PiPPlayerContent(song: com.sonza.app.core.model.Song?, isVideoMode: Boolean,
                         imageVector = androidx.compose.material.icons.Icons.Filled.MusicNote,
                         contentDescription = null,
                         modifier = Modifier.size(48.dp),
-                        tint = com.sonza.app.ui.theme.SonzaDefaultAccent
+                        tint = com.sonza.app.ui.theme.SonzaOnSurfaceVariant.copy(alpha = 0.60f)
                     )
                 }
             }

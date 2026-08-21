@@ -24,6 +24,7 @@ import com.sonza.app.ui.viewmodel.ListeningStatsViewModel
 import com.sonza.app.ui.viewmodel.MoodAndGenresViewModel
 import com.sonza.app.ui.viewmodel.PickMusicViewModel
 import com.sonza.app.ui.viewmodel.PlaylistManagementViewModel
+import com.sonza.app.ui.viewmodel.PlaylistMigrationViewModel
 import com.sonza.app.ui.viewmodel.PlaylistViewModel
 import com.sonza.app.ui.viewmodel.RingtoneViewModel
 import com.sonza.app.ui.viewmodel.SearchViewModel
@@ -122,6 +123,11 @@ private val hiltBridgedModule: Module = module {
     single { bridge(androidContext()).spatialAudioProcessor() }
     single { bridge(androidContext()).updateDownloader() }
     single { bridge(androidContext()).loudnessAnalyzer() }
+    single { bridge(androidContext()).playlistMigrationManager() }
+    single { bridge(androidContext()).trackMatchingEngine() }
+    single { bridge(androidContext()).spotifyProvider() }
+    single { bridge(androidContext()).youTubeMusicProvider() }
+    single { bridge(androidContext()).fileExportProvider() }
 
     // MainViewModel uses a deferred Cache accessor (was dagger.Lazy<Cache>) to
     // avoid forcing SimpleCache initialization on app start. Provided as a
@@ -196,6 +202,7 @@ private val viewModelsModule: Module = module {
     viewModelOf(::PlayerViewModel)
     viewModelOf(::MainViewModel)
     viewModelOf(::UpdateViewModel)
+    viewModelOf(::PlaylistMigrationViewModel)
 }
 
 /**

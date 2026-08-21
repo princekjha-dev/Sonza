@@ -147,19 +147,20 @@ fun HomeScreen(
         }
     }
 
-    // Dynamic accent & dominant colors
+    // Dynamic accent & dominant colors: only extract from active playing track
     val actualDominantColors = rememberDominantColors(
-        imageUrl = currentSong?.thumbnailUrl ?: uiState.recommendations.firstOrNull()?.thumbnailUrl
+        imageUrl = currentSong?.thumbnailUrl
     )
 
-    val dominantColors = if (isAlbumArtDynamicColorsEnabled) {
+    val dominantColors = if (isAlbumArtDynamicColorsEnabled && currentSong != null) {
         actualDominantColors
     } else {
         DominantColors(
-            primary = MaterialTheme.colorScheme.primaryContainer,
-            secondary = MaterialTheme.colorScheme.secondaryContainer,
-            accent = MaterialTheme.colorScheme.tertiaryContainer,
-            onBackground = MaterialTheme.colorScheme.onBackground
+            primary = SonzaSurface,
+            secondary = SonzaSurfaceVariant,
+            accent = SonzaIdleAccent,
+            onBackground = SonzaOnBackground,
+            isIdle = true
         )
     }
 

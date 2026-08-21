@@ -31,13 +31,20 @@ fun MeshGradientBackground(
     speedMultiplier: Float = 1f,
     backgroundColor: Color = MaterialTheme.colorScheme.background
 ) {
-    // If no colors provided yet, just show default background or a simple placeholder
-    val colors = dominantColors ?: DominantColors(
-        primary = MaterialTheme.colorScheme.primaryContainer,
-        secondary = MaterialTheme.colorScheme.secondaryContainer,
-        accent = MaterialTheme.colorScheme.tertiaryContainer,
-        onBackground = MaterialTheme.colorScheme.onBackground
-    )
+    val isIdle = dominantColors == null || dominantColors.isIdle
+
+    // When idle (no track playing), keep background clean and neutral dark (no blue glowing blobs)
+    val colors = if (isIdle) {
+        DominantColors(
+            primary = com.sonza.app.ui.theme.SonzaSurface,
+            secondary = com.sonza.app.ui.theme.SonzaSurfaceVariant,
+            accent = com.sonza.app.ui.theme.SonzaSurfaceVariant,
+            onBackground = com.sonza.app.ui.theme.SonzaOnBackground,
+            isIdle = true
+        )
+    } else {
+        dominantColors!!
+    }
 
     // Animate colors for fast expressive transitions when song changes
     val animatedPrimaryState = animateColorAsState(
@@ -125,10 +132,14 @@ fun MeshGradientBackground(
                     val x3 = x3State.value
                     val y3 = y3State.value
 
+                    val primaryAlpha = if (isIdle) 0.10f else 0.45f
+                    val secondaryAlpha = if (isIdle) 0.08f else 0.40f
+                    val accentAlpha = if (isIdle) 0.06f else 0.35f
+
                     // Blob 1: Primary
                     drawCircle(
                         brush = Brush.radialGradient(
-                            colors = listOf(primary.copy(alpha = 0.45f), Color.Transparent),
+                            colors = listOf(primary.copy(alpha = primaryAlpha), Color.Transparent),
                             center = Offset(width * x1, height * y1),
                             radius = width * 1.2f
                         ),
@@ -139,7 +150,7 @@ fun MeshGradientBackground(
                     // Blob 2: Secondary
                     drawCircle(
                         brush = Brush.radialGradient(
-                            colors = listOf(secondary.copy(alpha = 0.4f), Color.Transparent),
+                            colors = listOf(secondary.copy(alpha = secondaryAlpha), Color.Transparent),
                             center = Offset(width * x2, height * y2),
                             radius = width * 1.1f
                         ),
@@ -150,7 +161,7 @@ fun MeshGradientBackground(
                     // Blob 3: Accent
                     drawCircle(
                         brush = Brush.radialGradient(
-                            colors = listOf(accent.copy(alpha = 0.35f), Color.Transparent),
+                            colors = listOf(accent.copy(alpha = accentAlpha), Color.Transparent),
                             center = Offset(width * x3, height * y3),
                             radius = width * 1.0f
                         ),

@@ -470,6 +470,7 @@ fun SonzaApp(
     val miniPlayerStyle by sessionManager.miniPlayerStyleFlow.collectAsStateWithLifecycle(initialValue = MiniPlayerStyle.YT_MUSIC)
     val miniPlayerGlassBlur by sessionManager.miniPlayerGlassBlurFlow.collectAsStateWithLifecycle(initialValue = 50f)
     val swipeDownToDismissEnabled by sessionManager.swipeDownToDismissEnabledFlow.collectAsStateWithLifecycle(initialValue = true)
+    val dynamicIslandEnabled by sessionManager.dynamicIslandEnabledFlow.collectAsStateWithLifecycle(initialValue = true)
     
     val navController = rememberNavController()
     val playerViewModel: PlayerViewModel = koinViewModel()
@@ -1236,6 +1237,26 @@ fun SonzaApp(
                 onCreate = { title, desc, isPrivate, sync ->
                     playlistManagementViewModel.createPlaylist(title, desc, isPrivate, sync)
                 }
+            )
+        }
+
+        // Dynamic Island Overlay (floating music pill near top camera cutout)
+        if (dynamicIslandEnabled && playbackInfo.currentSong != null && !isPlayerExpanded) {
+            val rawPlayerState by playerViewModel.playerState.collectAsStateWithLifecycle(initialValue = com.sonza.app.core.model.PlayerState())
+            com.sonza.app.ui.components.dynamicisland.DynamicIsland(
+                currentSong = playbackInfo.currentSong,
+                isPlaying = playbackInfo.isPlaying,
+                currentPosition = rawPlayerState.currentPosition,
+                duration = rawPlayerState.duration,
+                isLiked = playbackInfo.isLiked,
+                onPlayPause = { playerViewModel.togglePlayPause() },
+                onNext = { playerViewModel.seekToNext() },
+                onPrevious = { playerViewModel.seekToPrevious() },
+                onSeekTo = { playerViewModel.seekTo(it) },
+                onLikeToggle = { playerViewModel.likeCurrentSong() },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .zIndex(90f)
             )
         }
 

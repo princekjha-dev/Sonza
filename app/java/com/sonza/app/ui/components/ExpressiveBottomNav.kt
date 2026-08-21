@@ -203,12 +203,12 @@ private fun StandardNavBar(
                         horizontal = 4.dp
                     )
                     .background(
-                        color = dynamicColors.accent.copy(alpha = 0.20f),
+                        color = SonzaColors.BrandAccent.copy(alpha = 0.20f),
                         shape = RoundedCornerShape(22.dp)
                     )
                     .border(
                         width = 0.75.dp,
-                        color = dynamicColors.accent.copy(alpha = 0.40f),
+                        color = SonzaColors.BrandAccent.copy(alpha = 0.40f),
                         shape = RoundedCornerShape(22.dp)
                     )
             )
@@ -225,7 +225,7 @@ private fun StandardNavBar(
                 FloatingNavItem(
                     item = item,
                     isSelected = isSelected,
-                    accentColor = dynamicColors.accent,
+                    accentColor = SonzaColors.BrandAccent,
                     onClick = {
                         if (currentDestination == item.destination) {
                             onReClick(item.destination)
@@ -255,7 +255,7 @@ private fun LiquidGlassNavBar(
     val dynamicColors = LocalSonzaDynamicColors.current
     val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val surfaceColor = SonzaColors.Surface
-    val primaryColor = dynamicColors.accent
+    val primaryColor = SonzaColors.BrandAccent
     val pillShape = RoundedCornerShape(32.dp)
     val glassIntensity = (1f - alpha.coerceIn(0f, 1f)).coerceAtLeast(0.05f)
 
@@ -379,7 +379,7 @@ private fun LiquidGlassNavBar(
                 FloatingNavItem(
                     item = item,
                     isSelected = isSelected,
-                    accentColor = dynamicColors.accent,
+                    accentColor = SonzaColors.BrandAccent,
                     onClick = {
                         if (currentDestination == item.destination) {
                             onReClick(item.destination)

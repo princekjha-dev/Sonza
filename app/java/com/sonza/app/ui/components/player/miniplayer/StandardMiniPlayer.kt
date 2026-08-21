@@ -117,14 +117,18 @@ fun StandardMiniPlayer(
                 color = if (isApi31Plus) SonzaSurface.copy(alpha = 0.82f * effectiveAlpha)
                         else SonzaSurface.copy(alpha = 0.90f * effectiveAlpha)
             )
-            // Subtle dynamic accent-muted wash
-            .background(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(
-                        dominantColors.accentMuted.copy(alpha = 0.18f * effectiveAlpha),
-                        dominantColors.primary.copy(alpha = 0.08f * effectiveAlpha)
+            // Subtle dynamic accent-muted wash (only when active)
+            .then(
+                if (!dominantColors.isIdle) {
+                    Modifier.background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                dominantColors.accentMuted.copy(alpha = 0.18f * effectiveAlpha),
+                                dominantColors.primary.copy(alpha = 0.08f * effectiveAlpha)
+                            )
+                        )
                     )
-                )
+                } else Modifier
             )
             .border(
                 width = 0.75.dp,
@@ -234,7 +238,7 @@ fun StandardMiniPlayer(
                     .fillMaxWidth()
                     .height(2.dp),
                 trackColor = Color.Transparent,
-                color = dominantColors.accent,
+                color = if (isPlaying) dominantColors.accent else com.sonza.app.ui.theme.SonzaColors.IdleAccent,
                 strokeCap = StrokeCap.Butt
             )
         }

@@ -140,8 +140,8 @@ fun AlbumArtwork(
             hueShift,
         ).copy(alpha = pulseAlpha)
     } else {
-        // Flat YT-Music look: keep only a faint art-colored glow, not a heavy halo.
-        dominantColors.primary.copy(alpha = 0.25f)
+        // Flat YT-Music look: keep only a faint art-colored glow, not a heavy halo, and none when idle.
+        if (dominantColors.isIdle) Color.Transparent else dominantColors.primary.copy(alpha = if (isPlaying) 0.25f else 0.10f)
     }
 
     // Shape state - uses initial shape from settings

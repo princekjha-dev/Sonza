@@ -119,6 +119,7 @@ fun LibraryScreen(
     onArtistClick: (String) -> Unit = {},
     onAlbumClick: (Album) -> Unit = {},
     onDownloadsClick: () -> Unit = {},
+    onMigratePlaylistsClick: () -> Unit = {},
     viewModel: LibraryViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -175,6 +176,7 @@ fun LibraryScreen(
                         PlaylistsGrid(
                             uiState = uiState, // Pass full state for smart playlists
                             onPlaylistClick = onPlaylistClick,
+                            onMigratePlaylistsClick = onMigratePlaylistsClick,
                             onSmartPlaylistClick = { type ->
                                 when (type) {
                                     SmartPlaylistType.LIKED -> {
@@ -237,6 +239,7 @@ fun LibraryScreen(
                         PlaylistsList(
                             uiState = uiState,
                             onPlaylistClick = onPlaylistClick,
+                            onMigratePlaylistsClick = onMigratePlaylistsClick,
                             onSmartPlaylistClick = { type ->
                                 when (type) {
                                     SmartPlaylistType.LIKED -> {
@@ -475,13 +478,13 @@ fun LibraryScreen(
                     Text("Create playlist", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 }
 
-                // Import Playlist Item
+                // Migrate Playlists Item
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
                             showAddMenu = false
-                            showImportSpotifyDialog = true
+                            onMigratePlaylistsClick()
                         }
                         .padding(horizontal = 24.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -497,8 +500,8 @@ fun LibraryScreen(
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
-                        Text("Import Playlist", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("Spotify, YouTube or .m3u", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Migrate Playlists", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("Bring your playlists from other music services", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -691,6 +694,7 @@ fun PlaylistsGrid(
     uiState: com.sonza.app.ui.viewmodel.LibraryUiState,
     onPlaylistClick: (PlaylistDisplayItem) -> Unit,
     onSmartPlaylistClick: (SmartPlaylistType) -> Unit,
+    onMigratePlaylistsClick: () -> Unit = {},
     onMoreClick: (PlaylistDisplayItem) -> Unit,
     topBar: @Composable () -> Unit,
     filterChips: @Composable () -> Unit,
@@ -722,6 +726,14 @@ fun PlaylistsGrid(
         }
 
         // 1. Smart Playlists (Fixed)
+        item {
+            SmartPlaylistCard(
+                title = "Migrate Playlists",
+                icon = Icons.Outlined.FileDownload,
+                count = "Import music",
+                onClick = onMigratePlaylistsClick
+            )
+        }
         item {
             SmartPlaylistCard(
                 title = "Liked",
@@ -928,6 +940,7 @@ fun PlaylistsList(
     uiState: com.sonza.app.ui.viewmodel.LibraryUiState,
     onPlaylistClick: (PlaylistDisplayItem) -> Unit,
     onSmartPlaylistClick: (SmartPlaylistType) -> Unit,
+    onMigratePlaylistsClick: () -> Unit = {},
     onMoreClick: (PlaylistDisplayItem) -> Unit,
     topBar: @Composable () -> Unit,
     filterChips: @Composable () -> Unit,
@@ -941,6 +954,14 @@ fun PlaylistsList(
          item { Box(modifier = Modifier.padding(bottom = 8.dp)) { controlBar() } }
          
          // Smart Playlists
+         item {
+             SmartPlaylistListItem(
+                 title = "Migrate Playlists",
+                 icon = Icons.Outlined.FileDownload,
+                 count = "Bring your playlists from other music services",
+                 onClick = onMigratePlaylistsClick
+             )
+         }
          item {
              SmartPlaylistListItem(
                  title = "Liked",

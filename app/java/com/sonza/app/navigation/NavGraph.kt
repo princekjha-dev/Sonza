@@ -350,6 +350,9 @@ fun NavGraph(
                 },
                 onDownloadsClick = {
                     navController.navigate(Destination.Downloads)
+                },
+                onMigratePlaylistsClick = {
+                    navController.navigate(Destination.MigratePlaylists)
                 }
             )
         }
@@ -382,7 +385,8 @@ fun NavGraph(
                 onSponsorBlockClick = { navController.navigate(Destination.SponsorBlockSettings) },
                 onDiscordClick = { navController.navigate(Destination.DiscordSettings) },
                 onAISettingsClick = { navController.navigate(Destination.AISettings) },
-                onUpdaterClick = { navController.navigate(Destination.Updater) }
+                onUpdaterClick = { navController.navigate(Destination.Updater) },
+                onMigratePlaylistsClick = { navController.navigate(Destination.MigratePlaylists) }
             )
         }
 
@@ -694,6 +698,19 @@ fun NavGraph(
                     }
                 },
                 currentSong = playbackInfo.currentSong
+            )
+        }
+
+        composable<Destination.MigratePlaylists> {
+            val migrationViewModel = koinViewModel<com.sonza.app.ui.viewmodel.PlaylistMigrationViewModel>()
+            com.sonza.app.ui.screens.migration.MigratePlaylistsScreen(
+                viewModel = migrationViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onOpenPlaylist = { playlistId ->
+                    navController.navigate(
+                        Destination.Playlist(playlistId = playlistId)
+                    )
+                }
             )
         }
     }

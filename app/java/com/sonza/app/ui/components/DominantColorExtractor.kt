@@ -23,7 +23,10 @@ import coil3.request.allowHardware
 import coil3.toBitmap
 import com.sonza.app.ui.theme.MotionTokens
 import com.sonza.app.ui.theme.SonzaBackground
+import com.sonza.app.ui.theme.SonzaBrandAccent
 import com.sonza.app.ui.theme.SonzaDefaultAccent
+import com.sonza.app.ui.theme.SonzaIdleAccent
+import com.sonza.app.ui.theme.SonzaIdleAccentMuted
 import com.sonza.app.ui.theme.SonzaOnBackground
 import com.sonza.app.ui.theme.SonzaOnSurfaceVariant
 import com.sonza.app.ui.theme.SonzaOutline
@@ -37,8 +40,8 @@ import kotlinx.coroutines.withContext
  * Dynamic per-screen color tokens derived at runtime from active album art (DESIGN_SYSTEM.md Part 1).
  */
 data class SonzaDynamicColors(
-    val accent: Color = SonzaDefaultAccent,
-    val accentMuted: Color = SonzaDefaultAccent.copy(alpha = 0.25f),
+    val accent: Color = SonzaIdleAccent,
+    val accentMuted: Color = SonzaIdleAccentMuted,
     val onAccent: Color = SonzaOnBackground,
     val background: Color = SonzaBackground,
     val surface: Color = SonzaSurface,
@@ -47,7 +50,8 @@ data class SonzaDynamicColors(
     val onSurface: Color = SonzaOnBackground,
     val onSurfaceVariant: Color = SonzaOnSurfaceVariant,
     val outline: Color = SonzaOutline,
-    val scrim: Color = SonzaScrim
+    val scrim: Color = SonzaScrim,
+    val isIdle: Boolean = true
 )
 
 /**
@@ -56,18 +60,21 @@ data class SonzaDynamicColors(
 data class DominantColors(
     val primary: Color = SonzaSurface,
     val secondary: Color = SonzaSurfaceVariant,
-    val accent: Color = SonzaDefaultAccent,
+    val accent: Color = SonzaIdleAccent,
     val onBackground: Color = SonzaOnBackground,
-    val accentMuted: Color = SonzaDefaultAccent.copy(alpha = 0.25f),
-    val onAccent: Color = SonzaOnBackground
+    val accentMuted: Color = SonzaIdleAccentMuted,
+    val onAccent: Color = SonzaOnBackground,
+    val isIdle: Boolean = true
 ) {
     fun toSonzaDynamicColors(): SonzaDynamicColors = SonzaDynamicColors(
         accent = accent,
         accentMuted = accentMuted,
         onAccent = onAccent,
         background = SonzaBackground,
-        surface = SonzaSurface,
-        onBackground = onBackground
+        surface = primary,
+        surfaceVariant = secondary,
+        onBackground = onBackground,
+        isIdle = isIdle
     )
 }
 
@@ -106,19 +113,20 @@ fun computeOnAccent(accent: Color): Color {
 @Composable
 fun rememberDynamicAccentColors(
     imageUrl: String?,
-    fallbackColor: Color = SonzaDefaultAccent
+    fallbackColor: Color = SonzaIdleAccent
 ): SonzaDynamicColors {
     val defaultTokens = remember(fallbackColor) {
         val onAcc = computeOnAccent(fallbackColor)
         SonzaDynamicColors(
             accent = fallbackColor,
-            accentMuted = fallbackColor.copy(alpha = 0.25f),
-            onAccent = onAcc
+            accentMuted = if (fallbackColor == SonzaIdleAccent) SonzaIdleAccentMuted else fallbackColor.copy(alpha = 0.25f),
+            onAccent = onAcc,
+            isIdle = true
         )
     }
 
     var rawColors by remember(imageUrl) {
-        val seeded = imageUrl?.let { dynamicColorsCache.get(it) } ?: defaultTokens
+        val seeded = imageUrl?.takeIf { it.isNotBlank() }?.let { dynamicColorsCache.get(it) } ?: defaultTokens
         mutableStateOf(seeded)
     }
 
@@ -271,7 +279,8 @@ private fun extractDynamicColorsFromBitmap(bitmap: Bitmap, fallbackColor: Color)
         onSurface = SonzaOnBackground,
         onSurfaceVariant = SonzaOnSurfaceVariant,
         outline = SonzaOutline,
-        scrim = SonzaScrim
+        scrim = SonzaScrim,
+        isIdle = false
     )
 }
 
@@ -292,7 +301,8 @@ fun rememberDominantColors(
             accent = dynamic.accent,
             onBackground = dynamic.onBackground,
             accentMuted = dynamic.accentMuted,
-            onAccent = dynamic.onAccent
+            onAccent = dynamic.onAccent,
+            isIdle = dynamic.isIdle
         )
     }
 }

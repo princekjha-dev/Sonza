@@ -42,6 +42,16 @@ sealed class RecentSearchItem {
         override val thumbnailUrl: String? = playlist.thumbnailUrl
     }
 
+    data class ArtistItem(
+        val artist: Artist,
+        override val timestamp: Long = Clock.System.now().toEpochMilliseconds()
+    ) : RecentSearchItem() {
+        override val id: String = artist.id
+        override val title: String = artist.name
+        override val subtitle: String = "Artist"
+        override val thumbnailUrl: String? = artist.thumbnailUrl
+    }
+
     data class QueryItem(
         val query: String,
         override val timestamp: Long = Clock.System.now().toEpochMilliseconds()

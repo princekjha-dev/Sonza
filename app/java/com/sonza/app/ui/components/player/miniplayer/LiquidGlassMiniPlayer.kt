@@ -253,7 +253,7 @@ fun LiquidGlassMiniPlayer(
                         .fillMaxWidth()
                         .height(2.dp),
                     trackColor = Color.Transparent,
-                    color = dominantColors.accent,
+                    color = if (isPlaying) dominantColors.accent else com.sonza.app.ui.theme.SonzaColors.IdleAccent,
                     strokeCap = StrokeCap.Butt
                 )
             }

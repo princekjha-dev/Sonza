@@ -140,6 +140,11 @@ interface HiltKoinBridgeEntryPoint {
     fun spatialAudioProcessor(): SpatialAudioProcessor
     fun updateDownloader(): UpdateDownloader
     fun loudnessAnalyzer(): com.sonza.app.player.LoudnessAnalyzer
+    fun playlistMigrationManager(): com.sonza.app.data.migration.PlaylistMigrationManager
+    fun trackMatchingEngine(): com.sonza.app.data.migration.engine.TrackMatchingEngine
+    fun spotifyProvider(): com.sonza.app.data.migration.provider.SpotifyProvider
+    fun youTubeMusicProvider(): com.sonza.app.data.migration.provider.YouTubeMusicProvider
+    fun fileExportProvider(): com.sonza.app.data.migration.provider.FileExportProvider
 }
 
 /** One-call accessor used by Koin module blocks. Resolved against the application Context. */

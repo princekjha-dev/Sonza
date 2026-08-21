@@ -258,6 +258,7 @@ class SessionManager @Inject constructor(
         private val ALBUM_ART_DYNAMIC_COLORS_KEY = booleanPreferencesKey("album_art_dynamic_colors")
         private val ROTATING_VINYL_ANIMATION_KEY = booleanPreferencesKey("rotating_vinyl_animation")
         private val ALBUM_ART_COLOR_FLASHING_KEY = booleanPreferencesKey("album_art_color_flashing")
+        private val MIGRATION_HISTORY_KEY = stringPreferencesKey("migration_history")
         
         private val PLAYLIST_SORT_TYPE_KEY = stringPreferencesKey("playlist_sort_type")
         private val PLAYLIST_SORT_ORDER_KEY = booleanPreferencesKey("playlist_sort_order")
@@ -2747,6 +2748,15 @@ class SessionManager @Inject constructor(
                         )
                         items.add(RecentSearchItem.PlaylistItem(playlist))
                     }
+                    "ARTIST" -> {
+                        val artist = Artist(
+                            id = obj.getString("id"),
+                            name = obj.getString("title"),
+                            thumbnailUrl = obj.optString("thumbnailUrl").takeIf { it.isNotEmpty() },
+                            subscribers = obj.optString("description").takeIf { it.isNotEmpty() }
+                        )
+                        items.add(RecentSearchItem.ArtistItem(artist))
+                    }
                     "QUERY" -> {
                         val query = obj.getString("query")
                         items.add(RecentSearchItem.QueryItem(query))
@@ -2799,6 +2809,15 @@ class SessionManager @Inject constructor(
                     obj.put("thumbnailUrl", p.thumbnailUrl ?: "")
                     obj.put("description", p.description ?: "")
                 }
+                is RecentSearchItem.ArtistItem -> {
+                    val art = searchItem.artist
+                    obj.put("item_type", "ARTIST")
+                    obj.put("id", art.id)
+                    obj.put("title", art.name)
+                    obj.put("artist", art.name)
+                    obj.put("thumbnailUrl", art.thumbnailUrl ?: "")
+                    obj.put("description", art.subscribers ?: "")
+                }
                 is RecentSearchItem.QueryItem -> {
                     obj.put("item_type", "QUERY")
                     obj.put("query", searchItem.query)
@@ -2847,6 +2866,15 @@ class SessionManager @Inject constructor(
                     obj.put("author", p.author)
                     obj.put("thumbnailUrl", p.thumbnailUrl ?: "")
                     obj.put("description", p.description ?: "")
+                }
+                is RecentSearchItem.ArtistItem -> {
+                    val art = searchItem.artist
+                    obj.put("item_type", "ARTIST")
+                    obj.put("id", art.id)
+                    obj.put("title", art.name)
+                    obj.put("artist", art.name)
+                    obj.put("thumbnailUrl", art.thumbnailUrl ?: "")
+                    obj.put("description", art.subscribers ?: "")
                 }
                 is RecentSearchItem.QueryItem -> {
                     obj.put("item_type", "QUERY")
@@ -3328,6 +3356,19 @@ class SessionManager @Inject constructor(
     }
 
     fun getResolvedPlaybackInfo(songId: String): ResolvedPlaybackInfo? = resolvedPlaybackInfo[songId]
+
+    suspend fun getMigrationHistoryJson(): String? =
+        context.dataStore.data.first()[MIGRATION_HISTORY_KEY]
+
+    suspend fun setMigrationHistoryJson(json: String?) {
+        context.dataStore.edit { preferences ->
+            if (json != null) {
+                preferences[MIGRATION_HISTORY_KEY] = json
+            } else {
+                preferences.remove(MIGRATION_HISTORY_KEY)
+            }
+        }
+    }
 
 }
 

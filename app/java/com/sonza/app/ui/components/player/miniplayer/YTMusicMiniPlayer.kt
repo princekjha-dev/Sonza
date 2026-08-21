@@ -101,13 +101,17 @@ fun YTMusicMiniPlayer(
             )
             .clip(miniPlayerShape)
             .background(SonzaSurface.copy(alpha = 0.90f * effectiveAlpha))
-            .background(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(
-                        dominantColors.accentMuted.copy(alpha = 0.18f * effectiveAlpha),
-                        dominantColors.primary.copy(alpha = 0.08f * effectiveAlpha)
+            .then(
+                if (!dominantColors.isIdle) {
+                    Modifier.background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                dominantColors.accentMuted.copy(alpha = 0.18f * effectiveAlpha),
+                                dominantColors.primary.copy(alpha = 0.08f * effectiveAlpha)
+                            )
+                        )
                     )
-                )
+                } else Modifier
             )
             .border(
                 width = 0.75.dp,
@@ -218,7 +222,7 @@ fun YTMusicMiniPlayer(
                     .fillMaxWidth()
                     .height(2.dp),
                 trackColor = Color.Transparent,
-                color = dominantColors.accent,
+                color = if (isPlaying) dominantColors.accent else com.sonza.app.ui.theme.SonzaColors.IdleAccent,
                 strokeCap = StrokeCap.Butt
             )
         }
