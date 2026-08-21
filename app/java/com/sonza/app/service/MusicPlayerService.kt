@@ -403,9 +403,16 @@ class MusicPlayerService : MediaLibraryService() {
                                                 val p = mediaLibrarySession?.player ?: return@withContext
                                                 val index = p.currentMediaItemIndex
                                                 if (index != -1 && p.getMediaItemAt(index).mediaId == videoId) {
-                                                    p.replaceMediaItem(index, updatedItem)
-                                                    p.prepare()
-                                                    if (p.playWhenReady) p.play()
+                                                    val freshUri = p.getMediaItemAt(index).localConfiguration?.uri?.toString()
+                                                    val stillNeedsResolution = freshUri.isNullOrBlank() ||
+                                                        freshUri.contains("youtube.com/watch") ||
+                                                        freshUri.contains("youtu.be") ||
+                                                        freshUri.contains("placeholder.invalid")
+                                                    if (stillNeedsResolution) {
+                                                        p.replaceMediaItem(index, updatedItem)
+                                                        p.prepare()
+                                                        if (p.playWhenReady) p.play()
+                                                    }
                                                 }
                                             }
                                         }

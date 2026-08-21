@@ -166,14 +166,14 @@ fun SongInfoSection(
         Text(
             text = secondaryMetadata,
             style = if (compact) {
-                SonzaTypography.BodyMedium.copy(
-                    fontSize = 14.sp,
+                SonzaTypography.ArtistSubtitle.copy(
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Normal,
                     letterSpacing = 0.sp
                 )
             } else {
-                SonzaTypography.TitleMedium.copy(
-                    fontSize = 15.sp,
+                SonzaTypography.ArtistSubtitle.copy(
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Normal,
                     letterSpacing = 0.sp
                 )

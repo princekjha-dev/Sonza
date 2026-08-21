@@ -251,7 +251,7 @@ fun HomeScreen(
                 ) {
                     val formFactor = LocalDeviceFormFactor.current
                     val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                    val navBarHeight = if (formFactor.isPhoneLike) 64.dp else 0.dp
+                    val navBarHeight = if (formFactor.isPhoneLike) 80.dp else 0.dp
                     val isMiniPlayerVisible = currentSong != null
                     val miniPlayerHeight = if (isMiniPlayerVisible) 64.dp else 0.dp
                     val targetBottomPadding = navBarPadding + navBarHeight + miniPlayerHeight + 24.dp
@@ -363,21 +363,8 @@ fun HomeScreen(
                             }
                         }
 
-                        // 2. Category / Mood Chips
-                        if (uiState.homeSectionsVisibility.contains("mood_chips")) {
-                            item(key = "mood_chips", contentType = "mood_chips") {
-                                MoodChipsSection(
-                                    selectedMood = uiState.selectedMood,
-                                    onMoodSelected = viewModel::onMoodSelected,
-                                    modifier = Modifier
-                                        .padding(vertical = SpacingTokens.SpaceXs)
-                                        .animateEnter(index = 1)
-                                )
-                            }
-                        }
-
-                        // 3. Featured / Spotlight Hero Card (P4 & P5)
-                        if (heroContent != null && uiState.selectedMood == null) {
+                        // 2. Featured / Spotlight Hero Card (P4 & P5)
+                        if (heroContent != null) {
                             item(key = "featured_hero", contentType = "hero") {
                                 Box(
                                     modifier = Modifier
@@ -386,7 +373,7 @@ fun HomeScreen(
                                             horizontal = SpacingTokens.SpaceLg,
                                             vertical = SpacingTokens.SpaceXs
                                         )
-                                        .animateEnter(index = 2)
+                                        .animateEnter(index = 1)
                                 ) {
                                     FeaturedHeroCard(
                                         title = heroContent.title,
@@ -399,7 +386,7 @@ fun HomeScreen(
                             }
                         }
 
-                        // 4. Personalized "For You" Banner (Logged-in)
+                        // 3. Personalized "For You" Banner (Logged-in)
                         if (uiState.isLoggedIn && uiState.homeSectionsVisibility.contains("for_you_banner")) {
                             item(key = "for_you_banner", contentType = "for_you_banner") {
                                 AnimatedVisibility(
@@ -411,8 +398,40 @@ fun HomeScreen(
                                         onDismiss = viewModel::onDismissForYouBanner,
                                         modifier = Modifier
                                             .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceXs)
-                                            .animateEnter(index = 3)
+                                            .animateEnter(index = 2)
                                     )
+                                }
+                            }
+                        }
+
+                        // 4.5. Recently Played Section (Exactly 4 items, newest to oldest)
+                        if (uiState.recentlyPlayed.isNotEmpty()) {
+                            item(key = "recently_played_section", contentType = "recently_played") {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .animateEnter(index = 3)
+                                ) {
+                                    HomeSectionHeader(
+                                        title = "Recently Played",
+                                        onSeeAllClick = onHistoryClick
+                                    )
+
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = SpacingTokens.SpaceLg),
+                                        verticalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceXs)
+                                    ) {
+                                        val recentSongs = uiState.recentlyPlayed.map { it.song }
+                                        recentSongs.forEachIndexed { index, song ->
+                                            CompactSongRow(
+                                                song = song,
+                                                onClick = { onSongClick(recentSongs, index) },
+                                                onMoreClick = { onSongMoreClickHandler(song) }
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -534,11 +553,11 @@ fun HomeScreen(
 
                         // 12. Detected Mood Banner
                         uiState.detectedMood?.let { mood ->
-                            if (uiState.selectedMood == null && uiState.homeSectionsVisibility.contains("mood_banner")) {
+                            if (uiState.homeSectionsVisibility.contains("mood_banner")) {
                                 item(key = "mood_banner", contentType = "mood_banner") {
                                     DetectedMoodBanner(
                                         mood = mood,
-                                        onExplore = { viewModel.onMoodSelected(mood) },
+                                        onExplore = { onExploreClick("FEmusic_explore", mood) },
                                         modifier = Modifier
                                             .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceSm)
                                             .animateEnter(index = 50)

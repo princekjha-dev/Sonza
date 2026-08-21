@@ -805,7 +805,7 @@ fun SonzaApp(
 
         val density = androidx.compose.ui.platform.LocalDensity.current
         val navBarPadding = androidx.compose.foundation.layout.WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-        val navBarHeight = if (showBottomNav && formFactor != DeviceFormFactor.TV) 64.dp else 0.dp
+        val navBarHeight = if (showBottomNav && formFactor != DeviceFormFactor.TV) 80.dp else 0.dp
         val miniPlayerHeight = if (showMiniPlayer) 64.dp else 0.dp
         val snackbarBottomPadding = when {
             isPlayerExpanded -> navBarPadding + 12.dp
@@ -1035,7 +1035,7 @@ fun SonzaApp(
     if (showMiniPlayer) {
         val density = LocalDensity.current
         val navBarPadding = androidx.compose.foundation.layout.WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-        val navBarHeight = if (showBottomNav && formFactor != DeviceFormFactor.TV) 64.dp else 0.dp
+        val navBarHeight = if (showBottomNav && formFactor != DeviceFormFactor.TV) 80.dp else 0.dp
         val bottomPaddingPx = with(density) { navBarPadding.toPx() + navBarHeight.toPx() }
 
         ExpandablePlayerSheet(

@@ -76,12 +76,12 @@ fun YTMusicMiniPlayer(
     modifier: Modifier = Modifier
 ) {
     val effectiveAlpha = (1f - userAlpha).coerceIn(0f, 1f)
-    val miniPlayerShape = RoundedCornerShape(RadiusTokens.Md)
+    val miniPlayerShape = RoundedCornerShape(24.dp)
 
     val artShape = when (artworkShape) {
         "CIRCLE", "VINYL" -> androidx.compose.foundation.shape.CircleShape
         "SQUARE" -> androidx.compose.ui.graphics.RectangleShape
-        else -> RoundedCornerShape(RadiusTokens.Sm)
+        else -> RoundedCornerShape(8.dp)
     }
 
     val highResThumbnail = androidx.compose.runtime.remember(song.thumbnailUrl) {
@@ -92,26 +92,26 @@ fun YTMusicMiniPlayer(
 
     Box(
         modifier = modifier
-            .padding(horizontal = SpacingTokens.SpaceSm, vertical = SpacingTokens.SpaceXs)
+            .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceXs)
             .shadow(
-                elevation = ElevationTokens.Level2,
+                elevation = 6.dp,
                 shape = miniPlayerShape,
-                ambientColor = Color.Black.copy(alpha = 0.35f),
-                spotColor = Color.Black.copy(alpha = 0.25f)
+                ambientColor = Color.Black.copy(alpha = 0.45f),
+                spotColor = Color.Black.copy(alpha = 0.35f)
             )
             .clip(miniPlayerShape)
-            .background(SonzaSurface.copy(alpha = 0.95f * effectiveAlpha))
+            .background(SonzaSurface.copy(alpha = 0.90f * effectiveAlpha))
             .background(
                 brush = Brush.horizontalGradient(
                     colors = listOf(
-                        dominantColors.accentMuted.copy(alpha = 0.20f * effectiveAlpha),
+                        dominantColors.accentMuted.copy(alpha = 0.18f * effectiveAlpha),
                         dominantColors.primary.copy(alpha = 0.08f * effectiveAlpha)
                     )
                 )
             )
             .border(
                 width = 0.75.dp,
-                color = SonzaOutline.copy(alpha = 0.6f),
+                color = SonzaOutline.copy(alpha = 0.35f),
                 shape = miniPlayerShape
             )
             .clickable(onClick = onTap)
@@ -121,13 +121,13 @@ fun YTMusicMiniPlayer(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(58.dp)
-                    .padding(horizontal = SpacingTokens.SpaceMd),
+                    .padding(start = 10.dp, end = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Album Art - square with rounded corners
+                // Album Art - rounded corners
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(42.dp)
                         .graphicsLayer { rotationZ = vinylRotation() }
                         .clip(artShape)
                         .background(MaterialTheme.colorScheme.surfaceVariant),
@@ -144,7 +144,7 @@ fun YTMusicMiniPlayer(
                         Icon(
                             imageVector = Icons.Default.MusicNote,
                             contentDescription = null,
-                            modifier = Modifier.size(22.dp),
+                            modifier = Modifier.size(20.dp),
                             tint = SonzaOnSurfaceVariant
                         )
                     }
@@ -179,19 +179,19 @@ fun YTMusicMiniPlayer(
                 // Play/Pause Button
                 IconButton(
                     onClick = onPlayPause,
-                    modifier = Modifier.size(38.dp)
+                    modifier = Modifier.size(42.dp)
                 ) {
                     if (isLoading) {
                         androidx.compose.material3.CircularProgressIndicator(
-                            color = dominantColors.accent,
+                            color = SonzaOnBackground,
                             strokeWidth = 2.dp,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     } else {
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = if (isPlaying) "Pause" else "Play",
-                            tint = dominantColors.accent,
+                            tint = SonzaOnBackground,
                             modifier = Modifier.size(28.dp)
                         )
                     }
@@ -200,28 +200,14 @@ fun YTMusicMiniPlayer(
                 // Next Button
                 IconButton(
                     onClick = onNext,
-                    modifier = Modifier.size(38.dp)
+                    modifier = Modifier.size(42.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.SkipNext,
                         contentDescription = "Next",
                         tint = SonzaOnBackground,
-                        modifier = Modifier.size(26.dp)
+                        modifier = Modifier.size(28.dp)
                     )
-                }
-
-                if (!isPlaying) {
-                    IconButton(
-                        onClick = onClose,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = SonzaOnSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
                 }
             }
 

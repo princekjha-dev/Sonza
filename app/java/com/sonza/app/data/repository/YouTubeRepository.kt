@@ -7,6 +7,7 @@ import com.sonza.app.core.model.HomeSection
 import com.sonza.app.core.model.Playlist
 import com.sonza.app.core.model.PlaylistDisplayItem
 import com.sonza.app.core.model.Song
+import com.sonza.app.core.model.SongSource
 import com.sonza.app.core.model.VideoQuality
 import com.sonza.app.data.SessionManager
 import com.sonza.app.data.SessionManager.StoredAccount
@@ -188,18 +189,61 @@ class YouTubeRepository @Inject constructor(
     }
 
     /**
-     * Finds the official music video for a song, for switching into video mode — an art
-     * track would otherwise just show a static image.
+     * Finds the official music video for a song, for switching into video mode.
+     * For YouTube songs, song.id is already the primary YouTube video ID.
+     * For non-YouTube songs, strictly validates search candidates so an unrelated
+     * video is never played.
      */
     suspend fun getBestVideoId(song: Song): String = withContext(Dispatchers.IO) {
         if (!isOnline()) return@withContext song.id
 
-        if (song.title.contains("Official Video", ignoreCase = true) ||
-            song.title.contains("Music Video", ignoreCase = true)
-        ) return@withContext song.id
+        // For YouTube-sourced songs, song.id is already the exact YouTube video ID.
+        if (song.source == SongSource.YOUTUBE || song.source == SongSource.YOUTUBE_MUSIC) {
+            return@withContext song.id
+        }
 
         try {
-            search("${song.title} ${song.artist} Official Video", FILTER_VIDEOS).firstOrNull()?.id ?: song.id
+            val noise = setOf(
+                "official", "video", "audio", "lyrics", "lyric", "full", "song", "songs",
+                "hd", "4k", "mv", "feat", "ft", "with", "the", "remastered", "version",
+                "original", "soundtrack", "ost", "from", "movie", "visualizer", "music"
+            )
+            fun normalize(s: String): Set<String> =
+                s.lowercase()
+                    .replace(Regex("\\(.*?\\)|\\[.*?]"), " ")
+                    .replace(Regex("[^a-z0-9\\s]"), " ")
+                    .split(Regex("\\s+"))
+                    .filter { it.isNotBlank() && it.length > 1 && it !in noise }
+                    .toSet()
+
+            val targetTitle = normalize(song.title)
+            val targetArtist = normalize(song.artist)
+            if (targetTitle.isEmpty()) return@withContext song.id
+
+            val candidates = search("${song.title} ${song.artist} Official Video", FILTER_VIDEOS)
+            for (c in candidates) {
+                val cTitle = normalize(c.title)
+                if (cTitle.isEmpty()) continue
+
+                val inter = targetTitle.intersect(cTitle).size.toDouble()
+                val titleRecall = inter / targetTitle.size
+                val titlePrecision = inter / cTitle.size
+                if (titleRecall < 0.75 || titlePrecision < 0.50) continue
+
+                // Check artist overlap if both known
+                val cArtist = normalize(c.artist)
+                val artistKnown = targetArtist.isNotEmpty() && cArtist.isNotEmpty()
+                val artistOverlap = if (!artistKnown) 0.0
+                    else targetArtist.intersect(cArtist).size.toDouble() / targetArtist.size
+
+                if (artistKnown && artistOverlap == 0.0 && titleRecall < 0.90) continue
+
+                // Found a confident match
+                return@withContext c.id
+            }
+
+            // No confident video match found — fallback to song.id
+            song.id
         } catch (e: Exception) {
             e.printStackTrace()
             song.id

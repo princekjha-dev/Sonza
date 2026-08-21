@@ -73,13 +73,13 @@ fun StandardMiniPlayer(
 ) {
     val isApi31Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val effectiveAlpha = (1f - userAlpha).coerceIn(0f, 1f)
-    val miniPlayerShape = RoundedCornerShape(RadiusTokens.Md)
+    val miniPlayerShape = RoundedCornerShape(24.dp)
     val blurRadius = ElevationTokens.StandardBlurRadius.value
     
     val artShape = when (artworkShape) {
         "CIRCLE", "VINYL" -> androidx.compose.foundation.shape.CircleShape
         "SQUARE" -> androidx.compose.ui.graphics.RectangleShape
-        else -> RoundedCornerShape(RadiusTokens.Sm)
+        else -> RoundedCornerShape(8.dp)
     }
 
     val highResThumbnail = androidx.compose.runtime.remember(song.thumbnailUrl) {
@@ -90,14 +90,14 @@ fun StandardMiniPlayer(
 
     Box(
         modifier = modifier
-            .padding(horizontal = SpacingTokens.SpaceSm, vertical = SpacingTokens.SpaceXs)
+            .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceXs)
             .then(
                 if (!isApi31Plus) {
                     Modifier.shadow(
-                        elevation = ElevationTokens.Level2,
+                        elevation = 6.dp,
                         shape = miniPlayerShape,
-                        ambientColor = Color.Black.copy(alpha = 0.40f),
-                        spotColor = Color.Black.copy(alpha = 0.30f)
+                        ambientColor = Color.Black.copy(alpha = 0.45f),
+                        spotColor = Color.Black.copy(alpha = 0.35f)
                     )
                 } else Modifier
             )
@@ -114,21 +114,21 @@ fun StandardMiniPlayer(
                 } else Modifier
             )
             .background(
-                color = if (isApi31Plus) SonzaSurface.copy(alpha = 0.80f * effectiveAlpha)
-                        else SonzaSurface.copy(alpha = 0.92f * effectiveAlpha)
+                color = if (isApi31Plus) SonzaSurface.copy(alpha = 0.82f * effectiveAlpha)
+                        else SonzaSurface.copy(alpha = 0.90f * effectiveAlpha)
             )
-            // Subtle dynamic accent-muted wash per Part 6.4
+            // Subtle dynamic accent-muted wash
             .background(
                 brush = Brush.horizontalGradient(
                     colors = listOf(
-                        dominantColors.accentMuted.copy(alpha = 0.20f * effectiveAlpha),
+                        dominantColors.accentMuted.copy(alpha = 0.18f * effectiveAlpha),
                         dominantColors.primary.copy(alpha = 0.08f * effectiveAlpha)
                     )
                 )
             )
             .border(
                 width = 0.75.dp,
-                color = SonzaOutline.copy(alpha = 0.7f),
+                color = SonzaOutline.copy(alpha = 0.35f),
                 shape = miniPlayerShape
             )
             .clickable(onClick = onTap)
@@ -138,13 +138,13 @@ fun StandardMiniPlayer(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(58.dp)
-                    .padding(horizontal = SpacingTokens.SpaceMd),
+                    .padding(start = 10.dp, end = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Album Art thumbnail
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(42.dp)
                         .graphicsLayer { rotationZ = vinylRotation() }
                         .clip(artShape)
                         .background(MaterialTheme.colorScheme.surfaceVariant),
@@ -154,14 +154,14 @@ fun StandardMiniPlayer(
                         AsyncImage(
                             model = highResThumbnail,
                             contentDescription = song.title,
-                            modifier = Modifier.size(44.dp),
+                            modifier = Modifier.size(42.dp),
                             contentScale = ContentScale.Crop
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Default.MusicNote,
                             contentDescription = null,
-                            modifier = Modifier.size(22.dp),
+                            modifier = Modifier.size(20.dp),
                             tint = SonzaOnSurfaceVariant
                         )
                     }
@@ -169,7 +169,7 @@ fun StandardMiniPlayer(
 
                 Spacer(modifier = Modifier.width(SpacingTokens.SpaceMd))
 
-                // Song Title & Artist (Manrope typography hierarchy)
+                // Song Title & Artist
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.Center
@@ -193,63 +193,49 @@ fun StandardMiniPlayer(
 
                 Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
 
-                // Play/Pause button with buffering spinner support per Part 6.4 & 6.7
+                // Play/Pause button
                 IconButton(
                     onClick = onPlayPause,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(42.dp)
                 ) {
                     if (isLoading) {
                         androidx.compose.material3.CircularProgressIndicator(
-                            color = dominantColors.accent,
+                            color = SonzaOnBackground,
                             strokeWidth = 2.dp,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     } else {
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = if (isPlaying) "Pause" else "Play",
-                            tint = dominantColors.accent,
-                            modifier = Modifier.size(26.dp)
+                            tint = SonzaOnBackground,
+                            modifier = Modifier.size(28.dp)
                         )
                     }
                 }
 
                 IconButton(
                     onClick = onNext,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(42.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.SkipNext,
                         contentDescription = "Next",
                         tint = SonzaOnBackground,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(28.dp)
                     )
-                }
-
-                if (!isPlaying) {
-                    IconButton(
-                        onClick = onClose,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = SonzaOnSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
                 }
             }
 
-            // Buffering / Playback Progress Line under the bar per Part 6.4
+            // Progress bar at the bottom edge
             LinearProgressIndicator(
                 progress = progressProvider,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(2.5.dp),
-                trackColor = SonzaOutline.copy(alpha = 0.3f),
+                    .height(2.dp),
+                trackColor = Color.Transparent,
                 color = dominantColors.accent,
-                strokeCap = StrokeCap.Round
+                strokeCap = StrokeCap.Butt
             )
         }
     }

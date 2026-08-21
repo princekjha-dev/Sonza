@@ -269,7 +269,6 @@ class SessionManager @Inject constructor(
 
         val DEFAULT_HOME_SECTIONS = setOf(
             "greeting",
-            "mood_chips",
             "for_you_banner",
             "recommendations",
             "quick_picks",

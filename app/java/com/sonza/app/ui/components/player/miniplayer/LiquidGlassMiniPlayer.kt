@@ -57,6 +57,7 @@ import com.sonza.app.core.model.Song
 import com.sonza.app.ui.components.DominantColors
 import com.sonza.app.ui.components.glass.LiquidGlassSurface
 import com.sonza.app.ui.theme.SonzaTypography
+import com.sonza.app.ui.theme.SpacingTokens
 
 /**
  * iOS-style Liquid Glass mini player.
@@ -132,149 +133,128 @@ fun LiquidGlassMiniPlayer(
         ) { content() }
     }
 
-    val pillShape = RoundedCornerShape(32.dp)
+    val pillShape = RoundedCornerShape(24.dp)
 
     Box(
         modifier = modifier
-            .padding(horizontal = 10.dp, vertical = 4.dp)
+            .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceXs)
     ) {
         LiquidGlassSurface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
+                .height(58.dp)
                 .clip(pillShape)
                 .clickable(onClick = onTap),
             shape = pillShape,
             blurAmount = blurAmount,
-            // Respect the user's transparency slider across its full range. The old
-            // coerceAtLeast(0.7f) floor capped transparency at ~30%, so the slider's
-            // lower end did nothing. The pill's content (artwork/text/buttons) renders
-            // independently of this glass intensity, so it stays visible and tappable.
             intensity = effectiveAlpha.coerceIn(0f, 1f),
             tint = dominantColors.primary,
             isDarkTheme = isDarkTheme
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Artwork
-                Box(
+            Column {
+                Row(
                     modifier = Modifier
-                        .size(48.dp)
-                        .padding(4.dp)
-                        .graphicsLayer { rotationZ = vinylRotation() }
-                        .clip(artShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .padding(start = 10.dp, end = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (highResThumbnail != null) {
-                        AsyncImage(
-                            model = highResThumbnail,
-                            contentDescription = song.title,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.MusicNote,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = song.title,
-                        style = SonzaTypography.SongTitle,
-                        color = dominantColors.onBackground,
-                        maxLines = 1,
-                        modifier = Modifier.basicMarquee()
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = song.artist,
-                        style = SonzaTypography.ArtistSubtitle,
-                        color = dominantColors.onBackground.copy(alpha = 0.72f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                GlassButton(onClick = onPlayPause) {
-                    if (isLoading) {
-                        androidx.compose.material3.CircularProgressIndicator(
-                            color = dominantColors.onBackground,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    } else {
-                        AnimatedContent(
-                            targetState = isPlaying,
-                            transitionSpec = {
-                                (scaleIn(spring(Spring.DampingRatioMediumBouncy)) + fadeIn()) togetherWith
-                                    (scaleOut() + fadeOut())
-                            },
-                            label = "glassPlayPause"
-                        ) { playing ->
+                    // Artwork
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .graphicsLayer { rotationZ = vinylRotation() }
+                            .clip(artShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (highResThumbnail != null) {
+                            AsyncImage(
+                                model = highResThumbnail,
+                                contentDescription = song.title,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
                             Icon(
-                                imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (playing) "Pause" else "Play",
-                                tint = dominantColors.onBackground,
-                                modifier = Modifier.size(24.dp)
+                                imageVector = Icons.Default.MusicNote,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
-                }
 
-                GlassButton(onClick = onNext) {
-                    Icon(
-                        imageVector = Icons.Default.SkipNext,
-                        contentDescription = "Next",
-                        tint = dominantColors.onBackground,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+                    Spacer(modifier = Modifier.width(SpacingTokens.SpaceMd))
 
-                if (!isPlaying) {
-                    GlassButton(onClick = onClose) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = song.title,
+                            style = SonzaTypography.SongTitle,
+                            color = dominantColors.onBackground,
+                            maxLines = 1,
+                            modifier = Modifier.basicMarquee()
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = song.artist,
+                            style = SonzaTypography.ArtistSubtitle,
+                            color = dominantColors.onBackground.copy(alpha = 0.72f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
+
+                    GlassButton(onClick = onPlayPause, size = 42.dp) {
+                        if (isLoading) {
+                            androidx.compose.material3.CircularProgressIndicator(
+                                color = dominantColors.onBackground,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        } else {
+                            AnimatedContent(
+                                targetState = isPlaying,
+                                transitionSpec = {
+                                    (scaleIn(spring(Spring.DampingRatioMediumBouncy)) + fadeIn()) togetherWith
+                                        (scaleOut() + fadeOut())
+                                },
+                                label = "glassPlayPause"
+                            ) { playing ->
+                                Icon(
+                                    imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = if (playing) "Pause" else "Play",
+                                    tint = dominantColors.onBackground,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    GlassButton(onClick = onNext, size = 42.dp) {
                         Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
+                            imageVector = Icons.Default.SkipNext,
+                            contentDescription = "Next",
                             tint = dominantColors.onBackground,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(28.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(4.dp))
-            }
-
-            // Progress line along the bottom inside the pill
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .align(Alignment.BottomCenter)
-            ) {
+                // Progress bar at the bottom edge
                 LinearProgressIndicator(
                     progress = { progressProvider().coerceIn(0f, 1f) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(2.dp)
-                        .clip(RoundedCornerShape(1.dp)),
+                        .height(2.dp),
+                    trackColor = Color.Transparent,
                     color = dominantColors.accent,
-                    trackColor = dominantColors.onBackground.copy(alpha = 0.15f),
-                    strokeCap = StrokeCap.Round
+                    strokeCap = StrokeCap.Butt
                 )
             }
         }

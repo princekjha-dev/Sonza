@@ -41,19 +41,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.sonza.app.R
 import com.sonza.app.navigation.Destination
-import com.sonza.app.ui.theme.ElevationTokens
 import com.sonza.app.ui.theme.MotionTokens
-import com.sonza.app.ui.theme.RadiusTokens
 import com.sonza.app.ui.theme.SonzaColors
+import com.sonza.app.ui.theme.SonzaOutline
+import com.sonza.app.ui.theme.SonzaSurface
 import com.sonza.app.ui.theme.SonzaTypography
 import com.sonza.app.ui.theme.SpacingTokens
 
 /**
- * Sonza Expressive Bottom Navigation Bar.
+ * Sonza Floating Pill Bottom Navigation Bar.
  *
- * Prominent 4-destination navigation bar (Home, Search, Your Library, Settings)
- * built with Sonza design tokens, WCAG-compliant touch targets, TalkBack accessibility,
- * and solid surface separation to prevent background content bleed.
+ * Prominent 4-destination navigation bar (Home, Library, Settings, Search)
+ * with a floating pill-shaped container, rounded highlighted capsule on active state,
+ * smooth transitions, and WCAG-compliant touch targets.
  */
 @Composable
 fun ExpressiveBottomNav(
@@ -74,12 +74,6 @@ fun ExpressiveBottomNav(
             selectedIcon = Icons.Filled.Home
         ),
         BottomNavItem(
-            destination = Destination.Search,
-            label = stringResource(R.string.nav_search),
-            unselectedIcon = Icons.Outlined.Search,
-            selectedIcon = Icons.Filled.Search
-        ),
-        BottomNavItem(
             destination = Destination.Library,
             label = stringResource(R.string.nav_library),
             unselectedIcon = Icons.Outlined.LibraryMusic,
@@ -90,6 +84,12 @@ fun ExpressiveBottomNav(
             label = stringResource(R.string.nav_settings),
             unselectedIcon = Icons.Outlined.Settings,
             selectedIcon = Icons.Filled.Settings
+        ),
+        BottomNavItem(
+            destination = Destination.Search,
+            label = stringResource(R.string.nav_search),
+            unselectedIcon = Icons.Outlined.Search,
+            selectedIcon = Icons.Filled.Search
         )
     )
 
@@ -115,7 +115,132 @@ fun ExpressiveBottomNav(
     }
 }
 
-// ─── iOS Liquid Glass Navigation Bar ─────────────────────────────────────────
+// ─── Floating Pill Navigation Bar (Standard Mode) ───────────────────────────
+
+@Composable
+private fun StandardNavBar(
+    navItems: List<BottomNavItem>,
+    currentDestination: Destination,
+    onDestinationChange: (Destination) -> Unit,
+    onReClick: (Destination) -> Unit,
+    modifier: Modifier = Modifier,
+    backgroundColor: Color? = null
+) {
+    val dynamicColors = LocalSonzaDynamicColors.current
+    val pillShape = RoundedCornerShape(32.dp)
+    val baseSurface = backgroundColor ?: SonzaSurface
+
+    val selectedItemIndex = navItems
+        .indexOfFirst { it.destination == currentDestination }
+        .coerceAtLeast(0)
+
+    val indicatorIndex by animateFloatAsState(
+        targetValue = selectedItemIndex.toFloat(),
+        animationSpec = tween(
+            durationMillis = MotionTokens.NavSelectionDuration,
+            easing = FastOutSlowInEasing
+        ),
+        label = "standardNavIndicatorIndex"
+    )
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(
+                horizontal = SpacingTokens.SpaceLg,
+                vertical = SpacingTokens.SpaceSm
+            )
+            .height(64.dp)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {}
+            )
+    ) {
+        // Floating Shadow
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .shadow(
+                    elevation = 6.dp,
+                    shape = pillShape,
+                    ambientColor = Color.Black.copy(alpha = 0.45f),
+                    spotColor = Color.Black.copy(alpha = 0.35f)
+                )
+        )
+
+        // Floating Background
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clip(pillShape)
+                .background(baseSurface.copy(alpha = 0.92f))
+                .background(
+                    brush = Brush.verticalGradient(
+                        0.0f to Color.White.copy(alpha = 0.08f),
+                        0.5f to Color.Transparent,
+                        1.0f to Color.Black.copy(alpha = 0.15f)
+                    )
+                )
+                .border(
+                    width = 0.75.dp,
+                    color = SonzaOutline.copy(alpha = 0.35f),
+                    shape = pillShape
+                )
+        )
+
+        // Active highlighted capsule gliding behind selected tab
+        BoxWithConstraints(modifier = Modifier.matchParentSize()) {
+            val tabWidth = maxWidth / navItems.size
+            Box(
+                modifier = Modifier
+                    .offset(x = tabWidth * indicatorIndex)
+                    .width(tabWidth)
+                    .fillMaxHeight()
+                    .padding(
+                        vertical = 6.dp,
+                        horizontal = 4.dp
+                    )
+                    .background(
+                        color = dynamicColors.accent.copy(alpha = 0.20f),
+                        shape = RoundedCornerShape(22.dp)
+                    )
+                    .border(
+                        width = 0.75.dp,
+                        color = dynamicColors.accent.copy(alpha = 0.40f),
+                        shape = RoundedCornerShape(22.dp)
+                    )
+            )
+        }
+
+        // Navigation Items Row
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            navItems.forEach { item ->
+                val isSelected = currentDestination == item.destination
+                FloatingNavItem(
+                    item = item,
+                    isSelected = isSelected,
+                    accentColor = dynamicColors.accent,
+                    onClick = {
+                        if (currentDestination == item.destination) {
+                            onReClick(item.destination)
+                        } else {
+                            onDestinationChange(item.destination)
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+// ─── Floating Pill Navigation Bar (iOS Liquid Glass Mode) ─────────────────────
 
 @Composable
 private fun LiquidGlassNavBar(
@@ -131,7 +256,7 @@ private fun LiquidGlassNavBar(
     val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val surfaceColor = SonzaColors.Surface
     val primaryColor = dynamicColors.accent
-    val glassShape = RoundedCornerShape(RadiusTokens.Lg)
+    val pillShape = RoundedCornerShape(32.dp)
     val glassIntensity = (1f - alpha.coerceIn(0f, 1f)).coerceAtLeast(0.05f)
 
     val glassBaseAlpha = (if (isDarkTheme) 0.55f else 0.40f) * glassIntensity
@@ -166,7 +291,7 @@ private fun LiquidGlassNavBar(
             durationMillis = MotionTokens.NavSelectionDuration,
             easing = FastOutSlowInEasing
         ),
-        label = "indicatorIndex"
+        label = "liquidGlassNavIndicatorIndex"
     )
 
     Box(
@@ -188,29 +313,29 @@ private fun LiquidGlassNavBar(
             modifier = Modifier
                 .matchParentSize()
                 .shadow(
-                    elevation = ElevationTokens.Elevation2,
-                    shape = glassShape,
-                    clip = false,
-                    ambientColor = Color.Black.copy(alpha = 0.35f),
-                    spotColor = Color.Black.copy(alpha = 0.25f)
+                    elevation = 6.dp,
+                    shape = pillShape,
+                    ambientColor = Color.Black.copy(alpha = 0.40f),
+                    spotColor = Color.Black.copy(alpha = 0.30f)
                 )
         )
 
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .clip(glassShape)
+                .clip(pillShape)
                 .background(glassBaseColor)
         )
 
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .clip(glassShape)
+                .clip(pillShape)
                 .background(innerTintColor)
                 .background(specularHighlight)
         )
 
+        // Active highlighted capsule gliding behind selected tab
         BoxWithConstraints(modifier = Modifier.matchParentSize()) {
             val tabWidth = maxWidth / navItems.size
             Box(
@@ -219,17 +344,17 @@ private fun LiquidGlassNavBar(
                     .width(tabWidth)
                     .fillMaxHeight()
                     .padding(
-                        vertical = SpacingTokens.SpaceXs,
-                        horizontal = SpacingTokens.SpaceXs
+                        vertical = 6.dp,
+                        horizontal = 4.dp
                     )
                     .background(
-                        color = primaryColor.copy(alpha = 0.15f * glassIntensity),
-                        shape = RoundedCornerShape(RadiusTokens.Md)
+                        color = primaryColor.copy(alpha = 0.22f * glassIntensity),
+                        shape = RoundedCornerShape(22.dp)
                     )
                     .border(
                         width = 0.75.dp,
-                        color = primaryColor.copy(alpha = 0.30f * glassIntensity),
-                        shape = RoundedCornerShape(RadiusTokens.Md)
+                        color = primaryColor.copy(alpha = 0.45f * glassIntensity),
+                        shape = RoundedCornerShape(22.dp)
                     )
             )
         }
@@ -240,7 +365,7 @@ private fun LiquidGlassNavBar(
                 .border(
                     width = 0.75.dp,
                     brush = borderBrush,
-                    shape = glassShape
+                    shape = pillShape
                 )
         )
 
@@ -251,7 +376,7 @@ private fun LiquidGlassNavBar(
         ) {
             navItems.forEach { item ->
                 val isSelected = currentDestination == item.destination
-                LiquidGlassNavItem(
+                FloatingNavItem(
                     item = item,
                     isSelected = isSelected,
                     accentColor = dynamicColors.accent,
@@ -269,8 +394,10 @@ private fun LiquidGlassNavBar(
     }
 }
 
+// ─── Floating Navigation Item ────────────────────────────────────────────────
+
 @Composable
-private fun LiquidGlassNavItem(
+private fun FloatingNavItem(
     item: BottomNavItem,
     isSelected: Boolean,
     accentColor: Color,
@@ -278,147 +405,14 @@ private fun LiquidGlassNavItem(
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+
     val contentColor by animateColorAsState(
-        targetValue = if (isSelected) accentColor else SonzaColors.OnSurfaceVariant,
+        targetValue = if (isSelected) accentColor else SonzaColors.OnSurfaceVariant.copy(alpha = 0.75f),
         animationSpec = tween(
             durationMillis = MotionTokens.NavSelectionDuration,
             easing = FastOutSlowInEasing
         ),
-        label = "itemColor"
-    )
-
-    val itemSemanticsDescription = if (isSelected) "${item.label}, selected" else item.label
-
-    Box(
-        modifier = modifier
-            .fillMaxHeight()
-            .selectable(
-                selected = isSelected,
-                onClick = onClick,
-                role = Role.Tab,
-                interactionSource = interactionSource,
-                indication = null
-            )
-            .semantics {
-                contentDescription = itemSemanticsDescription
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceXs)
-        ) {
-            Icon(
-                imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = contentColor
-            )
-
-            Text(
-                text = item.label,
-                style = SonzaTypography.LabelSmall.copy(
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
-                ),
-                color = contentColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-// ─── Standard (Design System) Navigation Bar ─────────────────────────────────
-
-@Composable
-private fun StandardNavBar(
-    navItems: List<BottomNavItem>,
-    currentDestination: Destination,
-    onDestinationChange: (Destination) -> Unit,
-    onReClick: (Destination) -> Unit,
-    modifier: Modifier = Modifier,
-    backgroundColor: Color? = null
-) {
-    val dynamicColors = LocalSonzaDynamicColors.current
-    val baseSurface = backgroundColor ?: SonzaColors.Surface
-
-    val navShape = RoundedCornerShape(
-        topStart = RadiusTokens.Md,
-        topEnd = RadiusTokens.Md
-    )
-
-    // Solid surface container to prevent content from bleeding through behind the bar
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .shadow(
-                elevation = ElevationTokens.Elevation2,
-                shape = navShape,
-                ambientColor = Color.Black.copy(alpha = 0.40f),
-                spotColor = Color.Black.copy(alpha = 0.30f)
-            )
-            .clip(navShape)
-            .background(color = baseSurface)
-            .border(
-                width = 0.75.dp,
-                color = SonzaColors.Outline.copy(alpha = 0.6f),
-                shape = navShape
-            )
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {}
-            )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .height(64.dp)
-                .padding(horizontal = SpacingTokens.SpaceSm),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            navItems.forEach { item ->
-                val isSelected = currentDestination == item.destination
-                StandardNavItem(
-                    item = item,
-                    isSelected = isSelected,
-                    accentColor = dynamicColors.accent,
-                    onClick = {
-                        if (currentDestination == item.destination) {
-                            onReClick(item.destination)
-                        } else {
-                            onDestinationChange(item.destination)
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun StandardNavItem(
-    item: BottomNavItem,
-    isSelected: Boolean,
-    accentColor: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val selectedColor = accentColor
-    val unselectedColor = SonzaColors.OnSurfaceVariant
-
-    // 150ms ease-out transition on tab change per Part 6.3 & Part 8
-    val contentColor by animateColorAsState(
-        targetValue = if (isSelected) selectedColor else unselectedColor,
-        animationSpec = tween(
-            durationMillis = MotionTokens.NavSelectionDuration,
-            easing = FastOutSlowInEasing
-        ),
-        label = "navItemColor"
+        label = "floatingNavItemColor"
     )
 
     val itemSemanticsDescription = if (isSelected) "${item.label}, selected" else item.label
@@ -437,14 +431,14 @@ private fun StandardNavItem(
                 contentDescription = itemSemanticsDescription
             }
             .padding(
-                horizontal = SpacingTokens.SpaceSm,
+                horizontal = SpacingTokens.SpaceXs,
                 vertical = SpacingTokens.SpaceXs
             ),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceXs)
+            verticalArrangement = Arrangement.Center
         ) {
             Icon(
                 imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
@@ -453,9 +447,11 @@ private fun StandardNavItem(
                 tint = contentColor
             )
 
+            Spacer(modifier = Modifier.height(2.dp))
+
             Text(
                 text = item.label,
-                style = SonzaTypography.LabelSmall.copy(
+                style = SonzaTypography.NavLabel.copy(
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
                 ),
                 color = contentColor,

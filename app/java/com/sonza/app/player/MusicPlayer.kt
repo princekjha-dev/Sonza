@@ -88,6 +88,7 @@ class MusicPlayer @Inject constructor(
     // Caching
     private var cachingJob: Job? = null
     private var currentResolutionJob: Job? = null
+    private var playJob: Job? = null
     private val resolutionMutex = kotlinx.coroutines.sync.Mutex()
     private var preloadedTimestamp: Long = 0L
     private var preloadJob: Job? = null
@@ -861,14 +862,21 @@ class MusicPlayer @Inject constructor(
             mediaItem?.let { item ->
                 val controller = mediaController ?: return@let
                 val index = controller.currentMediaItemIndex
+
+                // Guard against stale transitions while playSong is actively setting a new song.
+                // When setMediaItems is called, ExoPlayer can emit a PLAYLIST_CHANGED transition
+                // for the discarded item. We must not overwrite the newly requested song.
+                if (playJob?.isActive == true && item.mediaId != _playerState.value.currentSong?.id) {
+                    android.util.Log.d("MusicPlayer", "Ignoring stale transition for ${item.mediaId} while playJob is active")
+                    return@let
+                }
+
                 var song = _playerState.value.queue.getOrNull(index)
                 
-                // Listen Together Fix:
-                // If the mediaItem ID differs from the queue song ID, it means the player 
-                // was updated externally (e.g. by ListenTogetherManager). 
-                // We should rely on the mediaItem's metadata in this case.
-                if (song != null && song.id != item.mediaId) {
-                     song = null
+                // If the mediaItem ID differs from the queue song ID at index,
+                // try to find it by ID in current queue first
+                if (song == null || song.id != item.mediaId) {
+                    song = _playerState.value.queue.firstOrNull { it.id == item.mediaId }
                 }
                 
                 // Fallback: If song is null (e.g. Listen Together or external source), create from metadata
@@ -919,17 +927,17 @@ class MusicPlayer @Inject constructor(
 
                 _playerState.update {
                     it.copy(
-                        currentSong = song,
-                        currentIndex = index,
+                        currentSong = song ?: it.currentSong,
+                        currentIndex = if (index >= 0) index else it.currentIndex,
                         // Fix: Don't reset position if we're just re-resolving the same song
                         currentPosition = if (isSameSong) it.currentPosition else 0L,
                         duration = if (controller.duration > 0) controller.duration else it.duration,
-                        isLiked = false,
-                        isDisliked = false,
-                        downloadState = DownloadState.NOT_DOWNLOADED,
+                        isLiked = if (isSameSong) it.isLiked else false,
+                        isDisliked = if (isSameSong) it.isDisliked else false,
+                        downloadState = if (isSameSong) it.downloadState else DownloadState.NOT_DOWNLOADED,
                         isVideoMode = it.isVideoMode,
                         videoNotFound = false, // Reset error flag on track change
-                        queue = accurateQueue // Update with accurate queue from player
+                        queue = if (accurateQueue.isNotEmpty()) accurateQueue else it.queue
                     )
                 }
 
@@ -1739,8 +1747,12 @@ class MusicPlayer @Inject constructor(
                             SongSource.REMOTE -> Pair(remoteStreamUrlFor(song), null)
                             else -> {
                                 if (_playerState.value.isVideoMode) {
-                                    val videoId = resolvedVideoIds[song.id] ?: youTubeRepository.getBestVideoId(song).also {
-                                        resolvedVideoIds.put(song.id, it)
+                                    val videoId = if (song.source == SongSource.YOUTUBE || song.source == SongSource.YOUTUBE_MUSIC) {
+                                        song.id
+                                    } else {
+                                        resolvedVideoIds[song.id] ?: youTubeRepository.getBestVideoId(song).also {
+                                            resolvedVideoIds.put(song.id, it)
+                                        }
                                     }
                                     val videoResult = youTubeRepository.getVideoStreamResult(videoId, _playerState.value.videoQuality)
                                     if (videoResult != null) {
@@ -1978,12 +1990,12 @@ class MusicPlayer @Inject constructor(
     
     private var saveCounter = 0
     private var bufferingStartWallTime = 0L
-    private val MAX_BUFFERING_DURATION_BEFORE_DOWNSCALE = 3000L // 3 seconds
+    private val MAX_BUFFERING_DURATION_BEFORE_DOWNSCALE = 10_000L // 10 seconds (gives slower devices / networks time to buffer)
     private var hasTriedLowQualityForCurrent = false
     // Stage-2 watchdog: after this long stuck in BUFFERING, throw away the (possibly
     // expired/IP-bound) stream URL and rebuild with a fresh resolution. If that
     // rebuild is ALSO stuck for the same duration, give up and move to the next track.
-    private val STUCK_REBUILD_AFTER_MS = 15_000L
+    private val STUCK_REBUILD_AFTER_MS = 25_000L
     private var hasTriedStuckRebuildForCurrent = false
     
     private fun startPositionUpdates() {
@@ -2350,8 +2362,12 @@ class MusicPlayer @Inject constructor(
                     else -> {
                         if (isVideoMode) {
                             // Smart Video Matching for Preload — use getVideoStreamResult to respect quality settings
-                            val videoId = resolvedVideoIds[nextSong.id] ?: youTubeRepository.getBestVideoId(nextSong).also { 
-                                resolvedVideoIds.put(nextSong.id, it) 
+                            val videoId = if (nextSong.source == SongSource.YOUTUBE || nextSong.source == SongSource.YOUTUBE_MUSIC) {
+                                nextSong.id
+                            } else {
+                                resolvedVideoIds[nextSong.id] ?: youTubeRepository.getBestVideoId(nextSong).also { 
+                                    resolvedVideoIds.put(nextSong.id, it) 
+                                }
                             }
                             val videoResult = youTubeRepository.getVideoStreamResult(videoId, _playerState.value.videoQuality)
                             videoResult?.videoUrl ?: youTubeRepository.getVideoStreamUrl(videoId)
@@ -2437,8 +2453,6 @@ class MusicPlayer @Inject constructor(
             }
         }
     }
-    
-    private var playJob: Job? = null
 
     // ─── Listen Together guest gating ────────────────────────────────────────
     // Every UI surface (home screen, mini player, queue, search…) funnels into
@@ -2633,8 +2647,12 @@ class MusicPlayer @Inject constructor(
                         // Optimization 4: Parallelize video ID resolution and stream result fetching.
                         val videoResult = coroutineScope {
                             val videoIdDeferred = async {
-                                resolvedVideoIds[song.id] ?: youTubeRepository.getBestVideoId(song).also { 
-                                    resolvedVideoIds.put(song.id, it) 
+                                if (song.source == SongSource.YOUTUBE || song.source == SongSource.YOUTUBE_MUSIC) {
+                                    song.id
+                                } else {
+                                    resolvedVideoIds[song.id] ?: youTubeRepository.getBestVideoId(song).also { 
+                                        resolvedVideoIds.put(song.id, it) 
+                                    }
                                 }
                             }
                             
@@ -2865,10 +2883,14 @@ class MusicPlayer @Inject constructor(
                                 SongSource.REMOTE -> remoteStreamUrlFor(nextSong)
                                 else -> {
                                     if (_playerState.value.isVideoMode) {
-                                        val videoId = resolvedVideoIds[nextSong.id]
-                                            ?: youTubeRepository.getBestVideoId(nextSong).also {
-                                                resolvedVideoIds.put(nextSong.id, it)
-                                            }
+                                        val videoId = if (nextSong.source == SongSource.YOUTUBE || nextSong.source == SongSource.YOUTUBE_MUSIC) {
+                                            nextSong.id
+                                        } else {
+                                            resolvedVideoIds[nextSong.id]
+                                                ?: youTubeRepository.getBestVideoId(nextSong).also {
+                                                    resolvedVideoIds.put(nextSong.id, it)
+                                                }
+                                        }
                                         val videoResult = youTubeRepository.getVideoStreamResult(videoId, _playerState.value.videoQuality)
                                         videoResult?.videoUrl ?: youTubeRepository.getVideoStreamUrl(videoId)
                                     } else {
@@ -3432,20 +3454,11 @@ class MusicPlayer @Inject constructor(
                 
                 if (newVideoMode) {
                     // Switch to video stream with quality-aware dual-stream support
-                    val videoId = if (song.source == SongSource.YOUTUBE) {
-                         resolvedVideoIds[song.id] ?: youTubeRepository.getBestVideoId(song).also { 
-                             resolvedVideoIds.put(song.id, it) 
-                         }
+                    val videoId = if (song.source == SongSource.YOUTUBE || song.source == SongSource.YOUTUBE_MUSIC) {
+                        song.id
                     } else {
-                        resolvedVideoIds[song.id] ?: run {
-                            val query = "${song.title} ${song.artist} official video"
-                            try {
-                                val results = youTubeRepository.search(query)
-                                val bestMatch = results.firstOrNull()
-                                bestMatch?.id?.also { resolvedVideoIds.put(song.id, it) }
-                            } catch (e: Exception) {
-                                null
-                            }
+                        resolvedVideoIds[song.id] ?: youTubeRepository.getBestVideoId(song).also { 
+                            resolvedVideoIds.put(song.id, it) 
                         }
                     }
                     
@@ -3463,7 +3476,11 @@ class MusicPlayer @Inject constructor(
                     streamUrl = when (song.source) {
                         SongSource.LOCAL, SongSource.DOWNLOADED -> song.localUri.orEmpty()
                         SongSource.REMOTE -> remoteStreamUrlFor(song)
-                        else -> youTubeRepository.getStreamUrl(song.id)
+                        else -> {
+                            val hqSelected = effectiveMusicSource(song) == MusicSource.REMOTE
+                            val hybrid = if (hqSelected) resolveHybridRemoteStream(song) else null
+                            hybrid ?: youTubeRepository.getStreamUrl(song.id)
+                        }
                     }
                 }
                 
@@ -3515,16 +3532,22 @@ class MusicPlayer @Inject constructor(
                 val newMediaItem = mediaItemBuilder.build()
                 
                 mediaController?.let { controller ->
-                    val currentIndex = controller.currentMediaItemIndex
-                    if (currentIndex < controller.mediaItemCount) {
-                        controller.replaceMediaItem(currentIndex, newMediaItem)
-                        controller.prepare()
-                        
-                        // Seek to preserved position
-                        controller.seekTo(currentPosition)
-                        
-                        if (wasPlaying) {
-                            controller.play()
+                    var targetIndex = -1
+                    for (i in 0 until controller.mediaItemCount) {
+                        if (controller.getMediaItemAt(i).mediaId == song.id) {
+                            targetIndex = i
+                            break
+                        }
+                    }
+                    if (targetIndex == -1) targetIndex = controller.currentMediaItemIndex
+                    if (targetIndex in 0 until controller.mediaItemCount) {
+                        controller.replaceMediaItem(targetIndex, newMediaItem)
+                        if (targetIndex == controller.currentMediaItemIndex) {
+                            controller.prepare()
+                            controller.seekTo(targetIndex, currentPosition)
+                            if (wasPlaying) {
+                                controller.play()
+                            }
                         }
                     }
                 }

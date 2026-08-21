@@ -58,6 +58,7 @@ import coil3.compose.AsyncImage
 import com.sonza.app.core.model.Song
 import com.sonza.app.ui.components.DominantColors
 import com.sonza.app.ui.theme.SonzaTypography
+import com.sonza.app.ui.theme.SpacingTokens
 
 @Composable
 fun PillMiniPlayer(
@@ -131,11 +132,11 @@ fun PillMiniPlayer(
 
     Surface(
         modifier = modifier
-            .padding(horizontal = 12.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(32.dp))
+            .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceXs)
+            .clip(RoundedCornerShape(24.dp))
             .clickable(onClick = onTap),
         color = Color.Transparent,
-        shape = RoundedCornerShape(32.dp),
+        shape = RoundedCornerShape(24.dp),
         tonalElevation = 4.dp,
         shadowElevation = 6.dp
     ) {
@@ -245,12 +246,12 @@ fun PillMiniPlayer(
                     )
                 }
 
-                MiniPlayerButton(onClick = onPlayPause) {
+                MiniPlayerButton(onClick = onPlayPause, size = 42.dp) {
                     if (isLoading) {
                         androidx.compose.material3.CircularProgressIndicator(
                             color = dominantColors.onBackground,
                             strokeWidth = 2.dp,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     } else {
                         AnimatedContent(
@@ -265,30 +266,19 @@ fun PillMiniPlayer(
                                 imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
                                 contentDescription = if (playing) "Pause" else "Play",
                                 tint = dominantColors.onBackground,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(28.dp)
                             )
                         }
                     }
                 }
 
-                MiniPlayerButton(onClick = onNext) {
+                MiniPlayerButton(onClick = onNext, size = 42.dp) {
                     Icon(
                         imageVector = Icons.Default.SkipNext,
                         contentDescription = "Next",
                         tint = dominantColors.onBackground,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(28.dp)
                     )
-                }
-
-                if (!isPlaying) {
-                    MiniPlayerButton(onClick = onClose) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = dominantColors.onBackground,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
                 }
                 
                 Spacer(modifier = Modifier.width(4.dp))

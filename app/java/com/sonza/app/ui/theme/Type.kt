@@ -14,45 +14,48 @@ import com.sonza.app.R
  * Typography — Material 3 Expressive scale powered by Manrope (variable font).
  * Bold, confident hierarchy per Part 2 of DESIGN_SYSTEM.md.
  */
+@OptIn(ExperimentalTextApi::class)
 val Manrope: FontFamily = FontFamily(
-    Font(R.font.manrope, FontWeight.Normal),
-    Font(R.font.manrope, FontWeight.Medium),
-    Font(R.font.manrope, FontWeight.SemiBold),
-    Font(R.font.manrope, FontWeight.Bold),
-    Font(R.font.manrope, FontWeight.ExtraBold)
+    Font(R.font.manrope, FontWeight.Light, variationSettings = FontVariation.Settings(FontVariation.weight(300))),
+    Font(R.font.manrope, FontWeight.Normal, variationSettings = FontVariation.Settings(FontVariation.weight(400))),
+    Font(R.font.manrope, FontWeight.Medium, variationSettings = FontVariation.Settings(FontVariation.weight(500))),
+    Font(R.font.manrope, FontWeight.SemiBold, variationSettings = FontVariation.Settings(FontVariation.weight(600))),
+    Font(R.font.manrope, FontWeight.Bold, variationSettings = FontVariation.Settings(FontVariation.weight(700))),
+    Font(R.font.manrope, FontWeight.ExtraBold, variationSettings = FontVariation.Settings(FontVariation.weight(800))),
+    Font(R.font.manrope, FontWeight.Black, variationSettings = FontVariation.Settings(FontVariation.weight(900)))
 )
 
 // Explicit Sonza Design System typography tokens
 object SonzaTypography {
-    // 1. Page Title — Top clean, regular/medium/bold large display header (e.g. "New", "Search", "Library")
+    // 1. Page Title — Top display header (e.g. "New", "Search", "Library")
     val Display = TextStyle(
         fontFamily = Manrope,
         fontWeight = FontWeight.Bold, // 700
-        fontSize = 32.sp,
-        lineHeight = 38.sp,
+        fontSize = 28.sp,
+        lineHeight = 34.sp,
         letterSpacing = (-0.5).sp
     )
     val PageTitle = Display
 
-    // 2. Section Title — Standardized large header for sections (e.g. "Best New Songs", "New This Week", "Recent Releases", "Latest Songs")
+    // 2. Section Title — Standardized large bold header for sections ("Quick picks", "India’s biggest hits", etc.)
     val Headline = TextStyle(
         fontFamily = Manrope,
         fontWeight = FontWeight.Bold, // 700
-        fontSize = 20.sp,
-        lineHeight = 26.sp,
-        letterSpacing = (-0.3).sp
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
+        letterSpacing = (-0.4).sp
     )
     val SectionTitle = Headline
 
     val TitleLarge = TextStyle(
         fontFamily = Manrope,
-        fontWeight = FontWeight.SemiBold, // 600
+        fontWeight = FontWeight.Bold, // 700
         fontSize = 20.sp,
         lineHeight = 26.sp,
         letterSpacing = (-0.3).sp
     )
 
-    // 3. Song Title — Medium-sized, semi-bold title for all song rows and list items
+    // 3. Song Title — Medium-sized, semi-bold title for all song rows, list items, and mini player
     val SongTitle = TextStyle(
         fontFamily = Manrope,
         fontWeight = FontWeight.SemiBold, // 600
@@ -62,12 +65,12 @@ object SonzaTypography {
     )
     val TitleMedium = SongTitle
 
-    // 4. Card Title — Standard title for album/playlist/mix square & content cards
+    // 4. Card Title — Standard title for album/playlist/mix cards
     val CardTitle = TextStyle(
         fontFamily = Manrope,
         fontWeight = FontWeight.SemiBold, // 600
-        fontSize = 14.sp,
-        lineHeight = 18.sp,
+        fontSize = 14.5.sp,
+        lineHeight = 19.sp,
         letterSpacing = 0.sp
     )
     val TitleSmall = CardTitle
@@ -86,7 +89,7 @@ object SonzaTypography {
         fontFamily = Manrope,
         fontWeight = FontWeight.Normal, // 400
         fontSize = 13.sp,
-        lineHeight = 18.sp,
+        lineHeight = 17.sp,
         letterSpacing = 0.1.sp
     )
     val BodyMedium = ArtistSubtitle
@@ -95,7 +98,7 @@ object SonzaTypography {
     val CardSubtitle = TextStyle(
         fontFamily = Manrope,
         fontWeight = FontWeight.Normal, // 400
-        fontSize = 12.sp,
+        fontSize = 12.5.sp,
         lineHeight = 16.sp,
         letterSpacing = 0.1.sp
     )
@@ -130,8 +133,8 @@ object SonzaTypography {
     val NavLabel = TextStyle(
         fontFamily = Manrope,
         fontWeight = FontWeight.Medium, // 500
-        fontSize = 11.sp,
-        lineHeight = 14.sp,
+        fontSize = 11.5.sp,
+        lineHeight = 15.sp,
         letterSpacing = 0.2.sp
     )
     val LabelSmall = NavLabel
@@ -140,8 +143,8 @@ object SonzaTypography {
     val Metadata = TextStyle(
         fontFamily = Manrope,
         fontWeight = FontWeight.Medium, // 500
-        fontSize = 11.sp,
-        lineHeight = 14.sp,
+        fontSize = 11.5.sp,
+        lineHeight = 15.sp,
         letterSpacing = 0.2.sp
     )
 }
