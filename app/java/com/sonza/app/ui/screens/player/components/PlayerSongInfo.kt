@@ -29,7 +29,9 @@ import androidx.compose.ui.unit.sp
 import com.sonza.app.core.model.Song
 import com.sonza.app.ui.components.DominantColors
 import com.sonza.app.ui.components.BetaBadge
+import com.sonza.app.ui.components.bounceClick
 import com.sonza.app.ui.screens.player.formatDuration
+import com.sonza.app.ui.theme.MotionTokens
 import com.sonza.app.ui.theme.SonzaTypography
 
 
@@ -287,7 +289,7 @@ fun SongInfoSection(
                         if (isFavorite) dominantColors.accent.copy(alpha = 0.16f)
                         else dominantColors.onBackground.copy(alpha = 0.08f)
                     )
-                    .com.sonza.app.ui.components.bounceClick(scaleDown = com.sonza.app.ui.theme.MotionTokens.CardTapScale) {
+                    .bounceClick(scaleDown = MotionTokens.CardTapScale) {
                         haptics.thump()
                         onFavoriteClick()
                     },
@@ -316,7 +318,7 @@ fun SongInfoSection(
                     .size(42.dp)
                     .clip(CircleShape)
                     .background(dominantColors.onBackground.copy(alpha = 0.08f))
-                    .com.sonza.app.ui.components.bounceClick(scaleDown = com.sonza.app.ui.theme.MotionTokens.CardTapScale) {
+                    .bounceClick(scaleDown = MotionTokens.CardTapScale) {
                         haptics.tick()
                         onMoreClick()
                     },
