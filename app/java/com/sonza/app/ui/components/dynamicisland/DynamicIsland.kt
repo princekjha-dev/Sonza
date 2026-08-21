@@ -2,9 +2,7 @@ package com.sonza.app.ui.components.dynamicisland
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -16,53 +14,54 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import com.sonza.app.R
 import com.sonza.app.core.model.Song
-import com.sonza.app.ui.theme.SonzaColors
-import com.sonza.app.ui.theme.SonzaOnBackground
-import com.sonza.app.ui.theme.SonzaSurface
+import com.sonza.app.ui.components.LocalSonzaDynamicColors
 import com.sonza.app.ui.theme.SonzaTypography
 
 /**
- * Production-quality Dynamic Island-style floating music pill.
+ * Premium Dynamic Island Floating Music Pill with custom image assets.
  *
- * Driven strictly by the authoritative playback state:
- * - Hidden: when currentSong == null.
- * - Compact: small pill at the top/cutout area showing artwork, title marquee, animated soundwave.
- * - Expanded: smoothly morphs with spring physics to show large artwork, title, artist, progress, playback controls.
+ * Positioned seamlessly below the camera cutout / top status bar.
+ * - Compact State: Sleek 36dp squircle pill hugging the hardware cutout with album artwork,
+ *   smooth marquee song title, and 4-bar dynamic audio waveform visualizer.
+ * - Expanded State: Fluid spring-morph transition to full floating playback deck with high-res art,
+ *   custom image playback controls (play/pause, rewind, forward, favorite, close),
+ *   seek scrubber, and responsive animations.
  */
 @Composable
 fun DynamicIsland(
@@ -82,18 +81,24 @@ fun DynamicIsland(
     if (currentSong == null) return
 
     var isExpanded by remember { mutableStateOf(false) }
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.dp
 
     val islandCornerRadius by animateDpAsState(
-        targetValue = if (isExpanded) 28.dp else 22.dp,
+        targetValue = if (isExpanded) 28.dp else 20.dp,
         animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow),
         label = "IslandCornerRadius"
     )
 
     val islandElevation by animateDpAsState(
-        targetValue = if (isExpanded) 16.dp else 8.dp,
+        targetValue = if (isExpanded) 20.dp else 10.dp,
         animationSpec = spring(stiffness = Spring.StiffnessMedium),
         label = "IslandElevation"
     )
+
+    val topPadding = remember(topInset) {
+        if (topInset > 0.dp) (topInset - 2.dp).coerceAtLeast(6.dp) else 8.dp
+    }
 
     Box(
         modifier = modifier
@@ -107,29 +112,29 @@ fun DynamicIsland(
             ),
         contentAlignment = Alignment.TopCenter
     ) {
-        // Dim scrim background when expanded
+        // Dim scrim backdrop when expanded
         AnimatedVisibility(
             visible = isExpanded,
-            enter = fadeIn(tween(250)),
-            exit = fadeOut(tween(200))
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(180))
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.45f))
+                    .background(Color.Black.copy(alpha = 0.50f))
             )
         }
 
-        // The Island Capsule
+        // Island Capsule
         Surface(
             modifier = Modifier
-                .padding(top = topInset + 6.dp)
-                .padding(horizontal = 16.dp)
+                .padding(top = topPadding)
+                .padding(horizontal = 12.dp)
                 .shadow(
                     elevation = islandElevation,
                     shape = RoundedCornerShape(islandCornerRadius),
-                    ambientColor = Color.Black.copy(alpha = 0.60f),
-                    spotColor = Color.Black.copy(alpha = 0.50f)
+                    ambientColor = Color.Black.copy(alpha = 0.70f),
+                    spotColor = Color.Black.copy(alpha = 0.55f)
                 )
                 .clip(RoundedCornerShape(islandCornerRadius))
                 .clickable(
@@ -137,6 +142,16 @@ fun DynamicIsland(
                     indication = null,
                     onClick = {
                         if (!isExpanded) isExpanded = true
+                    }
+                )
+                .draggable(
+                    orientation = Orientation.Vertical,
+                    state = rememberDraggableState { delta ->
+                        if (delta > 15f && !isExpanded) {
+                            isExpanded = true
+                        } else if (delta < -15f && isExpanded) {
+                            isExpanded = false
+                        }
                     }
                 )
                 .animateContentSize(
@@ -148,8 +163,8 @@ fun DynamicIsland(
             shape = RoundedCornerShape(islandCornerRadius),
             color = Color(0xFF000000),
             border = androidx.compose.foundation.BorderStroke(
-                width = 0.75.dp,
-                color = Color.White.copy(alpha = if (isExpanded) 0.20f else 0.12f)
+                width = 0.85.dp,
+                color = Color.White.copy(alpha = if (isExpanded) 0.22f else 0.14f)
             )
         ) {
             if (isExpanded) {
@@ -159,6 +174,7 @@ fun DynamicIsland(
                     currentPosition = currentPosition,
                     duration = duration,
                     isLiked = isLiked,
+                    screenWidth = screenWidth,
                     onPlayPause = onPlayPause,
                     onNext = onNext,
                     onPrevious = onPrevious,
@@ -177,54 +193,65 @@ fun DynamicIsland(
 }
 
 /**
- * Compact Pill state: Minimal footprint near top cutout.
+ * Compact Pill state: Sleek 36dp hardware cutout music capsule using image assets.
  */
 @Composable
 private fun CompactIslandContent(
     song: Song,
     isPlaying: Boolean
 ) {
+    val dynamicColors = LocalSonzaDynamicColors.current
+    val accentColor = dynamicColors.accent
+    val context = LocalContext.current
+
     Row(
         modifier = Modifier
-            .height(44.dp)
-            .widthIn(min = 190.dp, max = 240.dp)
-            .padding(horizontal = 8.dp),
+            .height(36.dp)
+            .widthIn(min = 175.dp, max = 225.dp)
+            .padding(start = 5.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Leading Album Artwork
+        // Leading Mini Artwork with placeholder image fallback
         AsyncImage(
-            model = song.thumbnailUrl,
+            model = ImageRequest.Builder(context)
+                .data(song.thumbnailUrl?.takeIf { it.isNotBlank() } ?: R.drawable.di_album_placeholder)
+                .crossfade(true)
+                .build(),
             contentDescription = "Album Art",
             modifier = Modifier
-                .size(30.dp)
+                .size(26.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF1C1C1E)),
+                .border(0.6.dp, Color.White.copy(alpha = 0.20f), CircleShape)
+                .background(Color(0xFF18181A)),
             contentScale = ContentScale.Crop
         )
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // Center Song Title
+        // Center Song Title with Marquee
         Text(
             text = song.title,
-            style = SonzaTypography.BodySmall,
-            fontWeight = FontWeight.SemiBold,
+            style = SonzaTypography.NavLabel.copy(
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            ),
             color = Color.White,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier
+                .weight(1f)
+                .basicMarquee(iterations = Int.MAX_VALUE)
         )
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // Trailing Animated Soundwave Equalizer
-        SoundwaveVisualizer(isPlaying = isPlaying)
+        // Trailing Waveform Visualizer
+        SoundwaveVisualizer(isPlaying = isPlaying, accentColor = accentColor)
     }
 }
 
 /**
- * Expanded state: Full rich music controls with continuous spring animation.
+ * Expanded state: Full rich music controls with image assets and spring physics.
  */
 @Composable
 private fun ExpandedIslandContent(
@@ -233,6 +260,7 @@ private fun ExpandedIslandContent(
     currentPosition: Long,
     duration: Long,
     isLiked: Boolean,
+    screenWidth: Dp,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
@@ -240,42 +268,61 @@ private fun ExpandedIslandContent(
     onLikeToggle: () -> Unit,
     onCollapse: () -> Unit
 ) {
+    val dynamicColors = LocalSonzaDynamicColors.current
+    val accentColor = dynamicColors.accent
+    val context = LocalContext.current
     val progress = if (duration > 0) (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f
+    val targetWidth = (screenWidth - 32.dp).coerceIn(310.dp, 360.dp)
+
+    val likeScale by animateFloatAsState(
+        targetValue = if (isLiked) 1.15f else 1.0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+        label = "likeScale"
+    )
 
     Column(
         modifier = Modifier
-            .widthIn(min = 320.dp, max = 370.dp)
-            .padding(18.dp)
+            .width(targetWidth)
+            .padding(16.dp)
     ) {
-        // Top Header with Artwork, Metadata and Collapse/Close Button
+        // Top Header: Artwork, Title, Artist, Like & Collapse
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
-                model = song.thumbnailUrl,
+                model = ImageRequest.Builder(context)
+                    .data(song.thumbnailUrl?.takeIf { it.isNotBlank() } ?: R.drawable.di_album_placeholder)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = "Album Artwork",
                 modifier = Modifier
-                    .size(56.dp)
+                    .size(54.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFF1C1C1E)),
+                    .border(0.75.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(14.dp))
+                    .background(Color(0xFF18181A)),
                 contentScale = ContentScale.Crop
             )
 
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = song.title,
-                    style = SonzaTypography.BodyLarge,
-                    fontWeight = FontWeight.Bold,
+                    style = SonzaTypography.SongTitle.copy(
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
                     color = Color.White,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    modifier = Modifier.basicMarquee()
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = song.artist,
-                    style = SonzaTypography.BodySmall,
+                    style = SonzaTypography.ArtistSubtitle.copy(
+                        fontSize = 13.sp
+                    ),
                     color = Color.White.copy(alpha = 0.65f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -284,30 +331,35 @@ private fun ExpandedIslandContent(
 
             IconButton(
                 onClick = onLikeToggle,
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier
+                    .size(36.dp)
+                    .scale(likeScale)
             ) {
                 Icon(
-                    imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    painter = painterResource(if (isLiked) R.drawable.di_favorite_filled else R.drawable.di_favorite_empty),
                     contentDescription = "Like Song",
                     tint = if (isLiked) Color(0xFFFF2D55) else Color.White.copy(alpha = 0.70f),
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
 
             IconButton(
                 onClick = onCollapse,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.10f))
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Close,
+                    painter = painterResource(R.drawable.di_close),
                     contentDescription = "Collapse Island",
-                    tint = Color.White.copy(alpha = 0.60f),
-                    modifier = Modifier.size(18.dp)
+                    tint = Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.size(14.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         // Progress Bar with Time Labels
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -322,7 +374,7 @@ private fun ExpandedIslandContent(
                     .height(18.dp),
                 colors = SliderDefaults.colors(
                     thumbColor = Color.White,
-                    activeTrackColor = if (isPlaying) SonzaColors.ActivePlayback else Color.White,
+                    activeTrackColor = accentColor,
                     inactiveTrackColor = Color.White.copy(alpha = 0.20f)
                 )
             )
@@ -335,20 +387,20 @@ private fun ExpandedIslandContent(
             ) {
                 Text(
                     text = formatTime(currentPosition),
-                    style = SonzaTypography.LabelSmall,
+                    style = SonzaTypography.LabelSmall.copy(fontSize = 11.sp),
                     color = Color.White.copy(alpha = 0.50f)
                 )
                 Text(
                     text = formatTime(duration),
-                    style = SonzaTypography.LabelSmall,
+                    style = SonzaTypography.LabelSmall.copy(fontSize = 11.sp),
                     color = Color.White.copy(alpha = 0.50f)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // Playback Control Buttons
+        // Playback Controls using image assets
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,
@@ -359,28 +411,29 @@ private fun ExpandedIslandContent(
                 modifier = Modifier.size(44.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Filled.SkipPrevious,
+                    painter = painterResource(R.drawable.di_rewind),
                     contentDescription = "Previous Song",
                     tint = Color.White,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(26.dp)
                 )
             }
 
-            // Big Play/Pause Button
+            // Central Play/Pause Button
             Surface(
                 modifier = Modifier
-                    .size(52.dp)
+                    .size(50.dp)
                     .clip(CircleShape)
                     .clickable(onClick = onPlayPause),
-                color = if (isPlaying) SonzaColors.ActivePlayback else Color(0xFF2C2C2E),
-                shape = CircleShape
+                color = if (isPlaying) accentColor else Color(0xFF2C2C2E),
+                shape = CircleShape,
+                shadowElevation = 4.dp
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        painter = painterResource(if (isPlaying) R.drawable.di_pause else R.drawable.di_play),
                         contentDescription = if (isPlaying) "Pause" else "Play",
                         tint = if (isPlaying) Color.Black else Color.White,
-                        modifier = Modifier.size(30.dp)
+                        modifier = Modifier.size(26.dp)
                     )
                 }
             }
@@ -390,10 +443,10 @@ private fun ExpandedIslandContent(
                 modifier = Modifier.size(44.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Filled.SkipNext,
+                    painter = painterResource(R.drawable.di_forward),
                     contentDescription = "Next Song",
                     tint = Color.White,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(26.dp)
                 )
             }
         }
@@ -401,53 +454,64 @@ private fun ExpandedIslandContent(
 }
 
 /**
- * Programmatic audio waveform / equalizer bars indicating active playback without any GIFs.
+ * 4-bar dynamic soundwave visualizer.
  */
 @Composable
 private fun SoundwaveVisualizer(
     isPlaying: Boolean,
+    accentColor: Color,
     modifier: Modifier = Modifier
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "SoundwaveTransition")
 
     val bar1Height by infiniteTransition.animateFloat(
         initialValue = 4f,
-        targetValue = 16f,
+        targetValue = 14f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 400, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 380, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "Bar1"
     )
 
     val bar2Height by infiniteTransition.animateFloat(
-        initialValue = 16f,
-        targetValue = 6f,
+        initialValue = 14f,
+        targetValue = 5f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 550, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 500, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "Bar2"
     )
 
     val bar3Height by infiniteTransition.animateFloat(
-        initialValue = 8f,
-        targetValue = 18f,
+        initialValue = 6f,
+        targetValue = 16f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 450, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 420, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "Bar3"
     )
 
+    val bar4Height by infiniteTransition.animateFloat(
+        initialValue = 12f,
+        targetValue = 4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 460, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Bar4"
+    )
+
     Row(
         modifier = modifier
-            .height(20.dp)
-            .padding(end = 4.dp),
+            .height(18.dp)
+            .padding(end = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val barColor = if (isPlaying) SonzaColors.ActivePlayback else Color.White.copy(alpha = 0.40f)
+        val barColor = if (isPlaying) accentColor else Color.White.copy(alpha = 0.35f)
 
         Box(
             modifier = Modifier
@@ -459,7 +523,7 @@ private fun SoundwaveVisualizer(
         Box(
             modifier = Modifier
                 .width(2.5.dp)
-                .height(if (isPlaying) bar2Height.dp else 8.dp)
+                .height(if (isPlaying) bar2Height.dp else 7.dp)
                 .clip(CircleShape)
                 .background(barColor)
         )
@@ -467,6 +531,13 @@ private fun SoundwaveVisualizer(
             modifier = Modifier
                 .width(2.5.dp)
                 .height(if (isPlaying) bar3Height.dp else 4.dp)
+                .clip(CircleShape)
+                .background(barColor)
+        )
+        Box(
+            modifier = Modifier
+                .width(2.5.dp)
+                .height(if (isPlaying) bar4Height.dp else 6.dp)
                 .clip(CircleShape)
                 .background(barColor)
         )

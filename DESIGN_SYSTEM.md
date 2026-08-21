@@ -160,15 +160,15 @@ Unified, clean, confident hierarchy matching the premium music streaming referen
 - **Unselected:** `surface-variant` background, `on-surface-variant` text, `outline` border.
 - Defined in: `MoodChips.kt` (`MoodChipsSection`, `MoodChip`)
 
-### 6.3 Bottom Navigation
-- 4 items: Home, Search, Your Library, Settings. Fixed on mobile (per both reference apps).
-- **Active:** filled icon variant (`Icons.Filled.*`), dynamic `accent` tint (falls back to fixed brand blue `SonzaDefaultAccent` outside a playback context), `label-small` (12sp Manrope) `SemiBold` (600) label visible.
-- **Inactive:** outlined icon variant (`Icons.Outlined.*`), `on-surface-variant` (`#A1A1A8`) tint, `label-small` (12sp Manrope) `Medium` (500) label visible.
-- **Iconography:** standard 24dp Material Symbols Rounded/Icons (`Home`, `Search`, `LibraryMusic`, `Settings`).
-- **Surface:** Solid non-bleeding elevated shell `surface` (`#17171A`), 64dp standard content height, extending edge-to-edge behind system navigation bar with `navigationBarsPadding()` on content items. Top border `outline` @ 60% with `radius-md` top corners and `Elevation2` shadow.
-- **Accessibility:** Full touch targets (`fillMaxHeight()`, min 48dp), `Role.Tab` semantics with dynamic TalkBack announcements (`"Home, selected"`, `"Search"`, `"Your Library"`, `"Settings"`).
+### 6.3 Bottom Navigation (Idle State)
+- 4 items: Home, Search, Library, Settings. Fixed at the bottom on mobile.
+- **Active:** filled icon variant (`Icons.Filled.*`), dynamic `accent` tint, `NavLabel` (11.5sp Manrope) `SemiBold` (600) label visible.
+- **Inactive:** outlined icon variant (`Icons.Outlined.*`), neutral gray (`on-surface-variant` @ 70%) tint, `NavLabel` (11.5sp Manrope) `Medium` (500) label visible.
+- **Iconography:** standard 24dp Material Icons (`Home`, `Search`, `LibraryMusic`, `Settings`).
+- **Surface:** Clean, minimal, non-floating bar seamlessly integrated with Sonza's dark background (`SonzaBackground`). No background panel surrounding all four tabs, no outer border, no blur/glass effect, no floating container, and no empty player space. Extends edge-to-edge behind system navigation bar with `navigationBarsPadding()`.
+- **Accessibility:** Full touch targets (`fillMaxHeight()`, min 48dp), `Role.Tab` semantics with dynamic TalkBack announcements (`"Home, selected"`, `"Search"`, `"Library"`, `"Settings"`).
 - **Transition:** 150ms `FastOutSlowInEasing` color transition on tab change (`NavSelectionDuration`). Zero layout shift on state change.
-- Defined in: `ExpressiveBottomNav.kt` (`ExpressiveBottomNav`, `StandardNavBar`, `LiquidGlassNavBar`)
+- Defined in: `ExpressiveBottomNav.kt` (`ExpressiveBottomNav`)
 
 ### 6.4 Mini-Player
 - Fixed bar above bottom nav, `elevation-2` blur background.

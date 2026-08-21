@@ -51,7 +51,7 @@ import java.util.Calendar
 /**
  * Top Home Header per DESIGN_SYSTEM.md:
  * - Brand wordmark "Sonza" on leading edge with AppLogo.
- * - Action buttons: Activity History and Account Avatar.
+ * - Action buttons: Account Avatar.
  * - Dynamic time-of-day greeting with authenticated user name.
  * - Compact height, standard SpaceLg (16dp) padding, clean touch targets.
  */
@@ -61,7 +61,6 @@ fun HomeTopHeader(
     userName: String? = null,
     currentSong: com.sonza.app.core.model.Song? = null,
     recentlyPlayed: List<com.sonza.app.core.model.RecentlyPlayed> = emptyList(),
-    onHistoryClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
