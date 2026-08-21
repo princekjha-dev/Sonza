@@ -618,27 +618,6 @@ fun HomeScreen(
                                 )
                             }
                         }
-
-                        // 16. End of Feed Card
-                        if (uiState.hasReachedEnd) {
-                            item(key = "end_of_feed", contentType = "end_of_feed") {
-                                EndOfFeedCard(
-                                    onStartRadio = onStartRadio,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceSm)
-                                )
-                            }
-                        }
-
-                        // 17. App Footer
-                        item(key = "app_footer", contentType = "footer") {
-                            AppFooter(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = SpacingTokens.Space2Xl)
-                            )
-                        }
                     }
                 }
             }
@@ -926,86 +905,6 @@ private fun CreateMixCard(onClick: () -> Unit) {
 }
 
 @Composable
-private fun EndOfFeedCard(
-    onStartRadio: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val dynamicColors = LocalSonzaDynamicColors.current
-
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(RadiusTokens.Lg),
-        color = SonzaSurfaceVariant.copy(alpha = 0.4f)
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = SpacingTokens.SpaceXl, vertical = SpacingTokens.Space2Xl)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(dynamicColors.accent.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Radio,
-                    contentDescription = null,
-                    tint = dynamicColors.accent,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(SpacingTokens.SpaceLg))
-
-            Text(
-                text = "You've explored it all",
-                style = SonzaTypography.SectionTitle,
-                color = SonzaOnBackground,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(SpacingTokens.SpaceXs))
-
-            Text(
-                text = "Start a personalized radio for continuous music discovery",
-                style = SonzaTypography.ArtistSubtitle,
-                color = SonzaOnSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(SpacingTokens.SpaceLg))
-
-            Surface(
-                modifier = Modifier.bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onStartRadio),
-                shape = RoundedCornerShape(RadiusTokens.Pill),
-                color = dynamicColors.accent
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        tint = dynamicColors.onAccent,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = "Start Your Radio",
-                        style = SonzaTypography.LabelLarge,
-                        color = dynamicColors.onAccent
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun LoadingMoreIndicator(modifier: Modifier = Modifier) {
     val dynamicColors = LocalSonzaDynamicColors.current
 
@@ -1029,55 +928,6 @@ private fun LoadingMoreIndicator(modifier: Modifier = Modifier) {
                 color = SonzaOnSurfaceVariant
             )
         }
-    }
-}
-
-@Composable
-private fun AppFooter(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(top = SpacingTokens.Space2Xl, bottom = SpacingTokens.SpaceXl)
-            .padding(horizontal = SpacingTokens.SpaceLg),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Surface(
-            modifier = Modifier.size(48.dp),
-            shape = RoundedCornerShape(RadiusTokens.Md),
-            color = SonzaSurfaceVariant.copy(alpha = 0.5f)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                AppLogo(
-                    modifier = Modifier
-                        .size(30.dp)
-                        .clip(RoundedCornerShape(RadiusTokens.Sm)),
-                    contentDescription = null
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(SpacingTokens.SpaceMd))
-
-        Text(
-            text = "Sonza",
-            style = SonzaTypography.CardTitle,
-            color = SonzaOnBackground
-        )
-
-        val versionName = com.sonza.app.BuildConfig.VERSION_NAME
-        Text(
-            text = "v$versionName",
-            style = SonzaTypography.Metadata,
-            color = SonzaOnSurfaceVariant.copy(alpha = 0.6f)
-        )
-
-        Spacer(modifier = Modifier.height(SpacingTokens.SpaceLg))
-
-        Text(
-            text = "\u00A9 2026 Prince Kumar Jha",
-            style = SonzaTypography.Metadata,
-            color = SonzaOnSurfaceVariant.copy(alpha = 0.4f)
-        )
     }
 }
 

@@ -131,8 +131,8 @@ fun PremiumLoadingScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            LoadingIndicator(
-                modifier = Modifier.size(52.dp),
+            SonzaVideoLoadingIndicator(
+                modifier = Modifier.size(64.dp),
                 color = MaterialTheme.colorScheme.primary
             )
             

@@ -41,56 +41,10 @@ fun SonzaLoadingLogo(
     durationMillis: Int = 1000,
     inactiveAlpha: Float = 0.22f
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "SonzaLoadingTransition")
-    
-    val phase by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = barCount.toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = durationMillis, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "SonzaLoadingPhase"
+    SonzaVideoLoadingIndicator(
+        modifier = modifier,
+        color = color
     )
-
-    Canvas(
-        modifier = modifier
-    ) {
-        val diameter = size.minDimension
-        if (diameter <= 0f) return@Canvas
-
-        val center = Offset(size.width / 2f, size.height / 2f)
-        
-        // Exact capsule bar geometry scaled to canvas bounds
-        val barWidth = diameter * 0.095f
-        val barLength = diameter * 0.23f
-        val innerRadius = diameter * 0.22f
-        val cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f)
-
-        for (i in 0 until barCount) {
-            val angleDegrees = (i * 360f / barCount)
-            
-            // Calculate distance from active animation head in clockwise direction
-            val distance = (phase - i + barCount) % barCount
-            val normalizedDistance = distance / barCount
-            val intensity = (1f - normalizedDistance).coerceIn(0f, 1f)
-            
-            // Smooth natural decay curve for trailing bars
-            val alpha = (inactiveAlpha + (1f - inactiveAlpha) * (intensity * intensity)).coerceIn(0f, 1f)
-            val barColor = color.copy(alpha = alpha)
-
-            withTransform({
-                rotate(degrees = angleDegrees, pivot = center)
-            }) {
-                drawRoundRect(
-                    color = barColor,
-                    topLeft = Offset(center.x - barWidth / 2f, center.y - innerRadius - barLength),
-                    size = Size(barWidth, barLength),
-                    cornerRadius = cornerRadius
-                )
-            }
-        }
-    }
 }
 
 /**

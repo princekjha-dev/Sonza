@@ -1076,8 +1076,15 @@ class MusicPlayer @Inject constructor(
                         
                         currentResolutionJob?.cancel()
                         currentResolutionJob = scope.launch {
-                            val cacheKey = if (cachedIsVideo) "${song.id}_${_playerState.value.videoQuality.name}" else song.id
-                            val newMediaItem = MediaItem.Builder()
+                            val activeSource = computeActiveAudioSource(song)
+                            val cacheKey = if (cachedIsVideo) {
+                                "${song.id}_${_playerState.value.videoQuality.name}"
+                            } else if (activeSource != null) {
+                                "${song.id}_${activeSource.name}"
+                            } else {
+                                song.id
+                            }
+                            val mediaItemBuilder = MediaItem.Builder()
                                 .setUri(cachedUrl)
                                 .setMediaId(song.id)
                                 .setCustomCacheKey(cacheKey)
@@ -1092,7 +1099,22 @@ class MusicPlayer @Inject constructor(
                                         .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
                                         .build()
                                 )
-                                .build()
+
+                            val isRemoteAudioSource = song.source == SongSource.REMOTE || (cachedUrl.contains(com.sonza.app.data.repository.remote.RemoteConstants.CDN_HOST))
+                            if (isRemoteAudioSource) {
+                                mediaItemBuilder.setRequestMetadata(
+                                    MediaItem.RequestMetadata.Builder()
+                                        .setExtras(android.os.Bundle().apply {
+                                            val headers = android.os.Bundle().apply {
+                                                putString("Referer", com.sonza.app.data.repository.remote.RemoteConstants.REFERER)
+                                                putString("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36")
+                                            }
+                                            putBundle("headers", headers)
+                                        })
+                                        .build()
+                                )
+                            }
+                            val newMediaItem = mediaItemBuilder.build()
                             
                             if (index < controller.mediaItemCount && controller.getMediaItemAt(index).mediaId == song.id) {
                                 controller.replaceMediaItem(index, newMediaItem)
@@ -1565,7 +1587,7 @@ class MusicPlayer @Inject constructor(
             com.sonza.app.core.model.AudioQuality.LOW -> 96
             com.sonza.app.core.model.AudioQuality.MEDIUM -> 160
             com.sonza.app.core.model.AudioQuality.HIGH -> 320
-            com.sonza.app.core.model.AudioQuality.AUTO -> 160
+            com.sonza.app.core.model.AudioQuality.AUTO -> 320
         }
         return remoteAudioRepository.getStreamUrl(song.id, qualityInt)
             ?: song.streamUrl?.takeIf { it.isNotBlank() }
@@ -1711,125 +1733,76 @@ class MusicPlayer @Inject constructor(
                 var streamUrl: String? = null
                 var audioStreamUrl: String? = null // For dual-stream video (720p/1080p)
 
-                // --- HYBRID AUDIO (YouTube metadata, RemoteAudio audio) ---
-                // When the user opts in, stream YouTube-sourced songs from
-                // RemoteAudio HQ if a confident match exists. Browsing/metadata is
-                // untouched; only the audio stream is swapped. Falls through to
-                // the normal YouTube path below when no match is found.
-                if ((song.source == SongSource.YOUTUBE || song.source == SongSource.YOUTUBE_MUSIC) &&
-                    !_playerState.value.isVideoMode &&
-                    effectiveMusicSource(song) == MusicSource.REMOTE
-                ) {
-                    coroutineScope {
-                        val remoteJob = async(Dispatchers.IO) {
-                            try {
-                                resolveHybridRemoteStream(song)
-                            } catch (e: Exception) {
-                                null
-                            }
-                        }
-                        val ytJob = async(Dispatchers.IO) {
-                            try {
-                                youTubeRepository.getStreamUrl(song.id)
-                            } catch (e: Exception) {
-                                null
-                            }
-                        }
+                // Primary Stream Resolution based on Source and Mode
+                val isVideo = _playerState.value.isVideoMode
+                val effectiveSource = effectiveMusicSource(song)
 
-                        // Prefer Remote (HQ) but start playback as fast as possible.
-                        // Wait for Remote with a grace period of 800ms.
-                        val resolvedUrl = select<String?> {
-                            remoteJob.onAwait { remote ->
-                                if (remote != null) {
-                                    android.util.Log.d("MusicPlayer", "Race: Remote resolved first or fast")
-                                    remote
-                                } else {
-                                    null
-                                }
-                            }
-                            onTimeout(800L) {
-                                if (ytJob.isCompleted) {
-                                    val ytUrl = ytJob.await()
-                                    if (ytUrl != null) {
-                                        android.util.Log.d("MusicPlayer", "Race: Remote took too long, using YouTube")
-                                        remoteJob.cancel()
-                                        notifyHqFallbackIfNeeded(song)
-                                        ytUrl
-                                    } else {
-                                        null
-                                    }
-                                } else {
-                                    null
-                                }
-                            }
-                        }
-
-                        if (resolvedUrl != null) {
-                            streamUrl = resolvedUrl
+                when {
+                    song.source == SongSource.LOCAL || song.source == SongSource.DOWNLOADED -> {
+                        streamUrl = song.localUri.orEmpty()
+                    }
+                    isVideo -> {
+                        val videoId = if (song.source == SongSource.YOUTUBE || song.source == SongSource.YOUTUBE_MUSIC) {
+                            song.id
                         } else {
-                            // If we didn't resolve remoteUrl within 800ms grace period, wait for whichever resolves first
-                            val firstResolved = select<Pair<String?, Boolean>> {
-                                remoteJob.onAwait { remote ->
-                                    if (remote != null) Pair(remote, true) else Pair(null, false)
-                                }
-                                ytJob.onAwait { yt ->
-                                    if (yt != null) Pair(yt, false) else Pair(null, false)
-                                }
-                            }
-                            if (firstResolved.first != null) {
-                                streamUrl = firstResolved.first
-                                if (firstResolved.second) {
-                                    android.util.Log.d("MusicPlayer", "Race: Remote resolved eventually")
-                                } else {
-                                    android.util.Log.d("MusicPlayer", "Race: YouTube resolved first after timeout fallback")
-                                    notifyHqFallbackIfNeeded(song)
-                                }
+                            resolvedVideoIds[song.id] ?: youTubeRepository.getBestVideoId(song).also {
+                                resolvedVideoIds.put(song.id, it)
                             }
                         }
+                        val videoResult = youTubeRepository.getVideoStreamResult(videoId, _playerState.value.videoQuality)
+                        streamUrl = videoResult?.videoUrl
+                        audioStreamUrl = videoResult?.audioUrl
+                    }
+                    effectiveSource == MusicSource.REMOTE -> {
+                        // HQ Audio (320 kbps) is selected: resolve HQ stream
+                        val hqUrl = if (song.source == SongSource.REMOTE) {
+                            remoteStreamUrlFor(song)
+                        } else {
+                            resolveHybridRemoteStream(song)
+                        }
 
-                        // Cancel outstanding tasks to release network/CPU resources
-                        remoteJob.cancel()
-                        ytJob.cancel()
+                        if (!hqUrl.isNullOrBlank()) {
+                            android.util.Log.i("MusicPlayer", "[HQ_RESOLVED] trackId=${song.id}, title='${song.title}', hqUrl=${hqUrl.take(60)}")
+                            streamUrl = hqUrl
+                        } else {
+                            // No HQ match exists or backend busy -> gracefully fall back to YouTube Music for this song
+                            notifyHqFallbackIfNeeded(song)
+                            android.util.Log.i("MusicPlayer", "[HQ_FALLBACK_TO_YT] trackId=${song.id}, title='${song.title}'")
+                            streamUrl = youTubeRepository.getStreamUrl(song.id)
+                        }
+                    }
+                    else -> {
+                        // YouTube Music is selected
+                        val videoId = if (song.source == SongSource.REMOTE) {
+                            resolvedVideoIds[song.id] ?: youTubeRepository.getBestVideoId(song).also {
+                                resolvedVideoIds.put(song.id, it)
+                            }
+                        } else {
+                            song.id
+                        }
+                        streamUrl = youTubeRepository.getStreamUrl(videoId)
                     }
                 }
 
-                var attempts = 0
-                while (streamUrl == null && attempts < 2) {
-                    val result = kotlinx.coroutines.withTimeoutOrNull(20_000L) {
-                        when (song.source) {
-                            SongSource.LOCAL, SongSource.DOWNLOADED -> Pair(song.localUri.orEmpty(), null)
-                            SongSource.REMOTE -> Pair(remoteStreamUrlFor(song), null)
-                            else -> {
-                                if (_playerState.value.isVideoMode) {
-                                    val videoId = if (song.source == SongSource.YOUTUBE || song.source == SongSource.YOUTUBE_MUSIC) {
-                                        song.id
-                                    } else {
-                                        resolvedVideoIds[song.id] ?: youTubeRepository.getBestVideoId(song).also {
-                                            resolvedVideoIds.put(song.id, it)
-                                        }
-                                    }
-                                    val videoResult = youTubeRepository.getVideoStreamResult(videoId, _playerState.value.videoQuality)
-                                    if (videoResult != null) {
-                                        Pair(videoResult.videoUrl, videoResult.audioUrl)
-                                    } else {
-                                        Pair(null, null)
-                                    }
-                                } else {
-                                    Pair(youTubeRepository.getStreamUrl(song.id), null)
-                                }
-                            }
+                // If initial attempt failed, retry once with short delay
+                if (streamUrl == null) {
+                    delay(500)
+                    streamUrl = when {
+                        song.source == SongSource.LOCAL || song.source == SongSource.DOWNLOADED -> song.localUri.orEmpty()
+                        isVideo -> {
+                            val videoId = if (song.source == SongSource.REMOTE) resolvedVideoIds[song.id] ?: song.id else song.id
+                            youTubeRepository.getVideoStreamResult(videoId, _playerState.value.videoQuality)?.videoUrl
                         }
-                    }
-                    streamUrl = result?.first
-                    audioStreamUrl = result?.second
-                    if (streamUrl == null) {
-                        attempts++
-                        if (attempts < 2) delay(1000)
+                        effectiveSource == MusicSource.REMOTE -> {
+                            val hq = if (song.source == SongSource.REMOTE) remoteStreamUrlFor(song) else resolveHybridRemoteStream(song)
+                            hq ?: youTubeRepository.getStreamUrl(song.id)
+                        }
+                        else -> youTubeRepository.getStreamUrl(song.id)
                     }
                 }
 
                 // --- SEARCH FALLBACK ---
-                if (streamUrl == null && song.source == SongSource.YOUTUBE) {
+                if (streamUrl == null && (song.source == SongSource.YOUTUBE || song.source == SongSource.YOUTUBE_MUSIC)) {
                     try {
                         val fallbackId = kotlinx.coroutines.withTimeoutOrNull(5000L) {
                             youTubeRepository.getBestVideoId(song)
@@ -1910,7 +1883,14 @@ class MusicPlayer @Inject constructor(
                     return@withLock
                 }
 
-                val cacheKey = if (_playerState.value.isVideoMode) "${song.id}_${_playerState.value.videoQuality.name}" else song.id
+                val activeSource = computeActiveAudioSource(song)
+                val cacheKey = if (_playerState.value.isVideoMode) {
+                    "${song.id}_${_playerState.value.videoQuality.name}"
+                } else if (activeSource != null) {
+                    "${song.id}_${activeSource.name}"
+                } else {
+                    song.id
+                }
 
                 if (song.source != SongSource.LOCAL && song.source != SongSource.DOWNLOADED) {
                     startAggressiveCaching(cacheKey, streamUrl)
@@ -2488,13 +2468,19 @@ class MusicPlayer @Inject constructor(
             }
 
             if (targetIndex != -1) {
-                val newMediaItem = MediaItem.Builder()
+                val activeSource = computeActiveAudioSource(song)
+                val cacheKey = if (preloadedIsVideoMode) {
+                    "${song.id}_${_playerState.value.videoQuality.name}" 
+                } else if (activeSource != null) {
+                    "${song.id}_${activeSource.name}"
+                } else {
+                    song.id
+                }
+
+                val mediaItemBuilder = MediaItem.Builder()
                     .setUri(streamUrl)
                     .setMediaId(song.id)
-                    .setCustomCacheKey(
-                        if (preloadedIsVideoMode) "${song.id}_${_playerState.value.videoQuality.name}" 
-                        else song.id
-                    )
+                    .setCustomCacheKey(cacheKey)
                     .setMediaMetadata(
                         MediaMetadata.Builder()
                             .setTitle(song.title)
@@ -2506,7 +2492,23 @@ class MusicPlayer @Inject constructor(
                             .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
                             .build()
                     )
-                    .build()
+
+                val isRemoteAudioSource = song.source == SongSource.REMOTE || (streamUrl.contains(com.sonza.app.data.repository.remote.RemoteConstants.CDN_HOST))
+                if (isRemoteAudioSource) {
+                    mediaItemBuilder.setRequestMetadata(
+                        MediaItem.RequestMetadata.Builder()
+                            .setExtras(android.os.Bundle().apply {
+                                val headers = android.os.Bundle().apply {
+                                    putString("Referer", com.sonza.app.data.repository.remote.RemoteConstants.REFERER)
+                                    putString("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36")
+                                }
+                                putBundle("headers", headers)
+                            })
+                            .build()
+                    )
+                }
+
+                val newMediaItem = mediaItemBuilder.build()
                 
                 try {
                     android.util.Log.i("MusicPlayer", "[PRELOAD_UPDATE] Replaced mediaItem at $targetIndex for ${song.id}")
@@ -2705,9 +2707,11 @@ class MusicPlayer @Inject constructor(
             }
         }
         
-        // Use video-quality-aware cache key when in video mode (matches resolveAndPlayCurrentItem)
+        val activeSource = computeActiveAudioSource(song)
         val cacheKey = if (_playerState.value.isVideoMode && resolveStream) {
             "${song.id}_${_playerState.value.videoQuality.name}"
+        } else if (resolveStream && activeSource != null) {
+            "${song.id}_${activeSource.name}"
         } else {
             song.id
         }
@@ -2904,7 +2908,10 @@ class MusicPlayer @Inject constructor(
                                         val videoResult = youTubeRepository.getVideoStreamResult(videoId, _playerState.value.videoQuality)
                                         videoResult?.videoUrl ?: youTubeRepository.getVideoStreamUrl(videoId)
                                     } else {
-                                        youTubeRepository.getStreamUrl(nextSong.id)
+                                        val hqSelected = effectiveMusicSource(nextSong) == MusicSource.REMOTE
+                                        val hybrid = if (hqSelected) resolveHybridRemoteStream(nextSong) else null
+                                        if (hqSelected && hybrid == null) notifyHqFallbackIfNeeded(nextSong)
+                                        hybrid ?: youTubeRepository.getStreamUrl(nextSong.id)
                                     }
                                 }
                             }
@@ -3181,12 +3188,21 @@ class MusicPlayer @Inject constructor(
             }
             
             // Remote-source URIs encode bitrate in the path.
-            if (bitrateKbps == null && (uriString.contains(com.sonza.app.data.repository.remote.RemoteConstants.LEGACY_HOST_A) || uriString.contains(com.sonza.app.data.repository.remote.RemoteConstants.LEGACY_HOST_B))) {
+            if (bitrateKbps == null && (
+                uriString.contains(com.sonza.app.data.repository.remote.RemoteConstants.CDN_HOST) ||
+                uriString.contains(com.sonza.app.data.repository.remote.RemoteConstants.LEGACY_HOST_A) ||
+                uriString.contains(com.sonza.app.data.repository.remote.RemoteConstants.LEGACY_HOST_B) ||
+                uriString.contains("saavncdn") ||
+                uriString.contains("hqaudio") ||
+                uriString.contains("narutosengupta")
+            )) {
                 bitrateKbps = when {
                     uriString.contains("320") -> 320
                     uriString.contains("160") -> 160
                     uriString.contains("96") -> 96
-                    else -> null
+                    uriString.contains("48") -> 48
+                    uriString.contains("12") -> 12
+                    else -> 320
                 }
             }
             

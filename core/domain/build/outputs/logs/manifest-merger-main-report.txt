@@ -1,13 +1,13 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /home/naruto/Downloads/Sonza/core/domain/build/intermediates/tmp/ProcessLibraryManifest/tempAndroidManifest8136487428486285428.xml:2:13-83
-INJECTED from /home/naruto/Downloads/Sonza/core/domain/build/intermediates/tmp/ProcessLibraryManifest/tempAndroidManifest8136487428486285428.xml:2:13-83
+ADDED from /home/naruto/Downloads/Sonza/core/domain/build/intermediates/tmp/ProcessLibraryManifest/tempAndroidManifest18282388261945774611.xml:2:13-83
+INJECTED from /home/naruto/Downloads/Sonza/core/domain/build/intermediates/tmp/ProcessLibraryManifest/tempAndroidManifest18282388261945774611.xml:2:13-83
 	package
-		INJECTED from /home/naruto/Downloads/Sonza/core/domain/build/intermediates/tmp/ProcessLibraryManifest/tempAndroidManifest8136487428486285428.xml
+		INJECTED from /home/naruto/Downloads/Sonza/core/domain/build/intermediates/tmp/ProcessLibraryManifest/tempAndroidManifest18282388261945774611.xml
 	xmlns:android
-		ADDED from /home/naruto/Downloads/Sonza/core/domain/build/intermediates/tmp/ProcessLibraryManifest/tempAndroidManifest8136487428486285428.xml:2:23-81
+		ADDED from /home/naruto/Downloads/Sonza/core/domain/build/intermediates/tmp/ProcessLibraryManifest/tempAndroidManifest18282388261945774611.xml:2:23-81
 uses-sdk
-INJECTED from /home/naruto/Downloads/Sonza/core/domain/build/intermediates/tmp/ProcessLibraryManifest/tempAndroidManifest8136487428486285428.xml reason: use-sdk injection requested
-INJECTED from /home/naruto/Downloads/Sonza/core/domain/build/intermediates/tmp/ProcessLibraryManifest/tempAndroidManifest8136487428486285428.xml
+INJECTED from /home/naruto/Downloads/Sonza/core/domain/build/intermediates/tmp/ProcessLibraryManifest/tempAndroidManifest18282388261945774611.xml reason: use-sdk injection requested
+INJECTED from /home/naruto/Downloads/Sonza/core/domain/build/intermediates/tmp/ProcessLibraryManifest/tempAndroidManifest18282388261945774611.xml
 	android:minSdkVersion
-		INJECTED from /home/naruto/Downloads/Sonza/core/domain/build/intermediates/tmp/ProcessLibraryManifest/tempAndroidManifest8136487428486285428.xml
+		INJECTED from /home/naruto/Downloads/Sonza/core/domain/build/intermediates/tmp/ProcessLibraryManifest/tempAndroidManifest18282388261945774611.xml

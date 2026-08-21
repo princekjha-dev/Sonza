@@ -48,6 +48,7 @@ import com.sonza.app.core.model.RepeatMode
 import com.sonza.app.data.repository.SponsorSegment
 import com.sonza.app.player.SleepTimerOption
 import com.sonza.app.ui.components.DominantColors
+import com.sonza.app.ui.components.SonzaVideoLoadingIndicator
 import com.sonza.app.ui.components.WaveformSeeker
 import com.sonza.app.core.model.SeekbarStyle
 import com.sonza.app.core.model.ArtworkShape
@@ -268,7 +269,7 @@ private fun ClassicPortraitContent(
             Spacer(modifier = Modifier.weight(if (isVeryShort) 0.1f else 0.4f))
 
             ClassicPlaybackControls(
-                isPlaying = playerState.isPlaying, shuffleEnabled = playerState.shuffleEnabled, repeatMode = playerState.repeatMode,
+                isPlaying = playerState.isPlaying, isLoading = combinedLoading, shuffleEnabled = playerState.shuffleEnabled, repeatMode = playerState.repeatMode,
                 onPlayPause = actions.onPlayPause, onNext = actions.onNext, onPrevious = actions.onPrevious, onShuffleToggle = actions.onShuffleToggle,
                 onRepeatToggle = actions.onRepeatToggle, dominantColors = dominantColors, compact = isShort
             )
@@ -352,7 +353,7 @@ private fun ClassicLandscapeContent(
             )
             Spacer(modifier = Modifier.height(12.dp))
             
-            ClassicPlaybackControls(isPlaying = playerState.isPlaying, shuffleEnabled = playerState.shuffleEnabled, repeatMode = playerState.repeatMode, onPlayPause = actions.onPlayPause, onNext = actions.onNext, onPrevious = actions.onPrevious, onShuffleToggle = actions.onShuffleToggle, onRepeatToggle = actions.onRepeatToggle, dominantColors = dominantColors)
+            ClassicPlaybackControls(isPlaying = playerState.isPlaying, isLoading = combinedLoading, shuffleEnabled = playerState.shuffleEnabled, repeatMode = playerState.repeatMode, onPlayPause = actions.onPlayPause, onNext = actions.onNext, onPrevious = actions.onPrevious, onShuffleToggle = actions.onShuffleToggle, onRepeatToggle = actions.onRepeatToggle, dominantColors = dominantColors)
             
             Spacer(modifier = Modifier.height(12.dp))
             ClassicBottomActions(onLyricsClick = onShowLyrics, onCastClick = onShowDevices, onQueueClick = onShowQueue, onRelatedClick = onShowRelated, onDownloadClick = actions.onDownload, downloadState = playerState.downloadState, dominantColors = dominantColors, isYouTubeSong = song?.source == com.sonza.app.core.model.SongSource.YOUTUBE, isVideoMode = playerState.isVideoMode, onVideoToggle = actions.onToggleVideoMode)
@@ -480,7 +481,7 @@ private fun AppleMusicButton(
 
 @Composable
 private fun ClassicPlaybackControls(
-    isPlaying: Boolean, shuffleEnabled: Boolean, repeatMode: RepeatMode, onPlayPause: () -> Unit, onNext: () -> Unit, onPrevious: () -> Unit,
+    isPlaying: Boolean, isLoading: Boolean = false, shuffleEnabled: Boolean, repeatMode: RepeatMode, onPlayPause: () -> Unit, onNext: () -> Unit, onPrevious: () -> Unit,
     onShuffleToggle: () -> Unit, onRepeatToggle: () -> Unit, dominantColors: DominantColors, compact: Boolean = false
 ) {
     val playSize = if (compact) 56.dp else 80.dp
@@ -502,9 +503,18 @@ private fun ClassicPlaybackControls(
             Icon(imageVector = Icons.Default.FastRewind, contentDescription = "Previous", tint = dominantColors.onBackground, modifier = Modifier.size(skipIconSize))
         }
 
+        val buttonState = when {
+            isLoading -> 0
+            isPlaying -> 1
+            else -> 2
+        }
         AppleMusicButton(onClick = onPlayPause, size = playSize) {
-            AnimatedContent(targetState = isPlaying, label = "playPause") { playing ->
-                Icon(imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = "Play/Pause", tint = dominantColors.onBackground, modifier = Modifier.size(playIconSize))
+            AnimatedContent(targetState = buttonState, label = "playPause") { state ->
+                when (state) {
+                    0 -> SonzaVideoLoadingIndicator(modifier = Modifier.size(playIconSize))
+                    1 -> Icon(imageVector = Icons.Default.Pause, contentDescription = "Pause", tint = dominantColors.onBackground, modifier = Modifier.size(playIconSize))
+                    else -> Icon(imageVector = Icons.Default.PlayArrow, contentDescription = "Play", tint = dominantColors.onBackground, modifier = Modifier.size(playIconSize))
+                }
             }
         }
 

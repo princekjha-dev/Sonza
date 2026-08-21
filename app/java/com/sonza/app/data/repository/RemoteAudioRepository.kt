@@ -122,14 +122,21 @@ class RemoteAudioRepository @Inject constructor(
             AudioQuality.LOW -> "96kbps"
             AudioQuality.MEDIUM -> "160kbps"
             AudioQuality.HIGH -> "320kbps"
-            AudioQuality.AUTO -> "160kbps"
+            AudioQuality.AUTO -> "320kbps"
         }
+        val targetNum = target.removeSuffix("kbps")
         return downloadUrls[target]
+            ?: downloadUrls[targetNum]
             ?: downloadUrls["320kbps"]
+            ?: downloadUrls["320"]
             ?: downloadUrls["160kbps"]
+            ?: downloadUrls["160"]
             ?: downloadUrls["96kbps"]
+            ?: downloadUrls["96"]
             ?: downloadUrls["48kbps"]
+            ?: downloadUrls["48"]
             ?: downloadUrls["12kbps"]
+            ?: downloadUrls["12"]
             ?: fallback
     }
 
@@ -478,12 +485,19 @@ class RemoteAudioRepository @Inject constructor(
                 val song = getSongDetails(songId)
                 val downloadUrls = song?.remoteAudioMetadata?.downloadUrls ?: emptyMap()
                 val targetQuality = "${quality}kbps"
+                val targetNum = quality.toString()
                 val streamUrl = downloadUrls[targetQuality]
+                    ?: downloadUrls[targetNum]
                     ?: downloadUrls["320kbps"]
+                    ?: downloadUrls["320"]
                     ?: downloadUrls["160kbps"]
+                    ?: downloadUrls["160"]
                     ?: downloadUrls["96kbps"]
+                    ?: downloadUrls["96"]
                     ?: downloadUrls["48kbps"]
+                    ?: downloadUrls["48"]
                     ?: downloadUrls["12kbps"]
+                    ?: downloadUrls["12"]
                     ?: song?.streamUrl
                 val ms = System.currentTimeMillis() - started
 

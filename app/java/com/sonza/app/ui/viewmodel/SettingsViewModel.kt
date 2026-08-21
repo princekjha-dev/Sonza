@@ -54,7 +54,7 @@ data class SettingsUiState(
     val gaplessPlaybackEnabled: Boolean = false,
     val automixEnabled: Boolean = true,
     val volumeSliderEnabled: Boolean = true,
-    val musicSource: MusicSource = MusicSource.YOUTUBE,
+    val musicSource: MusicSource = MusicSource.REMOTE,
     val preferRemoteAudio: Boolean = true,
     val doubleTapSeekSeconds: Int = 10,
     val volumeNormalizationEnabled: Boolean = true,
@@ -266,6 +266,18 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             sessionManager.videoQualityFlow.collect { quality ->
                 _uiState.update { it.copy(videoQuality = quality) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.musicSourceFlow.collect { source ->
+                _uiState.update { it.copy(musicSource = source) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.preferRemoteAudioFlow.collect { prefer ->
+                _uiState.update { it.copy(preferRemoteAudio = prefer) }
             }
         }
         
