@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
@@ -48,23 +47,42 @@ import com.sonza.app.core.model.PlaylistDisplayItem
 import com.sonza.app.core.model.Song
 import com.sonza.app.ui.theme.*
 import com.sonza.app.util.ImageUtils
+import java.util.Calendar
 
 /**
- * Top Home Header per DESIGN_SYSTEM.md Part 6 & P22:
+ * Top Home Header per DESIGN_SYSTEM.md:
  * - Brand wordmark "Sonza" on leading edge with AppLogo.
- * - Action buttons: Listen Together, Activity History, and Account Avatar.
+ * - Action buttons: Activity History and Account Avatar.
+ * - Dynamic time-of-day greeting with authenticated user name.
  * - Compact height, standard SpaceLg (16dp) padding, clean touch targets.
  */
 @Composable
 fun HomeTopHeader(
     avatarUrl: String?,
+    userName: String? = null,
     onHistoryClick: () -> Unit = {},
-    onListenTogetherClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val dynamicColors = LocalSonzaDynamicColors.current
+    val greeting = remember {
+        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        when {
+            hour < 12 -> "Good morning"
+            hour < 17 -> "Good afternoon"
+            else -> "Good evening"
+        }
+    }
 
-    Row(
+    val greetingText = remember(greeting, userName) {
+        if (!userName.isNullOrBlank()) {
+            "$greeting, $userName"
+        } else {
+            greeting
+        }
+    }
+
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(
@@ -73,81 +91,92 @@ fun HomeTopHeader(
                 top = SpacingTokens.SpaceSm,
                 bottom = SpacingTokens.SpaceXs
             ),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceSm)
     ) {
-        // Brand Wordmark + Logo
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceSm)
-        ) {
-            AppLogo(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(RoundedCornerShape(RadiusTokens.Sm))
-            )
-            Text(
-                text = "Sonza",
-                style = SonzaTypography.TitleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp
-                ),
-                color = SonzaOnBackground,
-                letterSpacing = (-0.5).sp
-            )
-        }
-
-        // Trailing Actions
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceXs),
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Listen Together
-            HomeTopBarAction(
-                icon = Icons.Default.Group,
-                contentDescription = "Listen Together",
-                onClick = onListenTogetherClick
-            )
-
-            // Activity / History
-            HomeTopBarAction(
-                icon = Icons.Default.History,
-                contentDescription = "Recent History",
-                onClick = onHistoryClick,
-                showDot = true
-            )
-
-            Spacer(modifier = Modifier.width(SpacingTokens.SpaceXs))
-
-            // Account Avatar
-            Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .background(SonzaSurfaceVariant)
-                    .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onHistoryClick),
-                contentAlignment = Alignment.Center
+            // Brand Wordmark + Logo
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceSm)
             ) {
-                if (!avatarUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(avatarUrl)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = "Account",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Account",
-                        tint = SonzaOnSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
+                AppLogo(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(RadiusTokens.Sm))
+                )
+                Text(
+                    text = "Sonza",
+                    style = SonzaTypography.TitleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 22.sp
+                    ),
+                    color = SonzaOnBackground,
+                    letterSpacing = (-0.5).sp
+                )
+            }
+
+            // Trailing Actions
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceXs),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Activity / History
+                HomeTopBarAction(
+                    icon = Icons.Default.History,
+                    contentDescription = "Recent History",
+                    onClick = onHistoryClick,
+                    showDot = true
+                )
+
+                Spacer(modifier = Modifier.width(SpacingTokens.SpaceXs))
+
+                // Account Avatar
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(SonzaSurfaceVariant)
+                        .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onProfileClick),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (!avatarUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(avatarUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Account",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Account",
+                            tint = SonzaOnSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }
+
+        // Personalized greeting header
+        Text(
+            text = greetingText,
+            style = SonzaTypography.PageTitle.copy(
+                fontSize = 22.sp,
+                lineHeight = 26.sp,
+                fontWeight = FontWeight.Bold
+            ),
+            color = SonzaOnBackground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

@@ -130,19 +130,6 @@ def test_spotify_fuzzy_matcher():
     assert sim3 < 0.30
     print("  ✓ Spotify playlist fuzzy matching algorithm verified!")
 
-def test_clock_drift_sync():
-    print("Testing 6. Listen Together NTP Clock Sync & Drift Offset...")
-    t0 = 1000000
-    server_time = 1000500
-    t3 = 1000030
-    
-    round_trip = t3 - t0
-    one_way_latency = round_trip / 2
-    offset = server_time - (t0 + one_way_latency)
-    assert offset == 485
-    assert one_way_latency == 15
-    print("  ✓ Clock offset calculation verified!")
-
 if __name__ == "__main__":
     print("=== SONZA Core Verification Test Suite ===")
     test_lrc_parser()
@@ -150,7 +137,6 @@ if __name__ == "__main__":
     test_replay_gain_and_limiter()
     test_constant_power_crossfade()
     test_spotify_fuzzy_matcher()
-    test_clock_drift_sync()
     print("\n==========================================")
-    print("ALL 6 CORE ALGORITHMIC TEST SUITES PASSED!")
+    print("ALL CORE ALGORITHMIC TEST SUITES PASSED!")
     print("==========================================")

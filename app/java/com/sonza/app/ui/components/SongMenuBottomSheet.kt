@@ -65,7 +65,6 @@ fun SongMenuBottomSheet(
     onMoveDown: (() -> Unit)? = null,
     onViewArtist: (() -> Unit)? = null,
     onViewAlbum: (() -> Unit)? = null,
-    onListenTogether: () -> Unit = {},
     showShare: Boolean = true,
     isCurrentlyPlaying: Boolean = false
 ) {
@@ -208,12 +207,7 @@ fun SongMenuBottomSheet(
                     onClick = { onDownload(); onDismiss() }
                 )
 
-                MenuActionItem(
-                    icon = Icons.Default.Group,
-                    title = "Listen Together",
-                    subtitle = "Sync music with others in real-time",
-                    onClick = { onListenTogether(); onDismiss() }
-                )
+
                 
                 if (onRemoveFromPlaylist != null) {
                     MenuActionItem(

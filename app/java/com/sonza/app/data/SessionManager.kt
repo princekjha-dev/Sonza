@@ -115,10 +115,10 @@ class SessionManager @Inject constructor(
         
         private val MUSIC_SOURCE_KEY = stringPreferencesKey("music_source")
         // Hybrid playback: keep YouTube for browsing/metadata but stream the
-        // actual audio from RemoteAudio (HQ 320 kbps) when a matching track exists.
         private val PREFER_REMOTE_AUDIO_KEY = booleanPreferencesKey("prefer_remote_audio")
         private val DEV_MODE_KEY = stringPreferencesKey("_dx_mode")
         private val DYNAMIC_ISLAND_ENABLED_KEY = booleanPreferencesKey("dynamic_island_enabled")
+        private val PIP_ENABLED_KEY = booleanPreferencesKey("pip_enabled")
         
         private val SEEKBAR_STYLE_KEY = stringPreferencesKey("seekbar_style")
         private val ARTWORK_SHAPE_KEY = stringPreferencesKey("artwork_shape")
@@ -543,10 +543,13 @@ class SessionManager @Inject constructor(
         }
     }
 
-    // --- Floating Player ---
+    // --- Floating Player & Dynamic Island ---
     
     suspend fun isDynamicIslandEnabled(): Boolean = 
-        context.dataStore.data.first()[DYNAMIC_ISLAND_ENABLED_KEY] ?: false
+        context.dataStore.data.first()[DYNAMIC_ISLAND_ENABLED_KEY] ?: true
+
+    suspend fun isPipEnabled(): Boolean =
+        context.dataStore.data.first()[PIP_ENABLED_KEY] ?: true
 
     suspend fun isSponsorBlockEnabled(): Boolean =
         context.dataStore.data.first()[SPONSOR_BLOCK_ENABLED_KEY] ?: false
@@ -693,12 +696,22 @@ class SessionManager @Inject constructor(
     }
 
     val dynamicIslandEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
-        preferences[DYNAMIC_ISLAND_ENABLED_KEY] ?: false
+        preferences[DYNAMIC_ISLAND_ENABLED_KEY] ?: true
     }
     
     suspend fun setDynamicIslandEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[DYNAMIC_ISLAND_ENABLED_KEY] = enabled
+        }
+    }
+
+    val pipEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PIP_ENABLED_KEY] ?: true
+    }
+
+    suspend fun setPipEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PIP_ENABLED_KEY] = enabled
         }
     }
     
@@ -3339,23 +3352,7 @@ class SessionManager @Inject constructor(
         return matchedRemoteSongIds[ytSongId]
     }
 
-    // --- Listen Together: what a song actually resolved to at play time ---
-    // When this device hosts a Listen Together room, guests must resolve the same
-    // track from the same backend (and quality) as the host instead of guessing
-    // from the id format — otherwise an HQ (RemoteAudio) host silently degrades to
-    // YouTube on guests. MusicPlayer records the real outcome here after each
-    // resolve; ListenTogetherManager reads it when broadcasting the track.
-    private val resolvedPlaybackInfo = java.util.Collections.synchronizedMap(
-        object : java.util.LinkedHashMap<String, ResolvedPlaybackInfo>(16, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ResolvedPlaybackInfo>): Boolean = size > 200
-        }
-    )
 
-    fun putResolvedPlaybackInfo(songId: String, source: String, sourceTrackId: String, quality: String) {
-        resolvedPlaybackInfo[songId] = ResolvedPlaybackInfo(source, sourceTrackId, quality)
-    }
-
-    fun getResolvedPlaybackInfo(songId: String): ResolvedPlaybackInfo? = resolvedPlaybackInfo[songId]
 
     suspend fun getMigrationHistoryJson(): String? =
         context.dataStore.data.first()[MIGRATION_HISTORY_KEY]
@@ -3372,15 +3369,7 @@ class SessionManager @Inject constructor(
 
 }
 
-/**
- * The backend + quality a song actually resolved to at play time, used to keep
- * Listen Together guests on the same audio source as the host.
- */
-data class ResolvedPlaybackInfo(
-    val source: String,        // "remote_audio" (HQ) or "youtube"
-    val sourceTrackId: String, // backend-specific id guests should resolve with
-    val quality: String        // "auto" / "low" / "medium" / "high"
-)
+
 
 /**
  * Data class for last playback state.

@@ -274,26 +274,7 @@ object AppModule {
         )
     }
 
-    @Provides
-    @Singleton
-    fun provideListenTogetherClient(
-        @ApplicationContext context: Context
-    ): com.sonza.app.shareplay.ListenTogetherClient {
-        return com.sonza.app.shareplay.ListenTogetherClient(context)
-    }
 
-    @Provides
-    @Singleton
-    fun provideListenTogetherManager(
-        client: com.sonza.app.shareplay.ListenTogetherClient,
-        youTubeRepository: YouTubeRepository,
-        remoteAudioRepository: RemoteAudioRepository,
-        sessionManager: SessionManager
-    ): com.sonza.app.shareplay.ListenTogetherManager {
-        val manager = com.sonza.app.shareplay.ListenTogetherManager(client, youTubeRepository, remoteAudioRepository, sessionManager)
-        manager.initialize()
-        return manager
-    }
 
     @Provides
     @Singleton

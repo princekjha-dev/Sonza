@@ -44,7 +44,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.SharedFlow
 import androidx.media3.common.Player
 import com.sonza.app.ui.screens.SponsorBlockSettingsScreen
-import com.sonza.app.ui.screens.ListenTogetherScreen
 import org.koin.compose.viewmodel.koinViewModel
 
 import androidx.navigation.toRoute
@@ -208,8 +207,8 @@ fun NavGraph(
                         onHistoryClick = {
                             navController.navigate(Destination.Recents)
                         },
-                        onListenTogetherClick = {
-                            navController.navigate(Destination.ListenTogether)
+                        onProfileClick = {
+                            navController.navigate(Destination.Settings)
                         },
                         onExploreClick = { browseId, title ->
                             if (browseId == "FEmusic_moods_and_genres") {
@@ -226,18 +225,6 @@ fun NavGraph(
                     )
                 }
             }
-        }
-        
-        composable<Destination.ListenTogether> {
-            ListenTogetherScreen(
-                onDismiss = { navController.popBackStack() },
-                dominantColors = dominantColors ?: com.sonza.app.ui.components.DominantColors(
-                    primary = MaterialTheme.colorScheme.primary,
-                    secondary = MaterialTheme.colorScheme.secondary,
-                    accent = MaterialTheme.colorScheme.tertiary,
-                    onBackground = MaterialTheme.colorScheme.onBackground
-                )
-            )
         }
         
         composable<Destination.Explore> {
@@ -558,6 +545,7 @@ fun NavGraph(
         composable<Destination.YouTubeLogin> {
             YouTubeLoginScreen(
                 sessionManager = sessionManager,
+                youTubeRepository = youTubeRepository,
                 onLoginSuccess = {
                     // Show success message
                     com.sonza.app.util.SnackbarUtil.showSuccess("Login Successful")

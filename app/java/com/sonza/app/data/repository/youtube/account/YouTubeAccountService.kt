@@ -35,10 +35,19 @@ class YouTubeAccountService @Inject constructor(
             val accountHeader = findActiveAccountHeader(JSONObject(response)) ?: return@withContext null
 
             val thumbnails = accountHeader.optJSONObject("accountPhoto")?.optJSONArray("thumbnails")
+            val parsedName = jsonParser.getRunText(accountHeader.optJSONObject("accountName"))
+                ?: accountHeader.optJSONObject("accountName")?.optString("simpleText")
+                ?: accountHeader.optString("accountName").takeIf { it.isNotBlank() }
+                ?: jsonParser.getRunText(accountHeader.optJSONObject("channelHandle"))
+                ?: "User"
+
+            val parsedEmail = jsonParser.getRunText(accountHeader.optJSONObject("email"))
+                ?: accountHeader.optJSONObject("email")?.optString("simpleText")
+                ?: accountHeader.optString("email")
 
             StoredAccount(
-                name = jsonParser.getRunText(accountHeader.optJSONObject("accountName")) ?: "User",
-                email = jsonParser.getRunText(accountHeader.optJSONObject("email")) ?: "",
+                name = parsedName,
+                email = parsedEmail,
                 avatarUrl = thumbnails?.let { it.optJSONObject(it.length() - 1)?.optString("url") } ?: "",
                 cookies = cookies,
                 authUserIndex = sessionManager.getAuthUserIndex()

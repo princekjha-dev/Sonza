@@ -1,15 +1,13 @@
 package com.sonza.app.ui.components.dynamicisland
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
@@ -18,30 +16,56 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -52,17 +76,16 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.sonza.app.core.model.Song
 import com.sonza.app.ui.theme.SonzaColors
-import com.sonza.app.ui.theme.SonzaOnBackground
-import com.sonza.app.ui.theme.SonzaSurface
 import com.sonza.app.ui.theme.SonzaTypography
 
 /**
  * Production-quality Dynamic Island-style floating music pill.
  *
  * Driven strictly by the authoritative playback state:
- * - Hidden: when currentSong == null.
- * - Compact: small pill at the top/cutout area showing artwork, title marquee, animated soundwave.
- * - Expanded: smoothly morphs with spring physics to show large artwork, title, artist, progress, playback controls.
+ * - Persistent & stable: Remains visible throughout song playback and pause.
+ * - State-driven transitions: Smooth spring animation between idle, compact, and expanded.
+ * - Non-blocking: When compact, it does not intercept touch gestures on the underlying screen.
+ * - Rich controls: Expands on tap to provide interactive progress scrubbing, track controls, and favorites.
  */
 @Composable
 fun DynamicIsland(
@@ -71,17 +94,30 @@ fun DynamicIsland(
     currentPosition: Long,
     duration: Long,
     isLiked: Boolean,
+    isVisible: Boolean = currentSong != null,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
     onSeekTo: (Long) -> Unit,
     onLikeToggle: () -> Unit,
+    onOpenFullPlayer: () -> Unit = {},
     modifier: Modifier = Modifier,
     topInset: Dp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 ) {
-    if (currentSong == null) return
+    var isExpanded by rememberSaveable { mutableStateOf(false) }
 
-    var isExpanded by remember { mutableStateOf(false) }
+    // If visibility is revoked (e.g. song ended or player opened), collapse expanded state
+    LaunchedEffect(isVisible) {
+        if (!isVisible) {
+            isExpanded = false
+        }
+    }
+
+    if (isExpanded) {
+        BackHandler {
+            isExpanded = false
+        }
+    }
 
     val islandCornerRadius by animateDpAsState(
         targetValue = if (isExpanded) 28.dp else 22.dp,
@@ -95,16 +131,17 @@ fun DynamicIsland(
         label = "IslandElevation"
     )
 
+    // Outer wrapper: Full-screen scrim when expanded; minimal top-aligned container when compact
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .then(
-                if (isExpanded) {
-                    Modifier.pointerInput(Unit) {
-                        detectTapGestures { isExpanded = false }
-                    }
-                } else Modifier
-            ),
+        modifier = if (isExpanded) {
+            modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures { isExpanded = false }
+                }
+        } else {
+            modifier.wrapContentSize(Alignment.TopCenter)
+        },
         contentAlignment = Alignment.TopCenter
     ) {
         // Dim scrim background when expanded
@@ -116,61 +153,84 @@ fun DynamicIsland(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.45f))
+                    .background(Color.Black.copy(alpha = 0.50f))
             )
         }
 
-        // The Island Capsule
-        Surface(
-            modifier = Modifier
-                .padding(top = topInset + 6.dp)
-                .padding(horizontal = 16.dp)
-                .shadow(
-                    elevation = islandElevation,
-                    shape = RoundedCornerShape(islandCornerRadius),
-                    ambientColor = Color.Black.copy(alpha = 0.60f),
-                    spotColor = Color.Black.copy(alpha = 0.50f)
-                )
-                .clip(RoundedCornerShape(islandCornerRadius))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {
-                        if (!isExpanded) isExpanded = true
-                    }
-                )
-                .animateContentSize(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioLowBouncy,
-                        stiffness = Spring.StiffnessMediumLow
+        // The Island Capsule with smooth spring entrance/exit
+        AnimatedVisibility(
+            visible = isVisible && currentSong != null,
+            enter = fadeIn(spring(stiffness = Spring.StiffnessMediumLow)) +
+                    scaleIn(
+                        initialScale = 0.85f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ),
+            exit = fadeOut(tween(180)) +
+                    scaleOut(
+                        targetScale = 0.85f,
+                        animationSpec = tween(180)
                     )
-                ),
-            shape = RoundedCornerShape(islandCornerRadius),
-            color = Color(0xFF000000),
-            border = androidx.compose.foundation.BorderStroke(
-                width = 0.75.dp,
-                color = Color.White.copy(alpha = if (isExpanded) 0.20f else 0.12f)
-            )
         ) {
-            if (isExpanded) {
-                ExpandedIslandContent(
-                    song = currentSong,
-                    isPlaying = isPlaying,
-                    currentPosition = currentPosition,
-                    duration = duration,
-                    isLiked = isLiked,
-                    onPlayPause = onPlayPause,
-                    onNext = onNext,
-                    onPrevious = onPrevious,
-                    onSeekTo = onSeekTo,
-                    onLikeToggle = onLikeToggle,
-                    onCollapse = { isExpanded = false }
+            val song = currentSong ?: return@AnimatedVisibility
+
+            Surface(
+                modifier = Modifier
+                    .padding(top = topInset + 6.dp)
+                    .padding(horizontal = 16.dp)
+                    .shadow(
+                        elevation = islandElevation,
+                        shape = RoundedCornerShape(islandCornerRadius),
+                        ambientColor = Color.Black.copy(alpha = 0.60f),
+                        spotColor = Color.Black.copy(alpha = 0.50f)
+                    )
+                    .clip(RoundedCornerShape(islandCornerRadius))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {
+                            if (!isExpanded) isExpanded = true
+                        }
+                    )
+                    .animateContentSize(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ),
+                shape = RoundedCornerShape(islandCornerRadius),
+                color = Color(0xFF000000),
+                border = BorderStroke(
+                    width = 0.75.dp,
+                    color = Color.White.copy(alpha = if (isExpanded) 0.22f else 0.14f)
                 )
-            } else {
-                CompactIslandContent(
-                    song = currentSong,
-                    isPlaying = isPlaying
-                )
+            ) {
+                if (isExpanded) {
+                    ExpandedIslandContent(
+                        song = song,
+                        isPlaying = isPlaying,
+                        currentPosition = currentPosition,
+                        duration = duration,
+                        isLiked = isLiked,
+                        onPlayPause = onPlayPause,
+                        onNext = onNext,
+                        onPrevious = onPrevious,
+                        onSeekTo = onSeekTo,
+                        onLikeToggle = onLikeToggle,
+                        onOpenFullPlayer = {
+                            isExpanded = false
+                            onOpenFullPlayer()
+                        },
+                        onCollapse = { isExpanded = false }
+                    )
+                } else {
+                    CompactIslandContent(
+                        song = song,
+                        isPlaying = isPlaying
+                    )
+                }
             }
         }
     }
@@ -178,6 +238,7 @@ fun DynamicIsland(
 
 /**
  * Compact Pill state: Minimal footprint near top cutout.
+ * Shows artwork, title marquee, and synchronized equalizer / paused indicator.
  */
 @Composable
 private fun CompactIslandContent(
@@ -187,8 +248,8 @@ private fun CompactIslandContent(
     Row(
         modifier = Modifier
             .height(44.dp)
-            .widthIn(min = 190.dp, max = 240.dp)
-            .padding(horizontal = 8.dp),
+            .widthIn(min = 195.dp, max = 250.dp)
+            .padding(start = 6.dp, end = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -197,7 +258,7 @@ private fun CompactIslandContent(
             model = song.thumbnailUrl,
             contentDescription = "Album Art",
             modifier = Modifier
-                .size(30.dp)
+                .size(32.dp)
                 .clip(CircleShape)
                 .background(Color(0xFF1C1C1E)),
             contentScale = ContentScale.Crop
@@ -205,20 +266,33 @@ private fun CompactIslandContent(
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // Center Song Title
-        Text(
-            text = song.title,
-            style = SonzaTypography.BodySmall,
-            fontWeight = FontWeight.SemiBold,
-            color = Color.White,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
+        // Center Song Title & Artist
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = song.title,
+                style = SonzaTypography.BodySmall,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (song.artist.isNotBlank()) {
+                Text(
+                    text = song.artist,
+                    fontSize = 10.sp,
+                    color = Color.White.copy(alpha = 0.60f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // Trailing Animated Soundwave Equalizer
+        // Trailing Animated Soundwave Equalizer (smoothly settles when paused)
         SoundwaveVisualizer(isPlaying = isPlaying)
     }
 }
@@ -238,6 +312,7 @@ private fun ExpandedIslandContent(
     onPrevious: () -> Unit,
     onSeekTo: (Long) -> Unit,
     onLikeToggle: () -> Unit,
+    onOpenFullPlayer: () -> Unit,
     onCollapse: () -> Unit
 ) {
     val progress = if (duration > 0) (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f
@@ -247,7 +322,7 @@ private fun ExpandedIslandContent(
             .widthIn(min = 320.dp, max = 370.dp)
             .padding(18.dp)
     ) {
-        // Top Header with Artwork, Metadata and Collapse/Close Button
+        // Top Header with Artwork, Metadata, Full-Player Expand, and Collapse/Close Button
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -258,13 +333,18 @@ private fun ExpandedIslandContent(
                 modifier = Modifier
                     .size(56.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFF1C1C1E)),
+                    .background(Color(0xFF1C1C1E))
+                    .clickable(onClick = onOpenFullPlayer),
                 contentScale = ContentScale.Crop
             )
 
             Spacer(modifier = Modifier.width(14.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(onClick = onOpenFullPlayer)
+            ) {
                 Text(
                     text = song.title,
                     style = SonzaTypography.BodyLarge,
@@ -295,6 +375,18 @@ private fun ExpandedIslandContent(
             }
 
             IconButton(
+                onClick = onOpenFullPlayer,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.OpenInFull,
+                    contentDescription = "Open Full Player",
+                    tint = Color.White.copy(alpha = 0.60f),
+                    modifier = Modifier.size(17.dp)
+                )
+            }
+
+            IconButton(
                 onClick = onCollapse,
                 modifier = Modifier.size(32.dp)
             ) {
@@ -307,7 +399,7 @@ private fun ExpandedIslandContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         // Progress Bar with Time Labels
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -346,7 +438,7 @@ private fun ExpandedIslandContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         // Playback Control Buttons
         Row(
@@ -402,6 +494,7 @@ private fun ExpandedIslandContent(
 
 /**
  * Programmatic audio waveform / equalizer bars indicating active playback without any GIFs.
+ * When paused, bars smoothly settle into a subtle static indicator.
  */
 @Composable
 private fun SoundwaveVisualizer(

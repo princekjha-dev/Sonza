@@ -39,8 +39,6 @@
     <string name="error_generic_message">শিল্পীর পেজ লোড করার সময় একটি অজানা ত্রুটি ঘটেছে।</string>
     <string name="error_loading">লোড হচ্ছে…</string>
 
-    <string name="listen_together">একসাথে শুনুন</string>
-
     <!-- Bottom Navigation -->
     <string name="nav_home">হোম</string>
     <string name="nav_search">খুঁজুন</string>

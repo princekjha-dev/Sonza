@@ -107,6 +107,14 @@ fun TabletHomeScreen(
         }
     }
 
+    val greetingText = remember(greeting, uiState.userName) {
+        if (!uiState.userName.isNullOrBlank()) {
+            "$greeting, ${uiState.userName}"
+        } else {
+            greeting
+        }
+    }
+
     // Hero item from recommendations
     val heroItem = remember(uiState.recommendations) {
         uiState.recommendations.firstOrNull()
@@ -138,7 +146,7 @@ fun TabletHomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = greeting,
+                        text = greetingText,
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.onBackground

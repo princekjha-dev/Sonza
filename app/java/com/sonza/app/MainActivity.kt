@@ -252,7 +252,7 @@ class MainActivity : ComponentActivity() {
 
             // Observe PiP enabled state globally
             LaunchedEffect(Unit) {
-                sessionManager.dynamicIslandEnabledFlow.collect { enabled ->
+                sessionManager.pipEnabledFlow.collect { enabled ->
                     isPipEnabled = enabled
                     pipHelper.updatePipParams(this@MainActivity, isPipEnabled)
                 }
@@ -1127,7 +1127,6 @@ fun SonzaApp(
                     isLoadingMoreSongs = isLoadingMoreSongs,
                     selectedLyricsProvider = selectedLyricsProvider,
                     enabledLyricsProviders = playerViewModel.enabledLyricsProviders.collectAsStateWithLifecycle().value,
-                    listenTogetherBufferingUsers = playerViewModel.listenTogetherBufferingUsers.collectAsStateWithLifecycle().value,
                     sleepTimerOption = sleepTimerOption,
                     sleepTimerRemainingMs = sleepTimerRemainingMs
                 )
@@ -1177,10 +1176,6 @@ fun SonzaApp(
                     onLyricsProviderChange = { playerViewModel.switchLyricsProvider(it) },
                     onImportLyrics = { playerViewModel.importLyrics(it) },
                     onSetSleepTimer = { option, minutes -> playerViewModel.setSleepTimer(option, minutes) },
-                    onListenTogetherClick = {
-                        onCollapse()
-                        navController.navigate(Destination.ListenTogether)
-                    },
                     onPlayRelated = { song ->
                         playerViewModel.startRadio(song, null)
                     },
@@ -1289,24 +1284,24 @@ fun SonzaApp(
         }
 
         // Dynamic Island Overlay (floating music pill near top camera cutout)
-        if (dynamicIslandEnabled && playbackInfo.currentSong != null && !isPlayerExpanded) {
-            val rawPlayerState by playerViewModel.playerState.collectAsStateWithLifecycle(initialValue = com.sonza.app.core.model.PlayerState())
-            com.sonza.app.ui.components.dynamicisland.DynamicIsland(
-                currentSong = playbackInfo.currentSong,
-                isPlaying = playbackInfo.isPlaying,
-                currentPosition = rawPlayerState.currentPosition,
-                duration = rawPlayerState.duration,
-                isLiked = playbackInfo.isLiked,
-                onPlayPause = { playerViewModel.togglePlayPause() },
-                onNext = { playerViewModel.seekToNext() },
-                onPrevious = { playerViewModel.seekToPrevious() },
-                onSeekTo = { playerViewModel.seekTo(it) },
-                onLikeToggle = { playerViewModel.likeCurrentSong() },
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .zIndex(90f)
-            )
-        }
+        val rawPlayerState by playerViewModel.playerState.collectAsStateWithLifecycle(initialValue = com.sonza.app.core.model.PlayerState())
+        com.sonza.app.ui.components.dynamicisland.DynamicIsland(
+            currentSong = playbackInfo.currentSong,
+            isPlaying = playbackInfo.isPlaying,
+            currentPosition = rawPlayerState.currentPosition,
+            duration = rawPlayerState.duration,
+            isLiked = playbackInfo.isLiked,
+            isVisible = dynamicIslandEnabled && playbackInfo.currentSong != null && !isPlayerExpanded,
+            onPlayPause = { playerViewModel.togglePlayPause() },
+            onNext = { playerViewModel.seekToNext() },
+            onPrevious = { playerViewModel.seekToPrevious() },
+            onSeekTo = { playerViewModel.seekTo(it) },
+            onLikeToggle = { playerViewModel.likeCurrentSong() },
+            onOpenFullPlayer = { playerViewModel.expandPlayer() },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .zIndex(90f)
+        )
 
         // Global Snackbar Host - Always on top
         SnackbarHost(

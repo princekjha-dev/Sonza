@@ -53,7 +53,6 @@ fun SongActionsSheet(
     isDisliked: Boolean = false,
     onSetRingtone: () -> Unit = {},
     onStartRadio: () -> Unit = {},
-    onListenTogether: () -> Unit = {},
     onPlaybackSpeed: () -> Unit = {},
     onEqualizerClick: () -> Unit = {},
     currentSpeed: Float = 1.0f,
@@ -222,7 +221,6 @@ fun SongActionsSheet(
                         ModernActionItem(Icons.Default.AddToQueue, "Add to Queue", contentColor, { handleAction(onAddToQueue) })
                     }
                     ModernActionItem(Icons.Default.Radio, "Start Radio", contentColor, { handleAction(onStartRadio) })
-                    ModernActionItem(Icons.Default.Group, "Listen Together", contentColor, { handleAction(onListenTogether) })
                     
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(

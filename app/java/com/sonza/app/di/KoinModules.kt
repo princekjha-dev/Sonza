@@ -19,7 +19,6 @@ import com.sonza.app.ui.viewmodel.DownloadsViewModel
 import com.sonza.app.ui.viewmodel.ExploreViewModel
 import com.sonza.app.ui.viewmodel.HomeViewModel
 import com.sonza.app.ui.viewmodel.LibraryViewModel
-import com.sonza.app.ui.viewmodel.ListenTogetherViewModel
 import com.sonza.app.ui.viewmodel.ListeningStatsViewModel
 import com.sonza.app.ui.viewmodel.MoodAndGenresViewModel
 import com.sonza.app.ui.viewmodel.PickMusicViewModel
@@ -65,8 +64,6 @@ private val hiltBridgedModule: Module = module {
     single { bridge(androidContext()).musicHapticsManager() }
     single { bridge(androidContext()).musicPlayer() }
     single { bridge(androidContext()).lyricsRepository() }
-    single { bridge(androidContext()).listenTogetherClient() }
-    single { bridge(androidContext()).listenTogetherManager() }
     single { bridge(androidContext()).workManager() }
 
     // app/di CacheModule equivalents
@@ -188,7 +185,6 @@ private val viewModelsModule: Module = module {
     viewModelOf(::MoodAndGenresViewModel)
     viewModelOf(::PlaylistManagementViewModel)
     viewModelOf(::ListeningStatsViewModel)
-    viewModelOf(::ListenTogetherViewModel)
     // chunk 1c.3
     viewModelOf(::HomeViewModel)
     viewModelOf(::LibraryViewModel)

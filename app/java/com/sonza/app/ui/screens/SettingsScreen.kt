@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PictureInPicture
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.rounded.SmartDisplay
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.SwitchAccount
@@ -202,7 +203,8 @@ fun SettingsScreen(
         )
     }
 
-    val floatingPlayerEnabled by viewModel.dynamicIslandEnabled.collectAsState(initial = false)
+    val dynamicIslandEnabled by viewModel.dynamicIslandEnabled.collectAsState(initial = true)
+    val pipEnabled by viewModel.pipEnabled.collectAsState(initial = true)
     val sponsorBlockEnabled by viewModel.sponsorBlockEnabled.collectAsState(initial = true)
 
     // Handle update check state toasts
@@ -464,13 +466,26 @@ fun SettingsScreen(
                             HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg))
 
                             SonzaSettingsSwitchRow(
-                                icon = Icons.Default.PictureInPicture,
-                                title = "Floating Player Overlay",
-                                description = "Picture-in-Picture mode when backgrounded",
-                                checked = floatingPlayerEnabled,
+                                icon = Icons.Rounded.SmartDisplay,
+                                title = "Dynamic Island",
+                                description = "Floating music capsule near top camera cutout",
+                                checked = dynamicIslandEnabled,
                                 accentColor = accentColor,
                                 onCheckedChange = { enabled ->
                                     scope.launch { viewModel.setDynamicIslandEnabled(enabled) }
+                                }
+                            )
+
+                            HorizontalDivider(color = SonzaOutline.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg))
+
+                            SonzaSettingsSwitchRow(
+                                icon = Icons.Default.PictureInPicture,
+                                title = "Picture-in-Picture",
+                                description = "Floating player window when app is backgrounded",
+                                checked = pipEnabled,
+                                accentColor = accentColor,
+                                onCheckedChange = { enabled ->
+                                    scope.launch { viewModel.setPipEnabled(enabled) }
                                 }
                             )
 

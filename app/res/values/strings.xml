@@ -43,8 +43,6 @@
     <string name="error_generic_message">An unknown error occurred while loading the artist page.</string>
     <string name="error_loading">Loading...</string>
 
-    <string name="listen_together">Listen Together</string>
-
     <!-- Bottom Navigation -->
     <string name="nav_home">Home</string>
     <string name="nav_library">Library</string>

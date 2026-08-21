@@ -72,8 +72,7 @@ class MusicPlayerService : MediaLibraryService() {
     @Inject
     lateinit var lastFmManager: com.sonza.app.player.LastFmManager
 
-    @Inject
-    lateinit var listenTogetherManager: com.sonza.app.shareplay.ListenTogetherManager
+
 
     @Inject
     lateinit var audioARManager: com.sonza.app.player.AudioARManager
@@ -634,7 +633,6 @@ class MusicPlayerService : MediaLibraryService() {
         }
             
         lastFmManager.setPlayer(player)
-        listenTogetherManager.setPlayer(player)
         
         serviceScope.launch {
             kotlinx.coroutines.flow.combine(
@@ -813,36 +811,7 @@ class MusicPlayerService : MediaLibraryService() {
                 updateCustomLayout()
             }
 
-            override fun onPlayerCommandRequest(
-                session: MediaSession,
-                controller: MediaSession.ControllerInfo,
-                playerCommand: Int
-            ): Int {
-                // Listen Together: a guest without playback control must not drive
-                // the player from the notification, headset buttons, or Android
-                // Auto either — the in-app gate (MusicPlayer) can't see this path.
-                val lt = com.sonza.app.shareplay.ListenTogetherClient.getInstance()
-                if (lt != null && lt.isInRoom && !lt.isHost && !lt.canControlPlayback) {
-                    val isTransport = when (playerCommand) {
-                        Player.COMMAND_PLAY_PAUSE,
-                        Player.COMMAND_SEEK_TO_NEXT,
-                        Player.COMMAND_SEEK_TO_PREVIOUS,
-                        Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
-                        Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
-                        Player.COMMAND_SEEK_TO_DEFAULT_POSITION,
-                        Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM,
-                        Player.COMMAND_SEEK_BACK,
-                        Player.COMMAND_SEEK_FORWARD,
-                        Player.COMMAND_SET_MEDIA_ITEM,
-                        Player.COMMAND_CHANGE_MEDIA_ITEMS -> true
-                        else -> false
-                    }
-                    if (isTransport) {
-                        return androidx.media3.session.SessionError.ERROR_NOT_SUPPORTED
-                    }
-                }
-                return super.onPlayerCommandRequest(session, controller, playerCommand)
-            }
+
 
             override fun onCustomCommand(session: MediaSession, controller: MediaSession.ControllerInfo, customCommand: androidx.media3.session.SessionCommand, args: android.os.Bundle): com.google.common.util.concurrent.ListenableFuture<androidx.media3.session.SessionResult> {
                 when (customCommand.customAction) {
@@ -1742,7 +1711,6 @@ class MusicPlayerService : MediaLibraryService() {
         notificationManager.cancel(NOTIFICATION_ID_SLEEP_TIMER)
         audioARManager.setPlaying(false)
         lastFmManager.setPlayer(null)
-        listenTogetherManager.setPlayer(null)
         mediaLibrarySession?.run {
             playerListener?.let { player.removeListener(it) }
             player.release()

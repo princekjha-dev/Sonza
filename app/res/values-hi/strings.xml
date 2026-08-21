@@ -39,8 +39,6 @@
     <string name="error_generic_message">कलाकार पेज लोड करते समय कोई अज्ञात त्रुटि हुई।</string>
     <string name="error_loading">लोड हो रहा है…</string>
 
-    <string name="listen_together">साथ में सुनें</string>
-
     <!-- Bottom Navigation -->
     <string name="nav_home">होम</string>
     <string name="nav_search">खोजें</string>

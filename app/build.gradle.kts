@@ -5,7 +5,6 @@ plugins {
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.protobuf)
 }
 
 android {
@@ -65,23 +64,6 @@ android {
     }
 }
 
-protobuf {
-    protoc {
-        artifact = "com.google.protobuf:protoc:${libs.versions.protobuf.get()}"
-    }
-    generateProtoTasks {
-        all().forEach { task ->
-            task.builtins {
-                create("java") {
-                    option("lite")
-                }
-                create("kotlin") {
-                    option("lite")
-                }
-            }
-        }
-    }
-}
 
 kotlin {
     compilerOptions {
@@ -208,9 +190,7 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.jaudiotagger)
 
-    // Protobuf
-    implementation(libs.protobuf.javalite)
-    implementation(libs.protobuf.kotlin.lite)
+
 
     // ACRA Crash Reporting
     implementation(libs.acra.core)

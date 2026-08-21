@@ -82,7 +82,6 @@ fun ClassicPlayerStyle(
     onShowSleepTimer: () -> Unit,
     onShowPlaybackSpeed: () -> Unit,
     onShowEqualizer: () -> Unit,
-    onShowListenTogether: () -> Unit,
     handleDoubleTapSeek: (Boolean) -> Unit,
     onShapeChange: (ArtworkShape) -> Unit,
     onSeekbarStyleChange: (SeekbarStyle) -> Unit,
@@ -103,7 +102,7 @@ fun ClassicPlayerStyle(
             song, playerState, playbackInfo, dominantColors, currentArtworkShape, currentArtworkSize,
             currentSeekbarStyle, sponsorSegments, audioArEnabled, isRotatingEnabled, actions,
             onShowActions, onShowLyrics, onShowQueue, onShowRelated, onShowDevices, onShowSleepTimer,
-            onShowPlaybackSpeed, onShowEqualizer, onShowListenTogether, player, isFullScreen,
+            onShowPlaybackSpeed, onShowEqualizer, player, isFullScreen,
             onSetFullScreen, isSwitchingMode, sleepTimerOption, sleepTimerRemainingMs,
             progressProvider, positionProvider, durationProvider, isAIEnabled, aiStatus, windowSizeClass
         )
@@ -113,7 +112,7 @@ fun ClassicPlayerStyle(
             currentSeekbarStyle, sponsorSegments, audioArEnabled, isRotatingEnabled, player,
             isFullScreen, isCompactHeight, actions, onShowActions, onShowQueue, onShowLyrics,
             onShowRelated, onShowDevices, onShowSleepTimer, onShowPlaybackSpeed, onShowEqualizer,
-            onShowListenTogether, handleDoubleTapSeek, onShapeChange, onSeekbarStyleChange,
+            handleDoubleTapSeek, onShapeChange, onSeekbarStyleChange,
             onRecenterAr, onSetFullScreen, isSwitchingMode, sleepTimerOption,
             sleepTimerRemainingMs, progressProvider, positionProvider, durationProvider, isAIEnabled, aiStatus, windowSizeClass
         )
@@ -144,7 +143,6 @@ private fun ClassicPortraitContent(
     onShowSleepTimer: () -> Unit,
     onShowPlaybackSpeed: () -> Unit,
     onShowEqualizer: () -> Unit,
-    onShowListenTogether: () -> Unit,
     handleDoubleTapSeek: (Boolean) -> Unit,
     onShapeChange: (ArtworkShape) -> Unit,
     onSeekbarStyleChange: (SeekbarStyle) -> Unit,
@@ -294,7 +292,7 @@ private fun ClassicLandscapeContent(
     currentArtworkShape: ArtworkShape, currentArtworkSize: ArtworkSize, currentSeekbarStyle: SeekbarStyle, sponsorSegments: List<SponsorSegment>,
     audioArEnabled: Boolean, isRotatingEnabled: Boolean, actions: PlayerScreenActions, onShowActions: () -> Unit, onShowLyrics: () -> Unit, onShowQueue: () -> Unit,
     onShowRelated: () -> Unit,
-    onShowDevices: () -> Unit, onShowSleepTimer: () -> Unit, onShowPlaybackSpeed: () -> Unit, onShowEqualizer: () -> Unit, onShowListenTogether: () -> Unit,
+    onShowDevices: () -> Unit, onShowSleepTimer: () -> Unit, onShowPlaybackSpeed: () -> Unit, onShowEqualizer: () -> Unit,
     player: Player?, isFullScreen: Boolean, onSetFullScreen: (Boolean) -> Unit,
     isSwitchingMode: Boolean = false,
     sleepTimerOption: SleepTimerOption = SleepTimerOption.OFF,

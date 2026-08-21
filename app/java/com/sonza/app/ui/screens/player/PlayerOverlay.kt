@@ -17,6 +17,5 @@ sealed interface PlayerOverlay {
     data object SleepTimer : PlayerOverlay
     data object OutputDevice : PlayerOverlay
     data object PlaybackSpeed : PlayerOverlay
-    data object ListenTogether : PlayerOverlay
     data object Equalizer : PlayerOverlay
 }

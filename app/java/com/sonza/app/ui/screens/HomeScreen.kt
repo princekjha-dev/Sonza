@@ -87,7 +87,7 @@ fun HomeScreen(
     onPlaylistClick: (PlaylistDisplayItem) -> Unit,
     onAlbumClick: (Album) -> Unit,
     onHistoryClick: () -> Unit = {},
-    onListenTogetherClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
     onExploreClick: (String, String) -> Unit = { _, _ -> },
     onStartRadio: () -> Unit = {},
     onCreateMixClick: () -> Unit = {},
@@ -356,8 +356,9 @@ fun HomeScreen(
                             item(key = "home_top_header", contentType = "header") {
                                 HomeTopHeader(
                                     avatarUrl = uiState.userAvatarUrl,
+                                    userName = uiState.userName,
                                     onHistoryClick = onHistoryClick,
-                                    onListenTogetherClick = onListenTogetherClick,
+                                    onProfileClick = onProfileClick,
                                     modifier = Modifier.animateEnter(index = 0)
                                 )
                             }
@@ -675,8 +676,7 @@ fun HomeScreen(
                     }
                     context.startActivity(Intent.createChooser(sendIntent, "Share Song"))
                     showSongMenu = false
-                },
-                onListenTogether = onListenTogetherClick
+                }
             )
         }
 

@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.sonza.app.data.SessionManager
+import com.sonza.app.data.repository.YouTubeRepository
 import kotlinx.coroutines.launch
 
 /**
@@ -53,6 +54,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun YouTubeLoginScreen(
     sessionManager: SessionManager,
+    youTubeRepository: YouTubeRepository? = null,
     onLoginSuccess: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -174,14 +176,31 @@ fun YouTubeLoginScreen(
                                                 // Extract authuser index
                                                 val uri = android.net.Uri.parse(currentUrl)
                                                 val authUserParam = uri.getQueryParameter("authuser")
-                                                if (authUserParam != null) {
-                                                    val index = authUserParam.toIntOrNull() ?: 0
-                                                    sessionManager.setAuthUserIndex(index)
+                                                val authIndex = if (authUserParam != null) {
+                                                    authUserParam.toIntOrNull() ?: 0
                                                 } else {
-                                                    sessionManager.setAuthUserIndex(0)
+                                                    0
                                                 }
+                                                sessionManager.setAuthUserIndex(authIndex)
+
+                                                // Immediately fetch and save authentic profile details (name, email, avatar)
+                                                try {
+                                                    val account = youTubeRepository?.fetchAccountInfo()
+                                                    if (account != null) {
+                                                        sessionManager.saveCurrentAccountToHistory(
+                                                            name = account.name,
+                                                            email = account.email,
+                                                            avatarUrl = account.avatarUrl,
+                                                            authUserIndex = account.authUserIndex
+                                                        )
+                                                        sessionManager.saveUserName(account.name)
+                                                        if (account.avatarUrl.isNotBlank()) {
+                                                            sessionManager.saveUserAvatar(account.avatarUrl)
+                                                        }
+                                                    }
+                                                } catch (_: Exception) {}
                                                 
-                                                // Try to extract avatar URL
+                                                // Fallback to extract avatar URL from webview DOM if not set
                                                 view?.evaluateJavascript(
                                                     "(function() { " +
                                                     "var selectors = ['img.yt-spec-avatar-shape__avatar', 'button#avatar-btn img', 'img[src*=\"googleusercontent.com\"]'];" +
@@ -195,7 +214,9 @@ fun YouTubeLoginScreen(
                                                     val avatarUrl = result.trim('"')
                                                     if (avatarUrl.isNotEmpty() && avatarUrl != "null") {
                                                         scope.launch {
-                                                            sessionManager.saveUserAvatar(avatarUrl)
+                                                            if (sessionManager.getUserAvatar().isNullOrBlank()) {
+                                                                sessionManager.saveUserAvatar(avatarUrl)
+                                                            }
                                                         }
                                                     }
                                                     onLoginSuccess()

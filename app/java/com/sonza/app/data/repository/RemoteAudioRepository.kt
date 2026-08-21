@@ -137,9 +137,9 @@ class RemoteAudioRepository @Inject constructor(
         (role ?: "Artist").replace("_", " ").split(" ").joinToString(" ") { it.capitalize() }
 
     /**
-     * True when the shared 429 backoff gate is currently active. Lets callers (e.g. a
-     * Listen Together guest) skip a doomed HQ resolve and fall straight to YouTube so
-     * the room stays in sync instead of stalling on a rate-limited backend.
+     * True when the shared 429 backoff gate is currently active. Lets callers
+     * skip a doomed HQ resolve and fall straight to YouTube instead of stalling
+     * on a rate-limited backend.
      */
     fun isInBackoff(): Boolean = isRateLimited()
 

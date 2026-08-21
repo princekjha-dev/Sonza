@@ -184,8 +184,15 @@ class SettingsViewModel @Inject constructor(
     
     // Dynamic Island enabled state
     val dynamicIslandEnabled = sessionManager.dynamicIslandEnabledFlow
-    
-    // Volume Slider enabled state
+    val pipEnabled = sessionManager.pipEnabledFlow
+
+    suspend fun setDynamicIslandEnabled(enabled: Boolean) {
+        sessionManager.setDynamicIslandEnabled(enabled)
+    }
+
+    suspend fun setPipEnabled(enabled: Boolean) {
+        sessionManager.setPipEnabled(enabled)
+    }
     val volumeSliderEnabledFlow = sessionManager.volumeSliderEnabledFlow // Renamed to avoid name clash
 
     // SponsorBlock
@@ -214,10 +221,6 @@ class SettingsViewModel @Inject constructor(
     // Logging
     val loggingEnabledFlow = sessionManager.loggingEnabledFlow
 
-    suspend fun setDynamicIslandEnabled(enabled: Boolean) {
-        sessionManager.setDynamicIslandEnabled(enabled)
-    }
-    
     fun setVolumeSliderEnabled(enabled: Boolean) {
         viewModelScope.launch {
             sessionManager.setVolumeSliderEnabled(enabled)
@@ -1232,7 +1235,8 @@ class SettingsViewModel @Inject constructor(
             _uiState.update { 
                 it.copy(
                     isLoggedIn = false,
-                    userAvatarUrl = null
+                    userAvatarUrl = null,
+                    userName = null
                 )
             }
         }
@@ -1355,7 +1359,8 @@ class SettingsViewModel @Inject constructor(
             _uiState.update { 
                 it.copy(
                     isLoggedIn = false,
-                    userAvatarUrl = null
+                    userAvatarUrl = null,
+                    userName = null
                 )
             }
         }

@@ -116,8 +116,7 @@ data class PlayerScreenState(
     val isRadioMode: Boolean = false,
     val isLoadingMoreSongs: Boolean = false,
     val selectedLyricsProvider: LyricsProviderType = LyricsProviderType.AUTO,
-    val enabledLyricsProviders: Map<LyricsProviderType, Boolean> = emptyMap(),
-    val listenTogetherBufferingUsers: List<String> = emptyList()
+    val enabledLyricsProviders: Map<LyricsProviderType, Boolean> = emptyMap()
 )
 
 /**
@@ -148,7 +147,6 @@ data class PlayerScreenActions(
     val onLyricsProviderChange: (LyricsProviderType) -> Unit,
     val onImportLyrics: (String) -> Unit,
     val onShowAIEqualizer: () -> Unit,
-    val onListenTogetherClick: () -> Unit,
     val onStartRadio: () -> Unit,
     val onToggleRelatedSelection: (Int) -> Unit,
     val onSelectAllRelated: () -> Unit,
@@ -186,44 +184,7 @@ fun PlayerScreen(
     val sponsorSegments by playerViewModel.sponsorSegments.collectAsStateWithLifecycle(initialValue = emptyList())
     val isFullScreen by playerViewModel.isFullScreen.collectAsStateWithLifecycle()
     val isSwitchingMode by playerViewModel.isSwitchingMode.collectAsStateWithLifecycle()
-    
-    val listenTogetherRole by playerViewModel.listenTogetherManager.role.collectAsStateWithLifecycle(initialValue = com.sonza.app.shareplay.RoomRole.NONE)
-    val isGuest = listenTogetherRole == com.sonza.app.shareplay.RoomRole.GUEST
-    val listenTogetherConnectionState by playerViewModel.listenTogetherManager.connectionState.collectAsStateWithLifecycle(initialValue = com.sonza.app.shareplay.ConnectionState.DISCONNECTED)
-    val listenTogetherRoomState by playerViewModel.listenTogetherManager.roomState.collectAsStateWithLifecycle(initialValue = null)
-    
-    // Jam mode: when the host allows guest control, guests keep play/pause/seek on
-    // their local player (the manager broadcasts them to the room) and skips are
-    // sent to the host, whose player performs them for everyone.
-    val guestCanControl = isGuest && listenTogetherRoomState?.settings?.guestsCanControl == true
-    val actions = remember(originalActions, isGuest, guestCanControl) {
-        if (isGuest) {
-            val blockedMsg = { com.sonza.app.util.SnackbarUtil.showWarning("Host has controls in Listen Together!") }
-            if (guestCanControl) {
-                originalActions.copy(
-                    onNext = { playerViewModel.listenTogetherManager.sendGuestSkip(next = true) },
-                    onPrevious = { playerViewModel.listenTogetherManager.sendGuestSkip(next = false) },
-                    onPlayFromQueue = { blockedMsg() },
-                    onShuffleToggle = blockedMsg,
-                    onRepeatToggle = blockedMsg,
-                    onToggleAutoplay = blockedMsg,
-                    onSwitchAudioSource = blockedMsg
-                )
-            } else {
-                originalActions.copy(
-                    onPlayPause = blockedMsg,
-                    onNext = blockedMsg,
-                    onPrevious = blockedMsg,
-                    onSeekTo = { _ -> blockedMsg() },
-                    onPlayFromQueue = { blockedMsg() },
-                    onShuffleToggle = blockedMsg,
-                    onRepeatToggle = blockedMsg,
-                    onToggleAutoplay = blockedMsg,
-                    onSwitchAudioSource = blockedMsg
-                )
-            }
-        } else originalActions
-    }
+    val actions = originalActions
     
     // Adaptive Layout Support
     val adaptiveInfo = currentWindowAdaptiveInfo()
@@ -349,7 +310,6 @@ fun PlayerScreen(
     val showSleepTimerSheet = activeOverlay is PlayerOverlay.SleepTimer
     val showOutputDeviceSheet = activeOverlay is PlayerOverlay.OutputDevice
     val showPlaybackSpeedSheet = activeOverlay is PlayerOverlay.PlaybackSpeed
-    val showListenTogetherSheet = activeOverlay is PlayerOverlay.ListenTogether
     val showEqualizerSheet = activeOverlay is PlayerOverlay.Equalizer
 
     BackHandler {
@@ -459,7 +419,6 @@ fun PlayerScreen(
                                 onShowSleepTimer = { activeOverlay = PlayerOverlay.SleepTimer },
                                 onShowPlaybackSpeed = { activeOverlay = PlayerOverlay.PlaybackSpeed },
                                 onShowEqualizer = { activeOverlay = PlayerOverlay.Equalizer },
-                                onShowListenTogether = { activeOverlay = PlayerOverlay.ListenTogether },
                                 handleDoubleTapSeek = handleDoubleTapSeek,
                                 onShapeChange = { shape -> coroutineScope.launch(Dispatchers.IO) { sessionManager.setArtworkShape(shape.name) } },
                                 onSeekbarStyleChange = { style -> coroutineScope.launch(Dispatchers.IO) { sessionManager.setSeekbarStyle(style.name) } },
@@ -489,7 +448,6 @@ fun PlayerScreen(
                                 onShowSleepTimer = { activeOverlay = PlayerOverlay.SleepTimer },
                                 onShowPlaybackSpeed = { activeOverlay = PlayerOverlay.PlaybackSpeed },
                                 onShowEqualizer = { activeOverlay = PlayerOverlay.Equalizer },
-                                onShowListenTogether = { activeOverlay = PlayerOverlay.ListenTogether },
                                 handleDoubleTapSeek = handleDoubleTapSeek,
                                 onShapeChange = { shape -> coroutineScope.launch(Dispatchers.IO) { sessionManager.setArtworkShape(shape.name) } },
                                 onSeekbarStyleChange = { style -> coroutineScope.launch(Dispatchers.IO) { sessionManager.setSeekbarStyle(style.name) } },
@@ -521,7 +479,6 @@ fun PlayerScreen(
                                 onShowSleepTimer = { activeOverlay = PlayerOverlay.SleepTimer },
                                 onShowPlaybackSpeed = { activeOverlay = PlayerOverlay.PlaybackSpeed },
                                 onShowEqualizer = { activeOverlay = PlayerOverlay.Equalizer },
-                                onShowListenTogether = { activeOverlay = PlayerOverlay.ListenTogether },
                                 handleDoubleTapSeek = handleDoubleTapSeek,
                                 onShapeChange = { shape -> coroutineScope.launch(Dispatchers.IO) { sessionManager.setArtworkShape(shape.name) } },
                                 onSeekbarStyleChange = { style -> coroutineScope.launch(Dispatchers.IO) { sessionManager.setSeekbarStyle(style.name) } },
@@ -597,83 +554,6 @@ fun PlayerScreen(
                     positionProvider = positionProvider,
                     durationProvider = durationProvider
                 )
-                
-                // Listen Together Live Session Status Pill
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = listenTogetherRole != com.sonza.app.shareplay.RoomRole.NONE,
-                    enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically(initialOffsetY = { -it }),
-                    exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.slideOutVertically(targetOffsetY = { -it }),
-                    // Sit just below the top bar (status-bar aware) so the pill never
-                    // overlaps the centered audio/video toggle.
-                    modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 56.dp)
-                ) {
-                    val code = listenTogetherRoomState?.roomCode ?: ""
-                    val userCount = listenTogetherRoomState?.users?.size ?: 1
-                    val isBuffering = state.listenTogetherBufferingUsers.isNotEmpty()
-                    
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                color = Color.Black.copy(alpha = 0.75f),
-                                shape = androidx.compose.foundation.shape.CircleShape
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = dominantColors.primary.copy(alpha = 0.5f),
-                                shape = androidx.compose.foundation.shape.CircleShape
-                            )
-                            .clickable {
-                                activeOverlay = PlayerOverlay.ListenTogether
-                            }
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(7.dp)
-                        ) {
-                            // Connection indicator dot
-                            val dotColor = when (listenTogetherConnectionState) {
-                                com.sonza.app.shareplay.ConnectionState.CONNECTED -> Color(0xFF4CAF50)
-                                com.sonza.app.shareplay.ConnectionState.CONNECTING,
-                                com.sonza.app.shareplay.ConnectionState.RECONNECTING -> Color(0xFFFF9800)
-                                else -> Color(0xFFF44336)
-                            }
-                            
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .background(dotColor, CircleShape)
-                            )
-                            
-                            // Status text
-                            val statusText = when {
-                                listenTogetherConnectionState == com.sonza.app.shareplay.ConnectionState.CONNECTING || 
-                                listenTogetherConnectionState == com.sonza.app.shareplay.ConnectionState.RECONNECTING -> "Reconnecting..."
-                                isBuffering -> "Syncing… (${state.listenTogetherBufferingUsers.size})"
-                                listenTogetherRole == com.sonza.app.shareplay.RoomRole.HOST -> "$code • Host • $userCount"
-                                else -> "$code • $userCount"
-                            }
-
-                            Text(
-                                text = statusText,
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
-                            )
-                            
-                            if (isBuffering || 
-                                listenTogetherConnectionState == com.sonza.app.shareplay.ConnectionState.CONNECTING ||
-                                listenTogetherConnectionState == com.sonza.app.shareplay.ConnectionState.RECONNECTING) {
-                                androidx.compose.material3.CircularProgressIndicator(
-                                    color = dominantColors.primary,
-                                    modifier = Modifier.size(11.dp),
-                                    strokeWidth = 1.5.dp
-                                )
-                            }
-                        }
-                    }
-                }
             }
         }
       }
@@ -998,7 +878,6 @@ fun BoxScope.OverlaysContent(
             onDeleteDownload = { playerViewModel.deleteDownload(menuSong.id) }, onPlayNext = { playerViewModel.playNext(menuSong) }, onAddToQueue = { playerViewModel.addToQueue(menuSong) },
             onViewInfo = { onOverlayChange(PlayerOverlay.SongInfo) }, onAddToPlaylist = { onOverlayChange(PlayerOverlay.None); playlistViewModel.showAddToPlaylistSheet(menuSong) },
             onSleepTimer = { onOverlayChange(PlayerOverlay.SleepTimer) }, onStartRadio = { actions.onStartRadio() },
-            onListenTogether = { onOverlayChange(PlayerOverlay.None); actions.onListenTogetherClick() }, 
             onPlaybackSpeed = { onOverlayChange(PlayerOverlay.None); onOverlayChange(PlayerOverlay.PlaybackSpeed) }, onEqualizerClick = { onOverlayChange(PlayerOverlay.None); onOverlayChange(PlayerOverlay.Equalizer) },
             currentSpeed = playerState.playbackSpeed, isFromQueue = (activeOverlay as? PlayerOverlay.Actions)?.fromQueue ?: false, isCurrentlyPlaying = menuSong.id == song?.id,
             onSetRingtone = { if (ringtoneViewModel.ringtoneHelper.hasSettingsPermission(context)) ringtoneViewModel.showTrimmer(menuSong) else { com.sonza.app.util.SnackbarUtil.showWarning("Please allow 'Modify System Settings' permission"); ringtoneViewModel.ringtoneHelper.requestSettingsPermission(context) } },
@@ -1046,7 +925,7 @@ fun BoxScope.OverlaysContent(
     OutputDeviceSheet(
         isVisible = activeOverlay is PlayerOverlay.OutputDevice, devices = playerState.availableDevices, onDeviceSelected = { actions.onSwitchDevice(it) },
         onDismiss = { if (currentOverlay is PlayerOverlay.OutputDevice) onOverlayChange(PlayerOverlay.None) }, onRefreshDevices = { actions.onRefreshDevices() },
-        accentColor = dominantColors.accent, dominantColors = dominantColors, isDarkTheme = isAppInDarkTheme, listenTogetherManager = playerViewModel.listenTogetherManager
+        accentColor = dominantColors.accent, dominantColors = dominantColors, isDarkTheme = isAppInDarkTheme
     )
 
     val ringtoneUiState by ringtoneViewModel.uiState.collectAsStateWithLifecycle()

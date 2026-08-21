@@ -36,10 +36,8 @@ import com.sonza.app.player.SpatialAudioProcessor
 import com.sonza.app.recommendation.RecommendationEngine
 import com.sonza.app.recommendation.SmartQueueManager
 import com.sonza.app.recommendation.WrappedGenerator
-import com.sonza.app.updater.UpdateDownloader
-import com.sonza.app.shareplay.ListenTogetherClient
-import com.sonza.app.shareplay.ListenTogetherManager
 import com.sonza.app.updater.UpdateChecker
+import com.sonza.app.updater.UpdateDownloader
 import com.sonza.app.util.MusicHapticsManager
 import com.sonza.app.util.NetworkMonitor
 import com.sonza.app.util.PlaylistImportHelper
@@ -84,8 +82,6 @@ interface HiltKoinBridgeEntryPoint {
     fun musicHapticsManager(): MusicHapticsManager
     fun musicPlayer(): MusicPlayer
     fun lyricsRepository(): LyricsRepository
-    fun listenTogetherClient(): ListenTogetherClient
-    fun listenTogetherManager(): ListenTogetherManager
     fun workManager(): WorkManager
 
     // app/di — CacheModule

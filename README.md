@@ -36,7 +36,6 @@
   - [Audiophile Audio & DSP](#-audiophile-audio--dsp)
   - [Discovery & Streaming](#-discovery--streaming)
   - [Synchronized Lyrics Engine](#-synchronized-lyrics-engine)
-  - [Social "Listen Together"](#-social-listen-together)
   - [Smart Queue & Library](#-smart-queue--library)
   - [Offline & Downloader](#-offline--downloader)
 - [Technical Architecture](#-technical-architecture)
@@ -44,7 +43,6 @@
 - [Project Structure](#-project-structure)
 - [Installation](#-installation)
 - [Building from Source](#-building-from-source)
-- [Listen Together Server](#-listen-together-server)
 - [Privacy & Security](#-privacy--security)
 - [Third-Party Services](#-third-party-services)
 - [Acknowledgments](#-acknowledgments)
@@ -89,11 +87,6 @@ Sonza also provides synchronized word-level lyrics, low-latency social listening
 - **Interactive Seek**: Tap any lyrics line to immediately seek playback to that timestamp.
 - **PDF Export**: Generate formatted lyrics PDF documents with custom typography and album artwork.
 - **Dynamic Backdrop**: Real-time fluid color extraction matching album artwork palettes.
-
-### 👥 Social "Listen Together"
-- **Low-Latency Synchronized Rooms**: Synchronize playback, pause, and seek actions across multiple devices via WebSocket connections (<100ms drift).
-- **Collaborative Queue (Jam Mode)**: Room guests can suggest, vote, and append songs directly into the host's active queue.
-- **Zero Redistribution**: Playback streams originate independently on each client, ensuring efficient bandwidth usage and compliance.
 
 ### 📚 Smart Queue & Library
 - **Active Queue Management**: Drag-and-drop reordering, swipe-to-remove, active track equalizer animation, and multi-select batch actions.
@@ -195,8 +188,7 @@ Sonza/
 ├── media-source/               # Remote audio streaming definitions
 ├── scrobbler/                  # Last.fm scrobbler integration module
 ├── updater/                    # In-app GitHub release update checker
-├── server/                     # Standalone Python Listen Together WebSocket server
-│   ├── listen_together_server.py
+├── server/                     # Core algorithmic verification suite
 │   └── verify_algorithms.py
 ├── gradle/                     # Gradle wrapper & version catalog (libs.versions.toml)
 ├── build.gradle.kts            # Root project build script
@@ -240,22 +232,7 @@ cd Sonza
 # app/build/outputs/apk/debug/Sonza-v2.6.4.0.apk (or app/build/outputs/apk/debug/Sonza-v2.6.5.0.apk)
 ```
 
----
 
-## 🌐 Listen Together Server
-
-Sonza includes a lightweight, asynchronous WebSocket relay server for hosting low-latency Listen Together listening rooms.
-
-```bash
-# Navigate to the server directory
-cd server
-
-# Install dependencies
-pip install websockets
-
-# Start the server (defaults to port 8765)
-python3 listen_together_server.py
-```
 
 ---
 

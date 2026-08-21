@@ -82,7 +82,13 @@ class HomeViewModel @Inject constructor(
     private val downloadRepository: DownloadRepository
 ) : ViewModel() {
     
-    private val _uiState = MutableStateFlow(HomeUiState())
+    private val _uiState = MutableStateFlow(
+        HomeUiState(
+            userAvatarUrl = sessionManager.getCachedUserAvatar(),
+            userName = sessionManager.getCachedUserName(),
+            isLoggedIn = sessionManager.isLoggedIn()
+        )
+    )
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private val _events = MutableSharedFlow<HomeEvent>()
@@ -155,14 +161,50 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             kotlinx.coroutines.flow.combine(
                 sessionManager.userAvatarFlow,
-                sessionManager.userNameFlow
-            ) { avatarUrl, name -> avatarUrl to name }.collect { (avatarUrl, name) ->
+                sessionManager.userNameFlow,
+                sessionManager.isLoggedInFlow
+            ) { avatarUrl, name, isLoggedIn ->
+                Triple(avatarUrl, name, isLoggedIn)
+            }.collect { (avatarUrl, name, isLoggedIn) ->
+                val resolvedAvatar = avatarUrl ?: sessionManager.getCachedUserAvatar()
+                val resolvedName = name ?: sessionManager.getCachedUserName()
                 _uiState.update { it.copy(
-                    userAvatarUrl = avatarUrl,
-                    userName = name,
-                    isLoggedIn = sessionManager.isLoggedIn()
+                    userAvatarUrl = resolvedAvatar,
+                    userName = resolvedName,
+                    isLoggedIn = isLoggedIn
                 ) }
+
+                // Proactively backfill account details if logged in but name or avatar is missing
+                if (isLoggedIn && (resolvedName.isNullOrBlank() || resolvedAvatar.isNullOrBlank())) {
+                    refreshAccountProfile()
+                }
             }
+        }
+    }
+
+    private fun refreshAccountProfile() {
+        viewModelScope.launch {
+            try {
+                if (!sessionManager.isLoggedIn()) return@launch
+                val account = youTubeRepository.fetchAccountInfo()
+                if (account != null) {
+                    sessionManager.saveCurrentAccountToHistory(
+                        name = account.name,
+                        email = account.email,
+                        avatarUrl = account.avatarUrl,
+                        authUserIndex = account.authUserIndex
+                    )
+                    sessionManager.saveUserName(account.name)
+                    if (account.avatarUrl.isNotBlank()) {
+                        sessionManager.saveUserAvatar(account.avatarUrl)
+                    }
+                    _uiState.update { it.copy(
+                        userName = account.name,
+                        userAvatarUrl = account.avatarUrl.takeIf { url -> url.isNotBlank() } ?: it.userAvatarUrl,
+                        isLoggedIn = true
+                    ) }
+                }
+            } catch (_: Exception) {}
         }
     }
 

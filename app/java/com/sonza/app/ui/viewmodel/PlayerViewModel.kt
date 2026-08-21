@@ -74,7 +74,6 @@ class PlayerViewModel @Inject constructor(
     private val audioARManager: com.sonza.app.player.AudioARManager,
     private val spatialAudioProcessor: com.sonza.app.player.SpatialAudioProcessor,
     val aiEqualizerService: com.sonza.app.ai.AIEqualizerService,
-    val listenTogetherManager: com.sonza.app.shareplay.ListenTogetherManager,
     @param:ApplicationContext private val context: Context
 ) : ViewModel() {
     
@@ -84,9 +83,6 @@ class PlayerViewModel @Inject constructor(
     val isAIAutoModeEnabled = aiEqualizerService.isAutoModeEnabled
     val aiAutoStatus = aiEqualizerService.autoStatus
     val lastAIResult = aiEqualizerService.lastResult
-    
-    // Listen Together Syncing Status
-    val listenTogetherBufferingUsers = listenTogetherManager.bufferingUsers
     
     // Stable player state that ignores frequent progress updates for UI optimization.
     // Optimization: Use a custom comparator to avoid emissions when only progress/buffer changes.
@@ -604,9 +600,6 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun playNext(songs: List<Song>) {
-        // In a Listen Together room the shared queue takes the songs (Jam-style):
-        // guests send/suggest them to the room; the host also broadcasts them.
-        if (listenTogetherManager.addSongsToRoomQueue(songs, insertNext = true)) return
         musicPlayer.playNext(songs)
     }
 
@@ -615,7 +608,6 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun addToQueue(songs: List<Song>) {
-        if (listenTogetherManager.addSongsToRoomQueue(songs)) return
         musicPlayer.addToQueue(songs)
     }
     
