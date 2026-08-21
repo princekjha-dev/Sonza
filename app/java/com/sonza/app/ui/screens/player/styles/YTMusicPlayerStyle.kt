@@ -621,24 +621,20 @@ private fun SeekbarSection(
         modifier = Modifier.fillMaxWidth().height(44.dp),
         contentAlignment = Alignment.Center
     ) {
-        if (combinedLoading) {
-            M3ESeekbarShimmer(isVisible = true, dominantColors = dominantColors, modifier = Modifier.fillMaxWidth())
-        } else {
-            val duration = durationProvider()
-            WaveformSeeker(
-                progressProvider = progressProvider,
-                isPlaying = isPlaying,
-                onSeek = { actions.onSeekTo((it * duration).toLong()) },
-                modifier = Modifier.fillMaxWidth(),
-                activeColor = dominantColors.accent,
-                inactiveColor = dominantColors.onBackground.copy(alpha = 0.25f),
-                initialStyle = currentSeekbarStyle,
-                onStyleChange = onSeekbarStyleChange,
-                duration = duration,
-                sponsorSegments = sponsorSegments,
-                contentPadding = contentPadding
-            )
-        }
+        val duration = durationProvider()
+        WaveformSeeker(
+            progressProvider = progressProvider,
+            isPlaying = isPlaying,
+            onSeek = { actions.onSeekTo((it * duration).toLong()) },
+            modifier = Modifier.fillMaxWidth(),
+            activeColor = dominantColors.accent,
+            inactiveColor = dominantColors.onBackground.copy(alpha = 0.25f),
+            initialStyle = currentSeekbarStyle,
+            onStyleChange = onSeekbarStyleChange,
+            duration = duration,
+            sponsorSegments = sponsorSegments,
+            contentPadding = contentPadding
+        )
     }
 }
 

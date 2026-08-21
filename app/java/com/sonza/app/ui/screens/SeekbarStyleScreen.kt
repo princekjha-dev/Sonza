@@ -71,12 +71,12 @@ fun SeekbarStyleScreen(
     val scope = rememberCoroutineScope()
     val sessionManager = remember { SessionManager(context) }
     
-    val seekbarStyleString by sessionManager.seekbarStyleFlow.collectAsState(initial = "M3E_WAVY")
+    val seekbarStyleString by sessionManager.seekbarStyleFlow.collectAsState(initial = "CLASSIC")
 
     val currentSeekbarStyle = try {
         SeekbarStyle.valueOf(seekbarStyleString)
     } catch (e: Exception) {
-        SeekbarStyle.M3E_WAVY
+        SeekbarStyle.CLASSIC
     }
     
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()

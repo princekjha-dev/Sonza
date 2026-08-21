@@ -1,0 +1,39 @@
+<fav id="fast-rewind">
+    <symbol fill="#FFFFFF"
+            extend-bounds="10"
+            viewBox="0 0 48 48">
+            <rect x="14" y="3" width="5" height="18" rx="1"/>
+            <rect x="5" y="3" width="5" height="18" rx="1"/>
+    </symbol>
+    <animations>
+        <!-- In and Out animation -->
+        <animation affected-paths="*"
+                   id="in"
+                   use-object-anchor="true"
+                   duration="0.3"
+                   easing="cubic-bezier(.3,1.35,.75,1)">
+            <keyframe time="0">
+                <scale-x value="0" />
+                <scale-y value="0" />
+            </keyframe>
+            <keyframe time="1">
+                <scale-x value="1" />
+                <scale-y value="1" />
+            </keyframe>
+        </animation>
+        <animation affected-paths="*"
+                   id="out"
+                   use-object-anchor="true"
+                   duration="0.2"
+                   easing="cubic-bezier(.3,1.35,.75,1)">
+            <keyframe time="0">
+                <scale-x value="1" />
+                <scale-y value="1" />
+            </keyframe>
+            <keyframe time="1">
+                <scale-x value="0" />
+                <scale-y value="0" />
+            </keyframe>
+        </animation>
+    </animations>
+</fav>

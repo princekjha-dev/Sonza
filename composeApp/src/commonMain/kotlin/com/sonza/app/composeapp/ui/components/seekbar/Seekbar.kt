@@ -89,30 +89,8 @@ fun Seekbar(
                 )
             },
     ) {
-        when (style) {
-            SeekbarStyle.CLASSIC -> with(ClassicStyle) {
-                draw(progress, activeColor, inactiveColor, isDragging)
-            }
-            SeekbarStyle.DOTS -> with(DotsStyle) {
-                draw(progress, isPlaying, wavePhase, activeColor, inactiveColor, isDragging)
-            }
-            SeekbarStyle.GRADIENT_BAR -> with(GradientBarStyle) {
-                draw(progress, activeColor, inactiveColor, isDragging)
-            }
-            SeekbarStyle.WAVE_LINE -> with(WaveLineStyle) {
-                draw(progress, isPlaying, wavePhase, activeColor, inactiveColor, isDragging)
-            }
-            SeekbarStyle.WAVEFORM -> with(WaveformStyle) {
-                draw(
-                    progress,
-                    isPlaying,
-                    wavePhase,
-                    waveAmplitudes,
-                    activeColor,
-                    inactiveColor,
-                    isDragging,
-                )
-            }
+        with(ClassicStyle) {
+            draw(progress, activeColor, inactiveColor, isDragging)
         }
     }
 }

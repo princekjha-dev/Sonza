@@ -200,7 +200,7 @@ fun PlayerScreen(
     val animatedBackgroundEnabled by sessionManager.playerAnimatedBackgroundFlow.collectAsStateWithLifecycle(initialValue = true)
     val currentArtworkShapeName by sessionManager.artworkShapeFlow.collectAsStateWithLifecycle(initialValue = ArtworkShape.ROUNDED_SQUARE.name)
     val currentArtworkSizeName by sessionManager.artworkSizeFlow.collectAsStateWithLifecycle(initialValue = ArtworkSize.FULL.name)
-    val currentSeekbarStyleName by sessionManager.seekbarStyleFlow.collectAsStateWithLifecycle(initialValue = SeekbarStyle.M3E_WAVY.name)
+    val currentSeekbarStyleName by sessionManager.seekbarStyleFlow.collectAsStateWithLifecycle(initialValue = SeekbarStyle.CLASSIC.name)
     val volumeSliderEnabled by sessionManager.volumeSliderEnabledFlow.collectAsStateWithLifecycle(initialValue = true)
     val playerGlassBlur by sessionManager.playerGlassBlurFlow.collectAsStateWithLifecycle(initialValue = 60f)
     val playerGlassIntensity by sessionManager.playerGlassIntensityFlow.collectAsStateWithLifecycle(initialValue = 1f)
@@ -245,7 +245,7 @@ fun PlayerScreen(
 
     val currentArtworkShape = try { ArtworkShape.valueOf(currentArtworkShapeName) } catch (e: Exception) { ArtworkShape.ROUNDED_SQUARE }
     val currentArtworkSize = try { ArtworkSize.valueOf(currentArtworkSizeName) } catch (e: Exception) { ArtworkSize.FULL }
-    val currentSeekbarStyle = try { SeekbarStyle.valueOf(currentSeekbarStyleName) } catch (e: Exception) { SeekbarStyle.MATERIAL }
+    val currentSeekbarStyle = try { SeekbarStyle.valueOf(currentSeekbarStyleName) } catch (e: Exception) { SeekbarStyle.CLASSIC }
 
     val view = LocalView.current
     val coroutineScope = rememberCoroutineScope()

@@ -179,7 +179,7 @@ class PlayerViewModel @Inject constructor(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.Eagerly,
-            initialValue = "M3E_WAVY"
+            initialValue = "CLASSIC"
         )
 
     val sponsorSegments: StateFlow<List<SponsorSegment>> = sponsorBlockRepository.currentSegments

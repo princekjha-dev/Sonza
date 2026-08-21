@@ -51,18 +51,7 @@ class DynamicSeekbarView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        
-        when (style) {
-            SeekbarStyle.WAVEFORM -> drawWaveform(canvas)
-            SeekbarStyle.WAVE_LINE -> drawWaveLine(canvas)
-            SeekbarStyle.CLASSIC -> drawClassic(canvas)
-            SeekbarStyle.DOTS -> drawDots(canvas)
-            SeekbarStyle.GRADIENT_BAR -> drawGradient(canvas)
-            SeekbarStyle.NEON -> drawClassic(canvas) // Simpler version for island
-            SeekbarStyle.BLOCKS -> drawDots(canvas) // Simpler version for island
-            SeekbarStyle.MATERIAL -> drawClassic(canvas)
-            SeekbarStyle.M3E_WAVY -> drawWaveLine(canvas) // M3E not available in View, use wave line
-        }
+        drawClassic(canvas)
     }
 
     private fun drawWaveform(canvas: Canvas) {

@@ -1,0 +1,96 @@
+<fav id="fast-rewind">
+    <symbol fill="#FFFFFF"
+            extend-bounds="10"
+            viewBox="0 0 48 48">
+        <path d="M23.84,6.47l.05,11.53c0,1.07-1.45,1.68-2.45,1.02l-8.86-5.79c-.8-.52-.8-1.53,0-2.05l8.81-5.74c1-.65,2.46-.04,2.46,1.03Z"/>
+        <path d="M11.93,6.47l.05,11.53c0,1.07-1.45,1.68-2.45,1.02L.67,13.23c-.8-.52-.8-1.53,0-2.05l8.81-5.74c1-.65,2.46-.04,2.46,1.03Z"/>
+        <path d="M23.84,6.47l.05,11.53c0,1.07-1.45,1.68-2.45,1.02l-8.86-5.79c-.8-.52-.8-1.53,0-2.05l8.81-5.74c1-.65,2.46-.04,2.46,1.03Z"/>
+    </symbol>
+    <animations>
+        <!-- Action animation -->
+        <animation affected-paths="0"
+                   id="action"
+                   duration="1"
+                   easing="snap-spring(1.8,1.9)">
+            <keyframe time="1">
+                <translate-x value="-1" />
+            </keyframe>
+        </animation>
+        <animation affected-paths="1"
+                   id="action"
+                   duration="1"
+                   easing="snap-spring(1.8,1.9)">
+            <keyframe time="0">
+                <scale-x value="1" />
+                <scale-y value="1" />
+                <anchor-x value="0" />
+                <opacity value="1"/>
+            </keyframe>
+            <keyframe time="1">
+                <scale-x value="0" />
+                <scale-y value="0" />
+                <anchor-x value="0" />
+                <opacity value="0"/>
+            </keyframe>
+        </animation>
+        <animation affected-paths="2"
+                   id="action"
+                   duration="1"
+                   easing="snap-spring(1.8,1.9)">
+            <keyframe time="0">
+                <scale-x value="0" />
+                <scale-y value="0" />
+                <anchor-x value="1" />
+                <opacity value="0"/>
+            </keyframe>
+            <keyframe time="1">
+                <scale-x value="1" />
+                <scale-y value="1" />
+                <anchor-x value="1" />
+                <opacity value="1"/>
+            </keyframe>
+        </animation>
+
+        <animation affected-paths="*"
+                   id="test"
+                   duration="0.75"
+                   easing="snap-spring(1.8,1.9)">
+            <keyframe time="0">
+                <opacity value="0"/>
+            </keyframe>
+            <keyframe time="1">
+                <opacity value="1"/>
+            </keyframe>
+        </animation>
+
+        <!-- In and Out animation -->
+        <animation affected-paths="*"
+                   id="in"
+                   use-object-anchor="true"
+                   duration="0.4"
+                   easing="cubic-bezier(.3,1.35,.75,1)">
+            <keyframe time="0">
+                <scale-x value="0" />
+                <scale-y value="0" />
+            </keyframe>
+            <keyframe time="1">
+                <scale-x value="1" />
+                <scale-y value="1" />
+            </keyframe>
+        </animation>
+        <animation affected-paths="*"
+                   id="out"
+                   use-object-anchor="true"
+                   duration="0.25"
+                   easing="cubic-bezier(.3,1.35,.75,1)">
+            <keyframe time="0">
+                <scale-x value="1" />
+                <scale-y value="1" />
+            </keyframe>
+            <keyframe time="1">
+                <scale-x value="0" />
+                <scale-y value="0" />
+            </keyframe>
+        </animation>
+    </animations>
+</fav>

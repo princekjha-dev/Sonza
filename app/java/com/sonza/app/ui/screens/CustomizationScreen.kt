@@ -80,13 +80,13 @@ fun CustomizationScreen(
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
     
-    val seekbarStyleString by sessionManager.seekbarStyleFlow.collectAsStateWithLifecycle(initialValue = "M3E_WAVY")
+    val seekbarStyleString by sessionManager.seekbarStyleFlow.collectAsStateWithLifecycle(initialValue = "CLASSIC")
     val artworkShapeString by sessionManager.artworkShapeFlow.collectAsStateWithLifecycle(initialValue = "ROUNDED_SQUARE")
     
     val currentSeekbarStyle = try {
         SeekbarStyle.valueOf(seekbarStyleString)
     } catch (e: Exception) {
-        SeekbarStyle.M3E_WAVY
+        SeekbarStyle.CLASSIC
     }
     
     val currentArtworkShape = try {
