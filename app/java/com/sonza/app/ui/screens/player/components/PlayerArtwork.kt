@@ -371,12 +371,6 @@ fun AlbumArtwork(
             if (currentShape == ArtworkShape.VINYL) {
                 VinylCenterOverlay(dominantColors = dominantColors)
             }
-
-            M3ELoadingOverlay(
-                isLoading = isLoading,
-                dominantColors = dominantColors,
-                modifier = Modifier.fillMaxSize()
-            )
         }
     }
     

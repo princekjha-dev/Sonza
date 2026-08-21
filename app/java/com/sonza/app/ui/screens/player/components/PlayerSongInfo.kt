@@ -85,13 +85,6 @@ fun SongInfoSection(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                if (isLoading) {
-                    LoadingIndicator(
-                        modifier = Modifier.size(if (compact) 18.dp else 22.dp).padding(end = 6.dp),
-                        color = dominantColors.accent
-                    )
-                }
-
                 Text(
                     text = song?.title ?: "No song playing",
                     style = if (compact) {

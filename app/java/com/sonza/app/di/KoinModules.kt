@@ -22,6 +22,7 @@ import com.sonza.app.ui.viewmodel.LibraryViewModel
 import com.sonza.app.ui.viewmodel.ListeningStatsViewModel
 import com.sonza.app.ui.viewmodel.MoodAndGenresViewModel
 import com.sonza.app.ui.viewmodel.PickMusicViewModel
+import com.sonza.app.ui.viewmodel.PodcastsViewModel
 import com.sonza.app.ui.viewmodel.PlaylistManagementViewModel
 import com.sonza.app.ui.viewmodel.PlaylistMigrationViewModel
 import com.sonza.app.ui.viewmodel.PlaylistViewModel
@@ -199,6 +200,7 @@ private val viewModelsModule: Module = module {
     viewModelOf(::MainViewModel)
     viewModelOf(::UpdateViewModel)
     viewModelOf(::PlaylistMigrationViewModel)
+    viewModelOf(::PodcastsViewModel)
 }
 
 /**

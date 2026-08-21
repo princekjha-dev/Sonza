@@ -174,11 +174,131 @@ class YouTubeBrowseService @Inject constructor(
 
     suspend fun getBrowseSections(browseId: String): List<HomeSection> = withContext(Dispatchers.IO) {
         try {
+            if (browseId == "FEmusic_podcasts" || browseId.contains("podcasts", ignoreCase = true)) {
+                return@withContext getPodcastsSections()
+            }
             parser.parseHomeSections(apiClient.fetchInternalApi(browseId))
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
         }
+    }
+
+    suspend fun getPodcastsSections(categoryFilter: String? = null): List<HomeSection> = withContext(Dispatchers.IO) {
+        if (!networkMonitor.isCurrentlyConnected()) return@withContext emptyList()
+        val sections = mutableListOf<HomeSection>()
+        try {
+            val hl = YouTubeLocale.hl(sessionManager)
+            if (categoryFilter.isNullOrBlank() || categoryFilter.equals("All", ignoreCase = true)) {
+                val internalJson = apiClient.fetchInternalApi("FEmusic_podcasts", hl = hl)
+                if (internalJson.isNotBlank()) {
+                    val parsed = parser.parseHomeSections(internalJson)
+                    if (parsed.isNotEmpty()) {
+                        sections.addAll(parsed)
+                    }
+                }
+            }
+
+            if (sections.isEmpty()) {
+                val queryPrefix = if (!categoryFilter.isNullOrBlank() && !categoryFilter.equals("All", ignoreCase = true)) {
+                    "$categoryFilter podcast"
+                } else {
+                    "podcast"
+                }
+
+                coroutineScope {
+                    val featuredDeferred = async {
+                        val term = if (categoryFilter.isNullOrBlank() || categoryFilter.equals("All", ignoreCase = true)) "top popular podcasts" else "$categoryFilter podcasts popular"
+                        val playlists = searchService.searchPlaylists(term).take(8)
+                        if (playlists.isNotEmpty()) {
+                            HomeSection(
+                                title = "Featured Podcasts",
+                                items = playlists.map {
+                                    HomeItem.PlaylistItem(
+                                        PlaylistDisplayItem(
+                                            id = it.id,
+                                            name = it.title,
+                                            url = "https://music.youtube.com/playlist?list=${it.id}",
+                                            uploaderName = it.author,
+                                            thumbnailUrl = it.thumbnailUrl,
+                                            songCount = it.songs.size
+                                        )
+                                    )
+                                },
+                                type = HomeSectionType.HorizontalCarousel
+                            )
+                        } else null
+                    }
+
+                    val popularEpisodesDeferred = async {
+                        val songs = searchService.search("$queryPrefix episode full", YouTubeSearchService.FILTER_SONGS).take(12)
+                        if (songs.isNotEmpty()) {
+                            HomeSection(
+                                title = "Popular Episodes",
+                                items = songs.map { HomeItem.SongItem(it) },
+                                type = HomeSectionType.QuickPicks
+                            )
+                        } else null
+                    }
+
+                    val recommendedDeferred = async {
+                        val term = if (categoryFilter.isNullOrBlank() || categoryFilter.equals("All", ignoreCase = true)) "best trending podcasts 2026" else "best $categoryFilter podcasts"
+                        val playlists = searchService.searchPlaylists(term).take(10)
+                        if (playlists.isNotEmpty()) {
+                            HomeSection(
+                                title = "Recommended for You",
+                                items = playlists.map {
+                                    HomeItem.PlaylistItem(
+                                        PlaylistDisplayItem(
+                                            id = it.id,
+                                            name = it.title,
+                                            url = "https://music.youtube.com/playlist?list=${it.id}",
+                                            uploaderName = it.author,
+                                            thumbnailUrl = it.thumbnailUrl,
+                                            songCount = it.songs.size
+                                        )
+                                    )
+                                },
+                                type = HomeSectionType.HorizontalCarousel
+                            )
+                        } else null
+                    }
+
+                    val moreShowsDeferred = async {
+                        val term = if (categoryFilter.isNullOrBlank() || categoryFilter.equals("All", ignoreCase = true)) "talk shows news technology comedy podcasts" else "$categoryFilter podcast shows"
+                        val playlists = searchService.searchPlaylists(term).take(10)
+                        if (playlists.isNotEmpty()) {
+                            HomeSection(
+                                title = if (categoryFilter.isNullOrBlank() || categoryFilter.equals("All", ignoreCase = true)) "Explore Shows" else "$categoryFilter Shows",
+                                items = playlists.map {
+                                    HomeItem.PlaylistItem(
+                                        PlaylistDisplayItem(
+                                            id = it.id,
+                                            name = it.title,
+                                            url = "https://music.youtube.com/playlist?list=${it.id}",
+                                            uploaderName = it.author,
+                                            thumbnailUrl = it.thumbnailUrl,
+                                            songCount = it.songs.size
+                                        )
+                                    )
+                                },
+                                type = HomeSectionType.HorizontalCarousel
+                            )
+                        } else null
+                    }
+
+                    listOfNotNull(
+                        featuredDeferred.await(),
+                        popularEpisodesDeferred.await(),
+                        recommendedDeferred.await(),
+                        moreShowsDeferred.await()
+                    )
+                }.let { sections.addAll(it) }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        sections
     }
 
     suspend fun getHomeSectionsForMood(moodTitle: String): List<HomeSection> = withContext(Dispatchers.IO) {

@@ -44,7 +44,6 @@ import com.sonza.app.core.model.PlayerState
 import com.sonza.app.providers.lyrics.Lyrics
 import com.sonza.app.providers.lyrics.LyricsProviderType
 import com.sonza.app.ui.components.DominantColors
-import com.sonza.app.ui.screens.player.components.M3ELoadingOverlay
 import com.sonza.app.ui.screens.LyricsScreen
 import com.sonza.app.ui.components.AddToPlaylistSheet
 import com.sonza.app.core.model.ArtworkShape

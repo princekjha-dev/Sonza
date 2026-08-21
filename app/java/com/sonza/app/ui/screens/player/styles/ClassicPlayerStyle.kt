@@ -218,7 +218,6 @@ private fun ClassicPortraitContent(
                                 tonalElevation = 16.dp, shadowElevation = 16.dp
                             ) {
                                 AndroidView(factory = { context -> PlayerView(context).apply { this.player = player; useController = false; resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT; setBackgroundColor(android.graphics.Color.BLACK) } }, modifier = Modifier.fillMaxSize())
-                                M3ELoadingOverlay(isLoading = combinedLoading, dominantColors = dominantColors, modifier = Modifier.fillMaxSize())
                             }
                         }
                     } else {

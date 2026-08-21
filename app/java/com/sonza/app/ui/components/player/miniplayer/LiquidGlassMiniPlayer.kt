@@ -212,10 +212,9 @@ fun LiquidGlassMiniPlayer(
 
                     GlassButton(onClick = onPlayPause, size = 42.dp) {
                         if (isLoading) {
-                            androidx.compose.material3.CircularProgressIndicator(
+                            com.sonza.app.ui.components.SonzaLoadingLogo(
                                 color = dominantColors.onBackground,
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         } else {
                             AnimatedContent(

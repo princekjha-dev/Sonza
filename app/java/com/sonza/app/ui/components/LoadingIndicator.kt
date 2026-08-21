@@ -34,6 +34,22 @@ fun LoadingIndicator(
 }
 
 /**
+ * Sonza native animated loading indicator with radial rounded capsule bars.
+ */
+@Composable
+fun SonzaLoadingIndicator(
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primary,
+    durationMillis: Int = 1000
+) {
+    SonzaLoadingLogo(
+        modifier = modifier,
+        color = color,
+        durationMillis = durationMillis
+    )
+}
+
+/**
  * A unique pulsing loading indicator that mimics a mix of Apple Music and Spotify styles.
  * It features a pulsing glow effect behind a central music icon.
  */

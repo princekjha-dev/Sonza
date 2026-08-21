@@ -203,10 +203,9 @@ fun StandardMiniPlayer(
                     modifier = Modifier.size(42.dp)
                 ) {
                     if (isLoading) {
-                        androidx.compose.material3.CircularProgressIndicator(
+                        com.sonza.app.ui.components.SonzaLoadingLogo(
                             color = SonzaOnBackground,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     } else {
                         Icon(

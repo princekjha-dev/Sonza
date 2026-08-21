@@ -244,8 +244,6 @@ private fun YTMusicPortraitContent(
                                         modifier = Modifier.size(28.dp).background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(6.dp)).padding(4.dp)
                                     )
                                 }
-
-                                M3ELoadingOverlay(isLoading = combinedLoading, dominantColors = dominantColors, modifier = Modifier.fillMaxSize())
                             }
                         }
                     } else {
@@ -477,8 +475,6 @@ private fun YTMusicLandscapeContent(
                                     modifier = Modifier.size(28.dp).background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(6.dp)).padding(4.dp)
                                 )
                             }
-
-                            M3ELoadingOverlay(isLoading = combinedLoading, dominantColors = dominantColors, modifier = Modifier.fillMaxSize())
                         }
                     }
                 } else {

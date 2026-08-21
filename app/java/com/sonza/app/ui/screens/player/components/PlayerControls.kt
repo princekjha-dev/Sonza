@@ -33,9 +33,9 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import com.sonza.app.ui.components.SonzaLoadingLogo
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -115,27 +115,43 @@ fun MainPlaybackControls(
                     .background(playCircleColor),
                 contentAlignment = Alignment.Center
             ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(playIconSize),
-                        color = playIconTint,
-                        strokeWidth = 3.dp
-                    )
-                } else {
-                    AnimatedContent(
-                        targetState = isPlaying,
-                        transitionSpec = {
-                            (scaleIn(spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium)) + fadeIn()) togetherWith
-                            (scaleOut() + fadeOut())
-                        },
-                        label = "playPauseSwap"
-                    ) { playing ->
-                        Icon(
-                            imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (playing) "Pause" else "Play",
-                            tint = playIconTint,
-                            modifier = Modifier.size(playIconSize)
-                        )
+                val buttonState = when {
+                    isLoading -> HeroPlaybackButtonState.BUFFERING
+                    isPlaying -> HeroPlaybackButtonState.PLAYING
+                    else -> HeroPlaybackButtonState.PAUSED
+                }
+
+                AnimatedContent(
+                    targetState = buttonState,
+                    transitionSpec = {
+                        (scaleIn(spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium)) + fadeIn()) togetherWith
+                        (scaleOut() + fadeOut())
+                    },
+                    label = "heroPlaybackState"
+                ) { state ->
+                    when (state) {
+                        HeroPlaybackButtonState.BUFFERING -> {
+                            SonzaLoadingLogo(
+                                modifier = Modifier.size(playIconSize),
+                                color = playIconTint
+                            )
+                        }
+                        HeroPlaybackButtonState.PLAYING -> {
+                            Icon(
+                                imageVector = Icons.Default.Pause,
+                                contentDescription = "Pause",
+                                tint = playIconTint,
+                                modifier = Modifier.size(playIconSize)
+                            )
+                        }
+                        HeroPlaybackButtonState.PAUSED -> {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "Play",
+                                tint = playIconTint,
+                                modifier = Modifier.size(playIconSize)
+                            )
+                        }
                     }
                 }
             }
@@ -339,4 +355,8 @@ fun PlaybackControls(
     )
 }
 
-
+private enum class HeroPlaybackButtonState {
+    BUFFERING,
+    PLAYING,
+    PAUSED
+}

@@ -35,22 +35,31 @@ class ExploreViewModel @Inject constructor(
         loadData()
     }
 
+    fun retry() {
+        loadData()
+    }
+
     private fun loadData() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
-                val sections = youTubeRepository.getBrowseSections(browseId)
+                val sections = if (browseId == "FEmusic_podcasts" || title.equals("Podcasts", ignoreCase = true)) {
+                    youTubeRepository.getPodcastsSections()
+                } else {
+                    youTubeRepository.getBrowseSections(browseId)
+                }
                 _uiState.update { 
                     it.copy(
                         sections = sections,
-                        isLoading = false
+                        isLoading = false,
+                        error = if (sections.isEmpty()) "No content found for $title." else null
                     )
                 }
             } catch (e: Exception) {
                 _uiState.update { 
                     it.copy(
                         isLoading = false,
-                        error = e.message
+                        error = e.message ?: "Failed to load $title"
                     )
                 }
             }

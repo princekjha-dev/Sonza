@@ -65,6 +65,8 @@ sealed class Destination {
     data object Changelog : Destination()
     @Serializable
     data object MigratePlaylists : Destination()
+    @Serializable
+    data object Podcasts : Destination()
 
     @Serializable
     data class Playlist(

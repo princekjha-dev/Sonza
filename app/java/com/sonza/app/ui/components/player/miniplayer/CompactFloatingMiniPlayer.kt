@@ -30,9 +30,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import com.sonza.app.ui.components.SonzaLoadingLogo
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -202,10 +202,9 @@ fun CompactFloatingMiniPlayer(
                     modifier = Modifier.size(38.dp)
                 ) {
                     if (isLoading) {
-                        CircularProgressIndicator(
+                        SonzaLoadingLogo(
                             modifier = Modifier.size(20.dp),
-                            color = accentColor,
-                            strokeWidth = 2.dp
+                            color = accentColor
                         )
                     } else {
                         AnimatedContent(

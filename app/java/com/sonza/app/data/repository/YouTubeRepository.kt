@@ -265,6 +265,9 @@ class YouTubeRepository @Inject constructor(
     suspend fun getBrowseSections(browseId: String): List<HomeSection> =
         browseService.getBrowseSections(browseId)
 
+    suspend fun getPodcastsSections(category: String? = null): List<HomeSection> =
+        browseService.getPodcastsSections(category)
+
     suspend fun getMoodsAndGenres(): List<BrowseCategory> = browseService.getMoodsAndGenres()
 
     suspend fun getCategoryContent(browseId: String, params: String? = null, title: String? = null): List<Song> =

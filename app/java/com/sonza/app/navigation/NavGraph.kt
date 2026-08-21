@@ -175,6 +175,8 @@ fun NavGraph(
                         onExploreClick = { browseId, title ->
                             if (browseId == "FEmusic_moods_and_genres") {
                                 navController.navigate(Destination.MoodAndGenres)
+                            } else if (browseId == "FEmusic_podcasts" || title.equals("Podcasts", ignoreCase = true)) {
+                                navController.navigate(Destination.Podcasts)
                             } else {
                                 navController.navigate(Destination.Explore(browseId, title))
                             }
@@ -213,6 +215,8 @@ fun NavGraph(
                         onExploreClick = { browseId, title ->
                             if (browseId == "FEmusic_moods_and_genres") {
                                 navController.navigate(Destination.MoodAndGenres)
+                            } else if (browseId == "FEmusic_podcasts" || title.equals("Podcasts", ignoreCase = true)) {
+                                navController.navigate(Destination.Podcasts)
                             } else {
                                 navController.navigate(Destination.Explore(browseId, title))
                             }
@@ -226,9 +230,9 @@ fun NavGraph(
                 }
             }
         }
-        
-        composable<Destination.Explore> {
-            com.sonza.app.ui.screens.ExploreScreen(
+
+        composable<Destination.Podcasts> {
+            com.sonza.app.ui.screens.PodcastsScreen(
                 onBackClick = { navController.popBackStack() },
                 onSongClick = { songs, index -> onPlaySong(songs, index) },
                 onPlaylistClick = { playlist ->
@@ -250,6 +254,57 @@ fun NavGraph(
                     )
                 }
             )
+        }
+        
+        composable<Destination.Explore> {
+            val explore = it.toRoute<Destination.Explore>()
+            if (explore.browseId == "FEmusic_podcasts" || explore.title.equals("Podcasts", ignoreCase = true)) {
+                com.sonza.app.ui.screens.PodcastsScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onSongClick = { songs, index -> onPlaySong(songs, index) },
+                    onPlaylistClick = { playlist ->
+                        navController.navigate(
+                            Destination.Playlist(
+                                playlistId = playlist.id,
+                                name = playlist.name,
+                                thumbnailUrl = playlist.thumbnailUrl
+                            )
+                        )
+                    },
+                    onAlbumClick = { album ->
+                        navController.navigate(
+                            Destination.Album(
+                                albumId = album.id,
+                                name = album.title,
+                                thumbnailUrl = album.thumbnailUrl
+                            )
+                        )
+                    }
+                )
+            } else {
+                com.sonza.app.ui.screens.ExploreScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onSongClick = { songs, index -> onPlaySong(songs, index) },
+                    onPlaylistClick = { playlist ->
+                        navController.navigate(
+                            Destination.Playlist(
+                                playlistId = playlist.id,
+                                name = playlist.name,
+                                thumbnailUrl = playlist.thumbnailUrl
+                            )
+                        )
+                    },
+                    onAlbumClick = { album ->
+                        navController.navigate(
+                            Destination.Album(
+                                albumId = album.id,
+                                name = album.title,
+                                thumbnailUrl = album.thumbnailUrl
+                            )
+                        )
+                    }
+                )
+            }
         }
 
 

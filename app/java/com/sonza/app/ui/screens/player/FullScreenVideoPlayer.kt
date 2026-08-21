@@ -56,6 +56,7 @@ import androidx.compose.material.icons.filled.VolumeDown
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material3.LoadingIndicator
+import com.sonza.app.ui.components.SonzaLoadingLogo
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -540,7 +541,7 @@ fun FullScreenVideoPlayer(
                         BounceButton(onClick = { viewModel.togglePlayPause() }) {
                             Box(contentAlignment = Alignment.Center, modifier = Modifier.size(96.dp).background(Color.White.copy(alpha = 0.15f), CircleShape)) {
                                 if (playerState.isLoading) {
-                                    LoadingIndicator(color = dominantColors.primary, modifier = Modifier.size(56.dp))
+                                    SonzaLoadingLogo(color = dominantColors.primary, modifier = Modifier.size(56.dp))
                                 } else {
                                     Icon(if (playerState.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play/Pause", tint = Color.White, modifier = Modifier.size(56.dp))
                                 }
