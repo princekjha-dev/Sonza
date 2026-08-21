@@ -72,7 +72,7 @@ fun WaveformSeeker(
     }
 
     val animatedThumbRadius by animateDpAsState(
-        targetValue = if (isDragging) 8.dp else 5.5.dp,
+        targetValue = if (isDragging) 7.dp else 5.dp,
         animationSpec = spring(stiffness = 500f),
         label = "thumbRadius"
     )
@@ -156,7 +156,7 @@ fun WaveformSeeker(
                 if (width <= 0f || height <= 0f) return@Canvas
 
                 val centerY = height / 2f
-                val trackHeight = 4.5.dp.toPx()
+                val trackHeight = 3.5.dp.toPx()
                 val cornerRadius = CornerRadius(trackHeight / 2f, trackHeight / 2f)
                 val clampedProgress = currentProgress.coerceIn(0f, 1f)
                 val progressX = clampedProgress * width
