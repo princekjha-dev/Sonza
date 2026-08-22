@@ -3,6 +3,7 @@ package com.sonza.app.ui.components
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -198,7 +199,8 @@ fun HomeSectionHeader(
             Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
             Surface(
                 shape = RoundedCornerShape(RadiusTokens.Pill),
-                color = dynamicColors.accent.copy(alpha = 0.14f),
+                color = dynamicColors.accent.copy(alpha = 0.20f),
+                border = BorderStroke(0.75.dp, dynamicColors.accent.copy(alpha = 0.45f)),
                 modifier = Modifier.bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onSeeAllClick)
             ) {
                 Text(
@@ -265,16 +267,16 @@ fun FeaturedHeroCard(
             )
         }
 
-        // Dynamic Accent Wash + Scrim Gradient per Part 1 & 6.1
+        // Clean Scrim Gradient ensuring crisp artwork and high-contrast text
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        0.0f to dynamicColors.accentMuted.copy(alpha = 0.45f),
-                        0.35f to Color.Transparent,
-                        0.65f to Color.Black.copy(alpha = 0.60f),
-                        1.0f to Color.Black.copy(alpha = 0.92f)
+                        0.0f to Color.Transparent,
+                        0.35f to Color.Black.copy(alpha = 0.20f),
+                        0.65f to Color.Black.copy(alpha = 0.65f),
+                        1.0f to Color.Black.copy(alpha = 0.94f)
                     )
                 )
         )

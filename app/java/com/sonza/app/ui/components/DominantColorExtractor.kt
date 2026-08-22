@@ -113,13 +113,13 @@ fun computeOnAccent(accent: Color): Color {
 @Composable
 fun rememberDynamicAccentColors(
     imageUrl: String?,
-    fallbackColor: Color = SonzaIdleAccent
+    fallbackColor: Color = LocalSonzaDynamicColors.current.accent.takeIf { it != Color.Unspecified } ?: SonzaBrandAccent
 ): SonzaDynamicColors {
     val defaultTokens = remember(fallbackColor) {
         val onAcc = computeOnAccent(fallbackColor)
         SonzaDynamicColors(
             accent = fallbackColor,
-            accentMuted = if (fallbackColor == SonzaIdleAccent) SonzaIdleAccentMuted else fallbackColor.copy(alpha = 0.25f),
+            accentMuted = fallbackColor.copy(alpha = 0.25f),
             onAccent = onAcc,
             isIdle = true
         )

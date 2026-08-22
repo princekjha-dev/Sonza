@@ -32,7 +32,6 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import com.sonza.app.ui.components.SonzaLoadingLogo
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -48,11 +47,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.request.crossfade
 import com.sonza.app.R
 import com.sonza.app.core.model.Song
 import com.sonza.app.ui.components.DominantColors
+import com.sonza.app.ui.theme.SonzaOnBackground
+import com.sonza.app.ui.theme.SonzaOnSurfaceVariant
 import com.sonza.app.ui.theme.SonzaTypography
 import com.sonza.app.ui.theme.SpacingTokens
 import com.sonza.app.util.ImageUtils
@@ -69,16 +71,16 @@ fun CompactFloatingMiniPlayer(
     dominantColors: DominantColors,
     progressProvider: () -> Float,
     onPlayPause: () -> Unit,
-    onNext: () -> Unit,
-    onPrevious: () -> Unit,
-    onClose: () -> Unit,
+    onNext: () -> Unit = {},
+    onPrevious: () -> Unit = {},
+    onClose: () -> Unit = {},
     onTap: () -> Unit,
     accentColor: Color,
     userAlpha: Float = 0f,
     artworkShape: String = "ROUNDED_SQUARE",
     modifier: Modifier = Modifier
 ) {
-    val pillShape = RoundedCornerShape(27.dp)
+    val pillShape = RoundedCornerShape(26.dp)
 
     val artShape = when (artworkShape) {
         "CIRCLE", "VINYL" -> CircleShape
@@ -90,10 +92,16 @@ fun CompactFloatingMiniPlayer(
         ImageUtils.getHighResThumbnailUrl(song.thumbnailUrl, size = 256)
     }
 
+    val specularBrush = Brush.verticalGradient(
+        0.0f to Color.White.copy(alpha = 0.08f),
+        0.5f to Color.Transparent,
+        1.0f to Color.Black.copy(alpha = 0.15f)
+    )
+
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .height(54.dp)
+            .height(52.dp)
             .shadow(
                 elevation = 8.dp,
                 shape = pillShape,
@@ -101,19 +109,13 @@ fun CompactFloatingMiniPlayer(
                 spotColor = Color.Black.copy(alpha = 0.30f)
             ),
         shape = pillShape,
-        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = (0.92f - userAlpha).coerceIn(0.2f, 0.98f)),
-        border = BorderStroke(0.75.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
+        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = (0.90f - userAlpha).coerceIn(0.70f, 0.98f)),
+        border = BorderStroke(0.75.dp, Color.White.copy(alpha = 0.12f))
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    brush = Brush.verticalGradient(
-                        0.0f to Color.White.copy(alpha = 0.08f),
-                        0.5f to Color.Transparent,
-                        1.0f to Color.Black.copy(alpha = 0.15f)
-                    )
-                )
+                .background(specularBrush)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -147,7 +149,7 @@ fun CompactFloatingMiniPlayer(
                 val context = androidx.compose.ui.platform.LocalContext.current
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(38.dp)
                         .clip(artShape)
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
@@ -169,19 +171,22 @@ fun CompactFloatingMiniPlayer(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(9.dp))
 
                 // Song Title & Artist info
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(vertical = 4.dp),
+                        .padding(vertical = 2.dp),
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
                         text = song.title,
-                        style = SonzaTypography.BodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = SonzaTypography.SongTitle.copy(
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = SonzaOnBackground,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE)
@@ -189,15 +194,17 @@ fun CompactFloatingMiniPlayer(
                     if (!song.artist.isNullOrBlank()) {
                         Text(
                             text = song.artist,
-                            style = SonzaTypography.LabelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                            style = SonzaTypography.ArtistSubtitle.copy(
+                                fontSize = 11.5.sp
+                            ),
+                            color = SonzaOnSurfaceVariant.copy(alpha = 0.90f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(4.dp))
 
                 // Compact Play/Pause button with single loader
                 IconButton(
@@ -236,3 +243,4 @@ fun CompactFloatingMiniPlayer(
         }
     }
 }
+

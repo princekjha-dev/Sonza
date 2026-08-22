@@ -295,7 +295,8 @@ fun PlayAllPill(onClick: () -> Unit) {
 
     Surface(
         shape = RoundedCornerShape(RadiusTokens.Pill),
-        color = dynamicColors.accent.copy(alpha = 0.14f),
+        color = dynamicColors.accent.copy(alpha = 0.20f),
+        border = androidx.compose.foundation.BorderStroke(0.75.dp, dynamicColors.accent.copy(alpha = 0.45f)),
         modifier = Modifier.bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onClick)
     ) {
         Row(

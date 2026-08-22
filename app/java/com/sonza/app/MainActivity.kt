@@ -891,6 +891,8 @@ fun SonzaApp(
                                 isLoading = playbackInfo.isLoading,
                                 onPlayPause = { playerViewModel.togglePlayPause() },
                                 onExpandPlayer = { playerViewModel.expandPlayer() },
+                                onNext = { playerViewModel.seekToNext() },
+                                onPrevious = { playerViewModel.seekToPrevious() },
                                 progressProvider = miniPlayerProgressProvider,
                                 dominantColors = currentDominantColors,
                                 alpha = navBarAlpha,

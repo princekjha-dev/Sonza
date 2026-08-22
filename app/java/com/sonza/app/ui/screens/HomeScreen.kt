@@ -145,7 +145,8 @@ fun HomeScreen(
         }
     }
 
-    // Dynamic accent & dominant colors: only extract from active playing track
+    // Dynamic accent & dominant colors: extract from active playing track or use current Dynamic Theme
+    val dynamicTokens = LocalSonzaDynamicColors.current
     val actualDominantColors = rememberDominantColors(
         imageUrl = currentSong?.thumbnailUrl
     )
@@ -154,10 +155,12 @@ fun HomeScreen(
         actualDominantColors
     } else {
         DominantColors(
-            primary = SonzaSurface,
-            secondary = SonzaSurfaceVariant,
-            accent = SonzaIdleAccent,
-            onBackground = SonzaOnBackground,
+            primary = dynamicTokens.surface,
+            secondary = dynamicTokens.surfaceVariant,
+            accent = dynamicTokens.accent,
+            onBackground = dynamicTokens.onBackground,
+            accentMuted = dynamicTokens.accentMuted,
+            onAccent = dynamicTokens.onAccent,
             isIdle = true
         )
     }

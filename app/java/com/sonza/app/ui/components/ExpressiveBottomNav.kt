@@ -6,6 +6,8 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -71,6 +73,7 @@ import coil3.request.crossfade
 import com.sonza.app.R
 import com.sonza.app.core.model.Song
 import com.sonza.app.navigation.Destination
+import com.sonza.app.ui.components.player.miniplayer.CompactFloatingMiniPlayer
 import com.sonza.app.ui.theme.MotionTokens
 import com.sonza.app.ui.theme.SonzaBackground
 import com.sonza.app.ui.theme.SonzaBrandAccent
@@ -81,31 +84,32 @@ import com.sonza.app.ui.theme.SonzaSurface
 import com.sonza.app.ui.theme.SonzaTypography
 
 object ExpressiveBottomNavTokens {
-    val NavBarHeight = 56.dp
-    val MiniPlayerHeight = 56.dp
-    val PillSpacing = 8.dp
+    val NavBarHeight = 52.dp
+    val MiniPlayerHeight = 52.dp
+    val Spacing = 8.dp
     val FloatingBarBottomPadding = 8.dp
     val FloatingBarHorizontalPadding = 16.dp
-    val TotalBottomBarHeight = 64.dp // 56dp + 8dp
-    val TotalStackedHeight = 128.dp // 56dp + 8dp + 56dp + 8dp
+    val TotalBottomBarHeight = 60.dp // 52dp + 8dp
 
-    fun getBottomSafePadding(hasMusicPlaying: Boolean): androidx.compose.ui.unit.Dp {
-        return if (hasMusicPlaying) TotalStackedHeight else TotalBottomBarHeight
+    fun getBottomSafePadding(hasMusicPlaying: Boolean = false): androidx.compose.ui.unit.Dp {
+        return TotalBottomBarHeight
     }
 }
 
 /**
- * Floating Bottom Navigation & Mini-Player Stack:
+ * Compact Floating Glass Bottom Navigation System:
  *
- * 1. Normal State (No Music):
- *    Standard 4-destination navigation pill [ Home | Search | Library | Settings ] floating
- *    at the bottom with frosted glass background and smooth selection indicators.
+ * 1. Playing State (`currentSong != null`):
+ *    Single compact horizontal floating row:
+ *    [ Home ○ ] — [ Compact Mini Player ] — [ ○ Search ]
+ *    The mini player is the dominant center element flanked by small circular floating navigation controls.
  *
- * 2. Music Playing State:
- *    Floating mini-player pill appears cleanly ABOVE the 4-destination navigation pill.
- *    The bottom navigation remains 100% visible and interactive.
- *    Single loading indicator (loding.gif) in the playback control slot when buffering.
- *    Tapping mini-player expands the full player; dragging/swiping down collapses it back.
+ * 2. Idle State (`currentSong == null`):
+ *    Single compact 4-destination navigation pill [ Home | Search | Library | Settings ] floating
+ *    at the bottom above the Android gesture navigation area.
+ *    No mini player or reserved placeholder space is shown.
+ *
+ * Smooth animated transition between playing and idle states.
  */
 @Composable
 fun ExpressiveBottomNav(
@@ -117,6 +121,8 @@ fun ExpressiveBottomNav(
     isLoading: Boolean = false,
     onPlayPause: () -> Unit = {},
     onExpandPlayer: () -> Unit = {},
+    onNext: () -> Unit = {},
+    onPrevious: () -> Unit = {},
     progressProvider: () -> Float = { 0f },
     dominantColors: DominantColors? = null,
     modifier: Modifier = Modifier,
@@ -127,8 +133,17 @@ fun ExpressiveBottomNav(
 ) {
     val dynamicColors = LocalSonzaDynamicColors.current
     val accentColor = dynamicColors.accent.takeIf { it != Color.Unspecified } ?: SonzaBrandAccent
+    val resolvedDominantColors = dominantColors ?: DominantColors(
+        primary = dynamicColors.surface,
+        secondary = dynamicColors.surfaceVariant,
+        accent = accentColor,
+        onBackground = dynamicColors.onBackground,
+        accentMuted = dynamicColors.accentMuted,
+        onAccent = dynamicColors.onAccent,
+        isIdle = currentSong == null
+    )
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
@@ -138,213 +153,95 @@ fun ExpressiveBottomNav(
                 bottom = ExpressiveBottomNavTokens.FloatingBarBottomPadding,
                 top = 0.dp
             ),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(ExpressiveBottomNavTokens.PillSpacing)
+        contentAlignment = Alignment.Center
     ) {
-        // --- Layer 1 (Top): Floating Mini-Player Pill (visible when song is present) ---
-        androidx.compose.animation.AnimatedVisibility(
-            visible = currentSong != null,
-            enter = fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
-                    androidx.compose.animation.slideInVertically(animationSpec = tween(250, easing = FastOutSlowInEasing)) { it },
-            exit = fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
-                   androidx.compose.animation.slideOutVertically(animationSpec = tween(200, easing = FastOutSlowInEasing)) { it }
-        ) {
-            if (currentSong != null) {
-                FloatingMiniPlayerPill(
-                    currentSong = currentSong,
-                    isPlaying = isPlaying,
-                    isLoading = isLoading,
-                    progressProvider = progressProvider,
-                    accentColor = accentColor,
-                    userAlpha = alpha,
-                    onPlayPause = onPlayPause,
-                    onExpandPlayer = onExpandPlayer
-                )
-            }
-        }
-
-        // --- Layer 2 (Bottom): Full 4-Tabs Navigation Bar [ Home | Search | Library | Settings ] ---
-        Standard4TabsNavBar(
-            currentDestination = currentDestination,
-            accentColor = accentColor,
-            userAlpha = alpha,
-            onDestinationChange = onDestinationChange,
-            onReClick = onReClick
-        )
-    }
-}
-
-/**
- * Floating Mini-Player Pill sitting directly above the Bottom Navigation.
- */
-@Composable
-private fun FloatingMiniPlayerPill(
-    currentSong: Song,
-    isPlaying: Boolean,
-    isLoading: Boolean,
-    progressProvider: () -> Float,
-    accentColor: Color,
-    userAlpha: Float,
-    onPlayPause: () -> Unit,
-    onExpandPlayer: () -> Unit
-) {
-    val pillShape = RoundedCornerShape(28.dp)
-    val effectiveAlpha = (0.90f * userAlpha).coerceIn(0.70f, 0.98f)
-    val surfaceColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = effectiveAlpha)
-
-    val borderBrush = Brush.verticalGradient(
-        colors = listOf(
-            Color.White.copy(alpha = 0.16f),
-            Color.White.copy(alpha = 0.04f)
-        )
-    )
-
-    val specularBrush = Brush.verticalGradient(
-        0.0f to Color.White.copy(alpha = 0.08f),
-        0.5f to Color.Transparent,
-        1.0f to Color.Black.copy(alpha = 0.12f)
-    )
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(ExpressiveBottomNavTokens.MiniPlayerHeight)
-            .shadow(
-                elevation = 8.dp,
-                shape = pillShape,
-                ambientColor = Color.Black.copy(alpha = 0.40f),
-                spotColor = Color.Black.copy(alpha = 0.30f)
-            ),
-        shape = pillShape,
-        color = surfaceColor,
-        border = BorderStroke(0.75.dp, borderBrush)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(specularBrush)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onExpandPlayer
-                )
-        ) {
-            // Subtle playback progress line along the bottom of the pill
-            val progress = progressProvider().coerceIn(0f, 1f)
-            if (progress > 0f) {
-                Canvas(
+        AnimatedContent(
+            targetState = currentSong != null,
+            transitionSpec = {
+                (fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                        scaleIn(animationSpec = tween(220, easing = FastOutSlowInEasing), initialScale = 0.96f))
+                    .togetherWith(
+                        fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
+                                scaleOut(animationSpec = tween(180, easing = FastOutSlowInEasing), targetScale = 0.96f)
+                    )
+            },
+            label = "bottomNavModeTransition"
+        ) { hasPlayingSong ->
+            if (hasPlayingSong && currentSong != null) {
+                // --- Playing State: [ Home ○ ] — [ Compact Mini Player ] — [ ○ Search ] ---
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(2.5.dp)
-                        .align(Alignment.BottomCenter)
+                        .height(ExpressiveBottomNavTokens.NavBarHeight),
+                    horizontalArrangement = Arrangement.spacedBy(ExpressiveBottomNavTokens.Spacing),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    drawRoundRect(
-                        color = accentColor.copy(alpha = 0.85f),
-                        size = androidx.compose.ui.geometry.Size(size.width * progress, size.height),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx(), 2.dp.toPx())
+                    // 1. Home Navigation Button (Circular floating glass button on left)
+                    FloatingNavCircleButton(
+                        icon = Icons.Outlined.Home,
+                        selectedIcon = Icons.Filled.Home,
+                        isSelected = currentDestination == Destination.Home,
+                        contentDescription = stringResource(R.string.nav_home),
+                        accentColor = accentColor,
+                        size = ExpressiveBottomNavTokens.NavBarHeight,
+                        onClick = {
+                            if (currentDestination == Destination.Home) {
+                                onReClick(Destination.Home)
+                            } else {
+                                onDestinationChange(Destination.Home)
+                            }
+                        }
+                    )
+
+                    // 2. Compact Floating Mini Player (Dominant center element)
+                    CompactFloatingMiniPlayer(
+                        song = currentSong,
+                        isPlaying = isPlaying,
+                        isLoading = isLoading,
+                        dominantColors = resolvedDominantColors,
+                        progressProvider = progressProvider,
+                        onPlayPause = onPlayPause,
+                        onNext = onNext,
+                        onPrevious = onPrevious,
+                        onTap = onExpandPlayer,
+                        accentColor = accentColor,
+                        userAlpha = 1f - alpha.coerceIn(0.5f, 1f),
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    // 3. Search Navigation Button (Circular floating glass button on right)
+                    FloatingNavCircleButton(
+                        icon = Icons.Outlined.Search,
+                        selectedIcon = Icons.Filled.Search,
+                        isSelected = currentDestination == Destination.Search,
+                        contentDescription = stringResource(R.string.nav_search),
+                        accentColor = accentColor,
+                        size = ExpressiveBottomNavTokens.NavBarHeight,
+                        onClick = {
+                            if (currentDestination == Destination.Search) {
+                                onReClick(Destination.Search)
+                            } else {
+                                onDestinationChange(Destination.Search)
+                            }
+                        }
                     )
                 }
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(start = 7.dp, end = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Small square album artwork with rounded corners
-                val thumbUrl = currentSong.thumbnailUrl
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (!thumbUrl.isNullOrBlank()) {
-                        AsyncImage(
-                            model = thumbUrl,
-                            contentDescription = currentSong.title,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Filled.MusicNote,
-                            contentDescription = null,
-                            tint = accentColor,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(9.dp))
-
-                // Song title & artist info
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(vertical = 4.dp),
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = currentSong.title,
-                        style = SonzaTypography.SongTitle.copy(
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = SonzaOnBackground,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.basicMarquee()
-                    )
-                    if (!currentSong.artist.isNullOrBlank()) {
-                        Text(
-                            text = currentSong.artist,
-                            style = SonzaTypography.ArtistSubtitle.copy(
-                                fontSize = 11.5.sp
-                            ),
-                            color = SonzaOnSurfaceVariant.copy(alpha = 0.85f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(4.dp))
-
-                // Single Play/Pause / Buffering button on the right
-                val context = androidx.compose.ui.platform.LocalContext.current
-                IconButton(
-                    onClick = onPlayPause,
-                    modifier = Modifier.size(38.dp)
-                ) {
-                    if (isLoading) {
-                        AsyncImage(
-                            model = coil3.request.ImageRequest.Builder(context)
-                                .data(R.raw.loding)
-                                .crossfade(false)
-                                .build(),
-                            contentDescription = "Loading",
-                            modifier = Modifier.size(26.dp),
-                            contentScale = ContentScale.Fit
-                        )
-                    } else {
-                        Icon(
-                            imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                            contentDescription = if (isPlaying) "Pause" else "Play",
-                            tint = SonzaOnSurface,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
+            } else {
+                // --- Idle State: [ Home | Search | Library | Settings ] Floating Pill ---
+                Standard4TabsNavBar(
+                    currentDestination = currentDestination,
+                    accentColor = accentColor,
+                    userAlpha = alpha,
+                    onDestinationChange = onDestinationChange,
+                    onReClick = onReClick
+                )
             }
         }
     }
 }
 
 /**
- * State 1: No Music Playing
+ * Idle State (No Music Playing):
  * Centered floating pill with all 4 destinations: [ Home | Search | Library | Settings ]
  */
 @Composable
@@ -355,7 +252,7 @@ private fun Standard4TabsNavBar(
     onDestinationChange: (Destination) -> Unit,
     onReClick: (Destination) -> Unit
 ) {
-    val pillShape = RoundedCornerShape(28.dp)
+    val pillShape = RoundedCornerShape(26.dp)
     val effectiveAlpha = (0.90f * userAlpha).coerceIn(0.70f, 0.98f)
     val surfaceColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = effectiveAlpha)
 
@@ -538,3 +435,4 @@ private data class BottomNavItem(
     val unselectedIcon: ImageVector,
     val selectedIcon: ImageVector
 )
+
