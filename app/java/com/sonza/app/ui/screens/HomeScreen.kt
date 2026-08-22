@@ -80,7 +80,7 @@ import org.koin.compose.viewmodel.koinViewModel
  *   Pattern C (Chart cards), Pattern D (Video cards), Pattern E (Explore).
  * - Responsive card sizing, Manrope typography, and dynamic accent color tokens.
  * - Seamless insets for edge-to-edge, mini-player, and bottom navigation.
- * - Full horizontal swipe gestures (swipe right to Library, swipe left to User Profile).
+ * - Full horizontal swipe gestures (swipe left to Library).
  */
 @Composable
 fun HomeScreen(
@@ -173,8 +173,8 @@ fun HomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .horizontalSwipeNavigation(
-                onSwipeRight = onNavigateToLibrary,
-                onSwipeLeft = onNavigateToProfile
+                onSwipeLeft = onNavigateToLibrary,
+                onSwipeRight = null
             )
     ) {
         // Fluid background

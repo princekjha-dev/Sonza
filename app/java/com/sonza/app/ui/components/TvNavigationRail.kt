@@ -20,12 +20,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ViewWeek
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.ViewWeek
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -59,7 +59,7 @@ fun TvNavigationRail(
         TvNavItem(Destination.Home, androidx.compose.ui.res.stringResource(com.sonza.app.R.string.nav_home), Icons.Outlined.Home, Icons.Filled.Home),
         TvNavItem(Destination.Search, androidx.compose.ui.res.stringResource(com.sonza.app.R.string.nav_search), Icons.Outlined.Search, Icons.Filled.Search),
         TvNavItem(Destination.Library, androidx.compose.ui.res.stringResource(com.sonza.app.R.string.nav_library), Icons.Outlined.LibraryMusic, Icons.Filled.LibraryMusic),
-        TvNavItem(Destination.Settings, androidx.compose.ui.res.stringResource(com.sonza.app.R.string.nav_settings), Icons.Outlined.Settings, Icons.Filled.Settings)
+        TvNavItem(Destination.Profile, androidx.compose.ui.res.stringResource(com.sonza.app.R.string.nav_profile), Icons.Outlined.Person, Icons.Filled.Person)
     )
 
     NavigationRail(

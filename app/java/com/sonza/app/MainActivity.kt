@@ -722,7 +722,7 @@ fun SonzaApp(
         destination?.hasRoute<Destination.Home>() == true -> Destination.Home
         destination?.hasRoute<Destination.Search>() == true -> Destination.Search
         destination?.hasRoute<Destination.Library>() == true -> Destination.Library
-        destination?.hasRoute<Destination.Settings>() == true -> Destination.Settings
+        destination?.hasRoute<Destination.Profile>() == true -> Destination.Profile
         else -> currentDestination
     }
     
@@ -730,7 +730,6 @@ fun SonzaApp(
         it.hasRoute<Destination.Home>() ||
         it.hasRoute<Destination.Search>() ||
         it.hasRoute<Destination.Library>() ||
-        it.hasRoute<Destination.Settings>() ||
         it.hasRoute<Destination.Profile>()
     } ?: false
     

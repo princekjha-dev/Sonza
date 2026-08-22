@@ -33,7 +33,6 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -91,8 +90,8 @@ import org.koin.compose.viewmodel.koinViewModel
 fun UserProfileScreen(
     onBackClick: () -> Unit,
     onNavigateToHome: () -> Unit = onBackClick,
+    onNavigateToLibrary: () -> Unit = onBackClick,
     onLoginClick: () -> Unit = {},
-    onSettingsClick: () -> Unit = {},
     onHistoryClick: () -> Unit = {},
     onDownloadsClick: () -> Unit = {},
     onStatsClick: () -> Unit = {},
@@ -114,8 +113,8 @@ fun UserProfileScreen(
             .background(SonzaBackground)
             .statusBarsPadding()
             .horizontalSwipeNavigation(
-                onSwipeRight = onNavigateToHome,
-                onSwipeLeft = null
+                onSwipeLeft = null,
+                onSwipeRight = onNavigateToLibrary
             )
     ) {
         LazyColumn(
@@ -145,7 +144,7 @@ fun UserProfileScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back to Home",
+                            contentDescription = "Back to Library",
                             tint = SonzaOnBackground
                         )
                     }
@@ -335,26 +334,6 @@ fun UserProfileScreen(
                         subtitle = "Manage cached audio & offline tracks",
                         accentColor = accentColor,
                         onClick = onDownloadsClick
-                    )
-                }
-            }
-
-            // Quick App Settings Shortcut
-            item {
-                Text(
-                    text = "Preferences",
-                    style = SonzaTypography.TitleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = SonzaOnBackground,
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
-                )
-
-                SettingsCard(flat = true, modifier = Modifier.fillMaxWidth()) {
-                    ProfileOptionRow(
-                        icon = Icons.Default.Settings,
-                        title = "App Settings",
-                        subtitle = "Playback quality, theme, customizations & AI",
-                        accentColor = accentColor,
-                        onClick = onSettingsClick
                     )
                 }
             }

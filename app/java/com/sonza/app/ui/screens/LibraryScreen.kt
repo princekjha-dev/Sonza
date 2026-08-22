@@ -122,7 +122,7 @@ fun LibraryScreen(
     onDownloadsClick: () -> Unit = {},
     onMigratePlaylistsClick: () -> Unit = {},
     onNavigateToHome: () -> Unit = {},
-    onNavigateToSettings: () -> Unit = {},
+    onNavigateToProfile: () -> Unit = {},
     viewModel: LibraryViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -154,8 +154,8 @@ fun LibraryScreen(
         modifier = Modifier
             .fillMaxSize()
             .horizontalSwipeNavigation(
-                onSwipeRight = onNavigateToHome,
-                onSwipeLeft = onNavigateToSettings
+                onSwipeLeft = onNavigateToProfile,
+                onSwipeRight = onNavigateToHome
             ),
         floatingActionButton = {
             com.sonza.app.ui.components.primitives.ExpressiveFab(

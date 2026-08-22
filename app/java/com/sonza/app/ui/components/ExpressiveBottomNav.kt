@@ -30,11 +30,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -90,7 +90,7 @@ object ExpressiveBottomNavTokens {
  *
  * 2. Idle State (`currentSong == null`):
  *    Compact floating navigation pill containing all 4 destinations:
- *    [ Home | Search | Library | Settings ]
+ *    [ Home | Search | Library | Profile ]
  *    Mini-player completely disappears, floating smoothly above content.
  */
 @Composable
@@ -209,7 +209,7 @@ fun ExpressiveBottomNav(
                     )
                 }
             } else {
-                // --- Idle State (No Music Playing): Compact 4-Destination Floating Pill [ Home | Search | Library | Settings ] ---
+                // --- Idle State (No Music Playing): Compact 4-Destination Floating Pill [ Home | Search | Library | Profile ] ---
                 CompactFloating4TabsNav(
                     currentDestination = currentDestination,
                     accentColor = accentColor,
@@ -267,10 +267,10 @@ private fun CompactFloating4TabsNav(
                 selectedIcon = Icons.Filled.LibraryMusic
             ),
             BottomNavItem(
-                destination = Destination.Settings,
-                labelRes = R.string.nav_settings,
-                unselectedIcon = Icons.Outlined.Settings,
-                selectedIcon = Icons.Filled.Settings
+                destination = Destination.Profile,
+                labelRes = R.string.nav_profile,
+                unselectedIcon = Icons.Outlined.Person,
+                selectedIcon = Icons.Filled.Person
             )
         )
     }

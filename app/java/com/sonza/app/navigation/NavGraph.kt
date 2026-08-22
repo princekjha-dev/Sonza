@@ -33,7 +33,6 @@ import com.sonza.app.ui.screens.PlaylistScreen
 import com.sonza.app.ui.screens.RecentsScreen
 import com.sonza.app.ui.screens.SearchScreen
 import com.sonza.app.ui.screens.SeekbarStyleScreen
-import com.sonza.app.ui.screens.SettingsScreen
 import com.sonza.app.ui.screens.StorageScreen
 import com.sonza.app.ui.screens.SupportScreen
 import com.sonza.app.ui.screens.YouTubeLoginScreen
@@ -46,7 +45,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import androidx.media3.common.Player
 import com.sonza.app.ui.screens.SponsorBlockSettingsScreen
 import org.koin.compose.viewmodel.koinViewModel
-
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.toRoute
 
 /**
@@ -105,22 +104,100 @@ fun NavGraph(
         startDestination = startDestination,
         modifier = modifier,
         enterTransition = {
-            fadeIn(animationSpec = tween(300)) + slideIntoContainer(
-                towards = AnimatedContentTransitionScope.SlideDirection.Start,
-                animationSpec = tween(300)
-            )
+            val initialIndex = initialState.destination.getMainPageIndex()
+            val targetIndex = targetState.destination.getMainPageIndex()
+            if (initialIndex != -1 && targetIndex != -1) {
+                if (targetIndex > initialIndex) {
+                    slideIntoContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                        animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                    ) + fadeIn(animationSpec = tween(300))
+                } else if (targetIndex < initialIndex) {
+                    slideIntoContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.End,
+                        animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                    ) + fadeIn(animationSpec = tween(300))
+                } else {
+                    fadeIn(animationSpec = tween(300))
+                }
+            } else {
+                slideIntoContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                    animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(300))
+            }
         },
         exitTransition = {
-            fadeOut(animationSpec = tween(300))
+            val initialIndex = initialState.destination.getMainPageIndex()
+            val targetIndex = targetState.destination.getMainPageIndex()
+            if (initialIndex != -1 && targetIndex != -1) {
+                if (targetIndex > initialIndex) {
+                    slideOutOfContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                        animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                    ) + fadeOut(animationSpec = tween(300))
+                } else if (targetIndex < initialIndex) {
+                    slideOutOfContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.End,
+                        animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                    ) + fadeOut(animationSpec = tween(300))
+                } else {
+                    fadeOut(animationSpec = tween(300))
+                }
+            } else {
+                slideOutOfContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                    animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                ) + fadeOut(animationSpec = tween(300))
+            }
         },
         popEnterTransition = {
-             fadeIn(animationSpec = tween(300)) + slideIntoContainer(
-                 towards = AnimatedContentTransitionScope.SlideDirection.End,
-                 animationSpec = tween(300)
-             )
+            val initialIndex = initialState.destination.getMainPageIndex()
+            val targetIndex = targetState.destination.getMainPageIndex()
+            if (initialIndex != -1 && targetIndex != -1) {
+                if (targetIndex > initialIndex) {
+                    slideIntoContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                        animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                    ) + fadeIn(animationSpec = tween(300))
+                } else if (targetIndex < initialIndex) {
+                    slideIntoContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.End,
+                        animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                    ) + fadeIn(animationSpec = tween(300))
+                } else {
+                    fadeIn(animationSpec = tween(300))
+                }
+            } else {
+                slideIntoContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.End,
+                    animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(300))
+            }
         },
         popExitTransition = {
-            fadeOut(animationSpec = tween(300))
+            val initialIndex = initialState.destination.getMainPageIndex()
+            val targetIndex = targetState.destination.getMainPageIndex()
+            if (initialIndex != -1 && targetIndex != -1) {
+                if (targetIndex > initialIndex) {
+                    slideOutOfContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                        animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                    ) + fadeOut(animationSpec = tween(300))
+                } else if (targetIndex < initialIndex) {
+                    slideOutOfContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.End,
+                        animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                    ) + fadeOut(animationSpec = tween(300))
+                } else {
+                    fadeOut(animationSpec = tween(300))
+                }
+            } else {
+                slideOutOfContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.End,
+                    animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                ) + fadeOut(animationSpec = tween(300))
+            }
         }
     ) {
         composable<Destination.Home> {
@@ -418,9 +495,13 @@ fun NavGraph(
                         restoreState = true
                     }
                 },
-                onNavigateToSettings = {
-                    navController.navigate(Destination.Settings) {
+                onNavigateToProfile = {
+                    navController.navigate(Destination.Profile) {
+                        popUpTo<Destination.Home> {
+                            saveState = true
+                        }
                         launchSingleTop = true
+                        restoreState = true
                     }
                 }
             )
@@ -428,7 +509,15 @@ fun NavGraph(
 
         composable<Destination.Profile> {
             UserProfileScreen(
-                onBackClick = { navController.popBackStack() },
+                onBackClick = {
+                    navController.navigate(Destination.Library) {
+                        popUpTo<Destination.Home> {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
                 onNavigateToHome = {
                     navController.navigate(Destination.Home) {
                         popUpTo<Destination.Home> {
@@ -438,8 +527,16 @@ fun NavGraph(
                         restoreState = true
                     }
                 },
+                onNavigateToLibrary = {
+                    navController.navigate(Destination.Library) {
+                        popUpTo<Destination.Home> {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
                 onLoginClick = { navController.navigate(Destination.YouTubeLogin) },
-                onSettingsClick = { navController.navigate(Destination.Settings) },
                 onHistoryClick = { navController.navigate(Destination.Recents) },
                 onDownloadsClick = { navController.navigate(Destination.Downloads) },
                 onStatsClick = { navController.navigate(Destination.ListeningStats) },
@@ -455,36 +552,6 @@ fun NavGraph(
                 onShufflePlay = { songs -> 
                     val shuffledSongs = songs.shuffled()
                     onPlaySong(shuffledSongs, 0)
-                }
-            )
-        }
-        
-        composable<Destination.Settings> {
-            SettingsScreen(
-                currentSong = playbackInfo.currentSong,
-                onLoginClick = { navController.navigate(Destination.YouTubeLogin) },
-                onPlaybackClick = { navController.navigate(Destination.PlaybackSettings) },
-                onAppearanceClick = { navController.navigate(Destination.AppearanceSettings) },
-                onCustomizationClick = { navController.navigate(Destination.CustomizationSettings) },
-                onStorageClick = { navController.navigate(Destination.Storage) },
-                onStatsClick = { navController.navigate(Destination.ListeningStats) },
-                onSupportClick = { navController.navigate(Destination.Support) },
-                onAboutClick = { navController.navigate(Destination.About) },
-                onMiscClick = { navController.navigate(Destination.Misc) },
-                onLastFmClick = { navController.navigate(Destination.LastFmLogin) },
-                onSponsorBlockClick = { navController.navigate(Destination.SponsorBlockSettings) },
-                onDiscordClick = { navController.navigate(Destination.DiscordSettings) },
-                onAISettingsClick = { navController.navigate(Destination.AISettings) },
-                onUpdaterClick = { navController.navigate(Destination.Updater) },
-                onMigratePlaylistsClick = { navController.navigate(Destination.MigratePlaylists) },
-                onNavigateToLibrary = {
-                    navController.navigate(Destination.Library) {
-                        popUpTo<Destination.Home> {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
                 }
             )
         }
@@ -812,3 +879,13 @@ fun NavGraph(
         }
     }
 }
+
+private fun androidx.navigation.NavDestination.getMainPageIndex(): Int {
+    return when {
+        hasRoute<Destination.Home>() -> 0
+        hasRoute<Destination.Library>() -> 1
+        hasRoute<Destination.Profile>() -> 2
+        else -> -1
+    }
+}
+

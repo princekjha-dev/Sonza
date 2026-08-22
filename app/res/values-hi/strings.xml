@@ -32,7 +32,7 @@
 
     <!-- Error Messages -->
     <string name="error_restricted_title">प्रतिबंधित सामग्री</string>
-    <string name="error_restricted_message">इस कलाकार के लिए YouTube Music लॉगिन ज़रूरी है। कृपया सेटिंग्स से साइन इन करें।</string>
+    <string name="error_restricted_message">इस कलाकार के लिए YouTube Music लॉगिन ज़रूरी है। कृपया प्रोफ़ाइल से साइन इन करें।</string>
     <string name="error_connection_title">कनेक्शन त्रुटि</string>
     <string name="error_connection_message">कलाकार का डेटा लोड नहीं हो सका। कृपया इंटरनेट कनेक्शन जाँचें और फिर कोशिश करें।</string>
     <string name="error_generic_title">कुछ गड़बड़ हो गई</string>
@@ -43,7 +43,7 @@
     <string name="nav_home">होम</string>
     <string name="nav_search">खोजें</string>
     <string name="nav_library">आपकी लाइब्रेरी</string>
-    <string name="nav_settings">सेटिंग्स</string>
+    <string name="nav_profile">प्रोफ़ाइल</string>
 
     <!-- Common actions & labels -->
     <string name="action_pause">रोकें</string>
