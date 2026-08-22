@@ -36,6 +36,14 @@ sealed class Destination {
     @Serializable
     data object About : Destination()
     @Serializable
+    data object AboutDeveloper : Destination()
+    @Serializable
+    data object PrivacyPolicy : Destination()
+    @Serializable
+    data object TermsOfService : Destination()
+    @Serializable
+    data object OpenSourceLicenses : Destination()
+    @Serializable
     data object Downloads : Destination()
     @Serializable
     data object Storage : Destination()

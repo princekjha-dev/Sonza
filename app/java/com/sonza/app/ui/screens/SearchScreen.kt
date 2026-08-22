@@ -1,6 +1,7 @@
 package com.sonza.app.ui.screens
 
 import androidx.activity.compose.BackHandler
+import com.sonza.app.ui.utils.horizontalSwipeNavigation
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -143,6 +144,8 @@ fun SearchScreen(
     onArtistClick: (String) -> Unit = {},
     onPlaylistClick: (String) -> Unit = {},
     onAlbumClick: (Album) -> Unit = {},
+    onNavigateToHome: () -> Unit = {},
+    onNavigateToLibrary: () -> Unit = {},
     currentSong: Song? = null,
     viewModel: SearchViewModel = koinViewModel(),
     playlistViewModel: PlaylistManagementViewModel = koinViewModel()
@@ -218,6 +221,11 @@ fun SearchScreen(
             .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .imePadding()
+            .horizontalSwipeNavigation(
+                onSwipeLeft = onNavigateToLibrary,
+                onSwipeRight = onNavigateToHome,
+                enabled = !isKeyboardOpen
+            )
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
 

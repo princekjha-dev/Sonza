@@ -89,6 +89,7 @@ fun HomeScreen(
     onAlbumClick: (Album) -> Unit,
     onHistoryClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
+    onNavigateToSearch: () -> Unit = {},
     onNavigateToLibrary: () -> Unit = {},
     onNavigateToProfile: () -> Unit = onProfileClick,
     onExploreClick: (String, String) -> Unit = { _, _ -> },
@@ -173,7 +174,7 @@ fun HomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .horizontalSwipeNavigation(
-                onSwipeLeft = onNavigateToLibrary,
+                onSwipeLeft = onNavigateToSearch,
                 onSwipeRight = null
             )
     ) {

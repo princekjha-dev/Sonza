@@ -121,7 +121,7 @@ fun LibraryScreen(
     onAlbumClick: (Album) -> Unit = {},
     onDownloadsClick: () -> Unit = {},
     onMigratePlaylistsClick: () -> Unit = {},
-    onNavigateToHome: () -> Unit = {},
+    onNavigateToSearch: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
     viewModel: LibraryViewModel = koinViewModel()
 ) {
@@ -155,7 +155,7 @@ fun LibraryScreen(
             .fillMaxSize()
             .horizontalSwipeNavigation(
                 onSwipeLeft = onNavigateToProfile,
-                onSwipeRight = onNavigateToHome
+                onSwipeRight = onNavigateToSearch
             ),
         floatingActionButton = {
             com.sonza.app.ui.components.primitives.ExpressiveFab(

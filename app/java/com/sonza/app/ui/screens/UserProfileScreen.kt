@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -29,12 +28,20 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Feedback
+import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.QueryStats
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -54,11 +61,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.sonza.app.BuildConfig
 import com.sonza.app.core.model.Song
 import com.sonza.app.ui.components.ExpressiveBottomNavTokens
 import com.sonza.app.ui.components.LocalSonzaDynamicColors
@@ -71,7 +80,6 @@ import com.sonza.app.ui.theme.SonzaBrandAccent
 import com.sonza.app.ui.theme.SonzaOnBackground
 import com.sonza.app.ui.theme.SonzaOnSurfaceVariant
 import com.sonza.app.ui.theme.SonzaOutline
-import com.sonza.app.ui.theme.SonzaSurfaceVariant
 import com.sonza.app.ui.theme.SonzaTypography
 import com.sonza.app.ui.theme.SpacingTokens
 import com.sonza.app.ui.theme.SquircleShape
@@ -80,11 +88,15 @@ import com.sonza.app.ui.viewmodel.SettingsViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * User/Profile screen in Sonza.
- * Displays user identity, YouTube Music account status, listening insights,
- * and quick access to account settings.
+ * Rebuilt Sonza Profile page.
+ * Acts as the centralized Profile & About center for the application.
  *
- * Supports horizontal swipe-right gesture to seamlessly return to Home.
+ * Sections:
+ * 1. Header (Back arrow + Title)
+ * 2. Profile / Account Card
+ * 3. Activity & Insights
+ * 4. About & Support
+ * 5. App Information
  */
 @Composable
 fun UserProfileScreen(
@@ -95,12 +107,20 @@ fun UserProfileScreen(
     onHistoryClick: () -> Unit = {},
     onDownloadsClick: () -> Unit = {},
     onStatsClick: () -> Unit = {},
+    onFeedbackClick: () -> Unit = {},
+    onPrivacyPolicyClick: () -> Unit = {},
+    onTermsOfServiceClick: () -> Unit = {},
+    onAboutSonzaClick: () -> Unit = {},
+    onAboutDeveloperClick: () -> Unit = {},
+    onCheckForUpdatesClick: () -> Unit = {},
+    onOpenSourceLicensesClick: () -> Unit = {},
     currentSong: Song? = null,
     viewModel: SettingsViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val dynamicColors = LocalSonzaDynamicColors.current
     val accentColor = dynamicColors.accent.takeIf { it != Color.Unspecified } ?: SonzaBrandAccent
+    val uriHandler = LocalUriHandler.current
     var showSignOutDialog by remember { mutableStateOf(false) }
 
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -130,7 +150,7 @@ fun UserProfileScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceMd)
         ) {
-            // Top Bar with Back Arrow and Title
+            // 1. Header (Back Arrow + Title)
             item {
                 Row(
                     modifier = Modifier
@@ -160,7 +180,7 @@ fun UserProfileScreen(
                 }
             }
 
-            // User Identity Card
+            // 2. Profile / Account Card
             item {
                 SettingsCard(flat = true, modifier = Modifier.fillMaxWidth()) {
                     Column(
@@ -169,7 +189,7 @@ fun UserProfileScreen(
                             .padding(SpacingTokens.SpaceLg),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Avatar
+                        // Avatar Container
                         Box(
                             modifier = Modifier
                                 .size(84.dp)
@@ -197,7 +217,7 @@ fun UserProfileScreen(
 
                         Spacer(modifier = Modifier.height(SpacingTokens.SpaceMd))
 
-                        // Display Name
+                        // User Display Name
                         Text(
                             text = uiState.userName ?: "Sonza Listener",
                             style = SonzaTypography.TitleLarge.copy(
@@ -211,7 +231,7 @@ fun UserProfileScreen(
 
                         Spacer(modifier = Modifier.height(2.dp))
 
-                        // Email or Status Badge
+                        // Status subtitle
                         Text(
                             text = if (uiState.isLoggedIn) {
                                 "Connected to YouTube Music"
@@ -226,7 +246,7 @@ fun UserProfileScreen(
 
                         Spacer(modifier = Modifier.height(SpacingTokens.SpaceLg))
 
-                        // Sign in / Sign out action button
+                        // Action Button (Sign In or Sign Out)
                         if (uiState.isLoggedIn) {
                             Surface(
                                 shape = RoundedCornerShape(RadiusTokens.Lg),
@@ -241,7 +261,7 @@ fun UserProfileScreen(
                                     }
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 9.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
@@ -296,18 +316,18 @@ fun UserProfileScreen(
                 }
             }
 
-            // Quick Activity & Library Insights
+            // 3. Activity & Insights Section
             item {
                 Text(
                     text = "Activity & Insights",
                     style = SonzaTypography.TitleMedium.copy(fontWeight = FontWeight.Bold),
                     color = SonzaOnBackground,
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                 )
 
                 SettingsCard(flat = true, modifier = Modifier.fillMaxWidth()) {
                     ProfileOptionRow(
-                        icon = Icons.Default.Info,
+                        icon = Icons.Default.QueryStats,
                         title = "Listening Stats",
                         subtitle = "View your listening history, top artists & tracks",
                         accentColor = accentColor,
@@ -334,6 +354,122 @@ fun UserProfileScreen(
                         subtitle = "Manage cached audio & offline tracks",
                         accentColor = accentColor,
                         onClick = onDownloadsClick
+                    )
+                }
+            }
+
+            // 4. About & Support Section
+            item {
+                Text(
+                    text = "About & Support",
+                    style = SonzaTypography.TitleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = SonzaOnBackground,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+
+                SettingsCard(flat = true, modifier = Modifier.fillMaxWidth()) {
+                    ProfileOptionRow(
+                        icon = Icons.Default.BugReport,
+                        title = "Report a Bug",
+                        subtitle = "Report issues or unexpected behavior",
+                        accentColor = accentColor,
+                        onClick = { uriHandler.openUri("https://github.com/princekjha-dev/Sonza/issues") }
+                    )
+                    HorizontalDivider(
+                        color = SonzaOutline.copy(alpha = 0.25f),
+                        modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)
+                    )
+                    ProfileOptionRow(
+                        icon = Icons.Default.Feedback,
+                        title = "Send Feedback",
+                        subtitle = "Share suggestions and feature requests",
+                        accentColor = accentColor,
+                        onClick = onFeedbackClick
+                    )
+                    HorizontalDivider(
+                        color = SonzaOutline.copy(alpha = 0.25f),
+                        modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)
+                    )
+                    ProfileOptionRow(
+                        icon = Icons.Default.Security,
+                        title = "Privacy Policy",
+                        subtitle = "Learn how Sonza handles your data",
+                        accentColor = accentColor,
+                        onClick = onPrivacyPolicyClick
+                    )
+                    HorizontalDivider(
+                        color = SonzaOutline.copy(alpha = 0.25f),
+                        modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)
+                    )
+                    ProfileOptionRow(
+                        icon = Icons.Default.Gavel,
+                        title = "Terms of Service",
+                        subtitle = "Sonza usage terms and conditions",
+                        accentColor = accentColor,
+                        onClick = onTermsOfServiceClick
+                    )
+                    HorizontalDivider(
+                        color = SonzaOutline.copy(alpha = 0.25f),
+                        modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)
+                    )
+                    ProfileOptionRow(
+                        icon = Icons.Default.Info,
+                        title = "About Sonza",
+                        subtitle = "Learn more about Sonza",
+                        accentColor = accentColor,
+                        onClick = onAboutSonzaClick
+                    )
+                    HorizontalDivider(
+                        color = SonzaOutline.copy(alpha = 0.25f),
+                        modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)
+                    )
+                    ProfileOptionRow(
+                        icon = Icons.Default.Code,
+                        title = "About the Developer",
+                        subtitle = "Meet the developer behind Sonza",
+                        accentColor = accentColor,
+                        onClick = onAboutDeveloperClick
+                    )
+                }
+            }
+
+            // 5. App Information Section
+            item {
+                Text(
+                    text = "App Information",
+                    style = SonzaTypography.TitleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = SonzaOnBackground,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+
+                SettingsCard(flat = true, modifier = Modifier.fillMaxWidth()) {
+                    ProfileVersionRow(
+                        icon = Icons.Default.Layers,
+                        title = "Sonza Version",
+                        versionName = "v${BuildConfig.VERSION_NAME}",
+                        accentColor = accentColor
+                    )
+                    HorizontalDivider(
+                        color = SonzaOutline.copy(alpha = 0.25f),
+                        modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)
+                    )
+                    ProfileOptionRow(
+                        icon = Icons.Default.SystemUpdate,
+                        title = "Check for Updates",
+                        subtitle = "Check whether a newer version is available",
+                        accentColor = accentColor,
+                        onClick = onCheckForUpdatesClick
+                    )
+                    HorizontalDivider(
+                        color = SonzaOutline.copy(alpha = 0.25f),
+                        modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)
+                    )
+                    ProfileOptionRow(
+                        icon = Icons.Default.MenuBook,
+                        title = "Open Source Licenses",
+                        subtitle = "Third-party libraries used by Sonza",
+                        accentColor = accentColor,
+                        onClick = onOpenSourceLicensesClick
                     )
                 }
             }
@@ -426,5 +562,68 @@ private fun ProfileOptionRow(
             tint = SonzaOnSurfaceVariant.copy(alpha = 0.5f),
             modifier = Modifier.size(14.dp)
         )
+    }
+}
+
+@Composable
+private fun ProfileVersionRow(
+    icon: ImageVector,
+    title: String,
+    versionName: String,
+    accentColor: Color
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = SpacingTokens.SpaceLg, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            shape = SquircleShape,
+            color = accentColor.copy(alpha = 0.12f),
+            modifier = Modifier.size(38.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = accentColor,
+                modifier = Modifier.padding(8.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(SpacingTokens.SpaceMd))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = SonzaTypography.BodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                color = SonzaOnBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = "Current installed release",
+                style = SonzaTypography.BodySmall,
+                color = SonzaOnSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Surface(
+            shape = RoundedCornerShape(RadiusTokens.Pill),
+            color = accentColor.copy(alpha = 0.15f),
+            modifier = Modifier.padding(start = 8.dp)
+        ) {
+            Text(
+                text = versionName,
+                style = SonzaTypography.BodySmall.copy(
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                ),
+                color = accentColor,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+            )
+        }
     }
 }

@@ -20,6 +20,10 @@ import com.sonza.app.core.model.PlayerState
 import com.sonza.app.ui.utils.DeviceFormFactor
 import com.sonza.app.ui.utils.LocalDeviceFormFactor
 import com.sonza.app.ui.screens.AboutScreen
+import com.sonza.app.ui.screens.AboutDeveloperScreen
+import com.sonza.app.ui.screens.PrivacyPolicyScreen
+import com.sonza.app.ui.screens.TermsOfServiceScreen
+import com.sonza.app.ui.screens.OpenSourceLicensesScreen
 import com.sonza.app.ui.screens.HowItWorksScreen
 import com.sonza.app.ui.screens.AppearanceSettingsScreen
 import com.sonza.app.ui.screens.ArtworkShapeScreen
@@ -290,6 +294,15 @@ fun NavGraph(
                                 launchSingleTop = true
                             }
                         },
+                        onNavigateToSearch = {
+                            navController.navigate(Destination.Search) {
+                                popUpTo<Destination.Home> {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
                         onNavigateToLibrary = {
                             navController.navigate(Destination.Library) {
                                 popUpTo<Destination.Home> {
@@ -448,6 +461,24 @@ fun NavGraph(
                         )
                     )
                 },
+                onNavigateToHome = {
+                    navController.navigate(Destination.Home) {
+                        popUpTo<Destination.Home> {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                onNavigateToLibrary = {
+                    navController.navigate(Destination.Library) {
+                        popUpTo<Destination.Home> {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
                 currentSong = playbackInfo.currentSong
             )
         }        
@@ -486,8 +517,8 @@ fun NavGraph(
                 onMigratePlaylistsClick = {
                     navController.navigate(Destination.MigratePlaylists)
                 },
-                onNavigateToHome = {
-                    navController.navigate(Destination.Home) {
+                onNavigateToSearch = {
+                    navController.navigate(Destination.Search) {
                         popUpTo<Destination.Home> {
                             saveState = true
                         }
@@ -540,6 +571,13 @@ fun NavGraph(
                 onHistoryClick = { navController.navigate(Destination.Recents) },
                 onDownloadsClick = { navController.navigate(Destination.Downloads) },
                 onStatsClick = { navController.navigate(Destination.ListeningStats) },
+                onFeedbackClick = { navController.navigate(Destination.Support) },
+                onPrivacyPolicyClick = { navController.navigate(Destination.PrivacyPolicy) },
+                onTermsOfServiceClick = { navController.navigate(Destination.TermsOfService) },
+                onAboutSonzaClick = { navController.navigate(Destination.About) },
+                onAboutDeveloperClick = { navController.navigate(Destination.AboutDeveloper) },
+                onCheckForUpdatesClick = { navController.navigate(Destination.Updater) },
+                onOpenSourceLicensesClick = { navController.navigate(Destination.OpenSourceLicenses) },
                 currentSong = playbackInfo.currentSong
             )
         }
@@ -643,7 +681,35 @@ fun NavGraph(
         composable<Destination.About> {
             AboutScreen(
                 onBack = { navController.popBackStack() },
+                onDeveloperClick = { navController.navigate(Destination.AboutDeveloper) },
+                onPrivacyPolicyClick = { navController.navigate(Destination.PrivacyPolicy) },
+                onTermsOfServiceClick = { navController.navigate(Destination.TermsOfService) },
+                onLicensesClick = { navController.navigate(Destination.OpenSourceLicenses) },
                 onHowItWorksClick = { navController.navigate(Destination.HowItWorks) }
+            )
+        }
+
+        composable<Destination.AboutDeveloper> {
+            AboutDeveloperScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable<Destination.PrivacyPolicy> {
+            PrivacyPolicyScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable<Destination.TermsOfService> {
+            TermsOfServiceScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable<Destination.OpenSourceLicenses> {
+            OpenSourceLicensesScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
         
@@ -883,8 +949,9 @@ fun NavGraph(
 private fun androidx.navigation.NavDestination.getMainPageIndex(): Int {
     return when {
         hasRoute<Destination.Home>() -> 0
-        hasRoute<Destination.Library>() -> 1
-        hasRoute<Destination.Profile>() -> 2
+        hasRoute<Destination.Search>() -> 1
+        hasRoute<Destination.Library>() -> 2
+        hasRoute<Destination.Profile>() -> 3
         else -> -1
     }
 }
