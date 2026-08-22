@@ -52,6 +52,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -120,6 +121,8 @@ fun LibraryScreen(
     var isSearchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
 
+    val pullRefreshState = rememberPullToRefreshState()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -132,7 +135,21 @@ fun LibraryScreen(
         PullToRefreshBox(
             isRefreshing = uiState.isRefreshing,
             onRefresh = { viewModel.refresh() },
-            modifier = Modifier.fillMaxSize()
+            state = pullRefreshState,
+            modifier = Modifier.fillMaxSize(),
+            indicator = {
+                if (uiState.isRefreshing) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .statusBarsPadding()
+                            .padding(top = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        SonzaLoadingIndicator(modifier = Modifier.size(36.dp))
+                    }
+                }
+            }
         ) {
             LazyColumn(
                 contentPadding = PaddingValues(bottom = 150.dp),

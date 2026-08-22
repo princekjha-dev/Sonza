@@ -297,7 +297,11 @@ fun NavGraph(
                         },
                         onProfileClick = {
                             navController.navigate(Destination.Profile) {
+                                popUpTo<Destination.Home> {
+                                    saveState = true
+                                }
                                 launchSingleTop = true
+                                restoreState = true
                             }
                         },
                         onNavigateToSearch = {
@@ -320,7 +324,11 @@ fun NavGraph(
                         },
                         onNavigateToProfile = {
                             navController.navigate(Destination.Profile) {
+                                popUpTo<Destination.Home> {
+                                    saveState = true
+                                }
                                 launchSingleTop = true
+                                restoreState = true
                             }
                         },
                         onExploreClick = { browseId, title ->

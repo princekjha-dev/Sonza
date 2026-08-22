@@ -50,7 +50,7 @@ fun SonzaLoadingIndicator(
 
     val request = remember(context) {
         ImageRequest.Builder(context)
-            .data(R.raw.loding)
+            .data(R.drawable.loding)
             .build()
     }
 

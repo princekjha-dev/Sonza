@@ -2,6 +2,7 @@ package com.sonza.app.ui.screens
 
 import androidx.activity.compose.BackHandler
 import com.sonza.app.ui.utils.horizontalSwipeNavigation
+import com.sonza.app.ui.utils.carouselSwipeShield
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -608,7 +609,9 @@ fun SearchScreen(
                                             LazyRow(
                                                 contentPadding = PaddingValues(horizontal = SpacingTokens.SpaceLg),
                                                 horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceLg),
-                                                modifier = Modifier.padding(vertical = SpacingTokens.SpaceMd)
+                                                modifier = Modifier
+                                                    .carouselSwipeShield()
+                                                    .padding(vertical = SpacingTokens.SpaceMd)
                                             ) {
                                                 items(uiState.artistResults, key = { it.id }) { artist ->
                                                     ArtistSearchCard(artist = artist, onClick = { onArtistClick(artist.id) })
@@ -634,7 +637,9 @@ fun SearchScreen(
                                             LazyRow(
                                                 contentPadding = PaddingValues(horizontal = SpacingTokens.SpaceLg),
                                                 horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceMd),
-                                                modifier = Modifier.padding(vertical = SpacingTokens.SpaceMd)
+                                                modifier = Modifier
+                                                    .carouselSwipeShield()
+                                                    .padding(vertical = SpacingTokens.SpaceMd)
                                             ) {
                                                 items(uiState.albumResults, key = { it.id }) { album ->
                                                     AlbumSearchCard(
@@ -663,7 +668,9 @@ fun SearchScreen(
                                             LazyRow(
                                                 contentPadding = PaddingValues(horizontal = SpacingTokens.SpaceLg),
                                                 horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceMd),
-                                                modifier = Modifier.padding(vertical = SpacingTokens.SpaceMd)
+                                                modifier = Modifier
+                                                    .carouselSwipeShield()
+                                                    .padding(vertical = SpacingTokens.SpaceMd)
                                             ) {
                                                 items(uiState.playlistResults, key = { it.id }) { playlist ->
                                                     PlaylistSearchCard(

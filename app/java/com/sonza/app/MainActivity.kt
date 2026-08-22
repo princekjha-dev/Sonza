@@ -718,16 +718,6 @@ fun SonzaApp(
     val isDirectlyOnSearch = destination?.hasRoute<Destination.Search>() == true
     val isDirectlyOnLibrary = destination?.hasRoute<Destination.Library>() == true
     val isDirectlyOnProfile = destination?.hasRoute<Destination.Profile>() == true
-    val isInsideLibrary = destination?.let {
-        it.hasRoute<Destination.Library>() ||
-        it.hasRoute<Destination.LibraryPlaylists>() ||
-        it.hasRoute<Destination.LibraryArtists>() ||
-        it.hasRoute<Destination.LibraryAlbums>() ||
-        it.hasRoute<Destination.LibraryGenres>() ||
-        it.hasRoute<Destination.LibraryGenreDetail>() ||
-        it.hasRoute<Destination.Downloads>() ||
-        it.hasRoute<Destination.MigratePlaylists>()
-    } ?: false
     val lastHomeClickTime = remember { mutableLongStateOf(0L) }
     
     var currentDestination by remember { mutableStateOf<Destination>(Destination.Home) }
@@ -748,17 +738,12 @@ fun SonzaApp(
     currentDestination = when {
         isDirectlyOnHome -> Destination.Home
         isDirectlyOnSearch -> Destination.Search
-        isInsideLibrary -> Destination.Library
+        isDirectlyOnLibrary -> Destination.Library
         isDirectlyOnProfile -> Destination.Profile
         else -> currentDestination
     }
     
-    val showBottomNav = destination?.let {
-        it.hasRoute<Destination.Home>() ||
-        it.hasRoute<Destination.Search>() ||
-        isInsideLibrary ||
-        it.hasRoute<Destination.Profile>()
-    } ?: false
+    val showBottomNav = isDirectlyOnHome || isDirectlyOnSearch || isDirectlyOnLibrary || isDirectlyOnProfile
     
     // Don't show MiniPlayer on Player screen itself or if explicitly dismissed
     // With bottom sheet, "Player screen" is just the expanded state.
@@ -824,7 +809,7 @@ fun SonzaApp(
         val navBarPadding = androidx.compose.foundation.layout.WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         val imePadding = androidx.compose.foundation.layout.WindowInsets.ime.asPaddingValues().calculateBottomPadding()
         val isKeyboardOpen = imePadding > 0.dp
-        val shouldShowExpressiveBottomNav = (showBottomNav || hasSong) && !isKeyboardOpen && !isPlayerExpanded && formFactor.isPhoneLike && !showWelcomeDialog
+        val shouldShowExpressiveBottomNav = showBottomNav && !isKeyboardOpen && !isPlayerExpanded && formFactor.isPhoneLike && !showWelcomeDialog
         val navBarHeight = if (shouldShowExpressiveBottomNav && formFactor != DeviceFormFactor.TV) {
             com.sonza.app.ui.components.ExpressiveBottomNavTokens.getBottomSafePadding(playbackInfo.currentSong != null)
         } else 0.dp
@@ -864,7 +849,7 @@ fun SonzaApp(
                                 currentDestination = when {
                                     isDirectlyOnHome -> Destination.Home
                                     isDirectlyOnSearch -> Destination.Search
-                                    isInsideLibrary -> Destination.Library
+                                    isDirectlyOnLibrary -> Destination.Library
                                     isDirectlyOnProfile -> Destination.Profile
                                     else -> Destination.Home
                                 },
@@ -1092,8 +1077,9 @@ fun SonzaApp(
 
     // Expandable Player Sheet - Overlay
     // Sits above Scaffold, aligned to bottom
+    val showFloatingPlayerSheet = isPlayerExpanded || (showMiniPlayer && (!shouldShowExpressiveBottomNav || !formFactor.isPhoneLike))
     androidx.compose.animation.AnimatedVisibility(
-        visible = isPlayerExpanded || (!formFactor.isPhoneLike && showMiniPlayer),
+        visible = showFloatingPlayerSheet,
         enter = fadeIn(androidx.compose.animation.core.tween(250)) + androidx.compose.animation.slideInVertically(
             animationSpec = androidx.compose.animation.core.tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
         ) { it },

@@ -1,14 +1,28 @@
 package com.sonza.app.ui.utils
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
+import kotlinx.coroutines.launch
 
 /**
  * Modifier attached to horizontally scrollable components (LazyRow, carousels)
@@ -64,87 +78,174 @@ fun Modifier.carouselSwipeShield(): Modifier {
 }
 
 /**
- * Modifier that detects intentional horizontal swipe gestures to navigate between pages.
+ * Modifier that attaches Apple Music-style interactive horizontal page swipe navigation.
  *
  * Characteristics:
+ * - Real-time finger following: Page shifts smoothly with the user's finger via [translationX].
  * - Direction-slop filtered: If initial movement is vertical, immediately yields to allow
  *   uninhibited vertical scrolling of lists (LazyColumn, ScrollableColumn).
  * - Child-gesture aware: If any child horizontally scrollable component (e.g. LazyRow carousel)
- *   consumes or handles the horizontal gesture, this modifier immediately yields and will NOT
- *   trigger page navigation.
- * - Triggers only when horizontal intent is established (dx > dy * 1.25) outside horizontally
- *   scrollable children and crosses either a distance threshold (default 60dp) or a fast fling velocity threshold.
+ *   consumes the horizontal gesture, this modifier immediately yields and will NOT trigger page navigation.
+ * - Rubber-band resistance: When dragging past boundaries (e.g. Home swiping right or Profile swiping left),
+ *   applies elastic damping and snaps back cleanly on release.
+ * - Settle animation: If swipe distance/velocity does not cross the threshold, smoothly animates back to 0.
+ * - Single-event locking: Prevents rapid multi-swipes from queueing repeated navigation events.
  */
 fun Modifier.horizontalSwipeNavigation(
     onSwipeLeft: (() -> Unit)? = null,
     onSwipeRight: (() -> Unit)? = null,
-    threshold: Dp = 60.dp,
+    threshold: Dp = 72.dp,
     enabled: Boolean = true
-): Modifier {
-    if (!enabled || (onSwipeLeft == null && onSwipeRight == null)) return this
+): Modifier = composed {
+    if (!enabled || (onSwipeLeft == null && onSwipeRight == null)) return@composed this
 
-    return this.pointerInput(enabled, onSwipeLeft, onSwipeRight) {
-        val thresholdPx = threshold.toPx()
-        val minVelocityThreshold = 650.dp.toPx()
+    val coroutineScope = rememberCoroutineScope()
+    val offsetX = remember { Animatable(0f) }
+    var isNavigating by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
+    val thresholdPx = with(density) { threshold.toPx() }
+    val minVelocityThreshold = with(density) { 700.dp.toPx() }
+    val maxDragDampingPx = with(density) { 36.dp.toPx() }
 
-        awaitEachGesture {
-            val down = awaitFirstDown(pass = PointerEventPass.Initial)
-            var totalDx = 0f
-            var totalDy = 0f
-            var isHorizontalDirectionDecided = false
-            var isVerticalScrolling = false
-            var isConsumedByChild = false
-            val startTime = System.currentTimeMillis()
+    DisposableEffect(Unit) {
+        onDispose {
+            isNavigating = false
+        }
+    }
 
-            do {
-                // Inspect event in Final pass so we see whether children consumed the drag in Main pass
-                val event = awaitPointerEvent(pass = PointerEventPass.Final)
-                val dragChange = event.changes.firstOrNull { it.id == down.id } ?: break
+    this
+        .graphicsLayer {
+            translationX = offsetX.value
+        }
+        .pointerInput(enabled, onSwipeLeft, onSwipeRight) {
+            val velocityTracker = VelocityTracker()
+            val touchSlop = viewConfiguration.touchSlop
 
-                if (dragChange.isConsumed) {
-                    isConsumedByChild = true
-                }
+            awaitEachGesture {
+                val down = awaitFirstDown(pass = PointerEventPass.Initial)
+                velocityTracker.resetTracking()
+                velocityTracker.addPosition(down.uptimeMillis, down.position)
 
-                val positionChange = dragChange.positionChange()
-                totalDx += positionChange.x
-                totalDy += positionChange.y
+                var totalDx = 0f
+                var totalDy = 0f
+                var isHorizontalIntent = false
+                var isVerticalScrolling = false
+                var isConsumedByChild = false
 
-                // Determine gesture direction once movement exceeds initial slop
-                if (!isHorizontalDirectionDecided && !isVerticalScrolling) {
+                if (isNavigating) return@awaitEachGesture
+
+                do {
+                    val event = awaitPointerEvent(pass = PointerEventPass.Main)
+                    val dragChange = event.changes.firstOrNull { it.id == down.id } ?: break
+
+                    if (dragChange.isConsumed) {
+                        isConsumedByChild = true
+                        break
+                    }
+
+                    velocityTracker.addPosition(dragChange.uptimeMillis, dragChange.position)
+                    val positionChange = dragChange.positionChange()
+                    totalDx += positionChange.x
+                    totalDy += positionChange.y
+
                     val absDx = abs(totalDx)
                     val absDy = abs(totalDy)
-                    val slop = 12.dp.toPx()
 
-                    if (absDy > slop && absDy > absDx * 1.25f) {
-                        // Gesture is vertical -> let vertical scrolling handle everything
-                        isVerticalScrolling = true
-                    } else if (absDx > slop && absDx > absDy * 1.25f) {
-                        // Gesture is horizontal
-                        isHorizontalDirectionDecided = true
+                    // Determine gesture direction once movement exceeds initial slop
+                    if (!isHorizontalIntent && !isVerticalScrolling) {
+                        if (absDy > touchSlop && absDy > absDx * 1.25f) {
+                            // Gesture is vertical -> let vertical scrolling handle everything
+                            isVerticalScrolling = true
+                        } else if (absDx > touchSlop && absDx > absDy * 1.25f) {
+                            // Gesture is horizontal
+                            isHorizontalIntent = true
+                        }
                     }
+
+                    if (isHorizontalIntent) {
+                        // Consume horizontal drag delta so parent or other components don't interfere
+                        dragChange.consume()
+
+                        val rawDx = totalDx - (if (totalDx > 0) touchSlop else -touchSlop)
+                        val targetOffset = when {
+                            rawDx > 0 && onSwipeRight == null -> {
+                                // Swiping right but no previous page (e.g. Home): rubber-band damping
+                                (rawDx * 0.22f).coerceAtMost(maxDragDampingPx)
+                            }
+                            rawDx < 0 && onSwipeLeft == null -> {
+                                // Swiping left but no next page (e.g. Profile): rubber-band damping
+                                (rawDx * 0.22f).coerceAtLeast(-maxDragDampingPx)
+                            }
+                            else -> rawDx
+                        }
+
+                        coroutineScope.launch {
+                            offsetX.snapTo(targetOffset)
+                        }
+                    }
+
+                    if (isVerticalScrolling || isConsumedByChild) {
+                        break
+                    }
+                } while (event.changes.any { it.pressed })
+
+                if (isConsumedByChild || isVerticalScrolling || !isHorizontalIntent) {
+                    if (offsetX.value != 0f) {
+                        coroutineScope.launch {
+                            offsetX.animateTo(
+                                0f,
+                                spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
+                                )
+                            )
+                        }
+                    }
+                    return@awaitEachGesture
                 }
 
-                if (isVerticalScrolling || isConsumedByChild) {
-                    break
-                }
-            } while (event.changes.any { it.pressed })
+                // Pointer released — calculate velocity and determine whether to commit navigation
+                val velocityX = velocityTracker.calculateVelocity().x
+                val currentOffset = offsetX.value
 
-            val endTime = System.currentTimeMillis()
-            val duration = (endTime - startTime).coerceAtLeast(1L)
-            val velocityX = (totalDx / duration) * 1000f // px/s
+                val isFastSwipeRight = velocityX > minVelocityThreshold && currentOffset > 24.dp.toPx()
+                val isFastSwipeLeft = velocityX < -minVelocityThreshold && currentOffset < -24.dp.toPx()
+                val isDistanceSwipeRight = currentOffset >= thresholdPx
+                val isDistanceSwipeLeft = currentOffset <= -thresholdPx
 
-            if (isHorizontalDirectionDecided && !isVerticalScrolling && !isConsumedByChild) {
-                val isFastSwipeRight = velocityX > minVelocityThreshold && totalDx > 25.dp.toPx()
-                val isFastSwipeLeft = velocityX < -minVelocityThreshold && totalDx < -25.dp.toPx()
-                val isDistanceSwipeRight = totalDx >= thresholdPx
-                val isDistanceSwipeLeft = totalDx <= -thresholdPx
+                val shouldNavigateRight = (isDistanceSwipeRight || isFastSwipeRight) && onSwipeRight != null
+                val shouldNavigateLeft = (isDistanceSwipeLeft || isFastSwipeLeft) && onSwipeLeft != null
 
-                if ((isDistanceSwipeRight || isFastSwipeRight) && onSwipeRight != null) {
-                    onSwipeRight()
-                } else if ((isDistanceSwipeLeft || isFastSwipeLeft) && onSwipeLeft != null) {
-                    onSwipeLeft()
+                if (shouldNavigateRight && !isNavigating) {
+                    isNavigating = true
+                    coroutineScope.launch {
+                        try {
+                            onSwipeRight?.invoke()
+                        } finally {
+                            offsetX.snapTo(0f)
+                        }
+                    }
+                } else if (shouldNavigateLeft && !isNavigating) {
+                    isNavigating = true
+                    coroutineScope.launch {
+                        try {
+                            onSwipeLeft?.invoke()
+                        } finally {
+                            offsetX.snapTo(0f)
+                        }
+                    }
+                } else {
+                    // Settle back to original position with smooth spring animation
+                    coroutineScope.launch {
+                        offsetX.animateTo(
+                            0f,
+                            spring(
+                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            )
+                        )
+                    }
                 }
             }
         }
-    }
 }
