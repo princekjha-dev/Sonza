@@ -79,6 +79,7 @@ fun PillMiniPlayer(
     artworkShape: String = "ROUNDED_SQUARE",
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val effectiveAlpha = 1f - userAlpha
     
     val artShape = when (artworkShape) {
@@ -203,7 +204,6 @@ fun PillMiniPlayer(
                         )
                     }
                     
-                    val context = androidx.compose.ui.platform.LocalContext.current
                     Box(
                         modifier = Modifier
                             .fillMaxSize()

@@ -189,7 +189,6 @@ fun YTMusicMiniPlayer(
                 Spacer(modifier = Modifier.width(4.dp))
 
                 // Play/Pause Button with single loader
-                val context = androidx.compose.ui.platform.LocalContext.current
                 IconButton(
                     onClick = onPlayPause,
                     modifier = Modifier.size(38.dp)
