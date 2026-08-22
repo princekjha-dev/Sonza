@@ -787,13 +787,15 @@ fun NavGraph(
 
         composable<Destination.PrivacyPolicy> {
             PrivacyPolicyScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                currentSong = playbackInfo.currentSong
             )
         }
 
         composable<Destination.TermsOfService> {
             TermsOfServiceScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                currentSong = playbackInfo.currentSong
             )
         }
 

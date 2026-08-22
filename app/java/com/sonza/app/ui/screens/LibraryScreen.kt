@@ -2,10 +2,6 @@ package com.sonza.app.ui.screens
 
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -44,7 +40,6 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -125,14 +120,6 @@ fun LibraryScreen(
     var isSearchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
 
-    val infiniteTransition = rememberInfiniteTransition(label = "SyncRotation")
-    val syncRotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(animation = tween(1000)),
-        label = "SyncRotationAngle"
-    )
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -180,15 +167,6 @@ fun LibraryScreen(
                                     imageVector = if (isSearchActive) Icons.Default.Close else Icons.Default.Search,
                                     contentDescription = "Search",
                                     tint = if (isSearchActive) accentColor else SonzaColors.OnSurfaceVariant
-                                )
-                            }
-
-                            IconButton(onClick = { viewModel.refresh() }) {
-                                Icon(
-                                    imageVector = Icons.Default.Refresh,
-                                    contentDescription = "Sync",
-                                    tint = if (uiState.isRefreshing) accentColor else SonzaColors.OnSurfaceVariant,
-                                    modifier = if (uiState.isRefreshing) Modifier.rotate(syncRotation) else Modifier
                                 )
                             }
 

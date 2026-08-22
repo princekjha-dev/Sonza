@@ -1,8 +1,19 @@
 package com.sonza.app.ui.utils
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sonza.app.core.model.RecentlyPlayed
 import com.sonza.app.core.model.Song
 import com.sonza.app.recommendation.GenreTaxonomy
+import kotlinx.coroutines.delay
 import java.util.Calendar
 
 /**
@@ -180,4 +191,54 @@ object HomeGreetingHelper {
         recentlyPlayed: List<RecentlyPlayed>?,
         hour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     ): String = getGreetingText(userName = null, currentSong = currentSong, recentlyPlayed = recentlyPlayed, hour = hour)
+
+    /**
+     * Composable helper that dynamically maintains a real-time reactive greeting:
+     * - Refreshes immediately on app resume (ON_RESUME)
+     * - Periodically checks (every 30s) while app remains active so transitions
+     *   across time periods (e.g. morning -> afternoon) update automatically
+     * - Reacts to user changes, active song changes, and listening history updates
+     */
+    @Composable
+    fun rememberCurrentGreeting(
+        userName: String? = null,
+        currentSong: Song? = null,
+        recentlyPlayed: List<RecentlyPlayed> = emptyList()
+    ): String {
+        val lifecycleOwner = LocalLifecycleOwner.current
+        var currentHour by remember { mutableStateOf(Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) }
+
+        // 1. Refresh when app resumes
+        DisposableEffect(lifecycleOwner) {
+            val observer = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+                }
+            }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose {
+                lifecycleOwner.lifecycle.removeObserver(observer)
+            }
+        }
+
+        // 2. Periodic tick (every 30 seconds) to detect crossing time-period boundaries
+        LaunchedEffect(Unit) {
+            while (true) {
+                delay(30_000L)
+                val newHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+                if (newHour != currentHour) {
+                    currentHour = newHour
+                }
+            }
+        }
+
+        return remember(userName, currentSong?.id, recentlyPlayed.firstOrNull()?.song?.id, currentHour) {
+            getGreetingText(
+                userName = userName,
+                currentSong = currentSong,
+                recentlyPlayed = recentlyPlayed,
+                hour = currentHour
+            )
+        }
+    }
 }

@@ -11,13 +11,69 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 
 /**
+ * Modifier attached to horizontally scrollable components (LazyRow, carousels)
+ * so that horizontal swipe gestures starting inside them are fully contained and consumed locally,
+ * completely preventing accidental triggering of page-level navigation (e.g. Home -> Search).
+ *
+ * Characteristics:
+ * - Allows normal tapping of cards without consuming touch-down or cancelling clicks.
+ * - Allows uninhibited vertical scrolling of parent lists (e.g. LazyColumn) when dragging vertically.
+ * - Consumes horizontal drag delta so parent [horizontalSwipeNavigation] detects child consumption and yields.
+ */
+fun Modifier.carouselSwipeShield(): Modifier {
+    return this.pointerInput(Unit) {
+        awaitEachGesture {
+            val down = awaitFirstDown(pass = PointerEventPass.Initial)
+            var totalDx = 0f
+            var totalDy = 0f
+            var isHorizontal = false
+            var isVertical = false
+            val slop = 6.dp.toPx()
+
+            do {
+                val event = awaitPointerEvent(pass = PointerEventPass.Main)
+                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+
+                val drag = change.positionChange()
+                totalDx += drag.x
+                totalDy += drag.y
+
+                val absDx = abs(totalDx)
+                val absDy = abs(totalDy)
+
+                if (!isHorizontal && !isVertical) {
+                    if (absDy > slop && absDy > absDx * 1.15f) {
+                        isVertical = true
+                    } else if (absDx > slop && absDx > absDy * 1.15f) {
+                        isHorizontal = true
+                    }
+                }
+
+                if (isHorizontal) {
+                    // Consume horizontal drag delta so parent page swipe navigation is cancelled
+                    change.consume()
+                }
+
+                if (isVertical) {
+                    // Vertical drag -> let parent LazyColumn handle vertical scrolling smoothly
+                    break
+                }
+            } while (event.changes.any { it.pressed })
+        }
+    }
+}
+
+/**
  * Modifier that detects intentional horizontal swipe gestures to navigate between pages.
  *
  * Characteristics:
  * - Direction-slop filtered: If initial movement is vertical, immediately yields to allow
  *   uninhibited vertical scrolling of lists (LazyColumn, ScrollableColumn).
- * - Triggers only when horizontal intent is established (dx > dy * 1.25) and crosses
- *   either a distance threshold (default 60dp) or a fast fling velocity threshold.
+ * - Child-gesture aware: If any child horizontally scrollable component (e.g. LazyRow carousel)
+ *   consumes or handles the horizontal gesture, this modifier immediately yields and will NOT
+ *   trigger page navigation.
+ * - Triggers only when horizontal intent is established (dx > dy * 1.25) outside horizontally
+ *   scrollable children and crosses either a distance threshold (default 60dp) or a fast fling velocity threshold.
  */
 fun Modifier.horizontalSwipeNavigation(
     onSwipeLeft: (() -> Unit)? = null,
@@ -37,11 +93,17 @@ fun Modifier.horizontalSwipeNavigation(
             var totalDy = 0f
             var isHorizontalDirectionDecided = false
             var isVerticalScrolling = false
+            var isConsumedByChild = false
             val startTime = System.currentTimeMillis()
 
             do {
-                val event = awaitPointerEvent(pass = PointerEventPass.Initial)
+                // Inspect event in Final pass so we see whether children consumed the drag in Main pass
+                val event = awaitPointerEvent(pass = PointerEventPass.Final)
                 val dragChange = event.changes.firstOrNull { it.id == down.id } ?: break
+
+                if (dragChange.isConsumed) {
+                    isConsumedByChild = true
+                }
 
                 val positionChange = dragChange.positionChange()
                 totalDx += positionChange.x
@@ -62,7 +124,7 @@ fun Modifier.horizontalSwipeNavigation(
                     }
                 }
 
-                if (isVerticalScrolling) {
+                if (isVerticalScrolling || isConsumedByChild) {
                     break
                 }
             } while (event.changes.any { it.pressed })
@@ -71,7 +133,7 @@ fun Modifier.horizontalSwipeNavigation(
             val duration = (endTime - startTime).coerceAtLeast(1L)
             val velocityX = (totalDx / duration) * 1000f // px/s
 
-            if (isHorizontalDirectionDecided && !isVerticalScrolling) {
+            if (isHorizontalDirectionDecided && !isVerticalScrolling && !isConsumedByChild) {
                 val isFastSwipeRight = velocityX > minVelocityThreshold && totalDx > 25.dp.toPx()
                 val isFastSwipeLeft = velocityX < -minVelocityThreshold && totalDx < -25.dp.toPx()
                 val isDistanceSwipeRight = totalDx >= thresholdPx

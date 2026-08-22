@@ -98,7 +98,7 @@ class RecommendationCache @Inject constructor() {
         songCaches.remove(Keys.BASED_ON_RECENT)
         songCaches.remove(Keys.DISCOVERY_MIX)
         songCaches.remove(Keys.UP_NEXT)
-        sectionCaches.remove(Keys.HOME_SECTIONS)
+        sectionCaches.keys.filter { it.startsWith(Keys.HOME_SECTIONS) }.forEach { sectionCaches.remove(it) }
     }
 
     /** Invalidate "up next" and related only — for queue refreshes */

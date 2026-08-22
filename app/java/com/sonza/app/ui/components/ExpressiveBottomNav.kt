@@ -8,6 +8,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -105,6 +107,7 @@ fun ExpressiveBottomNav(
     onExpandPlayer: () -> Unit = {},
     onNext: () -> Unit = {},
     onPrevious: () -> Unit = {},
+    onSwipeDown: () -> Unit = {},
     progressProvider: () -> Float = { 0f },
     dominantColors: DominantColors? = null,
     modifier: Modifier = Modifier,
@@ -140,12 +143,25 @@ fun ExpressiveBottomNav(
         AnimatedContent(
             targetState = currentSong != null,
             transitionSpec = {
-                (fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
-                        scaleIn(animationSpec = tween(220, easing = FastOutSlowInEasing), initialScale = 0.94f))
-                    .togetherWith(
-                        fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
-                                scaleOut(animationSpec = tween(180, easing = FastOutSlowInEasing), targetScale = 0.94f)
-                    )
+                if (targetState) {
+                    (fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                            slideInVertically(animationSpec = tween(260, easing = FastOutSlowInEasing)) { it / 2 } +
+                            scaleIn(animationSpec = tween(220, easing = FastOutSlowInEasing), initialScale = 0.94f))
+                        .togetherWith(
+                            fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
+                                    slideOutVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)) { it / 2 } +
+                                    scaleOut(animationSpec = tween(180, easing = FastOutSlowInEasing), targetScale = 0.94f)
+                        )
+                } else {
+                    (fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                            slideInVertically(animationSpec = tween(260, easing = FastOutSlowInEasing)) { it / 2 } +
+                            scaleIn(animationSpec = tween(220, easing = FastOutSlowInEasing), initialScale = 0.94f))
+                        .togetherWith(
+                            fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
+                                    slideOutVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)) { it / 2 } +
+                                    scaleOut(animationSpec = tween(180, easing = FastOutSlowInEasing), targetScale = 0.94f)
+                        )
+                }
             },
             label = "bottomNavModeTransition"
         ) { hasPlayingSong ->
@@ -186,6 +202,7 @@ fun ExpressiveBottomNav(
                         onNext = onNext,
                         onPrevious = onPrevious,
                         onTap = onExpandPlayer,
+                        onSwipeDown = onSwipeDown,
                         accentColor = accentColor,
                         userAlpha = 1f - alpha.coerceIn(0.5f, 1f),
                         modifier = Modifier.weight(1f)

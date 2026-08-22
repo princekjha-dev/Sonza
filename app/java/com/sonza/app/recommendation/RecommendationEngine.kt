@@ -230,16 +230,19 @@ class RecommendationEngine @Inject constructor(
     }
 
     /**
-     * Generate context-aware sections based on time-of-day, day-of-week, and listening patterns.
-     * Creates sections like "Friday Night Energy", "Weekend Chill", "Your Late Night Mix".
+     * Generate context-aware sections based on current season, time-of-day, day-of-week, and listening patterns.
+     * Includes the dynamic date-driven seasonal section (Monsoon / Autumn / Winter / Spring / Summer)
+     * as well as time-of-day contextual mixes.
      */
     suspend fun getContextAwareSections(): List<HomeSection> = coroutineScope {
         awaitDislikesReady()
-        val cached = cache.getSections(RecommendationCache.Keys.HOME_SECTIONS + "_context")
+        val calendar = Calendar.getInstance()
+        val season = SeasonalSectionHelper.getCurrentSeason(calendar)
+        val cacheKey = "${RecommendationCache.Keys.HOME_SECTIONS}_context_${season.name.lowercase()}_m${calendar.get(Calendar.MONTH)}"
+        val cached = cache.getSections(cacheKey)
         if (cached != null) return@coroutineScope cached
 
         val profile = tasteProfileBuilder.getProfile()
-        val calendar = Calendar.getInstance()
         val hour = calendar.get(Calendar.HOUR_OF_DAY)
         val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
         val isWeekend = dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY
@@ -248,7 +251,23 @@ class RecommendationEngine @Inject constructor(
         val seenIds = ConcurrentHashMap.newKeySet<String>()
         val seenFingerprints = ConcurrentHashMap.newKeySet<String>()
 
-        // Context query pairs: (title, searchQuery)
+        // 1. Dynamic Seasonal Section (Monsoon / Autumn / Winter / Spring / Summer)
+        val seasonalTitle = SeasonalSectionHelper.getSeasonalSectionTitle(calendar)
+        val seasonalQueries = SeasonalSectionHelper.getSeasonalQueries(calendar)
+
+        val deferredSeasonalSongs = seasonalQueries.map { query ->
+            async(Dispatchers.IO) {
+                apiSemaphore.withPermit {
+                    try {
+                        searchSongs(query)
+                    } catch (e: Exception) {
+                        emptyList()
+                    }
+                }
+            }
+        }
+
+        // 2. Context query pairs: (title, searchQuery)
         val contextQueries = mutableListOf<Pair<String, String>>()
 
         // Time-of-day aware sections
@@ -268,7 +287,7 @@ class RecommendationEngine @Inject constructor(
             contextQueries.add("Workday Groove" to "productive work music beats")
         }
 
-        val deferredSections = contextQueries.map { (title, query) ->
+        val deferredContextSections = contextQueries.map { (title, query) ->
             async(Dispatchers.IO) {
                 apiSemaphore.withPermit {
                     try {
@@ -289,8 +308,22 @@ class RecommendationEngine @Inject constructor(
             }
         }
 
-        deferredSections.awaitAll().filterNotNull().let { sections.addAll(it) }
-        cache.putSections(RecommendationCache.Keys.HOME_SECTIONS + "_context", sections)
+        // Process seasonal section first
+        val seasonalSongs = deferredSeasonalSongs.awaitAll().flatten()
+        val scoredSeasonal = scoreAndRank(seasonalSongs, profile)
+        val uniqueSeasonal = deduplicate(scoredSeasonal, seenIds, seenFingerprints).take(14)
+        if (uniqueSeasonal.isNotEmpty()) {
+            sections.add(
+                HomeSection(
+                    title = seasonalTitle,
+                    items = uniqueSeasonal.map { HomeItem.SongItem(it) },
+                    type = HomeSectionType.HorizontalCarousel
+                )
+            )
+        }
+
+        deferredContextSections.awaitAll().filterNotNull().let { sections.addAll(it) }
+        cache.putSections(cacheKey, sections)
         sections
     }
 

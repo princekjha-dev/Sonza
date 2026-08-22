@@ -550,6 +550,7 @@ class PlayerViewModel @Inject constructor(
     }
     
     fun playSong(song: Song, queue: List<Song> = listOf(song), startIndex: Int = 0) {
+        _isMiniPlayerDismissed.value = false
         // Reset radio base so Autoplay adapts to this new song
         radioBaseSongId = null
         _isRadioMode.value = false
@@ -612,6 +613,7 @@ class PlayerViewModel @Inject constructor(
     }
     
     fun play() {
+        _isMiniPlayerDismissed.value = false
         musicPlayer.play()
     }
     
@@ -620,6 +622,9 @@ class PlayerViewModel @Inject constructor(
     }
     
     fun togglePlayPause() {
+        if (_isMiniPlayerDismissed.value) {
+            _isMiniPlayerDismissed.value = false
+        }
         musicPlayer.togglePlayPause()
     }
 

@@ -760,14 +760,6 @@ fun SonzaApp(
         it.hasRoute<Destination.Profile>()
     } ?: false
     
-    // Auto-show MiniPlayer when returning to Home
-    LaunchedEffect(destination) {
-        if (destination?.hasRoute<Destination.Home>() == true) {
-            playerViewModel.showMiniPlayer()
-        }
-    }
-    
-    
     // Don't show MiniPlayer on Player screen itself or if explicitly dismissed
     // With bottom sheet, "Player screen" is just the expanded state.
     // We hide the sheet if the current route is one where we don't want player (e.g. login?)
@@ -816,24 +808,6 @@ fun SonzaApp(
     // Determine device form factor for adaptive layouts
     val formFactor = LocalDeviceFormFactor.current
 
-    if (showWelcomeDialog) {
-        com.sonza.app.ui.components.WelcomeOnboardingDialog(
-            onLoginClick = {
-                showWelcomeDialog = false
-                navController.navigate(Destination.YouTubeLogin)
-            },
-            onContinueAsGuest = { languages ->
-                showWelcomeDialog = false
-                scope.launch {
-                    if (languages.isNotEmpty()) {
-                        sessionManager.setPreferredLanguages(languages)
-                    }
-                    sessionManager.setOnboardingCompleted(true)
-                }
-            }
-        )
-    }
-
     if (showWhatsNew) {
         com.sonza.app.ui.components.WhatsNewDialog(
             versionLabel = "Version ${com.sonza.app.BuildConfig.VERSION_NAME}",
@@ -850,7 +824,7 @@ fun SonzaApp(
         val navBarPadding = androidx.compose.foundation.layout.WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         val imePadding = androidx.compose.foundation.layout.WindowInsets.ime.asPaddingValues().calculateBottomPadding()
         val isKeyboardOpen = imePadding > 0.dp
-        val shouldShowExpressiveBottomNav = (showBottomNav || hasSong) && !isKeyboardOpen && !isPlayerExpanded && formFactor.isPhoneLike
+        val shouldShowExpressiveBottomNav = (showBottomNav || hasSong) && !isKeyboardOpen && !isPlayerExpanded && formFactor.isPhoneLike && !showWelcomeDialog
         val navBarHeight = if (shouldShowExpressiveBottomNav && formFactor != DeviceFormFactor.TV) {
             com.sonza.app.ui.components.ExpressiveBottomNavTokens.getBottomSafePadding(playbackInfo.currentSong != null)
         } else 0.dp
@@ -944,13 +918,17 @@ fun SonzaApp(
                                         }
                                     }
                                 },
-                                currentSong = playbackInfo.currentSong,
+                                currentSong = if (!isMiniPlayerDismissed) playbackInfo.currentSong else null,
                                 isPlaying = playbackInfo.isPlaying,
                                 isLoading = playbackInfo.isLoading,
                                 onPlayPause = { playerViewModel.togglePlayPause() },
                                 onExpandPlayer = { playerViewModel.expandPlayer() },
                                 onNext = { playerViewModel.seekToNext() },
                                 onPrevious = { playerViewModel.seekToPrevious() },
+                                onSwipeDown = {
+                                    playerViewModel.pause()
+                                    playerViewModel.dismissMiniPlayer()
+                                },
                                 progressProvider = miniPlayerProgressProvider,
                                 dominantColors = currentDominantColors,
                                 alpha = navBarAlpha,
@@ -1391,5 +1369,27 @@ fun SonzaApp(
                 .padding(bottom = snackbarBottomPadding)
                 .zIndex(100f) // Ensure it's above everything including player sheet
         )
+
+        // First-run Onboarding - Isolated full-screen overlay on top of entire window
+        if (showWelcomeDialog) {
+            com.sonza.app.ui.components.WelcomeOnboardingDialog(
+                onLoginClick = {
+                    showWelcomeDialog = false
+                    navController.navigate(Destination.YouTubeLogin)
+                },
+                onContinueAsGuest = { languages ->
+                    showWelcomeDialog = false
+                    scope.launch {
+                        if (languages.isNotEmpty()) {
+                            sessionManager.setPreferredLanguages(languages)
+                        }
+                        sessionManager.setOnboardingCompleted(true)
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(200f)
+            )
+        }
     }
 }

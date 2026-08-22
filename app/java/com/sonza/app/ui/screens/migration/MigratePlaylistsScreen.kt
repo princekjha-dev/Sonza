@@ -1,42 +1,92 @@
 package com.sonza.app.ui.screens.migration
 
-import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import kotlinx.coroutines.launch
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Clear
+import androidx.compose.material.icons.rounded.CloudDownload
+import androidx.compose.material.icons.rounded.ContentPaste
+import androidx.compose.material.icons.automirrored.rounded.InsertDriveFile
+import androidx.compose.material.icons.automirrored.rounded.Undo
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.Headset
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.PlayCircleFilled
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.SmartDisplay
+import androidx.compose.material.icons.rounded.WarningAmber
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -49,19 +99,28 @@ import com.sonza.app.data.migration.model.MatchConfidence
 import com.sonza.app.data.migration.model.MigrationRecord
 import com.sonza.app.data.migration.model.MigrationSource
 import com.sonza.app.data.migration.model.TrackMatchResult
+import com.sonza.app.ui.components.ExpressiveBottomNavTokens
+import com.sonza.app.ui.components.LocalSonzaDynamicColors
+import com.sonza.app.ui.components.SonzaLoadingIndicator
 import com.sonza.app.ui.theme.SonzaColors
 import com.sonza.app.ui.theme.SonzaOnBackground
 import com.sonza.app.ui.theme.SonzaOutline
 import com.sonza.app.ui.theme.SonzaSurface
 import com.sonza.app.ui.theme.SonzaTypography
-import com.sonza.app.ui.theme.SpacingTokens
 import com.sonza.app.ui.viewmodel.MigrationStep
 import com.sonza.app.ui.viewmodel.PlaylistMigrationUiState
 import com.sonza.app.ui.viewmodel.PlaylistMigrationViewModel
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * Rebuilt Migrate Playlists Screen & Flow.
+ *
+ * Implements a premium, Apple Music-inspired dark UI with calm neutral tones,
+ * clean typography, subtle Apple-style list rows, and Sonza's existing dynamic accent colors.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MigratePlaylistsScreen(
@@ -71,6 +130,12 @@ fun MigratePlaylistsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val dynamicColors = LocalSonzaDynamicColors.current
+    val accentColor = dynamicColors.accent.takeIf { it != Color.Unspecified }
+        ?: MaterialTheme.colorScheme.primary
+    val onAccentColor = dynamicColors.onAccent.takeIf { it != Color.Unspecified }
+        ?: MaterialTheme.colorScheme.onPrimary
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
@@ -96,9 +161,11 @@ fun MigratePlaylistsScreen(
                             MigrationStep.COMPLETED -> "Migration Complete"
                             MigrationStep.HISTORY -> "Migration History"
                         },
-                        style = SonzaTypography.TitleMedium,
-                        color = SonzaOnBackground,
-                        fontWeight = FontWeight.Bold
+                        style = SonzaTypography.TitleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 19.sp
+                        ),
+                        color = SonzaOnBackground
                     )
                 },
                 navigationIcon = {
@@ -128,7 +195,7 @@ fun MigratePlaylistsScreen(
                             Icon(
                                 imageVector = Icons.Rounded.History,
                                 contentDescription = "Migration History",
-                                tint = SonzaColors.Primary
+                                tint = accentColor
                             )
                         }
                     }
@@ -153,6 +220,7 @@ fun MigratePlaylistsScreen(
             ) { step ->
                 when (step) {
                     MigrationStep.LANDING -> MigrationLandingView(
+                        accentColor = accentColor,
                         onSelectSource = { viewModel.onSelectSource(it) },
                         onImportFile = { viewModel.startFileImport(it) },
                         history = uiState.history,
@@ -163,6 +231,8 @@ fun MigratePlaylistsScreen(
                     MigrationStep.INPUT_URL -> InputUrlView(
                         source = uiState.selectedSource ?: MigrationSource.SPOTIFY,
                         url = uiState.urlInput,
+                        accentColor = accentColor,
+                        onAccentColor = onAccentColor,
                         onUrlChange = { viewModel.onUrlChanged(it) },
                         onStartImport = { viewModel.startUrlImport() },
                         onImportFile = { viewModel.startFileImport(it) }
@@ -171,11 +241,14 @@ fun MigratePlaylistsScreen(
                     MigrationStep.ANALYZING -> AnalyzingProgressView(
                         current = uiState.progressCurrent,
                         total = uiState.progressTotal,
-                        statusText = uiState.currentAnalyzingTitle
+                        statusText = uiState.currentAnalyzingTitle,
+                        accentColor = accentColor
                     )
 
                     MigrationStep.REVIEW_MATCHES -> ReviewMatchesView(
                         uiState = uiState,
+                        accentColor = accentColor,
+                        onAccentColor = onAccentColor,
                         onFilterSelected = { viewModel.setReviewFilter(it) },
                         onToggleSkip = { viewModel.toggleSkipTrack(it) },
                         onManualSearch = { viewModel.openManualSearch(it) },
@@ -184,6 +257,8 @@ fun MigratePlaylistsScreen(
 
                     MigrationStep.DUPLICATE_PROMPT -> DuplicateResolutionView(
                         playlistTitle = uiState.parsedPlaylist?.title ?: "Playlist",
+                        accentColor = accentColor,
+                        onAccentColor = onAccentColor,
                         onChooseStrategy = { strategy ->
                             if (strategy == DuplicateStrategy.CANCEL) {
                                 viewModel.setStep(MigrationStep.REVIEW_MATCHES)
@@ -195,12 +270,13 @@ fun MigratePlaylistsScreen(
 
                     MigrationStep.MIGRATING -> MigratingProgressView(
                         playlistTitle = uiState.parsedPlaylist?.title ?: "Playlist",
-                        current = uiState.progressCurrent,
-                        total = uiState.progressTotal
+                        accentColor = accentColor
                     )
 
                     MigrationStep.COMPLETED -> MigrationCompleteView(
                         record = uiState.migrationRecord,
+                        accentColor = accentColor,
+                        onAccentColor = onAccentColor,
                         onOpenPlaylist = {
                             val targetId = uiState.targetPlaylistId
                             if (targetId != null) {
@@ -217,6 +293,7 @@ fun MigratePlaylistsScreen(
 
                     MigrationStep.HISTORY -> MigrationHistoryView(
                         history = uiState.history,
+                        accentColor = accentColor,
                         onOpenPlaylist = onOpenPlaylist
                     )
                 }
@@ -226,6 +303,7 @@ fun MigratePlaylistsScreen(
             if (uiState.manualSearchTargetIndex != null) {
                 ManualMatchSearchDialog(
                     uiState = uiState,
+                    accentColor = accentColor,
                     onDismiss = { viewModel.closeManualSearch() },
                     onQueryChange = { viewModel.onManualSearchQueryChange(it) },
                     onSearch = { viewModel.performManualSearch() },
@@ -240,12 +318,13 @@ fun MigratePlaylistsScreen(
 }
 
 /**
- * Step 1: Landing screen displaying supported music services.
+ * Step 1: Landing screen displaying supported music services with Apple-style list rows.
  */
 @Composable
 private fun MigrationLandingView(
+    accentColor: Color,
     onSelectSource: (MigrationSource) -> Unit,
-    onImportFile: (android.net.Uri) -> Unit,
+    onImportFile: (Uri) -> Unit,
     history: List<MigrationRecord>,
     onViewHistory: () -> Unit,
     onOpenPlaylist: (String) -> Unit
@@ -256,29 +335,47 @@ private fun MigrationLandingView(
         if (uri != null) onImportFile(uri)
     }
 
+    val bottomSafePadding = ExpressiveBottomNavTokens.getBottomSafePadding(false) + 16.dp
+
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = SpacingTokens.SpaceLg),
-        contentPadding = PaddingValues(vertical = SpacingTokens.SpaceMd)
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = bottomSafePadding)
     ) {
         item {
-            Column(modifier = Modifier.padding(bottom = SpacingTokens.SpaceLg)) {
+            Column(modifier = Modifier.padding(bottom = 24.dp)) {
                 Text(
                     text = "Bring your music to Sonza",
-                    style = SonzaTypography.BodyMedium,
-                    color = SonzaOnBackground.copy(alpha = 0.70f)
+                    style = SonzaTypography.Headline.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 26.sp,
+                        letterSpacing = (-0.5).sp
+                    ),
+                    color = SonzaOnBackground
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = "Choose a service and transfer your library and playlists to Sonza",
+                    style = SonzaTypography.BodyMedium.copy(
+                        fontSize = 15.sp,
+                        lineHeight = 21.sp
+                    ),
+                    color = SonzaOnBackground.copy(alpha = 0.65f)
                 )
             }
         }
 
-        // Supported Services Section
+        // Section Title: Select a Music Service
         item {
             Text(
-                text = "Select Source Service",
-                style = SonzaTypography.SectionTitle,
+                text = "Select a Music Service",
+                style = SonzaTypography.TitleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                ),
                 color = SonzaOnBackground,
-                modifier = Modifier.padding(bottom = SpacingTokens.SpaceMd)
+                modifier = Modifier.padding(bottom = 12.dp)
             )
         }
 
@@ -294,17 +391,21 @@ private fun MigrationLandingView(
         )
 
         items(services) { source ->
-            ServiceCard(
+            AppleStyleServiceRow(
                 source = source,
                 onClick = {
                     if (source == MigrationSource.FILE_EXPORT) {
                         filePicker.launch("*/*")
-                    } else {
+                    } else if (source.isSupported) {
                         onSelectSource(source)
                     }
                 }
             )
-            Spacer(modifier = Modifier.height(SpacingTokens.SpaceSm))
+            HorizontalDivider(
+                color = SonzaOutline.copy(alpha = 0.12f),
+                thickness = 0.5.dp,
+                modifier = Modifier.padding(start = 58.dp)
+            )
         }
 
         // Recent Migrations Section
@@ -313,39 +414,50 @@ private fun MigrationLandingView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = SpacingTokens.SpaceLg, bottom = SpacingTokens.SpaceSm),
+                        .padding(top = 28.dp, bottom = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = "Recent Migrations",
-                        style = SonzaTypography.SectionTitle,
+                        style = SonzaTypography.TitleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        ),
                         color = SonzaOnBackground
                     )
                     Text(
                         text = "See All",
-                        style = SonzaTypography.LabelLarge,
-                        color = SonzaColors.Primary,
+                        style = SonzaTypography.LabelLarge.copy(fontWeight = FontWeight.SemiBold),
+                        color = accentColor,
                         modifier = Modifier.clickable { onViewHistory() }
                     )
                 }
             }
 
             items(history.take(3)) { record ->
-                MigrationHistoryCard(record = record, onClick = {
-                    record.targetPlaylistId?.let(onOpenPlaylist)
-                })
-                Spacer(modifier = Modifier.height(SpacingTokens.SpaceSm))
+                MigrationHistoryCard(
+                    record = record,
+                    accentColor = accentColor,
+                    onClick = {
+                        record.targetPlaylistId?.let(onOpenPlaylist)
+                    }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
     }
 }
 
+/**
+ * Apple-style clean list row for music migration services.
+ */
 @Composable
-private fun ServiceCard(
+private fun AppleStyleServiceRow(
     source: MigrationSource,
     onClick: () -> Unit
 ) {
+    // Keep authentic service branding colors exclusively inside the icon
     val serviceColor = when (source) {
         MigrationSource.SPOTIFY -> Color(0xFF1DB954)
         MigrationSource.YOUTUBE_MUSIC, MigrationSource.YOUTUBE -> Color(0xFFFF0000)
@@ -353,90 +465,95 @@ private fun ServiceCard(
         MigrationSource.APPLE_MUSIC -> Color(0xFFFA243C)
         MigrationSource.AMAZON_MUSIC -> Color(0xFF00A8E1)
         MigrationSource.DEEZER -> Color(0xFFA238FF)
-        MigrationSource.TIDAL -> Color(0xFF000000)
+        MigrationSource.TIDAL -> Color(0xFFE5E5E5)
     }
 
     val serviceIcon: ImageVector = when (source) {
         MigrationSource.SPOTIFY -> Icons.Rounded.MusicNote
         MigrationSource.YOUTUBE_MUSIC -> Icons.Rounded.PlayCircleFilled
         MigrationSource.YOUTUBE -> Icons.Rounded.SmartDisplay
-        MigrationSource.FILE_EXPORT -> Icons.Rounded.InsertDriveFile
+        MigrationSource.FILE_EXPORT -> Icons.AutoMirrored.Rounded.InsertDriveFile
         MigrationSource.APPLE_MUSIC -> Icons.Rounded.GraphicEq
         MigrationSource.AMAZON_MUSIC -> Icons.Rounded.CloudDownload
         MigrationSource.DEEZER -> Icons.Rounded.LibraryMusic
         MigrationSource.TIDAL -> Icons.Rounded.Headset
     }
 
-    Surface(
+    val isSupported = source.isSupported
+
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick),
-        color = SonzaSurface,
-        shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            SonzaOutline.copy(alpha = if (source.isSupported) 0.35f else 0.15f)
-        )
+            .clickable(
+                enabled = isSupported,
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+            .padding(vertical = 13.dp, horizontal = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
+        // Service Icon Container with authentic brand color
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .size(44.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(
+                    if (isSupported) serviceColor.copy(alpha = 0.14f)
+                    else Color(0xFF27272A).copy(alpha = 0.5f)
+                ),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(serviceColor.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = serviceIcon,
-                    contentDescription = source.displayName,
-                    tint = if (source.isSupported) serviceColor else Color.Gray,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = source.displayName,
-                        style = SonzaTypography.BodyLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = if (source.isSupported) SonzaOnBackground else SonzaOnBackground.copy(alpha = 0.50f)
-                    )
-                    if (!source.isSupported) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFF2C2C2E)
-                        ) {
-                            Text(
-                                text = "Coming soon",
-                                style = SonzaTypography.LabelSmall,
-                                color = Color(0xFF8E8E93),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                }
-                Text(
-                    text = source.description,
-                    style = SonzaTypography.BodySmall,
-                    color = SonzaOnBackground.copy(alpha = 0.60f)
-                )
-            }
-
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                imageVector = serviceIcon,
+                contentDescription = source.displayName,
+                tint = if (isSupported) serviceColor else Color.Gray.copy(alpha = 0.55f),
+                modifier = Modifier.size(22.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        // Title and description
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = source.displayName,
+                style = SonzaTypography.BodyLarge.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp
+                ),
+                color = if (isSupported) SonzaOnBackground else SonzaOnBackground.copy(alpha = 0.40f)
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Text(
+                text = if (isSupported) source.description else "Coming soon",
+                style = SonzaTypography.BodySmall.copy(fontSize = 13.sp),
+                color = if (isSupported) SonzaOnBackground.copy(alpha = 0.55f) else SonzaOnBackground.copy(alpha = 0.35f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Trailing indicator: Chevron or Coming soon badge
+        if (isSupported) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                 contentDescription = "Select",
-                tint = if (source.isSupported) SonzaOnBackground.copy(alpha = 0.60f) else Color.Transparent,
-                modifier = Modifier.size(20.dp)
+                tint = SonzaOnBackground.copy(alpha = 0.30f),
+                modifier = Modifier.size(14.dp)
+            )
+        } else {
+            Text(
+                text = "Coming soon",
+                style = SonzaTypography.LabelSmall.copy(
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                ),
+                color = SonzaOnBackground.copy(alpha = 0.35f)
             )
         }
     }
@@ -449,9 +566,11 @@ private fun ServiceCard(
 private fun InputUrlView(
     source: MigrationSource,
     url: String,
+    accentColor: Color,
+    onAccentColor: Color,
     onUrlChange: (String) -> Unit,
     onStartImport: () -> Unit,
-    onImportFile: (android.net.Uri) -> Unit
+    onImportFile: (Uri) -> Unit
 ) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
@@ -468,37 +587,47 @@ private fun InputUrlView(
         }
     }
 
+    val bottomSafePadding = ExpressiveBottomNavTokens.getBottomSafePadding(false) + 16.dp
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(SpacingTokens.SpaceLg)
-            .imePadding(),
-        verticalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceMd)
+            .padding(horizontal = 20.dp)
+            .padding(bottom = bottomSafePadding)
+            .imePadding()
     ) {
+        Spacer(modifier = Modifier.height(8.dp))
+
         Text(
             text = "Paste playlist link",
-            style = SonzaTypography.TitleMedium,
-            fontWeight = FontWeight.Bold,
+            style = SonzaTypography.TitleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp
+            ),
             color = SonzaOnBackground
         )
 
+        Spacer(modifier = Modifier.height(4.dp))
+
         Text(
             text = "Paste a public ${source.displayName} playlist or album link below:",
-            style = SonzaTypography.BodyMedium,
-            color = SonzaOnBackground.copy(alpha = 0.70f)
+            style = SonzaTypography.BodyMedium.copy(fontSize = 14.sp),
+            color = SonzaOnBackground.copy(alpha = 0.65f)
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
             value = url,
             onValueChange = onUrlChange,
-            placeholder = { Text("https://...") },
+            placeholder = { Text("https://...", color = SonzaOnBackground.copy(alpha = 0.40f)) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),
             singleLine = true,
             trailingIcon = {
                 if (url.isNotBlank()) {
                     IconButton(onClick = { onUrlChange("") }) {
-                        Icon(Icons.Rounded.Clear, contentDescription = "Clear")
+                        Icon(Icons.Rounded.Clear, contentDescription = "Clear", tint = SonzaOnBackground.copy(alpha = 0.6f))
                     }
                 } else {
                     IconButton(onClick = {
@@ -509,24 +638,30 @@ private fun InputUrlView(
                             }
                         }
                     }) {
-                        Icon(Icons.Rounded.ContentPaste, contentDescription = "Paste", tint = SonzaColors.Primary)
+                        Icon(Icons.Rounded.ContentPaste, contentDescription = "Paste", tint = accentColor)
                     }
                 }
             },
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = SonzaColors.Primary,
-                unfocusedBorderColor = SonzaOutline.copy(alpha = 0.40f)
+                focusedBorderColor = accentColor,
+                unfocusedBorderColor = SonzaOutline.copy(alpha = 0.30f),
+                focusedTextColor = SonzaOnBackground,
+                unfocusedTextColor = SonzaOnBackground,
+                cursorColor = accentColor
             )
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Button(
             onClick = onStartImport,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(14.dp),
+                .height(52.dp),
+            shape = RoundedCornerShape(percent = 50),
             colors = ButtonDefaults.buttonColors(
-                containerColor = SonzaColors.Primary
+                containerColor = accentColor,
+                contentColor = onAccentColor
             ),
             enabled = url.isNotBlank()
         ) {
@@ -542,17 +677,17 @@ private fun InputUrlView(
                 .clickable { filePicker.launch("*/*") },
             color = SonzaSurface,
             shape = RoundedCornerShape(14.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, SonzaOutline.copy(alpha = 0.25f))
+            border = BorderStroke(0.75.dp, SonzaOutline.copy(alpha = 0.20f))
         ) {
             Row(
                 modifier = Modifier.padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(Icons.Rounded.InsertDriveFile, contentDescription = null, tint = SonzaColors.Primary)
+                Icon(Icons.AutoMirrored.Rounded.InsertDriveFile, contentDescription = null, tint = accentColor)
                 Column {
                     Text("Or import from file", style = SonzaTypography.BodyMedium, fontWeight = FontWeight.SemiBold, color = SonzaOnBackground)
-                    Text("Supports M3U, JSON, CSV, and TXT files", style = SonzaTypography.BodySmall, color = SonzaOnBackground.copy(alpha = 0.60f))
+                    Text("Supports M3U, JSON, CSV, and TXT files", style = SonzaTypography.BodySmall, color = SonzaOnBackground.copy(alpha = 0.55f))
                 }
             }
         }
@@ -566,18 +701,17 @@ private fun InputUrlView(
 private fun AnalyzingProgressView(
     current: Int,
     total: Int,
-    statusText: String
+    statusText: String,
+    accentColor: Color
 ) {
-    val progress = if (total > 0) current.toFloat() / total.toFloat() else 0f
-
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(SpacingTokens.SpaceLg),
+            .padding(horizontal = 24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        com.sonza.app.ui.components.SonzaLoadingIndicator(
+        SonzaLoadingIndicator(
             modifier = Modifier.size(72.dp)
         )
 
@@ -585,8 +719,10 @@ private fun AnalyzingProgressView(
 
         Text(
             text = "Analyzing Tracks",
-            style = SonzaTypography.TitleLarge,
-            fontWeight = FontWeight.Bold,
+            style = SonzaTypography.TitleLarge.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp
+            ),
             color = SonzaOnBackground
         )
 
@@ -595,18 +731,17 @@ private fun AnalyzingProgressView(
         if (total > 0) {
             Text(
                 text = "$current / $total tracks",
-                style = SonzaTypography.BodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = SonzaColors.Primary
+                style = SonzaTypography.BodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = accentColor
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Text(
             text = statusText,
             style = SonzaTypography.BodySmall,
-            color = SonzaOnBackground.copy(alpha = 0.70f),
+            color = SonzaOnBackground.copy(alpha = 0.65f),
             textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
@@ -615,11 +750,13 @@ private fun AnalyzingProgressView(
 }
 
 /**
- * Step 4: Review Matches Screen.
+ * Step 4: Review Matches Screen — Neutral Apple-style summary, dynamic filters, and clean list rows.
  */
 @Composable
 private fun ReviewMatchesView(
     uiState: PlaylistMigrationUiState,
+    accentColor: Color,
+    onAccentColor: Color,
     onFilterSelected: (MatchConfidence?) -> Unit,
     onToggleSkip: (Int) -> Unit,
     onManualSearch: (Int) -> Unit,
@@ -641,266 +778,324 @@ private fun ReviewMatchesView(
         }
     }
 
+    val bottomSafePadding = ExpressiveBottomNavTokens.getBottomSafePadding(false) + 12.dp
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = SpacingTokens.SpaceLg)
+            .padding(horizontal = 20.dp)
     ) {
-        // Summary Header Card
-        Surface(
+        // Neutral Summary Header (NO rainbow dots, checkmarks, or colored borders)
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = SpacingTokens.SpaceSm),
-            color = SonzaSurface,
-            shape = RoundedCornerShape(16.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, SonzaOutline.copy(alpha = 0.25f))
+                .padding(vertical = 12.dp)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = playlist?.title ?: "Imported Playlist",
+                style = SonzaTypography.Headline.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 24.sp,
+                    letterSpacing = (-0.4).sp
+                ),
+                color = SonzaOnBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Text(
+                text = "${matches.size} tracks found",
+                style = SonzaTypography.BodySmall.copy(fontSize = 13.sp),
+                color = SonzaOnBackground.copy(alpha = 0.55f)
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Neutral text summary breakdown: "17 Matched     2 Review     0 Unavailable"
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(18.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = playlist?.title ?: "Imported Playlist",
-                    style = SonzaTypography.TitleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = SonzaOnBackground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    text = "$perfectCount Matched",
+                    style = SonzaTypography.BodyMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp
+                    ),
+                    color = SonzaOnBackground.copy(alpha = 0.85f)
                 )
                 Text(
-                    text = "${matches.size} tracks found",
-                    style = SonzaTypography.BodySmall,
-                    color = SonzaOnBackground.copy(alpha = 0.60f)
+                    text = "$possibleCount Review",
+                    style = SonzaTypography.BodyMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp
+                    ),
+                    color = SonzaOnBackground.copy(alpha = 0.85f)
                 )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    MatchStatBadge(label = "Matched", count = perfectCount, color = Color(0xFF34C759))
-                    MatchStatBadge(label = "Review", count = possibleCount, color = Color(0xFFFF9500))
-                    MatchStatBadge(label = "Unavailable", count = unavailableCount, color = Color(0xFFFF3B30))
-                }
+                Text(
+                    text = "$unavailableCount Unavailable",
+                    style = SonzaTypography.BodyMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp
+                    ),
+                    color = SonzaOnBackground.copy(alpha = 0.85f)
+                )
             }
         }
 
-        // Filter Pills
+        // Dynamic Accent Review Filter Tabs
         LazyRow(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = SpacingTokens.SpaceSm),
+                .padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {
-                FilterChip(
-                    selected = uiState.activeReviewFilter == null,
-                    onClick = { onFilterSelected(null) },
-                    label = { Text("All (${matches.size})") }
+                ReviewFilterPill(
+                    label = "All (${matches.size})",
+                    isSelected = uiState.activeReviewFilter == null,
+                    accentColor = accentColor,
+                    onAccentColor = onAccentColor,
+                    onClick = { onFilterSelected(null) }
                 )
             }
             item {
-                FilterChip(
-                    selected = uiState.activeReviewFilter == MatchConfidence.PERFECT_MATCH,
-                    onClick = { onFilterSelected(MatchConfidence.PERFECT_MATCH) },
-                    label = { Text("✓ Matched ($perfectCount)") }
+                ReviewFilterPill(
+                    label = "Matched ($perfectCount)",
+                    isSelected = uiState.activeReviewFilter == MatchConfidence.PERFECT_MATCH,
+                    accentColor = accentColor,
+                    onAccentColor = onAccentColor,
+                    onClick = { onFilterSelected(MatchConfidence.PERFECT_MATCH) }
                 )
             }
             item {
-                FilterChip(
-                    selected = uiState.activeReviewFilter == MatchConfidence.POSSIBLE_MATCH,
-                    onClick = { onFilterSelected(MatchConfidence.POSSIBLE_MATCH) },
-                    label = { Text("⚠ Review ($possibleCount)") }
+                ReviewFilterPill(
+                    label = "Review ($possibleCount)",
+                    isSelected = uiState.activeReviewFilter == MatchConfidence.POSSIBLE_MATCH,
+                    accentColor = accentColor,
+                    onAccentColor = onAccentColor,
+                    onClick = { onFilterSelected(MatchConfidence.POSSIBLE_MATCH) }
                 )
             }
             item {
-                FilterChip(
-                    selected = uiState.activeReviewFilter == MatchConfidence.UNAVAILABLE,
-                    onClick = { onFilterSelected(MatchConfidence.UNAVAILABLE) },
-                    label = { Text("✕ Unavailable ($unavailableCount)") }
+                ReviewFilterPill(
+                    label = "Unavailable ($unavailableCount)",
+                    isSelected = uiState.activeReviewFilter == MatchConfidence.UNAVAILABLE,
+                    accentColor = accentColor,
+                    onAccentColor = onAccentColor,
+                    onClick = { onFilterSelected(MatchConfidence.UNAVAILABLE) }
                 )
             }
         }
 
-        // Match Results List
+        // Match Results List (Apple-style list rows with thin dividers)
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
-            contentPadding = PaddingValues(vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            contentPadding = PaddingValues(vertical = 4.dp)
         ) {
             items(filteredMatches, key = { (idx, item) -> "${idx}_${item.sourceTrack.title}" }) { (originalIndex, result) ->
                 MatchResultRow(
                     result = result,
+                    accentColor = accentColor,
                     onToggleSkip = { onToggleSkip(originalIndex) },
                     onManualSearch = { onManualSearch(originalIndex) }
+                )
+                HorizontalDivider(
+                    color = SonzaOutline.copy(alpha = 0.10f),
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(start = 62.dp)
                 )
             }
         }
 
-        // Action Bar
+        // Action Bar with Dynamic Accent CTA
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = SpacingTokens.SpaceMd),
+                .padding(top = 10.dp, bottom = bottomSafePadding),
             color = Color.Transparent
         ) {
             Button(
                 onClick = onProceed,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(14.dp),
+                    .height(54.dp),
+                shape = RoundedCornerShape(percent = 50),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = SonzaColors.Primary
-                )
+                    containerColor = accentColor,
+                    contentColor = onAccentColor
+                ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
             ) {
                 Text(
                     text = "Migrate ${perfectCount + possibleCount} Tracks",
-                    style = SonzaTypography.BodyLarge,
-                    fontWeight = FontWeight.Bold
+                    style = SonzaTypography.BodyLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
                 )
             }
         }
     }
 }
 
+/**
+ * Filter pill chip responding dynamically to Sonza's active theme accent color.
+ */
 @Composable
-private fun MatchStatBadge(label: String, count: Int, color: Color) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+private fun ReviewFilterPill(
+    label: String,
+    isSelected: Boolean,
+    accentColor: Color,
+    onAccentColor: Color,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(percent = 50),
+        color = if (isSelected) accentColor else SonzaSurface,
+        border = if (!isSelected) BorderStroke(0.75.dp, SonzaOutline.copy(alpha = 0.25f)) else null,
+        modifier = Modifier.height(36.dp)
     ) {
         Box(
-            modifier = Modifier
-                .size(8.dp)
-                .clip(CircleShape)
-                .background(color)
-        )
-        Text(
-            text = "$count $label",
-            style = SonzaTypography.BodySmall,
-            fontWeight = FontWeight.SemiBold,
-            color = SonzaOnBackground.copy(alpha = 0.85f)
-        )
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                style = SonzaTypography.BodySmall.copy(
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    fontSize = 13.sp
+                ),
+                color = if (isSelected) onAccentColor else SonzaOnBackground.copy(alpha = 0.75f)
+            )
+        }
     }
 }
 
+/**
+ * Clean Apple-style match row without rainbow borders or colored badges.
+ */
 @Composable
 private fun MatchResultRow(
     result: TrackMatchResult,
+    accentColor: Color,
     onToggleSkip: () -> Unit,
     onManualSearch: () -> Unit
 ) {
     val isSkipped = result.isSkipped
-    val isMatched = result.matchedSong != null && !isSkipped
 
-    Surface(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp)),
-        color = SonzaSurface,
-        shape = RoundedCornerShape(12.dp),
-        border = androidx.compose.foundation.BorderStroke(
-            0.75.dp,
-            if (isSkipped) Color.Gray.copy(alpha = 0.2f)
-            else when (result.confidence) {
-                MatchConfidence.PERFECT_MATCH -> Color(0xFF34C759).copy(alpha = 0.35f)
-                MatchConfidence.POSSIBLE_MATCH -> Color(0xFFFF9500).copy(alpha = 0.35f)
-                MatchConfidence.UNAVAILABLE -> Color(0xFFFF3B30).copy(alpha = 0.35f)
-            }
-        )
+            .padding(vertical = 10.dp, horizontal = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Artwork or Icon
-            if (result.matchedSong?.thumbnailUrl != null && !isSkipped) {
-                AsyncImage(
-                    model = result.matchedSong.thumbnailUrl,
+        // Artwork thumbnail
+        if (result.matchedSong?.thumbnailUrl != null && !isSkipped) {
+            AsyncImage(
+                model = result.matchedSong.thumbnailUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                .background(SonzaColors.SurfaceVariant.copy(alpha = 0.6f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isSkipped) Icons.Rounded.Block else Icons.Rounded.MusicNote,
                     contentDescription = null,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Crop
+                    tint = SonzaOnBackground.copy(alpha = 0.40f),
+                    modifier = Modifier.size(22.dp)
                 )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF2C2C2E)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (isSkipped) Icons.Rounded.Block else Icons.Rounded.MusicNote,
-                        contentDescription = null,
-                        tint = Color.Gray,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+            }
+        }
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        // Metadata Column
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = result.sourceTrack.title,
+                style = SonzaTypography.BodyMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
+                ),
+                color = if (isSkipped) SonzaOnBackground.copy(alpha = 0.40f) else SonzaOnBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Text(
+                text = result.sourceTrack.artist,
+                style = SonzaTypography.BodySmall.copy(fontSize = 13.sp),
+                color = SonzaOnBackground.copy(alpha = 0.55f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            // Neutral Match Status Line (NO rainbow colors or badges)
+            val statusLabel = when {
+                isSkipped -> "Skipped"
+                result.confidence == MatchConfidence.PERFECT_MATCH && result.matchedSong != null -> "Matched"
+                result.confidence == MatchConfidence.POSSIBLE_MATCH && result.matchedSong != null -> "Needs review"
+                else -> "Unavailable"
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = statusLabel,
+                style = SonzaTypography.LabelSmall.copy(
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                ),
+                color = SonzaOnBackground.copy(alpha = 0.45f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
 
-            // Metadata Column
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = result.sourceTrack.title,
-                    style = SonzaTypography.BodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isSkipped) SonzaOnBackground.copy(alpha = 0.40f) else SonzaOnBackground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Interactive Action Buttons (Search & Delete/Restore)
+        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            IconButton(
+                onClick = onManualSearch,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Search,
+                    contentDescription = "Search match",
+                    tint = SonzaOnBackground.copy(alpha = 0.60f),
+                    modifier = Modifier.size(18.dp)
                 )
-
-                Text(
-                    text = result.sourceTrack.artist,
-                    style = SonzaTypography.BodySmall,
-                    color = SonzaOnBackground.copy(alpha = 0.60f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                // Match Status Line
-                if (!isSkipped && result.matchedSong != null) {
-                    val statusText = if (result.confidence == MatchConfidence.PERFECT_MATCH) "✓ Perfect Match" else "⚠ Review Match"
-                    val statusColor = if (result.confidence == MatchConfidence.PERFECT_MATCH) Color(0xFF34C759) else Color(0xFFFF9500)
-                    Text(
-                        text = "$statusText • ${result.matchedSong.title}",
-                        style = SonzaTypography.LabelSmall,
-                        color = statusColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                } else if (isSkipped) {
-                    Text(text = "✕ Skipped", style = SonzaTypography.LabelSmall, color = Color.Gray)
-                } else {
-                    Text(text = "✕ Not Available", style = SonzaTypography.LabelSmall, color = Color(0xFFFF3B30))
-                }
             }
 
-            // Action Buttons (Search & Skip)
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                IconButton(onClick = onManualSearch) {
-                    Icon(
-                        imageVector = Icons.Rounded.Search,
-                        contentDescription = "Search Sonza",
-                        tint = SonzaColors.Primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                IconButton(onClick = onToggleSkip) {
-                    Icon(
-                        imageVector = if (isSkipped) Icons.Rounded.Undo else Icons.Rounded.DeleteOutline,
-                        contentDescription = if (isSkipped) "Restore" else "Skip",
-                        tint = if (isSkipped) SonzaColors.Primary else SonzaOnBackground.copy(alpha = 0.60f),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+            IconButton(
+                onClick = onToggleSkip,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = if (isSkipped) Icons.AutoMirrored.Rounded.Undo else Icons.Rounded.DeleteOutline,
+                    contentDescription = if (isSkipped) "Restore" else "Skip",
+                    tint = if (isSkipped) accentColor else SonzaOnBackground.copy(alpha = 0.55f),
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
     }
@@ -912,28 +1107,35 @@ private fun MatchResultRow(
 @Composable
 private fun DuplicateResolutionView(
     playlistTitle: String,
+    accentColor: Color,
+    onAccentColor: Color,
     onChooseStrategy: (DuplicateStrategy) -> Unit
 ) {
+    val bottomSafePadding = ExpressiveBottomNavTokens.getBottomSafePadding(false) + 16.dp
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(SpacingTokens.SpaceLg),
+            .padding(horizontal = 24.dp)
+            .padding(bottom = bottomSafePadding),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
             imageVector = Icons.Rounded.WarningAmber,
             contentDescription = null,
-            tint = Color(0xFFFF9500),
-            modifier = Modifier.size(64.dp)
+            tint = SonzaOnBackground.copy(alpha = 0.75f),
+            modifier = Modifier.size(56.dp)
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
             text = "Playlist Already Exists",
-            style = SonzaTypography.TitleLarge,
-            fontWeight = FontWeight.Bold,
+            style = SonzaTypography.TitleLarge.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp
+            ),
             color = SonzaOnBackground
         )
 
@@ -942,47 +1144,59 @@ private fun DuplicateResolutionView(
         Text(
             text = "A playlist named \"$playlistTitle\" is already in your Sonza library. How would you like to proceed?",
             style = SonzaTypography.BodyMedium,
-            color = SonzaOnBackground.copy(alpha = 0.70f),
+            color = SonzaOnBackground.copy(alpha = 0.65f),
             textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(28.dp))
 
         Button(
             onClick = { onChooseStrategy(DuplicateStrategy.CREATE_NEW_COPY) },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = SonzaColors.Primary)
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(percent = 50),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = accentColor,
+                contentColor = onAccentColor
+            )
         ) {
             Text("Create a New Copy", style = SonzaTypography.BodyLarge, fontWeight = FontWeight.Bold)
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         OutlinedButton(
             onClick = { onChooseStrategy(DuplicateStrategy.ADD_MISSING) },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
-            shape = RoundedCornerShape(14.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(percent = 50)
         ) {
-            Text("Add Missing Tracks", style = SonzaTypography.BodyLarge, fontWeight = FontWeight.SemiBold)
+            Text("Add Missing Tracks", style = SonzaTypography.BodyLarge, fontWeight = FontWeight.SemiBold, color = SonzaOnBackground)
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         OutlinedButton(
             onClick = { onChooseStrategy(DuplicateStrategy.REPLACE) },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
-            shape = RoundedCornerShape(14.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(percent = 50)
         ) {
-            Text("Replace Existing Playlist", style = SonzaTypography.BodyLarge, fontWeight = FontWeight.SemiBold)
+            Text("Replace Existing Playlist", style = SonzaTypography.BodyLarge, fontWeight = FontWeight.SemiBold, color = SonzaOnBackground)
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         TextButton(
-            onClick = { onChooseStrategy(DuplicateStrategy.CANCEL) }
+            onClick = { onChooseStrategy(DuplicateStrategy.CANCEL) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
         ) {
-            Text("Cancel", style = SonzaTypography.BodyMedium, color = SonzaOnBackground.copy(alpha = 0.70f))
+            Text("Cancel", style = SonzaTypography.BodyMedium, color = SonzaOnBackground.copy(alpha = 0.60f))
         }
     }
 }
@@ -993,17 +1207,16 @@ private fun DuplicateResolutionView(
 @Composable
 private fun MigratingProgressView(
     playlistTitle: String,
-    current: Int,
-    total: Int
+    accentColor: Color
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(SpacingTokens.SpaceLg),
+            .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        com.sonza.app.ui.components.SonzaLoadingIndicator(
+        SonzaLoadingIndicator(
             modifier = Modifier.size(64.dp)
         )
 
@@ -1011,8 +1224,10 @@ private fun MigratingProgressView(
 
         Text(
             text = "Migrating $playlistTitle",
-            style = SonzaTypography.TitleLarge,
-            fontWeight = FontWeight.Bold,
+            style = SonzaTypography.TitleLarge.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp
+            ),
             color = SonzaOnBackground
         )
 
@@ -1021,7 +1236,7 @@ private fun MigratingProgressView(
         Text(
             text = "Writing tracks and playlist structure to Sonza...",
             style = SonzaTypography.BodyMedium,
-            color = SonzaOnBackground.copy(alpha = 0.70f),
+            color = SonzaOnBackground.copy(alpha = 0.65f),
             textAlign = TextAlign.Center
         )
     }
@@ -1033,28 +1248,33 @@ private fun MigratingProgressView(
 @Composable
 private fun MigrationCompleteView(
     record: MigrationRecord?,
+    accentColor: Color,
+    onAccentColor: Color,
     onOpenPlaylist: () -> Unit,
     onDone: () -> Unit
 ) {
+    val bottomSafePadding = ExpressiveBottomNavTokens.getBottomSafePadding(false) + 16.dp
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(SpacingTokens.SpaceLg),
+            .padding(horizontal = 24.dp)
+            .padding(bottom = bottomSafePadding),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
             modifier = Modifier
-                .size(72.dp)
+                .size(68.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF34C759).copy(alpha = 0.15f)),
+                .background(accentColor.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Rounded.CheckCircle,
                 contentDescription = null,
-                tint = Color(0xFF34C759),
-                modifier = Modifier.size(40.dp)
+                tint = accentColor,
+                modifier = Modifier.size(38.dp)
             )
         }
 
@@ -1062,18 +1282,19 @@ private fun MigrationCompleteView(
 
         Text(
             text = "Migration Complete",
-            style = SonzaTypography.TitleLarge,
-            fontWeight = FontWeight.Bold,
+            style = SonzaTypography.TitleLarge.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp
+            ),
             color = SonzaOnBackground
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         Text(
             text = record?.playlistTitle ?: "Your Playlist",
-            style = SonzaTypography.BodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = SonzaColors.Primary
+            style = SonzaTypography.BodyMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = accentColor
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -1083,59 +1304,62 @@ private fun MigrationCompleteView(
             modifier = Modifier.fillMaxWidth(),
             color = SonzaSurface,
             shape = RoundedCornerShape(16.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, SonzaOutline.copy(alpha = 0.25f))
+            border = BorderStroke(0.75.dp, SonzaOutline.copy(alpha = 0.20f))
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(18.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 StatRow(label = "Tracks found", value = "${record?.totalTracks ?: 0}")
-                StatRow(label = "Tracks added", value = "${record?.matchedCount ?: 0}", color = Color(0xFF34C759))
+                StatRow(label = "Tracks added", value = "${record?.matchedCount ?: 0}")
                 if ((record?.skippedCount ?: 0) > 0) {
-                    StatRow(label = "Tracks skipped", value = "${record?.skippedCount ?: 0}", color = Color(0xFFFF9500))
+                    StatRow(label = "Tracks skipped", value = "${record?.skippedCount ?: 0}")
                 }
                 if ((record?.unavailableCount ?: 0) > 0) {
-                    StatRow(label = "Tracks unavailable", value = "${record?.unavailableCount ?: 0}", color = Color(0xFFFF3B30))
+                    StatRow(label = "Tracks unavailable", value = "${record?.unavailableCount ?: 0}")
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(28.dp))
 
         Button(
             onClick = onOpenPlaylist,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = SonzaColors.Primary)
+            shape = RoundedCornerShape(percent = 50),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = accentColor,
+                contentColor = onAccentColor
+            )
         ) {
             Text("Open Playlist", style = SonzaTypography.BodyLarge, fontWeight = FontWeight.Bold)
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         OutlinedButton(
             onClick = onDone,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp),
-            shape = RoundedCornerShape(14.dp)
+            shape = RoundedCornerShape(percent = 50)
         ) {
-            Text("Done", style = SonzaTypography.BodyLarge, fontWeight = FontWeight.SemiBold)
+            Text("Done", style = SonzaTypography.BodyLarge, fontWeight = FontWeight.SemiBold, color = SonzaOnBackground)
         }
     }
 }
 
 @Composable
-private fun StatRow(label: String, value: String, color: Color = SonzaOnBackground) {
+private fun StatRow(label: String, value: String) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = label, style = SonzaTypography.BodyMedium, color = SonzaOnBackground.copy(alpha = 0.70f))
-        Text(text = value, style = SonzaTypography.BodyMedium, fontWeight = FontWeight.Bold, color = color)
+        Text(text = label, style = SonzaTypography.BodyMedium, color = SonzaOnBackground.copy(alpha = 0.65f))
+        Text(text = value, style = SonzaTypography.BodyMedium, fontWeight = FontWeight.Bold, color = SonzaOnBackground)
     }
 }
 
@@ -1145,24 +1369,29 @@ private fun StatRow(label: String, value: String, color: Color = SonzaOnBackgrou
 @Composable
 private fun MigrationHistoryView(
     history: List<MigrationRecord>,
+    accentColor: Color,
     onOpenPlaylist: (String) -> Unit
 ) {
+    val bottomSafePadding = ExpressiveBottomNavTokens.getBottomSafePadding(false) + 16.dp
+
     if (history.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No migration history yet", style = SonzaTypography.BodyLarge, color = SonzaOnBackground.copy(alpha = 0.60f))
+            Text("No migration history yet", style = SonzaTypography.BodyLarge, color = SonzaOnBackground.copy(alpha = 0.55f))
         }
     } else {
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = SpacingTokens.SpaceLg),
-            contentPadding = PaddingValues(vertical = SpacingTokens.SpaceMd),
-            verticalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceSm)
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = bottomSafePadding),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(history) { record ->
-                MigrationHistoryCard(record = record, onClick = {
-                    record.targetPlaylistId?.let(onOpenPlaylist)
-                })
+                MigrationHistoryCard(
+                    record = record,
+                    accentColor = accentColor,
+                    onClick = {
+                        record.targetPlaylistId?.let(onOpenPlaylist)
+                    }
+                )
             }
         }
     }
@@ -1171,6 +1400,7 @@ private fun MigrationHistoryView(
 @Composable
 private fun MigrationHistoryCard(
     record: MigrationRecord,
+    accentColor: Color,
     onClick: () -> Unit
 ) {
     val dateStr = remember(record.timestamp) {
@@ -1184,7 +1414,7 @@ private fun MigrationHistoryCard(
             .clickable(onClick = onClick),
         color = SonzaSurface,
         shape = RoundedCornerShape(14.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, SonzaOutline.copy(alpha = 0.25f))
+        border = BorderStroke(0.75.dp, SonzaOutline.copy(alpha = 0.20f))
     ) {
         Row(
             modifier = Modifier
@@ -1196,27 +1426,29 @@ private fun MigrationHistoryCard(
                 Text(
                     text = "${record.sourceName} → Sonza",
                     style = SonzaTypography.LabelSmall,
-                    color = SonzaColors.Primary,
+                    color = accentColor,
                     fontWeight = FontWeight.SemiBold
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = record.playlistTitle,
                     style = SonzaTypography.BodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = SonzaOnBackground
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "${record.matchedCount} of ${record.totalTracks} imported • $dateStr",
                     style = SonzaTypography.BodySmall,
-                    color = SonzaOnBackground.copy(alpha = 0.60f)
+                    color = SonzaOnBackground.copy(alpha = 0.55f)
                 )
             }
 
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                 contentDescription = null,
-                tint = SonzaOnBackground.copy(alpha = 0.50f),
-                modifier = Modifier.size(18.dp)
+                tint = SonzaOnBackground.copy(alpha = 0.35f),
+                modifier = Modifier.size(14.dp)
             )
         }
     }
@@ -1228,6 +1460,7 @@ private fun MigrationHistoryCard(
 @Composable
 private fun ManualMatchSearchDialog(
     uiState: PlaylistMigrationUiState,
+    accentColor: Color,
     onDismiss: () -> Unit,
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
@@ -1238,7 +1471,7 @@ private fun ManualMatchSearchDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("Search Sonza Catalog", style = SonzaTypography.TitleMedium, fontWeight = FontWeight.Bold)
+            Text("Search Sonza Catalog", style = SonzaTypography.TitleMedium, fontWeight = FontWeight.Bold, color = SonzaOnBackground)
         },
         text = {
             Column(
@@ -1251,27 +1484,34 @@ private fun ManualMatchSearchDialog(
                     Text(
                         text = "Original: ${targetItem.sourceTrack.title} - ${targetItem.sourceTrack.artist}",
                         style = SonzaTypography.BodySmall,
-                        color = SonzaOnBackground.copy(alpha = 0.70f)
+                        color = SonzaOnBackground.copy(alpha = 0.65f)
                     )
                 }
 
                 OutlinedTextField(
                     value = uiState.manualSearchQuery,
                     onValueChange = onQueryChange,
-                    placeholder = { Text("Search song or artist...") },
+                    placeholder = { Text("Search song or artist...", color = SonzaOnBackground.copy(alpha = 0.40f)) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true,
                     trailingIcon = {
                         IconButton(onClick = onSearch) {
-                            Icon(Icons.Rounded.Search, contentDescription = "Search", tint = SonzaColors.Primary)
+                            Icon(Icons.Rounded.Search, contentDescription = "Search", tint = accentColor)
                         }
-                    }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = accentColor,
+                        unfocusedBorderColor = SonzaOutline.copy(alpha = 0.30f),
+                        focusedTextColor = SonzaOnBackground,
+                        unfocusedTextColor = SonzaOnBackground,
+                        cursorColor = accentColor
+                    )
                 )
 
                 if (uiState.isSearchingManual) {
                     Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
-                        com.sonza.app.ui.components.SonzaLoadingIndicator(modifier = Modifier.size(36.dp))
+                        SonzaLoadingIndicator(modifier = Modifier.size(36.dp))
                     }
                 } else {
                     LazyColumn(
@@ -1284,7 +1524,7 @@ private fun ManualMatchSearchDialog(
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(10.dp))
                                     .clickable { onSelectSong(candidate) },
-                                color = SonzaSurface,
+                                color = SonzaColors.SurfaceVariant.copy(alpha = 0.5f),
                                 shape = RoundedCornerShape(10.dp)
                             ) {
                                 Row(
@@ -1294,7 +1534,7 @@ private fun ManualMatchSearchDialog(
                                     AsyncImage(
                                         model = candidate.thumbnailUrl,
                                         contentDescription = null,
-                                        modifier = Modifier.size(36.dp).clip(RoundedCornerShape(6.dp)),
+                                        modifier = Modifier.size(38.dp).clip(RoundedCornerShape(6.dp)),
                                         contentScale = ContentScale.Crop
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
@@ -1322,7 +1562,7 @@ private fun ManualMatchSearchDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close", color = SonzaColors.Primary)
+                Text("Close", color = accentColor, fontWeight = FontWeight.SemiBold)
             }
         },
         containerColor = SonzaSurface,

@@ -10,7 +10,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,7 +38,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -77,6 +76,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import com.sonza.app.core.model.RecentlyPlayed
 import com.sonza.app.core.model.Song
 import com.sonza.app.ui.components.AddToPlaylistSheet
@@ -90,6 +91,7 @@ import com.sonza.app.ui.theme.SonzaBrandAccent
 import com.sonza.app.ui.theme.SonzaOnBackground
 import com.sonza.app.ui.theme.SonzaOnSurfaceVariant
 import com.sonza.app.ui.theme.SonzaOutline
+import com.sonza.app.ui.theme.SonzaSurfaceVariant
 import com.sonza.app.ui.theme.SonzaTypography
 import com.sonza.app.ui.theme.SpacingTokens
 import com.sonza.app.ui.theme.SquircleShape
@@ -102,15 +104,16 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Polished History (Recents) screen showing listening history with:
- * - Clean header, back navigation, proper icon alignment & touch targets
- * - Instant search filtering with rounded search field and empty-search state
- * - Chronological grouping: Today, Yesterday, Earlier this week, Older dates
- * - Truncated items with vertically aligned 3-dot overflow menu
- * - Bottom sheet actions: Play, Play Next, Add to Queue, Add to Playlist, Download, Share, Remove from History
- * - Multi-select mode with batch actions
- * - Clear history confirmation dialog
- * - Centered empty state with "Start Listening" action
+ * Rebuilt History (Recents) screen delivering a polished, native music app experience:
+ * - Clean Top App Bar with back navigation, prominent title, incognito toggle & clear action
+ * - Rounded pill search bar with real-time dynamic filtering
+ * - Chronological date grouping (Today, Yesterday, Specific dates) in local timezone
+ * - 56dp artwork with Squircle clipping and neutral fallback placeholder
+ * - Safe metadata handling for blank titles, filenames and <unknown> artist fallbacks
+ * - Trailing vertical 3-dot overflow menu invoking SongMenuBottomSheet
+ * - Modern dark rounded confirmation dialog with theme-driven dynamic accent
+ * - Minimalist empty history & empty search result states
+ * - Generous bottom scroll padding accommodating floating mini-player & bottom nav
  */
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -178,7 +181,7 @@ fun RecentsScreen(
                 ) {
                     Text(
                         text = "Clear History",
-                        color = MaterialTheme.colorScheme.error,
+                        color = accentColor,
                         fontWeight = FontWeight.Bold,
                         style = SonzaTypography.BodyMedium
                     )
@@ -193,7 +196,7 @@ fun RecentsScreen(
                     )
                 }
             },
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(24.dp),
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
     }
@@ -262,7 +265,7 @@ fun RecentsScreen(
                     }
                 }
             } else {
-                // Normal Header: Back Arrow, Title, Incognito Mode & Clear History
+                // Standard Top Bar: Back Arrow, History Title, Incognito & Clear History
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -318,6 +321,19 @@ fun RecentsScreen(
                 }
             }
 
+            // Search Field (Shown when history is populated or a search is underway)
+            if (recentlyPlayed.isNotEmpty() || searchQuery.isNotEmpty()) {
+                HistorySearchField(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    onClearQuery = { searchQuery = "" },
+                    accentColor = accentColor,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceXs)
+                )
+            }
+
             // Incognito Status Banner
             AnimatedVisibility(
                 visible = incognitoModeEnabled,
@@ -350,19 +366,6 @@ fun RecentsScreen(
                         )
                     }
                 }
-            }
-
-            // Search Field (Only shown if history has items or user has typed a query)
-            if (recentlyPlayed.isNotEmpty() || searchQuery.isNotEmpty()) {
-                HistorySearchField(
-                    query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    onClearQuery = { searchQuery = "" },
-                    accentColor = accentColor,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceSm)
-                )
             }
 
             // Main Content Area
@@ -405,7 +408,7 @@ fun RecentsScreen(
                                     text = dateGroup,
                                     style = SonzaTypography.TitleMedium.copy(
                                         fontWeight = FontWeight.Bold,
-                                        letterSpacing = 0.5.sp
+                                        letterSpacing = 0.3.sp
                                     ),
                                     color = accentColor,
                                     modifier = Modifier.padding(
@@ -423,7 +426,7 @@ fun RecentsScreen(
                             key = { "${it.song.id}_${it.playedAt}" }
                         ) { recent ->
                             val isSelected = selectedSongIds.contains(recent.song.id)
-                            val allSongsInHistory = recentlyPlayed.map { it.song }
+                            val allSongsInHistory = filteredHistory.map { it.song }
                             val indexInAll = allSongsInHistory.indexOf(recent.song)
 
                             HistorySongItem(
@@ -517,7 +520,7 @@ fun RecentsScreen(
 }
 
 /**
- * Rounded Sonza-style search input field for history.
+ * Rounded pill search input field with elevated dark surface and dynamic accent focus border.
  */
 @Composable
 private fun HistorySearchField(
@@ -552,7 +555,7 @@ private fun HistorySearchField(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 12.dp),
+                .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -574,7 +577,7 @@ private fun HistorySearchField(
                     Text(
                         text = "Search history",
                         style = SonzaTypography.BodyMedium,
-                        color = SonzaOnSurfaceVariant.copy(alpha = 0.7f)
+                        color = SonzaOnSurfaceVariant.copy(alpha = 0.65f)
                     )
                 }
 
@@ -608,7 +611,7 @@ private fun HistorySearchField(
 }
 
 /**
- * Individual History Song item row with artwork, clean truncation, and vertically aligned 3-dot menu.
+ * Individual History Song item row with 56dp artwork, graceful unknown fallback, and aligned 3-dot menu.
  */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -621,6 +624,16 @@ private fun HistorySongItem(
     onLongClick: () -> Unit,
     onMoreClick: () -> Unit
 ) {
+    val context = LocalContext.current
+
+    // Graceful metadata resolution
+    val displayTitle = recent.song.title.takeIf { it.isNotBlank() }
+        ?: recent.song.id.takeIf { it.isNotBlank() }
+        ?: "Unknown Track"
+
+    val displayArtist = recent.song.artist.takeIf { it.isNotBlank() } ?: "<unknown>"
+    val displayTime = getTimeLabel(recent.playedAt)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -632,20 +645,40 @@ private fun HistorySongItem(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Album Artwork with Selection Checkmark Overlay
+        // Album Artwork (56dp square) with neutral placeholder fallback & selection checkmark overlay
         Box(
-            modifier = Modifier.size(52.dp),
+            modifier = Modifier.size(56.dp),
             contentAlignment = Alignment.Center
         ) {
-            AsyncImage(
-                model = recent.song.thumbnailUrl,
-                contentDescription = recent.song.title,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(SquircleShape),
-                contentScale = ContentScale.Crop,
-                alpha = if (isSelected) 0.5f else 1f
-            )
+            if (!recent.song.thumbnailUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(recent.song.thumbnailUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = displayTitle,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(SquircleShape),
+                    contentScale = ContentScale.Crop,
+                    alpha = if (isSelected) 0.45f else 1f
+                )
+            } else {
+                Surface(
+                    shape = SquircleShape,
+                    color = SonzaSurfaceVariant,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.MusicNote,
+                            contentDescription = null,
+                            tint = SonzaOnSurfaceVariant.copy(alpha = 0.45f),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
 
             if (isSelected) {
                 Surface(
@@ -663,22 +696,22 @@ private fun HistorySongItem(
             }
         }
 
-        // Title and Artist + Time Label
+        // Title and Artist • Time metadata column
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
+            verticalArrangement = Arrangement.spacedBy(SpacingTokens.Xxs)
         ) {
             Text(
-                text = recent.song.title,
-                style = SonzaTypography.BodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                text = displayTitle,
+                style = SonzaTypography.SongTitle,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 color = SonzaOnBackground
             )
 
             Text(
-                text = "${recent.song.artist} • ${getTimeLabel(recent.playedAt)}",
-                style = SonzaTypography.BodySmall,
+                text = "$displayArtist • $displayTime",
+                style = SonzaTypography.ArtistSubtitle,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 color = SonzaOnSurfaceVariant
@@ -703,7 +736,7 @@ private fun HistorySongItem(
 }
 
 /**
- * Centered Empty Listening History State.
+ * Centered Empty Listening History State with clear action to return to exploring music.
  */
 @Composable
 private fun EmptyHistoryState(
@@ -769,7 +802,7 @@ private fun EmptyHistoryState(
 }
 
 /**
- * Empty search results state with clear query action.
+ * Empty search results state with quick clear-query action.
  */
 @Composable
 private fun EmptySearchState(
@@ -829,11 +862,11 @@ private fun EmptySearchState(
 }
 
 /**
- * Group timestamps chronologically:
+ * Group timestamps chronologically using user's local timezone:
  * - "Today"
  * - "Yesterday"
- * - "Earlier this week"
- * - "Older dates" (or date labels)
+ * - "MMMM d" (e.g. "August 20") for current calendar year
+ * - "MMMM d, yyyy" for past calendar years
  */
 private fun getDateGroupHeader(timestamp: Long): String {
     val now = Calendar.getInstance()
@@ -849,14 +882,9 @@ private fun getDateGroupHeader(timestamp: Long): String {
         add(Calendar.DAY_OF_YEAR, -1)
     }
 
-    val weekStart = (todayStart.clone() as Calendar).apply {
-        add(Calendar.DAY_OF_YEAR, -6)
-    }
-
     return when {
         timestamp >= todayStart.timeInMillis -> "Today"
         timestamp >= yesterdayStart.timeInMillis -> "Yesterday"
-        timestamp >= weekStart.timeInMillis -> "Earlier this week"
         else -> {
             val itemCal = Calendar.getInstance().apply { timeInMillis = timestamp }
             val nowYear = now.get(Calendar.YEAR)
@@ -871,7 +899,7 @@ private fun getDateGroupHeader(timestamp: Long): String {
 }
 
 /**
- * Formats played timestamp to e.g. "3:45 PM".
+ * Formats played timestamp to localized time label (e.g. "8:22 PM").
  */
 private fun getTimeLabel(timestamp: Long): String {
     return SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(timestamp))

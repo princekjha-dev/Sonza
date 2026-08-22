@@ -59,6 +59,19 @@ import com.sonza.app.ui.theme.SonzaTypography
 import com.sonza.app.ui.theme.SpacingTokens
 import com.sonza.app.util.ImageUtils
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.layout.offset
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
+
 /**
  * Compact floating glass Mini Player component designed to sit centered between
  * small floating circular Home and Search buttons in Sonza's unified bottom UI.
@@ -75,12 +88,20 @@ fun CompactFloatingMiniPlayer(
     onPrevious: () -> Unit = {},
     onClose: () -> Unit = {},
     onTap: () -> Unit,
+    onSwipeDown: () -> Unit = {},
     accentColor: Color,
     userAlpha: Float = 0f,
     artworkShape: String = "ROUNDED_SQUARE",
     modifier: Modifier = Modifier
 ) {
     val pillShape = RoundedCornerShape(26.dp)
+
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    val animatedDragOffset by animateFloatAsState(
+        targetValue = dragOffsetY,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "miniPlayerDragOffset"
+    )
 
     val artShape = when (artworkShape) {
         "CIRCLE", "VINYL" -> CircleShape
@@ -102,6 +123,21 @@ fun CompactFloatingMiniPlayer(
         modifier = modifier
             .fillMaxWidth()
             .height(52.dp)
+            .offset { IntOffset(x = 0, y = animatedDragOffset.roundToInt()) }
+            .draggable(
+                state = rememberDraggableState { delta ->
+                    if (delta > 0f || dragOffsetY > 0f) {
+                        dragOffsetY = (dragOffsetY + delta).coerceIn(0f, 80f)
+                    }
+                },
+                orientation = Orientation.Vertical,
+                onDragStopped = { velocity ->
+                    if (velocity > 350f || dragOffsetY > 30f) {
+                        onSwipeDown()
+                    }
+                    dragOffsetY = 0f
+                }
+            )
             .shadow(
                 elevation = 8.dp,
                 shape = pillShape,

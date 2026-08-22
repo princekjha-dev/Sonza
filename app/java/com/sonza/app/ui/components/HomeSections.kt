@@ -50,6 +50,7 @@ import com.sonza.app.core.model.HomeSectionType
 import com.sonza.app.core.model.PlaylistDisplayItem
 import com.sonza.app.core.model.Song
 import com.sonza.app.ui.theme.*
+import com.sonza.app.ui.utils.carouselSwipeShield
 import com.sonza.app.util.ImageUtils
 
 // -----------------------------------------------------------------------------
@@ -86,6 +87,7 @@ fun HorizontalSquareCardsSection(
         )
 
         LazyRow(
+            modifier = Modifier.carouselSwipeShield(),
             contentPadding = PaddingValues(horizontal = SpacingTokens.SpaceLg),
             horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceMd)
         ) {
@@ -213,6 +215,7 @@ fun CompactSongRowsSection(
         )
 
         LazyRow(
+            modifier = Modifier.carouselSwipeShield(),
             state = listState,
             flingBehavior = rememberSnapFlingBehavior(lazyListState = listState),
             contentPadding = PaddingValues(horizontal = SpacingTokens.SpaceLg),
@@ -354,6 +357,7 @@ fun ChartCardsSection(
         HomeSectionHeader(title = section.title)
 
         LazyRow(
+            modifier = Modifier.carouselSwipeShield(),
             contentPadding = PaddingValues(horizontal = SpacingTokens.SpaceLg),
             horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceMd)
         ) {
@@ -436,6 +440,7 @@ fun VideoCardsSection(
         HomeSectionHeader(title = section.title)
 
         LazyRow(
+            modifier = Modifier.carouselSwipeShield(),
             contentPadding = PaddingValues(horizontal = SpacingTokens.SpaceLg),
             horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceMd)
         ) {
@@ -552,6 +557,7 @@ fun ExploreGridSection(
         HomeSectionHeader(title = section.title)
 
         LazyRow(
+            modifier = Modifier.carouselSwipeShield(),
             contentPadding = PaddingValues(horizontal = SpacingTokens.SpaceLg),
             horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceMd)
         ) {
