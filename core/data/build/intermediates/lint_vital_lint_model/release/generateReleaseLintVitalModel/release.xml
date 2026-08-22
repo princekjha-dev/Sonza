@@ -25,6 +25,6 @@
       type="MAIN"
       applicationId="com.sonza.app.core.data"
       generatedSourceFolders="build/generated/ksp/release/java:build/generated/ksp/release/kotlin:build/generated/ap_generated_sources/release/out"
-      desugaredMethodsFiles="/home/naruto/.gradle/caches/9.5.0/transforms/ffe66e20b96dda23ecc3586cb6ad5668/transformed/D8BackportedDesugaredMethods.txt">
+      desugaredMethodsFiles="/home/naruto/.gradle/caches/9.5.0/transforms/c0137e1b0ef18984b1498a1e7de4ff07/transformed/D8BackportedDesugaredMethods.txt">
   </artifact>
 </variant>

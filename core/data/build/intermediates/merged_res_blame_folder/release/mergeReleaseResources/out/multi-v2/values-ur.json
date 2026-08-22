@@ -4,24 +4,7 @@
             "outputFile": "com.sonza.app.core.data-release-20:/values-ur/values-ur.xml",
             "map": [
                 {
-                    "source": "/home/naruto/.gradle/caches/9.5.0/transforms/e4402011fbad00ab410ba2d40a524db7/transformed/media3-exoplayer-1.10.1/res/values-ur/values-ur.xml",
-                    "from": {
-                        "startLines": "2,3,4,5,6,7,8,9,10",
-                        "startColumns": "4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "55,127,194,266,336,413,484,575,660",
-                        "endColumns": "71,66,71,69,76,70,90,84,78",
-                        "endOffsets": "122,189,261,331,408,479,570,655,734"
-                    },
-                    "to": {
-                        "startLines": "9,10,11,12,13,14,15,16,17",
-                        "startColumns": "4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "776,848,915,987,1057,1134,1205,1296,1381",
-                        "endColumns": "71,66,71,69,76,70,90,84,78",
-                        "endOffsets": "843,910,982,1052,1129,1200,1291,1376,1455"
-                    }
-                },
-                {
-                    "source": "/home/naruto/.gradle/caches/9.5.0/transforms/f9a54329ae538c4cf53073b3ffc52ac1/transformed/core-1.18.0/res/values-ur/values-ur.xml",
+                    "source": "/home/naruto/.gradle/caches/9.5.0/transforms/cd793245f6d0c988121179e229caac11/transformed/core-1.18.0/res/values-ur/values-ur.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",
@@ -35,6 +18,23 @@
                         "startOffsets": "55,153,255,357,461,564,662,1460",
                         "endColumns": "97,101,101,103,102,97,113,100",
                         "endOffsets": "148,250,352,456,559,657,771,1556"
+                    }
+                },
+                {
+                    "source": "/home/naruto/.gradle/caches/9.5.0/transforms/0167249fefa99d525c6126c29b9dbd8e/transformed/media3-exoplayer-1.10.1/res/values-ur/values-ur.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9,10",
+                        "startColumns": "4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,127,194,266,336,413,484,575,660",
+                        "endColumns": "71,66,71,69,76,70,90,84,78",
+                        "endOffsets": "122,189,261,331,408,479,570,655,734"
+                    },
+                    "to": {
+                        "startLines": "9,10,11,12,13,14,15,16,17",
+                        "startColumns": "4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "776,848,915,987,1057,1134,1205,1296,1381",
+                        "endColumns": "71,66,71,69,76,70,90,84,78",
+                        "endOffsets": "843,910,982,1052,1129,1200,1291,1376,1455"
                     }
                 }
             ]
@@ -43,24 +43,7 @@
             "outputFile": "com.sonza.app.core.data-mergeReleaseResources-18:/values-ur/values-ur.xml",
             "map": [
                 {
-                    "source": "/home/naruto/.gradle/caches/9.5.0/transforms/e4402011fbad00ab410ba2d40a524db7/transformed/media3-exoplayer-1.10.1/res/values-ur/values-ur.xml",
-                    "from": {
-                        "startLines": "2,3,4,5,6,7,8,9,10",
-                        "startColumns": "4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "55,127,194,266,336,413,484,575,660",
-                        "endColumns": "71,66,71,69,76,70,90,84,78",
-                        "endOffsets": "122,189,261,331,408,479,570,655,734"
-                    },
-                    "to": {
-                        "startLines": "9,10,11,12,13,14,15,16,17",
-                        "startColumns": "4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "776,848,915,987,1057,1134,1205,1296,1381",
-                        "endColumns": "71,66,71,69,76,70,90,84,78",
-                        "endOffsets": "843,910,982,1052,1129,1200,1291,1376,1455"
-                    }
-                },
-                {
-                    "source": "/home/naruto/.gradle/caches/9.5.0/transforms/f9a54329ae538c4cf53073b3ffc52ac1/transformed/core-1.18.0/res/values-ur/values-ur.xml",
+                    "source": "/home/naruto/.gradle/caches/9.5.0/transforms/cd793245f6d0c988121179e229caac11/transformed/core-1.18.0/res/values-ur/values-ur.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",
@@ -74,6 +57,23 @@
                         "startOffsets": "55,153,255,357,461,564,662,1460",
                         "endColumns": "97,101,101,103,102,97,113,100",
                         "endOffsets": "148,250,352,456,559,657,771,1556"
+                    }
+                },
+                {
+                    "source": "/home/naruto/.gradle/caches/9.5.0/transforms/0167249fefa99d525c6126c29b9dbd8e/transformed/media3-exoplayer-1.10.1/res/values-ur/values-ur.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9,10",
+                        "startColumns": "4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,127,194,266,336,413,484,575,660",
+                        "endColumns": "71,66,71,69,76,70,90,84,78",
+                        "endOffsets": "122,189,261,331,408,479,570,655,734"
+                    },
+                    "to": {
+                        "startLines": "9,10,11,12,13,14,15,16,17",
+                        "startColumns": "4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "776,848,915,987,1057,1134,1205,1296,1381",
+                        "endColumns": "71,66,71,69,76,70,90,84,78",
+                        "endOffsets": "843,910,982,1052,1129,1200,1291,1376,1455"
                     }
                 }
             ]

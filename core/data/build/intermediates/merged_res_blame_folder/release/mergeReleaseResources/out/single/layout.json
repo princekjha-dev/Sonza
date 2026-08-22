@@ -1,38 +1,38 @@
 [
     {
         "merged": "com.sonza.app.core.data-release-20:/layout/notification_template_custom_big.xml",
-        "source": "com.sonza.app.core.data-core-1.18.0-17:/layout/notification_template_custom_big.xml"
+        "source": "com.sonza.app.core.data-core-1.18.0-14:/layout/notification_template_custom_big.xml"
     },
     {
         "merged": "com.sonza.app.core.data-release-20:/layout/ime_secondary_split_test_activity.xml",
-        "source": "com.sonza.app.core.data-core-1.18.0-17:/layout/ime_secondary_split_test_activity.xml"
+        "source": "com.sonza.app.core.data-core-1.18.0-14:/layout/ime_secondary_split_test_activity.xml"
     },
     {
         "merged": "com.sonza.app.core.data-release-20:/layout/custom_dialog.xml",
-        "source": "com.sonza.app.core.data-core-1.18.0-17:/layout/custom_dialog.xml"
+        "source": "com.sonza.app.core.data-core-1.18.0-14:/layout/custom_dialog.xml"
     },
     {
         "merged": "com.sonza.app.core.data-release-20:/layout/notification_action.xml",
-        "source": "com.sonza.app.core.data-core-1.18.0-17:/layout/notification_action.xml"
+        "source": "com.sonza.app.core.data-core-1.18.0-14:/layout/notification_action.xml"
     },
     {
         "merged": "com.sonza.app.core.data-release-20:/layout/notification_action_tombstone.xml",
-        "source": "com.sonza.app.core.data-core-1.18.0-17:/layout/notification_action_tombstone.xml"
+        "source": "com.sonza.app.core.data-core-1.18.0-14:/layout/notification_action_tombstone.xml"
     },
     {
         "merged": "com.sonza.app.core.data-release-20:/layout/notification_template_icon_group.xml",
-        "source": "com.sonza.app.core.data-core-1.18.0-17:/layout/notification_template_icon_group.xml"
+        "source": "com.sonza.app.core.data-core-1.18.0-14:/layout/notification_template_icon_group.xml"
     },
     {
         "merged": "com.sonza.app.core.data-release-20:/layout/ime_base_split_test_activity.xml",
-        "source": "com.sonza.app.core.data-core-1.18.0-17:/layout/ime_base_split_test_activity.xml"
+        "source": "com.sonza.app.core.data-core-1.18.0-14:/layout/ime_base_split_test_activity.xml"
     },
     {
         "merged": "com.sonza.app.core.data-release-20:/layout/notification_template_part_time.xml",
-        "source": "com.sonza.app.core.data-core-1.18.0-17:/layout/notification_template_part_time.xml"
+        "source": "com.sonza.app.core.data-core-1.18.0-14:/layout/notification_template_part_time.xml"
     },
     {
         "merged": "com.sonza.app.core.data-release-20:/layout/notification_template_part_chronometer.xml",
-        "source": "com.sonza.app.core.data-core-1.18.0-17:/layout/notification_template_part_chronometer.xml"
+        "source": "com.sonza.app.core.data-core-1.18.0-14:/layout/notification_template_part_chronometer.xml"
     }
 ]

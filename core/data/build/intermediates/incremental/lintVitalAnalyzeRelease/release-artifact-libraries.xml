@@ -1,9 +1,9 @@
 <libraries>
   <library
       name=":@@:core:model"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/2b7f23a8d860f231d83d0be214ab55e9/transformed/out/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/2295d57b1ba9cd76d132dfd56458e78c/transformed/out/jars/classes.jar"
       resolved="artifacts:core:model:unspecified"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/2b7f23a8d860f231d83d0be214ab55e9/transformed/out"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/2295d57b1ba9cd76d132dfd56458e78c/transformed/out"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -14,9 +14,9 @@
       proguardRules="proguard.txt"/>
   <library
       name=":@@:core:domain"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/af1a6337bc01f3bc2e41d131bd9d8801/transformed/out/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/2847627ec8732366d38067e858001932/transformed/out/jars/classes.jar"
       resolved="artifacts:core:domain:unspecified"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/af1a6337bc01f3bc2e41d131bd9d8801/transformed/out"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/2847627ec8732366d38067e858001932/transformed/out"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -27,9 +27,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="com.google.dagger:hilt-android:2.59.1@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/5ddeca2e3fed37b2cd952fddce922e01/transformed/hilt-android-2.59.1/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/4adb0644d9e2d8804f9759427b7c4220/transformed/hilt-android-2.59.1/jars/classes.jar"
       resolved="com.google.dagger:hilt-android:2.59.1"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/5ddeca2e3fed37b2cd952fddce922e01/transformed/hilt-android-2.59.1"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/4adb0644d9e2d8804f9759427b7c4220/transformed/hilt-android-2.59.1"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -40,9 +40,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.fragment:fragment:1.5.1@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/1cc7a3fa963774b6d36c99983fd38c0d/transformed/fragment-1.5.1/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/124f38df2346c08f6007a5db63a0ab76/transformed/fragment-1.5.1/jars/classes.jar"
       resolved="androidx.fragment:fragment:1.5.1"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/1cc7a3fa963774b6d36c99983fd38c0d/transformed/fragment-1.5.1"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/124f38df2346c08f6007a5db63a0ab76/transformed/fragment-1.5.1"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -53,9 +53,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.activity:activity:1.5.1@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/e84dde97cfde09d70befc6c2afb3497b/transformed/activity-1.5.1/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/8cd4f4c2eb743d908386ad2f22c9441b/transformed/activity-1.5.1/jars/classes.jar"
       resolved="androidx.activity:activity:1.5.1"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/e84dde97cfde09d70befc6c2afb3497b/transformed/activity-1.5.1"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/8cd4f4c2eb743d908386ad2f22c9441b/transformed/activity-1.5.1"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -66,9 +66,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.loader:loader:1.0.0@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/5f5f0c7e6d34f2dab03d504796b73efd/transformed/loader-1.0.0/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/58b0ef341538f201b42af1186bfcbdda/transformed/loader-1.0.0/jars/classes.jar"
       resolved="androidx.loader:loader:1.0.0"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/5f5f0c7e6d34f2dab03d504796b73efd/transformed/loader-1.0.0"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/58b0ef341538f201b42af1186bfcbdda/transformed/loader-1.0.0"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -79,9 +79,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.viewpager:viewpager:1.0.0@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/c4f80927a1fe464f693eeaad832472f8/transformed/viewpager-1.0.0/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/09d746450731bdfca6106a649e6c0106/transformed/viewpager-1.0.0/jars/classes.jar"
       resolved="androidx.viewpager:viewpager:1.0.0"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/c4f80927a1fe464f693eeaad832472f8/transformed/viewpager-1.0.0"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/09d746450731bdfca6106a649e6c0106/transformed/viewpager-1.0.0"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -92,9 +92,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.customview:customview:1.0.0@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/e7f6de19a10016559442c3e08299b658/transformed/customview-1.0.0/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/39ff98f2db34ee38392cc6d78ba8966f/transformed/customview-1.0.0/jars/classes.jar"
       resolved="androidx.customview:customview:1.0.0"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/e7f6de19a10016559442c3e08299b658/transformed/customview-1.0.0"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/39ff98f2db34ee38392cc6d78ba8966f/transformed/customview-1.0.0"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -105,9 +105,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.core:core:1.18.0@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/f9a54329ae538c4cf53073b3ffc52ac1/transformed/core-1.18.0/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/cd793245f6d0c988121179e229caac11/transformed/core-1.18.0/jars/classes.jar"
       resolved="androidx.core:core:1.18.0"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/f9a54329ae538c4cf53073b3ffc52ac1/transformed/core-1.18.0"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/cd793245f6d0c988121179e229caac11/transformed/core-1.18.0"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -118,9 +118,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.lifecycle:lifecycle-livedata:2.6.2@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/7c7de5819c02e36dd3fde9f2abb50115/transformed/lifecycle-livedata-2.6.2/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/fe9e7dee6d6340f2efcba5221517520c/transformed/lifecycle-livedata-2.6.2/jars/classes.jar"
       resolved="androidx.lifecycle:lifecycle-livedata:2.6.2"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/7c7de5819c02e36dd3fde9f2abb50115/transformed/lifecycle-livedata-2.6.2"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/fe9e7dee6d6340f2efcba5221517520c/transformed/lifecycle-livedata-2.6.2"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -131,9 +131,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.lifecycle:lifecycle-viewmodel:2.6.2@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/72f7dea72d206f49c81b3ee4b6a227bd/transformed/lifecycle-viewmodel-2.6.2/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/433851e4b5fb86b379ec1905014f39c9/transformed/lifecycle-viewmodel-2.6.2/jars/classes.jar"
       resolved="androidx.lifecycle:lifecycle-viewmodel:2.6.2"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/72f7dea72d206f49c81b3ee4b6a227bd/transformed/lifecycle-viewmodel-2.6.2"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/433851e4b5fb86b379ec1905014f39c9/transformed/lifecycle-viewmodel-2.6.2"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -144,9 +144,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.lifecycle:lifecycle-livedata-core:2.6.2@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/de56b92fe30fd5e948b52618eed11cd0/transformed/lifecycle-livedata-core-2.6.2/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/eea323ffa4969f55b029d6306085060b/transformed/lifecycle-livedata-core-2.6.2/jars/classes.jar"
       resolved="androidx.lifecycle:lifecycle-livedata-core:2.6.2"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/de56b92fe30fd5e948b52618eed11cd0/transformed/lifecycle-livedata-core-2.6.2"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/eea323ffa4969f55b029d6306085060b/transformed/lifecycle-livedata-core-2.6.2"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -157,9 +157,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.lifecycle:lifecycle-runtime:2.6.2@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/8d9e93c8ee739915302ccba3b146136d/transformed/lifecycle-runtime-2.6.2/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/0d86cc94c97775fc192e256104f44890/transformed/lifecycle-runtime-2.6.2/jars/classes.jar"
       resolved="androidx.lifecycle:lifecycle-runtime:2.6.2"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/8d9e93c8ee739915302ccba3b146136d/transformed/lifecycle-runtime-2.6.2"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/0d86cc94c97775fc192e256104f44890/transformed/lifecycle-runtime-2.6.2"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -174,9 +174,9 @@
       resolved="androidx.lifecycle:lifecycle-common:2.6.2"/>
   <library
       name="androidx.lifecycle:lifecycle-viewmodel-savedstate:2.6.2@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/3aa1631a7cae0e3a37ed17e3462a5a3a/transformed/lifecycle-viewmodel-savedstate-2.6.2/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/b646ab1c66e77fd5638ec2dc0d62f42f/transformed/lifecycle-viewmodel-savedstate-2.6.2/jars/classes.jar"
       resolved="androidx.lifecycle:lifecycle-viewmodel-savedstate:2.6.2"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/3aa1631a7cae0e3a37ed17e3462a5a3a/transformed/lifecycle-viewmodel-savedstate-2.6.2"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/b646ab1c66e77fd5638ec2dc0d62f42f/transformed/lifecycle-viewmodel-savedstate-2.6.2"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -187,9 +187,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.core:core-ktx:1.18.0@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/b8be680e6b70ff3eec420815195fe49a/transformed/core-ktx-1.18.0/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/0fbe94e7cd2733040d7de28d61869520/transformed/core-ktx-1.18.0/jars/classes.jar"
       resolved="androidx.core:core-ktx:1.18.0"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/b8be680e6b70ff3eec420815195fe49a/transformed/core-ktx-1.18.0"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/0fbe94e7cd2733040d7de28d61869520/transformed/core-ktx-1.18.0"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -204,9 +204,9 @@
       resolved="androidx.room:room-common-jvm:2.8.4"/>
   <library
       name="androidx.room:room-runtime-android:2.8.4@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/080314500cca769fb121b08ba871ee85/transformed/room-runtime/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/34dcf434bf447c42c0fd0883aef9b168/transformed/room-runtime/jars/classes.jar"
       resolved="androidx.room:room-runtime-android:2.8.4"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/080314500cca769fb121b08ba871ee85/transformed/room-runtime"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/34dcf434bf447c42c0fd0883aef9b168/transformed/room-runtime"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -217,9 +217,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.room:room-ktx:2.8.4@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/b471edcffffff1512a7fb33d7e422007/transformed/room-ktx-2.8.4/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/26e13013a8f10d3e6b7e208655802e71/transformed/room-ktx-2.8.4/jars/classes.jar"
       resolved="androidx.room:room-ktx:2.8.4"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/b471edcffffff1512a7fb33d7e422007/transformed/room-ktx-2.8.4"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/26e13013a8f10d3e6b7e208655802e71/transformed/room-ktx-2.8.4"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -230,10 +230,10 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.annotation:annotation-experimental:1.4.1@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/30f468f3be0278bee2e16acb44878d99/transformed/annotation-experimental-1.4.1/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/9580fd62dfc8b9fdec199dc8f2c97781/transformed/annotation-experimental-1.4.1/jars/classes.jar"
       resolved="androidx.annotation:annotation-experimental:1.4.1"
       provided="true"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/30f468f3be0278bee2e16acb44878d99/transformed/annotation-experimental-1.4.1"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/9580fd62dfc8b9fdec199dc8f2c97781/transformed/annotation-experimental-1.4.1"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -244,9 +244,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.core:core-viewtree:1.0.0@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/9a5ef8ed8c41dc3868bb7d7c0affbba3/transformed/core-viewtree-1.0.0/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/a2a7d765dfa7f20e8263a7c398a389b0/transformed/core-viewtree-1.0.0/jars/classes.jar"
       resolved="androidx.core:core-viewtree:1.0.0"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/9a5ef8ed8c41dc3868bb7d7c0affbba3/transformed/core-viewtree-1.0.0"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/a2a7d765dfa7f20e8263a7c398a389b0/transformed/core-viewtree-1.0.0"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -265,9 +265,9 @@
       resolved="org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.9.0"/>
   <library
       name="androidx.versionedparcelable:versionedparcelable:1.1.1@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/f9a727b4385d8ed6c570db2fad34f61f/transformed/versionedparcelable-1.1.1/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/d47aef45d862485ab11d7d74c247d44b/transformed/versionedparcelable-1.1.1/jars/classes.jar"
       resolved="androidx.versionedparcelable:versionedparcelable:1.1.1"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/f9a727b4385d8ed6c570db2fad34f61f/transformed/versionedparcelable-1.1.1"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/d47aef45d862485ab11d7d74c247d44b/transformed/versionedparcelable-1.1.1"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -278,10 +278,10 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.arch.core:core-runtime:2.1.0@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/b17e60eedfd18941c301e6d1299d23e7/transformed/core-runtime-2.1.0/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/25688bb2f9fae3af2034d713d2d885f0/transformed/core-runtime-2.1.0/jars/classes.jar"
       resolved="androidx.arch.core:core-runtime:2.1.0"
       provided="true"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/b17e60eedfd18941c301e6d1299d23e7/transformed/core-runtime-2.1.0"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/25688bb2f9fae3af2034d713d2d885f0/transformed/core-runtime-2.1.0"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -300,9 +300,9 @@
       resolved="androidx.collection:collection-jvm:1.5.0"/>
   <library
       name="androidx.sqlite:sqlite-framework-android:2.6.2@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/47218da3f9f4664a23034af152db039b/transformed/sqlite-framework/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/ef48829b6b90914186a08153d7a79568/transformed/sqlite-framework/jars/classes.jar"
       resolved="androidx.sqlite:sqlite-framework-android:2.6.2"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/47218da3f9f4664a23034af152db039b/transformed/sqlite-framework"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/ef48829b6b90914186a08153d7a79568/transformed/sqlite-framework"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -313,9 +313,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.sqlite:sqlite-android:2.6.2@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/15be8e9567abd3f95c394e003b8ab9d6/transformed/sqlite/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/2cea4933dc31fa1eb4c7a9b3b9ef2a5e/transformed/sqlite/jars/classes.jar"
       resolved="androidx.sqlite:sqlite-android:2.6.2"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/15be8e9567abd3f95c394e003b8ab9d6/transformed/sqlite"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/2cea4933dc31fa1eb4c7a9b3b9ef2a5e/transformed/sqlite"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -326,9 +326,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.savedstate:savedstate:1.2.1@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/9c34f2992926404ba49aa1e1cc860e1f/transformed/savedstate-1.2.1/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/87bb63349af8964580863a2f6b6e7d23/transformed/savedstate-1.2.1/jars/classes.jar"
       resolved="androidx.savedstate:savedstate:1.2.1"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/9c34f2992926404ba49aa1e1cc860e1f/transformed/savedstate-1.2.1"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/87bb63349af8964580863a2f6b6e7d23/transformed/savedstate-1.2.1"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -359,9 +359,9 @@
       resolved="com.google.dagger:dagger:2.59.1"/>
   <library
       name="com.google.dagger:dagger-lint-aar:2.59.1@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/ae8a60a078460fc9ee251cd75fe481cc/transformed/dagger-lint-aar-2.59.1/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/2903062271fbcbd5ccc500dc9b7f9d91/transformed/dagger-lint-aar-2.59.1/jars/classes.jar"
       resolved="com.google.dagger:dagger-lint-aar:2.59.1"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/ae8a60a078460fc9ee251cd75fe481cc/transformed/dagger-lint-aar-2.59.1"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/2903062271fbcbd5ccc500dc9b7f9d91/transformed/dagger-lint-aar-2.59.1"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -393,9 +393,9 @@
       resolved="jakarta.inject:jakarta.inject-api:2.0.1"/>
   <library
       name="androidx.media3:media3-extractor:1.10.1@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/fb78ddc5ab693fb49cea0f19801b4613/transformed/media3-extractor-1.10.1/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/2075b6bf3d728aa22998eb75c13d0966/transformed/media3-extractor-1.10.1/jars/classes.jar"
       resolved="androidx.media3:media3-extractor:1.10.1"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/fb78ddc5ab693fb49cea0f19801b4613/transformed/media3-extractor-1.10.1"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/2075b6bf3d728aa22998eb75c13d0966/transformed/media3-extractor-1.10.1"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -406,9 +406,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.media3:media3-container:1.10.1@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/6bd436a829662b567e911da23ebbc148/transformed/media3-container-1.10.1/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/445c017357efacc609640ad7dceb6299/transformed/media3-container-1.10.1/jars/classes.jar"
       resolved="androidx.media3:media3-container:1.10.1"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/6bd436a829662b567e911da23ebbc148/transformed/media3-container-1.10.1"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/445c017357efacc609640ad7dceb6299/transformed/media3-container-1.10.1"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -419,9 +419,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.media3:media3-datasource:1.10.1@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/80f0d5507dcca16b4cf5766ced251970/transformed/media3-datasource-1.10.1/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/5813ebe763ae950c69cadc4421a44a1b/transformed/media3-datasource-1.10.1/jars/classes.jar"
       resolved="androidx.media3:media3-datasource:1.10.1"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/80f0d5507dcca16b4cf5766ced251970/transformed/media3-datasource-1.10.1"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/5813ebe763ae950c69cadc4421a44a1b/transformed/media3-datasource-1.10.1"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -432,9 +432,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.media3:media3-decoder:1.10.1@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/ff9c742cf6c0bf4c74bb2fc899f5d5d7/transformed/media3-decoder-1.10.1/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/df2b0f86ba17f32e8d2913b604a9223e/transformed/media3-decoder-1.10.1/jars/classes.jar"
       resolved="androidx.media3:media3-decoder:1.10.1"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/ff9c742cf6c0bf4c74bb2fc899f5d5d7/transformed/media3-decoder-1.10.1"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/df2b0f86ba17f32e8d2913b604a9223e/transformed/media3-decoder-1.10.1"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -445,9 +445,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.media3:media3-database:1.10.1@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/572488c93bb6048eb887059e94beb29c/transformed/media3-database-1.10.1/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/de650d4aadf3c3998319f183592be74f/transformed/media3-database-1.10.1/jars/classes.jar"
       resolved="androidx.media3:media3-database:1.10.1"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/572488c93bb6048eb887059e94beb29c/transformed/media3-database-1.10.1"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/de650d4aadf3c3998319f183592be74f/transformed/media3-database-1.10.1"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -458,9 +458,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.media3:media3-common:1.10.1@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/b3a679c17fdd81295a0a7f723d7f741e/transformed/media3-common-1.10.1/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/277ac72b7cc88c20801677383dddea3c/transformed/media3-common-1.10.1/jars/classes.jar"
       resolved="androidx.media3:media3-common:1.10.1"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/b3a679c17fdd81295a0a7f723d7f741e/transformed/media3-common-1.10.1"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/277ac72b7cc88c20801677383dddea3c/transformed/media3-common-1.10.1"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -471,9 +471,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.media3:media3-exoplayer:1.10.1@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/e4402011fbad00ab410ba2d40a524db7/transformed/media3-exoplayer-1.10.1/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/0167249fefa99d525c6126c29b9dbd8e/transformed/media3-exoplayer-1.10.1/jars/classes.jar"
       resolved="androidx.media3:media3-exoplayer:1.10.1"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/e4402011fbad00ab410ba2d40a524db7/transformed/media3-exoplayer-1.10.1"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/0167249fefa99d525c6126c29b9dbd8e/transformed/media3-exoplayer-1.10.1"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -488,9 +488,9 @@
       resolved="org.jetbrains.kotlinx:kotlinx-datetime-jvm:0.7.1"/>
   <library
       name="androidx.annotation:annotation-experimental:1.5.0@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/e989c2c8dbbd6e4748f12d9784d8dc1d/transformed/annotation-experimental-1.5.0/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/cfb9ceffbfc96493b6912bf9f0fb9b9b/transformed/annotation-experimental-1.5.0/jars/classes.jar"
       resolved="androidx.annotation:annotation-experimental:1.5.0"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/e989c2c8dbbd6e4748f12d9784d8dc1d/transformed/annotation-experimental-1.5.0"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/cfb9ceffbfc96493b6912bf9f0fb9b9b/transformed/annotation-experimental-1.5.0"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -501,9 +501,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.exifinterface:exifinterface:1.3.6@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/a7608583db3a6c50a3c39be2c10f7003/transformed/exifinterface-1.3.6/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/6ce06f67ca73c7cfc5abc6353b0eeac9/transformed/exifinterface-1.3.6/jars/classes.jar"
       resolved="androidx.exifinterface:exifinterface:1.3.6"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/a7608583db3a6c50a3c39be2c10f7003/transformed/exifinterface-1.3.6"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/6ce06f67ca73c7cfc5abc6353b0eeac9/transformed/exifinterface-1.3.6"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -514,9 +514,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.interpolator:interpolator:1.0.0@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/d94e8d180aee816b04ad656fc4f06240/transformed/interpolator-1.0.0/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/0363a4591c8750b2335d66f01a850a2d/transformed/interpolator-1.0.0/jars/classes.jar"
       resolved="androidx.interpolator:interpolator:1.0.0"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/d94e8d180aee816b04ad656fc4f06240/transformed/interpolator-1.0.0"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/0363a4591c8750b2335d66f01a850a2d/transformed/interpolator-1.0.0"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -527,9 +527,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.profileinstaller:profileinstaller:1.3.0@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/e6b0415d7d8a5bb0e02894808132781d/transformed/profileinstaller-1.3.0/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/28e04392577c34455ca678914e084a16/transformed/profileinstaller-1.3.0/jars/classes.jar"
       resolved="androidx.profileinstaller:profileinstaller:1.3.0"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/e6b0415d7d8a5bb0e02894808132781d/transformed/profileinstaller-1.3.0"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/28e04392577c34455ca678914e084a16/transformed/profileinstaller-1.3.0"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -540,9 +540,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.startup:startup-runtime:1.1.1@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/bf42fd0283287ef335dd5cb61414e8c1/transformed/startup-runtime-1.1.1/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/83f52c94479bbd2640e35a8fd7ed1a48/transformed/startup-runtime-1.1.1/jars/classes.jar"
       resolved="androidx.startup:startup-runtime:1.1.1"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/bf42fd0283287ef335dd5cb61414e8c1/transformed/startup-runtime-1.1.1"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/83f52c94479bbd2640e35a8fd7ed1a48/transformed/startup-runtime-1.1.1"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -553,9 +553,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.tracing:tracing:1.2.0@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/2e37f9d54ac74e061fbc51ab0cd193b0/transformed/tracing-1.2.0/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/9b3a470c92b3649ef5b138409e9feb5c/transformed/tracing-1.2.0/jars/classes.jar"
       resolved="androidx.tracing:tracing:1.2.0"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/2e37f9d54ac74e061fbc51ab0cd193b0/transformed/tracing-1.2.0"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/9b3a470c92b3649ef5b138409e9feb5c/transformed/tracing-1.2.0"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
@@ -566,9 +566,9 @@
       proguardRules="proguard.txt"/>
   <library
       name="androidx.arch.core:core-runtime:2.2.0@aar"
-      jars="/home/naruto/.gradle/caches/9.5.0/transforms/3cc50bf9b95ebb146d3981374ddb199e/transformed/core-runtime-2.2.0/jars/classes.jar"
+      jars="/home/naruto/.gradle/caches/9.5.0/transforms/92fc701929bccd6f36e3587136bf15eb/transformed/core-runtime-2.2.0/jars/classes.jar"
       resolved="androidx.arch.core:core-runtime:2.2.0"
-      folder="/home/naruto/.gradle/caches/9.5.0/transforms/3cc50bf9b95ebb146d3981374ddb199e/transformed/core-runtime-2.2.0"
+      folder="/home/naruto/.gradle/caches/9.5.0/transforms/92fc701929bccd6f36e3587136bf15eb/transformed/core-runtime-2.2.0"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"

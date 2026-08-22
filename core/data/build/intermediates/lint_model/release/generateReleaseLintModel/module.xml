@@ -1,6 +1,6 @@
 <lint-module
     format="1"
-    dir="/home/naruto/Downloads/SONZA/core/data"
+    dir="/home/naruto/Downloads/Sonza/core/data"
     name=":core:data"
     type="LIBRARY"
     maven="Sonza.core:data:unspecified"
