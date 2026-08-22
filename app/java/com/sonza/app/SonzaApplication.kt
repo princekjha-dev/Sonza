@@ -208,19 +208,22 @@ class SonzaApplication : Application(), SingletonImageLoader.Factory, androidx.w
     private fun seedLogoVariantMirrorIfMissing() {
         val prefs = getSharedPreferences("sonza_branding", Context.MODE_PRIVATE)
         if (prefs.getString("logo_variant", null) != null) return
-        val variantName = try {
-            kotlinx.coroutines.runBlocking {
-                sessionManager.getLogoVariant().name
+        val defaultVariant = com.sonza.app.core.model.LogoVariant.DEFAULT.name
+        prefs.edit().putString("logo_variant", defaultVariant).apply()
+        applicationScope.launch {
+            try {
+                val variant = sessionManager.getLogoVariant().name
+                if (variant != defaultVariant) {
+                    prefs.edit().putString("logo_variant", variant).apply()
+                }
+            } catch (e: Exception) {
+                android.util.Log.w(
+                    "SonzaApplication",
+                    "Could not read LogoVariant from DataStore for splash mirror seed",
+                    e,
+                )
             }
-        } catch (e: Exception) {
-            android.util.Log.w(
-                "SonzaApplication",
-                "Could not read LogoVariant from DataStore for splash mirror seed",
-                e,
-            )
-            com.sonza.app.core.model.LogoVariant.DEFAULT.name
         }
-        prefs.edit().putString("logo_variant", variantName).commit()
     }
 
     private fun setupWorkers() {

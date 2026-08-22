@@ -702,17 +702,94 @@ class MusicPlayer @Inject constructor(
         controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
         controllerFuture?.addListener({
             try {
-                mediaController = controllerFuture?.get()
-                mediaController?.addListener(playerListener)
+                val controller = controllerFuture?.get()
+                mediaController = controller
+                controller?.addListener(playerListener)
                 
-                // Restore state if player has media
-                if (mediaController?.mediaItemCount ?: 0 > 0) {
-                    startPositionUpdates()
+                // Immediately synchronize complete playback state from existing service session
+                if (controller != null && controller.mediaItemCount > 0) {
+                    syncStateFromController(controller)
                 }
             } catch (e: Exception) {
                 _playerState.update { it.copy(error = "Failed to connect to music service") }
             }
         }, MoreExecutors.directExecutor())
+    }
+
+    /**
+     * Synchronize complete playback state (current track, queue, position, play/pause,
+     * repeat, shuffle) when reconnecting to an already-running MusicPlayerService instance
+     * (e.g. after the app is reopened from Recent Apps).
+     */
+    private fun syncStateFromController(controller: MediaController) {
+        val itemCount = controller.mediaItemCount
+        if (itemCount <= 0) return
+
+        val currentIndex = controller.currentMediaItemIndex
+        val currentItem = controller.currentMediaItem
+        val isPlaying = controller.isPlaying
+        val playbackState = controller.playbackState
+        val currentPosition = controller.currentPosition.coerceAtLeast(0L)
+        val duration = if (controller.duration > 0 && controller.duration != androidx.media3.common.C.TIME_UNSET) controller.duration else 0L
+
+        val repeatMode = when (controller.repeatMode) {
+            Player.REPEAT_MODE_OFF -> RepeatMode.OFF
+            Player.REPEAT_MODE_ALL -> RepeatMode.ALL
+            Player.REPEAT_MODE_ONE -> RepeatMode.ONE
+            else -> RepeatMode.OFF
+        }
+        val shuffleEnabled = controller.shuffleModeEnabled
+
+        // Reconstruct accurate queue from media items
+        val queue = mutableListOf<Song>()
+        for (i in 0 until itemCount) {
+            val item = controller.getMediaItemAt(i)
+            val dur = if (i == currentIndex && duration > 0) duration else 0L
+            val song = Song(
+                id = item.mediaId,
+                title = item.mediaMetadata.title?.toString() ?: "",
+                artist = item.mediaMetadata.artist?.toString() ?: "",
+                album = item.mediaMetadata.albumTitle?.toString() ?: "",
+                duration = dur,
+                thumbnailUrl = item.mediaMetadata.artworkUri?.toString(),
+                source = SongSource.YOUTUBE
+            )
+            queue.add(song)
+        }
+
+        var currentSong = queue.getOrNull(currentIndex)
+        if (currentSong == null && currentItem != null) {
+            currentSong = Song(
+                id = currentItem.mediaId,
+                title = currentItem.mediaMetadata.title?.toString() ?: "",
+                artist = currentItem.mediaMetadata.artist?.toString() ?: "",
+                album = currentItem.mediaMetadata.albumTitle?.toString() ?: "",
+                duration = duration,
+                thumbnailUrl = currentItem.mediaMetadata.artworkUri?.toString(),
+                source = SongSource.YOUTUBE
+            )
+        }
+
+        val finalCurrentSong = currentSong
+
+        _playerState.update { current ->
+            current.copy(
+                currentSong = finalCurrentSong ?: current.currentSong,
+                currentIndex = if (currentIndex >= 0) currentIndex else current.currentIndex,
+                currentPosition = currentPosition,
+                duration = if (duration > 0) duration else current.duration,
+                isPlaying = isPlaying,
+                isLoading = playbackState == Player.STATE_BUFFERING,
+                repeatMode = repeatMode,
+                shuffleEnabled = shuffleEnabled,
+                queue = if (queue.isNotEmpty()) queue else current.queue
+            )
+        }
+
+        if (isPlaying || currentPosition > 0 || (finalCurrentSong != null && duration > 0)) {
+            startPositionUpdates()
+        }
+        updateAudioFormatInfo()
     }
     
     private val playerListener = object : Player.Listener {

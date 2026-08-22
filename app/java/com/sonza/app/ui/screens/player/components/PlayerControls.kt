@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Lyrics
@@ -183,7 +184,7 @@ fun MainPlaybackControls(
 }
 
 /**
- * Secondary Controls Row: [Lyrics] [Shuffle] [Repeat] [Equalizer/Device] [Queue]
+ * Secondary Controls Row: [Shuffle] [Repeat] [Lyrics] [Devices] [Queue]
  */
 @Composable
 fun SecondaryPlayerControls(
@@ -197,6 +198,7 @@ fun SecondaryPlayerControls(
     onShowLyrics: () -> Unit,
     dominantColors: DominantColors,
     modifier: Modifier = Modifier,
+    onShowDevices: (() -> Unit)? = null,
     onShowEqualizer: (() -> Unit)? = null
 ) {
     val haptics = com.sonza.app.ui.utils.rememberHaptics()
@@ -208,30 +210,15 @@ fun SecondaryPlayerControls(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Lyrics Button
-        Box(
-            modifier = Modifier
-                .size(buttonSize)
-                .clip(CircleShape)
-                .bounceClick(scaleDown = MotionTokens.CardTapScale) {
-                    haptics.tick()
-                    onShowLyrics()
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Lyrics,
-                contentDescription = "Lyrics",
-                tint = dominantColors.onBackground.copy(alpha = 0.7f),
-                modifier = Modifier.size(iconSize)
-            )
-        }
-
         // Shuffle Button
         Box(
             modifier = Modifier
                 .size(buttonSize)
                 .clip(CircleShape)
+                .background(
+                    if (shuffleEnabled) dominantColors.accent.copy(alpha = 0.16f)
+                    else dominantColors.onBackground.copy(alpha = 0.08f)
+                )
                 .bounceClick(scaleDown = MotionTokens.CardTapScale) {
                     haptics.tick()
                     onShuffleToggle()
@@ -241,7 +228,7 @@ fun SecondaryPlayerControls(
             Icon(
                 imageVector = Icons.Default.Shuffle,
                 contentDescription = if (shuffleEnabled) "Shuffle on" else "Shuffle off",
-                tint = if (shuffleEnabled) dominantColors.accent else dominantColors.onBackground.copy(alpha = 0.7f),
+                tint = if (shuffleEnabled) dominantColors.accent else dominantColors.onBackground.copy(alpha = 0.85f),
                 modifier = Modifier.size(iconSize)
             )
         }
@@ -251,6 +238,10 @@ fun SecondaryPlayerControls(
             modifier = Modifier
                 .size(buttonSize)
                 .clip(CircleShape)
+                .background(
+                    if (repeatMode != RepeatMode.OFF) dominantColors.accent.copy(alpha = 0.16f)
+                    else dominantColors.onBackground.copy(alpha = 0.08f)
+                )
                 .bounceClick(scaleDown = MotionTokens.CardTapScale) {
                     haptics.tick()
                     onRepeatToggle()
@@ -275,7 +266,49 @@ fun SecondaryPlayerControls(
                         RepeatMode.ALL -> "Repeat all"
                         RepeatMode.OFF -> "Repeat off"
                     },
-                    tint = if (mode != RepeatMode.OFF) dominantColors.accent else dominantColors.onBackground.copy(alpha = 0.7f),
+                    tint = if (mode != RepeatMode.OFF) dominantColors.accent else dominantColors.onBackground.copy(alpha = 0.85f),
+                    modifier = Modifier.size(iconSize)
+                )
+            }
+        }
+
+        // Lyrics Button
+        Box(
+            modifier = Modifier
+                .size(buttonSize)
+                .clip(CircleShape)
+                .background(dominantColors.onBackground.copy(alpha = 0.08f))
+                .bounceClick(scaleDown = MotionTokens.CardTapScale) {
+                    haptics.tick()
+                    onShowLyrics()
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Lyrics,
+                contentDescription = "Lyrics",
+                tint = dominantColors.onBackground.copy(alpha = 0.85f),
+                modifier = Modifier.size(iconSize)
+            )
+        }
+
+        // Devices (Audio output) Button
+        if (onShowDevices != null) {
+            Box(
+                modifier = Modifier
+                    .size(buttonSize)
+                    .clip(CircleShape)
+                    .background(dominantColors.onBackground.copy(alpha = 0.08f))
+                    .bounceClick(scaleDown = MotionTokens.CardTapScale) {
+                        haptics.tick()
+                        onShowDevices()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Devices,
+                    contentDescription = "Audio output devices",
+                    tint = dominantColors.onBackground.copy(alpha = 0.85f),
                     modifier = Modifier.size(iconSize)
                 )
             }
@@ -286,6 +319,7 @@ fun SecondaryPlayerControls(
             modifier = Modifier
                 .size(buttonSize)
                 .clip(CircleShape)
+                .background(dominantColors.onBackground.copy(alpha = 0.08f))
                 .bounceClick(scaleDown = MotionTokens.CardTapScale) {
                     haptics.tick()
                     onShowQueue()
@@ -295,7 +329,7 @@ fun SecondaryPlayerControls(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.QueueMusic,
                 contentDescription = "Queue",
-                tint = dominantColors.onBackground.copy(alpha = 0.7f),
+                tint = dominantColors.onBackground.copy(alpha = 0.85f),
                 modifier = Modifier.size(iconSize)
             )
         }

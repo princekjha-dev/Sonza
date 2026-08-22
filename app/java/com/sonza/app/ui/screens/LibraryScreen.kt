@@ -107,6 +107,7 @@ import com.sonza.app.ui.screens.ImportPlaylistScreen
 import com.sonza.app.ui.theme.SonzaTypography
 import com.sonza.app.ui.viewmodel.LibraryFilter
 import com.sonza.app.ui.viewmodel.LibrarySortOption
+import com.sonza.app.ui.utils.horizontalSwipeNavigation
 import com.sonza.app.ui.viewmodel.LibraryViewMode
 import com.sonza.app.ui.viewmodel.LibraryViewModel
 
@@ -120,6 +121,8 @@ fun LibraryScreen(
     onAlbumClick: (Album) -> Unit = {},
     onDownloadsClick: () -> Unit = {},
     onMigratePlaylistsClick: () -> Unit = {},
+    onNavigateToHome: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
     viewModel: LibraryViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -148,6 +151,12 @@ fun LibraryScreen(
     var showAddMenu by remember { mutableStateOf(false) }
 
     Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .horizontalSwipeNavigation(
+                onSwipeRight = onNavigateToHome,
+                onSwipeLeft = onNavigateToSettings
+            ),
         floatingActionButton = {
             com.sonza.app.ui.components.primitives.ExpressiveFab(
                 onClick = { showAddMenu = true },

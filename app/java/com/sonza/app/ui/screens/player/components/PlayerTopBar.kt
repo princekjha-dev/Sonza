@@ -133,27 +133,11 @@ fun PlayerTopBar(
                 }
             }
 
-            // Right side: Cast, Audio AR and More Menu
+            // Right side: Audio AR (if enabled) and More Menu
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(dominantColors.onBackground.copy(alpha = 0.08f))
-                        .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onCastClick),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Devices,
-                        contentDescription = "Audio output devices",
-                        tint = dominantColors.onBackground,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
                 if (audioArEnabled) {
                     Box(
                         modifier = Modifier

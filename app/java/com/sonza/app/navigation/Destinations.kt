@@ -16,6 +16,8 @@ sealed class Destination {
     @Serializable
     data object Settings : Destination()
     @Serializable
+    data object Profile : Destination()
+    @Serializable
     data object PlaybackSettings : Destination()
     @Serializable
     data object AppearanceSettings : Destination()

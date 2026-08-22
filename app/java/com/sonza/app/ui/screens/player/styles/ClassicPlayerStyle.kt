@@ -186,6 +186,7 @@ private fun ClassicPortraitContent(
                 isVideoMode = playerState.isVideoMode,
                 isYouTubeSong = song?.source == com.sonza.app.core.model.SongSource.YOUTUBE,
                 onVideoToggle = actions.onToggleVideoMode,
+                onMoreClick = onShowActions,
                 audioArEnabled = audioArEnabled,
                 onRecenter = onRecenterAr
             )
@@ -327,6 +328,7 @@ private fun ClassicLandscapeContent(
                 isVideoMode = playerState.isVideoMode,
                 isYouTubeSong = song?.source == com.sonza.app.core.model.SongSource.YOUTUBE,
                 onVideoToggle = actions.onToggleVideoMode,
+                onMoreClick = onShowActions,
                 audioArEnabled = audioArEnabled,
                 onRecenter = { }
             )
@@ -373,8 +375,9 @@ private fun ClassicTopBar(
     isVideoMode: Boolean = false,
     isYouTubeSong: Boolean = false,
     onVideoToggle: () -> Unit = {},
+    onMoreClick: () -> Unit = {},
     audioArEnabled: Boolean = false,
-    onRecenter: () -> Unit
+    onRecenter: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -434,25 +437,44 @@ private fun ClassicTopBar(
             }
         }
 
-        // Right side: Audio AR or Spacer
-        if (audioArEnabled) {
+        // Right side: Audio AR (if enabled) and More Menu
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            if (audioArEnabled) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(SquircleShape)
+                        .background(dominantColors.onBackground.copy(alpha = 0.1f))
+                        .clickable(onClick = onRecenter),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Recenter Audio",
+                        tint = dominantColors.onBackground,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+
             Box(
                 modifier = Modifier
                     .size(44.dp)
                     .clip(SquircleShape)
                     .background(dominantColors.onBackground.copy(alpha = 0.1f))
-                    .clickable(onClick = onRecenter),
+                    .clickable(onClick = onMoreClick),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "Recenter Audio",
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "More options",
                     tint = dominantColors.onBackground,
                     modifier = Modifier.size(22.dp)
                 )
             }
-        } else {
-            Spacer(modifier = Modifier.size(44.dp))
         }
     }
 }

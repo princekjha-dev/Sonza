@@ -37,6 +37,7 @@ import com.sonza.app.ui.screens.SettingsScreen
 import com.sonza.app.ui.screens.StorageScreen
 import com.sonza.app.ui.screens.SupportScreen
 import com.sonza.app.ui.screens.YouTubeLoginScreen
+import com.sonza.app.ui.screens.UserProfileScreen
 import com.sonza.app.ui.screens.MiscScreen
 import com.sonza.app.ui.screens.LyricsProvidersScreen
 import com.sonza.app.ui.screens.ChangelogScreen
@@ -208,7 +209,23 @@ fun NavGraph(
                             navController.navigate(Destination.Recents)
                         },
                         onProfileClick = {
-                            navController.navigate(Destination.Settings)
+                            navController.navigate(Destination.Profile) {
+                                launchSingleTop = true
+                            }
+                        },
+                        onNavigateToLibrary = {
+                            navController.navigate(Destination.Library) {
+                                popUpTo<Destination.Home> {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        onNavigateToProfile = {
+                            navController.navigate(Destination.Profile) {
+                                launchSingleTop = true
+                            }
                         },
                         onExploreClick = { browseId, title ->
                             if (browseId == "FEmusic_moods_and_genres") {
@@ -391,7 +408,42 @@ fun NavGraph(
                 },
                 onMigratePlaylistsClick = {
                     navController.navigate(Destination.MigratePlaylists)
+                },
+                onNavigateToHome = {
+                    navController.navigate(Destination.Home) {
+                        popUpTo<Destination.Home> {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                onNavigateToSettings = {
+                    navController.navigate(Destination.Settings) {
+                        launchSingleTop = true
+                    }
                 }
+            )
+        }
+
+        composable<Destination.Profile> {
+            UserProfileScreen(
+                onBackClick = { navController.popBackStack() },
+                onNavigateToHome = {
+                    navController.navigate(Destination.Home) {
+                        popUpTo<Destination.Home> {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                onLoginClick = { navController.navigate(Destination.YouTubeLogin) },
+                onSettingsClick = { navController.navigate(Destination.Settings) },
+                onHistoryClick = { navController.navigate(Destination.Recents) },
+                onDownloadsClick = { navController.navigate(Destination.Downloads) },
+                onStatsClick = { navController.navigate(Destination.ListeningStats) },
+                currentSong = playbackInfo.currentSong
             )
         }
 
@@ -424,7 +476,16 @@ fun NavGraph(
                 onDiscordClick = { navController.navigate(Destination.DiscordSettings) },
                 onAISettingsClick = { navController.navigate(Destination.AISettings) },
                 onUpdaterClick = { navController.navigate(Destination.Updater) },
-                onMigratePlaylistsClick = { navController.navigate(Destination.MigratePlaylists) }
+                onMigratePlaylistsClick = { navController.navigate(Destination.MigratePlaylists) },
+                onNavigateToLibrary = {
+                    navController.navigate(Destination.Library) {
+                        popUpTo<Destination.Home> {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
             )
         }
 

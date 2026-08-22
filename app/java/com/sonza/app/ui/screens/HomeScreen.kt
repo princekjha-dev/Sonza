@@ -64,6 +64,7 @@ import com.sonza.app.ui.viewmodel.HomeEvent
 import com.sonza.app.ui.viewmodel.HomeViewModel
 import com.sonza.app.ui.viewmodel.PlaylistManagementViewModel
 import com.sonza.app.util.ImageUtils
+import com.sonza.app.ui.utils.horizontalSwipeNavigation
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -79,6 +80,7 @@ import org.koin.compose.viewmodel.koinViewModel
  *   Pattern C (Chart cards), Pattern D (Video cards), Pattern E (Explore).
  * - Responsive card sizing, Manrope typography, and dynamic accent color tokens.
  * - Seamless insets for edge-to-edge, mini-player, and bottom navigation.
+ * - Full horizontal swipe gestures (swipe right to Library, swipe left to User Profile).
  */
 @Composable
 fun HomeScreen(
@@ -87,6 +89,8 @@ fun HomeScreen(
     onAlbumClick: (Album) -> Unit,
     onHistoryClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
+    onNavigateToLibrary: () -> Unit = {},
+    onNavigateToProfile: () -> Unit = onProfileClick,
     onExploreClick: (String, String) -> Unit = { _, _ -> },
     onCreateMixClick: () -> Unit = {},
     currentSong: Song? = null,
@@ -165,7 +169,14 @@ fun HomeScreen(
         )
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .horizontalSwipeNavigation(
+                onSwipeRight = onNavigateToLibrary,
+                onSwipeLeft = onNavigateToProfile
+            )
+    ) {
         // Fluid background
         if (animatedBackgroundEnabled) {
             MeshGradientBackground(dominantColors = dominantColors)

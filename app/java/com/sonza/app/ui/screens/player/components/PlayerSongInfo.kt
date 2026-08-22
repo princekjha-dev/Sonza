@@ -275,60 +275,34 @@ fun SongInfoSection(
             }
         }
 
-        // Right Column: Action Buttons (Favorite + More Options)
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        // Right Column: Action Button (Favorite)
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(
+                    if (isFavorite) dominantColors.accent.copy(alpha = 0.16f)
+                    else dominantColors.onBackground.copy(alpha = 0.08f)
+                )
+                .bounceClick(scaleDown = MotionTokens.CardTapScale) {
+                    haptics.thump()
+                    onFavoriteClick()
+                },
+            contentAlignment = Alignment.Center
         ) {
-            // Favorite Button
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (isFavorite) dominantColors.accent.copy(alpha = 0.16f)
-                        else dominantColors.onBackground.copy(alpha = 0.08f)
-                    )
-                    .bounceClick(scaleDown = MotionTokens.CardTapScale) {
-                        haptics.thump()
-                        onFavoriteClick()
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                AnimatedContent(
-                    targetState = isFavorite,
-                    transitionSpec = {
-                        (scaleIn(spring(Spring.DampingRatioMediumBouncy)) + fadeIn()) togetherWith
-                        (scaleOut() + fadeOut())
-                    },
-                    label = "favoriteToggleAnim"
-                ) { fav ->
-                    Icon(
-                        imageVector = if (fav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = if (fav) "Remove from favorites" else "Add to favorites",
-                        tint = if (fav) dominantColors.accent else dominantColors.onBackground.copy(alpha = 0.8f),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            // More Options Button
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(dominantColors.onBackground.copy(alpha = 0.08f))
-                    .bounceClick(scaleDown = MotionTokens.CardTapScale) {
-                        haptics.tick()
-                        onMoreClick()
-                    },
-                contentAlignment = Alignment.Center
-            ) {
+            AnimatedContent(
+                targetState = isFavorite,
+                transitionSpec = {
+                    (scaleIn(spring(Spring.DampingRatioMediumBouncy)) + fadeIn()) togetherWith
+                    (scaleOut() + fadeOut())
+                },
+                label = "favoriteToggleAnim"
+            ) { fav ->
                 Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "Song options",
-                    tint = dominantColors.onBackground.copy(alpha = 0.8f),
-                    modifier = Modifier.size(20.dp)
+                    imageVector = if (fav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = if (fav) "Remove from favorites" else "Add to favorites",
+                    tint = if (fav) dominantColors.accent else dominantColors.onBackground.copy(alpha = 0.8f),
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }

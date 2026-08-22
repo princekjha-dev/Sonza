@@ -34,7 +34,7 @@ sealed class MainEvent {
 data class MainUiState(
     val currentVersion: String = "",
     val isInPictureInPictureMode: Boolean = false,
-    val isReady: Boolean = false
+    val isReady: Boolean = true
 )
 
 class MainViewModel @Inject constructor(
@@ -56,12 +56,8 @@ class MainViewModel @Inject constructor(
     val events: SharedFlow<MainEvent> = _events.asSharedFlow()
 
     init {
-        // App is now "ready" to remove splash screen (basic setup complete)
-        viewModelScope.launch {
-            // Auto-clear cache if needed
-            checkAndClearCache()
-            _uiState.update { it.copy(isReady = true) }
-        }
+        // Run periodic cache cleanup in background IO without delaying UI render
+        checkAndClearCache()
     }
 
     private fun checkAndClearCache() {

@@ -730,7 +730,8 @@ fun SonzaApp(
         it.hasRoute<Destination.Home>() ||
         it.hasRoute<Destination.Search>() ||
         it.hasRoute<Destination.Library>() ||
-        it.hasRoute<Destination.Settings>()
+        it.hasRoute<Destination.Settings>() ||
+        it.hasRoute<Destination.Profile>()
     } ?: false
     
     // Auto-show MiniPlayer when returning to Home

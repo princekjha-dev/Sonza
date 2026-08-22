@@ -363,6 +363,7 @@ private fun YTMusicPortraitContent(
                 onRepeatToggle = actions.onRepeatToggle,
                 onShowQueue = onShowQueue,
                 onShowLyrics = onShowLyrics,
+                onShowDevices = onShowDevices,
                 dominantColors = dominantColors
             )
 
@@ -598,6 +599,7 @@ private fun YTMusicLandscapeContent(
                 onRepeatToggle = actions.onRepeatToggle,
                 onShowQueue = onShowQueue,
                 onShowLyrics = onShowLyrics,
+                onShowDevices = onShowDevices,
                 dominantColors = dominantColors
             )
         }

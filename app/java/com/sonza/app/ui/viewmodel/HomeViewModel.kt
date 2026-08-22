@@ -241,11 +241,9 @@ class HomeViewModel @Inject constructor(
             val source = sessionManager.getMusicSource()
             _uiState.update { it.copy(currentSource = source) }
             
-            // 1. Load Cache Synchronously (from DataStore first emission).
-            // Browsing always uses YouTube, regardless of selected music source.
-            val cachedSections = sessionManager.getCachedHomeSections().first()
-            
-            val cachedQuickPicks = sessionManager.getCachedQuickPicks().first()
+            // 1. Load Cache Synchronously from disk/prefs without waiting on DataStore flows
+            val cachedSections = sessionManager.getCachedHomeSectionsSync()
+            val cachedQuickPicks = sessionManager.getCachedQuickPicksSync()
             
             if (cachedSections.isNotEmpty() || cachedQuickPicks.isNotEmpty()) {
                 _uiState.update { 

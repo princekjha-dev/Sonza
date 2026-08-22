@@ -117,6 +117,7 @@ import com.sonza.app.ui.theme.SonzaSurfaceVariant
 import com.sonza.app.ui.theme.SonzaTypography
 import com.sonza.app.ui.theme.SpacingTokens
 import com.sonza.app.ui.theme.SquircleShape
+import com.sonza.app.ui.utils.horizontalSwipeNavigation
 import com.sonza.app.ui.viewmodel.SettingsViewModel
 import com.sonza.app.updater.UpdateState
 import com.sonza.app.updater.UpdateViewModel
@@ -135,6 +136,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * - Real live update checking with user-friendly feedback.
  * - Real destinations for Support, Credits, Privacy Policy, and About.
  * - Dynamic bottom insets ensuring the last item is never obscured by navigation or player.
+ * - Supports horizontal swipe-right gesture to return to Library.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -156,7 +158,8 @@ fun SettingsScreen(
     onDiscordClick: () -> Unit = {},
     onAISettingsClick: () -> Unit = {},
     onUpdaterClick: () -> Unit = {},
-    onMigratePlaylistsClick: () -> Unit = {}
+    onMigratePlaylistsClick: () -> Unit = {},
+    onNavigateToLibrary: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val updateState by updateViewModel.updateState.collectAsState()
@@ -225,7 +228,11 @@ fun SettingsScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(SonzaColors.Background)
-            .statusBarsPadding(),
+            .statusBarsPadding()
+            .horizontalSwipeNavigation(
+                onSwipeRight = onNavigateToLibrary,
+                onSwipeLeft = null
+            ),
         containerColor = SonzaColors.Background,
         contentWindowInsets = WindowInsets.statusBars
     ) { paddingValues ->
