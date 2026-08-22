@@ -7,6 +7,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
@@ -51,6 +53,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -63,6 +67,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.request.crossfade
 import com.sonza.app.R
 import com.sonza.app.core.model.Song
 import com.sonza.app.navigation.Destination
@@ -76,15 +81,27 @@ import com.sonza.app.ui.theme.SonzaSurface
 import com.sonza.app.ui.theme.SonzaTypography
 
 object ExpressiveBottomNavTokens {
-    val NavBarHeight = 58.dp
+    val NavBarHeight = 56.dp
+    val FloatingBarBottomPadding = 8.dp
+    val FloatingBarHorizontalPadding = 16.dp
+    val TotalBottomBarHeight = 64.dp
 }
 
 /**
- * Adaptive Bottom Navigation Bar:
- * - When no track is playing: Standard 4 tabs (Home, Search, Library, Settings) full-width, evenly spaced.
- * - When a track is playing: Single continuous bar arranged as:
- *   [Far Left: Circular Home Button] [Middle: Inline Mini-Player (Artwork + Marquee Title/Artist + Play/Pause)] [Far Right: Circular Search Button]
- *   All sharing the exact same 58dp height token.
+ * Redesigned Floating Bottom Navigation & Mini-Player System:
+ *
+ * 1. NO MUSIC PLAYING:
+ *    A centered floating, rounded pill-shaped container with subtle frosted dark glass surface
+ *    housing all 4 destinations: [ Home | Search | Library | Settings ].
+ *    Active tab receives a rounded highlighted background with dynamic accent color.
+ *
+ * 2. MUSIC PLAYING:
+ *    Transforms smoothly into 3 cohesive floating glass elements:
+ *    [ Circular Home Button ] [ Compact Floating Mini-Player Pill ] [ Circular Search Button ]
+ *    - Home button on the left is fixed and independently clickable.
+ *    - Mini-player pill in the center shows artwork, marquee title/artist, bottom progress line,
+ *      and play/pause button. Tapping expands the full player.
+ *    - Search button on the far right is fixed and independently clickable.
  */
 @Composable
 fun ExpressiveBottomNav(
@@ -96,21 +113,29 @@ fun ExpressiveBottomNav(
     isLoading: Boolean = false,
     onPlayPause: () -> Unit = {},
     onExpandPlayer: () -> Unit = {},
+    progressProvider: () -> Float = { 0f },
+    dominantColors: DominantColors? = null,
     modifier: Modifier = Modifier,
     alpha: Float = 1.0f,
     iosLiquidGlassEnabled: Boolean = false,
     backgroundColor: Color? = null,
     iosNavBarBlur: Float = 60f
 ) {
-    val accentColor = SonzaBrandAccent
-    val navBackground = backgroundColor ?: SonzaBackground
+    val dynamicColors = LocalSonzaDynamicColors.current
+    val accentColor = dynamicColors.accent.takeIf { it != Color.Unspecified } ?: SonzaBrandAccent
     val hasSong = currentSong != null
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(navBackground)
             .navigationBarsPadding()
+            .padding(
+                start = ExpressiveBottomNavTokens.FloatingBarHorizontalPadding,
+                end = ExpressiveBottomNavTokens.FloatingBarHorizontalPadding,
+                bottom = ExpressiveBottomNavTokens.FloatingBarBottomPadding,
+                top = 0.dp
+            ),
+        contentAlignment = Alignment.Center
     ) {
         AnimatedContent(
             targetState = hasSong,
@@ -125,8 +150,10 @@ fun ExpressiveBottomNav(
                     currentSong = currentSong,
                     isPlaying = isPlaying,
                     isLoading = isLoading,
+                    progressProvider = progressProvider,
                     currentDestination = currentDestination,
                     accentColor = accentColor,
+                    userAlpha = alpha,
                     onDestinationChange = onDestinationChange,
                     onReClick = onReClick,
                     onPlayPause = onPlayPause,
@@ -136,6 +163,7 @@ fun ExpressiveBottomNav(
                 Standard4TabsNavBar(
                     currentDestination = currentDestination,
                     accentColor = accentColor,
+                    userAlpha = alpha,
                     onDestinationChange = onDestinationChange,
                     onReClick = onReClick
                 )
@@ -144,13 +172,19 @@ fun ExpressiveBottomNav(
     }
 }
 
+/**
+ * State 2: Music Playing
+ * [ HOME (Circle) ]  [ MINI PLAYER (Pill) ]  [ SEARCH (Circle) ]
+ */
 @Composable
 private fun InlinePlayerBottomNavBar(
     currentSong: Song,
     isPlaying: Boolean,
     isLoading: Boolean,
+    progressProvider: () -> Float,
     currentDestination: Destination,
     accentColor: Color,
+    userAlpha: Float,
     onDestinationChange: (Destination) -> Unit,
     onReClick: (Destination) -> Unit,
     onPlayPause: () -> Unit,
@@ -158,186 +192,298 @@ private fun InlinePlayerBottomNavBar(
 ) {
     val isHomeSelected = currentDestination == Destination.Home
     val isSearchSelected = currentDestination == Destination.Search
-    val unselectedColor = SonzaOnSurfaceVariant.copy(alpha = 0.70f)
+    val pillShape = RoundedCornerShape(28.dp)
+    val effectiveAlpha = (0.90f * userAlpha).coerceIn(0.70f, 0.98f)
+    val surfaceColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = effectiveAlpha)
 
-    val homeIconColor by animateColorAsState(
-        targetValue = if (isHomeSelected) accentColor else unselectedColor,
-        animationSpec = tween(durationMillis = MotionTokens.NavSelectionDuration, easing = FastOutSlowInEasing),
-        label = "homeIconColor"
+    val borderBrush = Brush.verticalGradient(
+        colors = listOf(
+            Color.White.copy(alpha = 0.16f),
+            Color.White.copy(alpha = 0.04f)
+        )
     )
 
-    val searchIconColor by animateColorAsState(
-        targetValue = if (isSearchSelected) accentColor else unselectedColor,
-        animationSpec = tween(durationMillis = MotionTokens.NavSelectionDuration, easing = FastOutSlowInEasing),
-        label = "searchIconColor"
+    val specularBrush = Brush.verticalGradient(
+        0.0f to Color.White.copy(alpha = 0.08f),
+        0.5f to Color.Transparent,
+        1.0f to Color.Black.copy(alpha = 0.12f)
     )
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(ExpressiveBottomNavTokens.NavBarHeight)
-            .padding(horizontal = 8.dp),
+            .height(ExpressiveBottomNavTokens.NavBarHeight),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Far Left: Circular Home icon button (same height as bar)
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {
-                        if (isHomeSelected) onReClick(Destination.Home) else onDestinationChange(Destination.Home)
-                    }
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = if (isHomeSelected) Icons.Filled.Home else Icons.Outlined.Home,
-                contentDescription = stringResource(R.string.nav_home),
-                modifier = Modifier.size(24.dp),
-                tint = homeIconColor
-            )
-        }
+        // --- Far Left: Circular Home Button ---
+        FloatingGlassCircleButton(
+            icon = Icons.Outlined.Home,
+            selectedIcon = Icons.Filled.Home,
+            isSelected = isHomeSelected,
+            contentDescription = stringResource(R.string.nav_home),
+            accentColor = accentColor,
+            surfaceColor = surfaceColor,
+            borderBrush = borderBrush,
+            specularBrush = specularBrush,
+            onClick = {
+                if (isHomeSelected) onReClick(Destination.Home) else onDestinationChange(Destination.Home)
+            }
+        )
 
-        Spacer(modifier = Modifier.width(6.dp))
-
-        // Middle: Mini-player section expanding to fill remaining space
+        // --- Middle: Floating Mini-Player Pill ---
         Surface(
             modifier = Modifier
                 .weight(1f)
-                .height(46.dp)
-                .clip(RoundedCornerShape(23.dp))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onExpandPlayer
+                .height(ExpressiveBottomNavTokens.NavBarHeight)
+                .shadow(
+                    elevation = 8.dp,
+                    shape = pillShape,
+                    ambientColor = Color.Black.copy(alpha = 0.40f),
+                    spotColor = Color.Black.copy(alpha = 0.30f)
                 ),
-            shape = RoundedCornerShape(23.dp),
-            color = SonzaSurface.copy(alpha = 0.85f),
-            tonalElevation = 2.dp
+            shape = pillShape,
+            color = surfaceColor,
+            border = BorderStroke(0.75.dp, borderBrush)
         ) {
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Left edge: Album art thumbnail
-                val thumbUrl = currentSong.thumbnailUrl
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (!thumbUrl.isNullOrBlank()) {
-                        AsyncImage(
-                            model = thumbUrl,
-                            contentDescription = currentSong.title,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.MusicNote,
-                            contentDescription = null,
-                            tint = SonzaOnSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Middle: Track title and artist
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = currentSong.title,
-                        style = SonzaTypography.SongTitle.copy(
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = SonzaOnBackground,
-                        maxLines = 1,
-                        modifier = Modifier.basicMarquee()
+                    .background(specularBrush)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onExpandPlayer
                     )
-                    if (!currentSong.artist.isNullOrBlank()) {
-                        Text(
-                            text = currentSong.artist,
-                            style = SonzaTypography.ArtistSubtitle.copy(
-                                fontSize = 11.5.sp
-                            ),
-                            color = SonzaOnSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+            ) {
+                // Subtle playback progress line along the bottom of the pill
+                val progress = progressProvider().coerceIn(0f, 1f)
+                if (progress > 0f) {
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.5.dp)
+                            .align(Alignment.BottomCenter)
+                    ) {
+                        drawRoundRect(
+                            color = accentColor.copy(alpha = 0.85f),
+                            size = androidx.compose.ui.geometry.Size(size.width * progress, size.height),
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx(), 2.dp.toPx())
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(4.dp))
-
-                // Right edge: Play/Pause button
-                IconButton(
-                    onClick = onPlayPause,
-                    modifier = Modifier.size(36.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(start = 7.dp, end = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                            color = accentColor
+                    // Small square album artwork with rounded corners
+                    val thumbUrl = currentSong.thumbnailUrl
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isLoading) {
+                            AsyncImage(
+                                model = coil3.request.ImageRequest.Builder(context)
+                                    .data(R.raw.loding)
+                                    .crossfade(false)
+                                    .build(),
+                                contentDescription = "Loading",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else if (!thumbUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = thumbUrl,
+                                contentDescription = currentSong.title,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Filled.MusicNote,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(9.dp))
+
+                    // Song title & artist info
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(vertical = 4.dp),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = currentSong.title,
+                            style = SonzaTypography.SongTitle.copy(
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = SonzaOnBackground,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.basicMarquee()
                         )
-                    } else {
-                        Icon(
-                            imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                            contentDescription = if (isPlaying) "Pause" else "Play",
-                            tint = SonzaOnSurface,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        if (!currentSong.artist.isNullOrBlank()) {
+                            Text(
+                                text = currentSong.artist,
+                                style = SonzaTypography.ArtistSubtitle.copy(
+                                    fontSize = 11.5.sp
+                                ),
+                                color = SonzaOnSurfaceVariant.copy(alpha = 0.85f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    // Compact Play/Pause button on the right
+                    IconButton(
+                        onClick = onPlayPause,
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = accentColor
+                            )
+                        } else {
+                            Icon(
+                                imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                contentDescription = if (isPlaying) "Pause" else "Play",
+                                tint = SonzaOnSurface,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.width(6.dp))
+        // --- Far Right: Circular Search Button ---
+        FloatingGlassCircleButton(
+            icon = Icons.Outlined.Search,
+            selectedIcon = Icons.Filled.Search,
+            isSelected = isSearchSelected,
+            contentDescription = stringResource(R.string.nav_search),
+            accentColor = accentColor,
+            surfaceColor = surfaceColor,
+            borderBrush = borderBrush,
+            specularBrush = specularBrush,
+            onClick = {
+                if (isSearchSelected) onReClick(Destination.Search) else onDestinationChange(Destination.Search)
+            }
+        )
+    }
+}
 
-        // Far Right: Circular Search icon button (same height as bar)
+/**
+ * Reusable circular floating glass button for Home and Search.
+ */
+@Composable
+private fun FloatingGlassCircleButton(
+    icon: ImageVector,
+    selectedIcon: ImageVector,
+    isSelected: Boolean,
+    contentDescription: String,
+    accentColor: Color,
+    surfaceColor: Color,
+    borderBrush: Brush,
+    specularBrush: Brush,
+    onClick: () -> Unit
+) {
+    val unselectedIconColor = SonzaOnSurfaceVariant.copy(alpha = 0.70f)
+
+    val animatedBgColor by animateColorAsState(
+        targetValue = if (isSelected) accentColor.copy(alpha = 0.22f) else surfaceColor,
+        animationSpec = tween(durationMillis = MotionTokens.NavSelectionDuration, easing = FastOutSlowInEasing),
+        label = "circleBtnBg"
+    )
+
+    val animatedIconColor by animateColorAsState(
+        targetValue = if (isSelected) accentColor else unselectedIconColor,
+        animationSpec = tween(durationMillis = MotionTokens.NavSelectionDuration, easing = FastOutSlowInEasing),
+        label = "circleBtnIcon"
+    )
+
+    Surface(
+        modifier = Modifier
+            .size(ExpressiveBottomNavTokens.NavBarHeight)
+            .shadow(
+                elevation = 8.dp,
+                shape = CircleShape,
+                ambientColor = Color.Black.copy(alpha = 0.40f),
+                spotColor = Color.Black.copy(alpha = 0.30f)
+            ),
+        shape = CircleShape,
+        color = animatedBgColor,
+        border = BorderStroke(0.75.dp, borderBrush)
+    ) {
         Box(
             modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
+                .fillMaxSize()
+                .background(specularBrush)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = {
-                        if (isSearchSelected) onReClick(Destination.Search) else onDestinationChange(Destination.Search)
-                    }
+                    onClick = onClick
                 ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = if (isSearchSelected) Icons.Filled.Search else Icons.Outlined.Search,
-                contentDescription = stringResource(R.string.nav_search),
-                modifier = Modifier.size(24.dp),
-                tint = searchIconColor
+                imageVector = if (isSelected) selectedIcon else icon,
+                contentDescription = contentDescription,
+                tint = animatedIconColor,
+                modifier = Modifier.size(24.dp)
             )
         }
     }
 }
 
+/**
+ * State 1: No Music Playing
+ * Centered floating pill with all 4 destinations: [ Home | Search | Library | Settings ]
+ */
 @Composable
 private fun Standard4TabsNavBar(
     currentDestination: Destination,
     accentColor: Color,
+    userAlpha: Float,
     onDestinationChange: (Destination) -> Unit,
     onReClick: (Destination) -> Unit
 ) {
+    val pillShape = RoundedCornerShape(28.dp)
+    val effectiveAlpha = (0.90f * userAlpha).coerceIn(0.70f, 0.98f)
+    val surfaceColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = effectiveAlpha)
+
+    val borderBrush = Brush.verticalGradient(
+        colors = listOf(
+            Color.White.copy(alpha = 0.16f),
+            Color.White.copy(alpha = 0.04f)
+        )
+    )
+
+    val specularBrush = Brush.verticalGradient(
+        0.0f to Color.White.copy(alpha = 0.08f),
+        0.5f to Color.Transparent,
+        1.0f to Color.Black.copy(alpha = 0.12f)
+    )
+
     val navItems = remember {
         listOf(
             BottomNavItem(
@@ -367,35 +513,60 @@ private fun Standard4TabsNavBar(
         )
     }
 
-    Row(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(ExpressiveBottomNavTokens.NavBarHeight),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
+            .height(ExpressiveBottomNavTokens.NavBarHeight)
+            .shadow(
+                elevation = 8.dp,
+                shape = pillShape,
+                ambientColor = Color.Black.copy(alpha = 0.40f),
+                spotColor = Color.Black.copy(alpha = 0.30f)
+            ),
+        shape = pillShape,
+        color = surfaceColor,
+        border = BorderStroke(0.75.dp, borderBrush)
     ) {
-        navItems.forEach { item ->
-            val isSelected = currentDestination == item.destination
-            val label = stringResource(item.labelRes)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(specularBrush)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                navItems.forEach { item ->
+                    val isSelected = currentDestination == item.destination
+                    val label = stringResource(item.labelRes)
 
-            BottomNavItemView(
-                item = item,
-                label = label,
-                isSelected = isSelected,
-                accentColor = accentColor,
-                onClick = {
-                    if (isSelected) {
-                        onReClick(item.destination)
-                    } else {
-                        onDestinationChange(item.destination)
-                    }
-                },
-                modifier = Modifier.weight(1f)
-            )
+                    BottomNavItemView(
+                        item = item,
+                        label = label,
+                        isSelected = isSelected,
+                        accentColor = accentColor,
+                        onClick = {
+                            if (isSelected) {
+                                onReClick(item.destination)
+                            } else {
+                                onDestinationChange(item.destination)
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
         }
     }
 }
 
+/**
+ * Individual destination tab in the 4-tab floating navigation pill.
+ * Features an active rounded highlighted background with dynamic accent color.
+ */
 @Composable
 private fun BottomNavItemView(
     item: BottomNavItem,
@@ -417,11 +588,22 @@ private fun BottomNavItemView(
         label = "navItemColor"
     )
 
+    val indicatorBgColor by animateColorAsState(
+        targetValue = if (isSelected) accentColor.copy(alpha = 0.18f) else Color.Transparent,
+        animationSpec = tween(
+            durationMillis = MotionTokens.NavSelectionDuration,
+            easing = FastOutSlowInEasing
+        ),
+        label = "navItemIndicatorBg"
+    )
+
     val itemSemanticsDescription = if (isSelected) "$label, selected" else label
 
     Box(
         modifier = modifier
             .fillMaxHeight()
+            .clip(RoundedCornerShape(20.dp))
+            .background(indicatorBgColor)
             .selectable(
                 selected = isSelected,
                 onClick = onClick,
@@ -432,7 +614,7 @@ private fun BottomNavItemView(
             .semantics {
                 contentDescription = itemSemanticsDescription
             }
-            .padding(vertical = 4.dp),
+            .padding(vertical = 3.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -442,15 +624,16 @@ private fun BottomNavItemView(
             Icon(
                 imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
                 contentDescription = null,
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(23.dp),
                 tint = contentColor
             )
 
-            Spacer(modifier = Modifier.height(3.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
             Text(
                 text = label,
                 style = SonzaTypography.NavLabel.copy(
+                    fontSize = 11.5.sp,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
                 ),
                 color = contentColor,

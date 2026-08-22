@@ -29,6 +29,9 @@
     <!-- Vibration permission for Music Haptics -->
     <uses-permission android:name="android.permission.VIBRATE" />
     
+    <!-- System Alert Window for External Dynamic Island Floating Player -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    
     <!-- Permission to modify system settings (Ringtones) -->
     <uses-permission android:name="android.permission.WRITE_SETTINGS" 
         tools:ignore="ProtectedPermissions" />
@@ -452,6 +455,11 @@
             android:name=".service.PlaylistImportService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+
+        <!-- Dynamic Island Floating Overlay Service -->
+        <service
+            android:name=".service.DynamicIslandOverlayService"
+            android:exported="false" />
         
         <!-- FileProvider for APK installation -->
         <provider

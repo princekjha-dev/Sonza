@@ -410,14 +410,27 @@ class MainActivity : ComponentActivity() {
         }
     }
     
+    override fun onStart() {
+        super.onStart()
+        com.sonza.app.service.DynamicIslandOverlayService.setAppForeground(true)
+    }
+
     override fun onPause() {
         super.onPause()
+        com.sonza.app.service.DynamicIslandOverlayService.setAppForeground(false)
+        com.sonza.app.service.DynamicIslandOverlayService.start(this)
         
         // Disable video track for bandwidth optimization when backgrounded
         // but NOT when entering PiP mode (video needs to remain active for PiP)
         if (!isInPictureInPictureMode) {
             musicPlayer.optimizeBandwidth(true)
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        com.sonza.app.service.DynamicIslandOverlayService.setAppForeground(false)
+        com.sonza.app.service.DynamicIslandOverlayService.start(this)
     }
 
     override fun onUserLeaveHint() {
@@ -439,6 +452,7 @@ class MainActivity : ComponentActivity() {
     
     override fun onResume() {
         super.onResume()
+        com.sonza.app.service.DynamicIslandOverlayService.setAppForeground(true)
         
         // Re-enable video track when returning to foreground
         musicPlayer.optimizeBandwidth(false)
@@ -810,7 +824,7 @@ fun SonzaApp(
         val imePadding = androidx.compose.foundation.layout.WindowInsets.ime.asPaddingValues().calculateBottomPadding()
         val isKeyboardOpen = imePadding > 0.dp
         val shouldShowExpressiveBottomNav = showBottomNav && !isKeyboardOpen && !isPlayerExpanded && formFactor.isPhoneLike
-        val navBarHeight = if (shouldShowExpressiveBottomNav && formFactor != DeviceFormFactor.TV) com.sonza.app.ui.components.ExpressiveBottomNavTokens.NavBarHeight else 0.dp
+        val navBarHeight = if (shouldShowExpressiveBottomNav && formFactor != DeviceFormFactor.TV) com.sonza.app.ui.components.ExpressiveBottomNavTokens.TotalBottomBarHeight else 0.dp
         val floatingSystemHeight = 0.dp
         val snackbarBottomPadding = when {
             isPlayerExpanded -> navBarPadding + 12.dp
@@ -839,7 +853,7 @@ fun SonzaApp(
                         exit = fadeOut(androidx.compose.animation.core.tween(200)) + androidx.compose.animation.slideOutVertically(androidx.compose.animation.core.tween(200)) { it }
                     ) {
                         Column {
-                            // Bottom navigation (phone only when no song is playing)
+                            // Floating bottom navigation (pill when idle, Home + Mini-Player + Search when playing)
                             val navBarAlpha by sessionManager.navBarAlphaFlow.collectAsStateWithLifecycle(initialValue = 1.0f)
                             val navBarBlur by sessionManager.navBarBlurFlow.collectAsStateWithLifecycle(initialValue = 60.0f)
                             val iosLiquidGlassEnabled by sessionManager.iosLiquidGlassEnabledFlow.collectAsStateWithLifecycle(initialValue = false)
@@ -875,6 +889,8 @@ fun SonzaApp(
                                 isLoading = playbackInfo.isLoading,
                                 onPlayPause = { playerViewModel.togglePlayPause() },
                                 onExpandPlayer = { playerViewModel.expandPlayer() },
+                                progressProvider = miniPlayerProgressProvider,
+                                dominantColors = currentDominantColors,
                                 alpha = navBarAlpha,
                                 iosLiquidGlassEnabled = iosLiquidGlassEnabled,
                                 iosNavBarBlur = navBarBlur
@@ -1050,10 +1066,10 @@ fun SonzaApp(
         val imePadding = androidx.compose.foundation.layout.WindowInsets.ime.asPaddingValues().calculateBottomPadding()
         val isKeyboardOpen = imePadding > 0.dp
         val bottomPaddingPx = if (formFactor.isPhoneLike) {
-            val navBarHeight = if (shouldShowExpressiveBottomNav) com.sonza.app.ui.components.ExpressiveBottomNavTokens.NavBarHeight else 0.dp
+            val navBarHeight = if (shouldShowExpressiveBottomNav) com.sonza.app.ui.components.ExpressiveBottomNavTokens.TotalBottomBarHeight else 0.dp
             with(density) { navBarPadding.toPx() + navBarHeight.toPx() }
         } else {
-            val navBarHeight = if (showBottomNav && !isKeyboardOpen && formFactor != DeviceFormFactor.TV) com.sonza.app.ui.components.ExpressiveBottomNavTokens.NavBarHeight else 0.dp
+            val navBarHeight = if (showBottomNav && !isKeyboardOpen && formFactor != DeviceFormFactor.TV) com.sonza.app.ui.components.ExpressiveBottomNavTokens.TotalBottomBarHeight else 0.dp
             with(density) { navBarPadding.toPx() + navBarHeight.toPx() }
         }
 
@@ -1288,6 +1304,7 @@ fun SonzaApp(
             com.sonza.app.ui.components.dynamicisland.DynamicIsland(
                 currentSong = playbackInfo.currentSong,
                 isPlaying = playbackInfo.isPlaying,
+                isLoading = rawPlayerState.isLoading,
                 currentPosition = rawPlayerState.currentPosition,
                 duration = rawPlayerState.duration,
                 isLiked = playbackInfo.isLiked,

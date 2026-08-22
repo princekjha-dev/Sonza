@@ -172,8 +172,7 @@ fun SettingsScreen(
 
     // Dynamic inset calculation to prevent Mini Player & Bottom Nav from covering content
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val isMiniPlayerVisible = currentSong != null
-    val bottomSystemHeight = if (isMiniPlayerVisible) 132.dp else 64.dp
+    val bottomSystemHeight = com.sonza.app.ui.components.ExpressiveBottomNavTokens.TotalBottomBarHeight
     val dynamicBottomInset = navBarPadding + bottomSystemHeight + SpacingTokens.Space2Xl
 
     var settingsQuery by remember { mutableStateOf("") }
@@ -202,6 +201,7 @@ fun SettingsScreen(
 
     val floatingPlayerEnabled by viewModel.dynamicIslandEnabled.collectAsState(initial = false)
     val sponsorBlockEnabled by viewModel.sponsorBlockEnabled.collectAsState(initial = true)
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     // Handle update check state toasts
     LaunchedEffect(updateState) {
@@ -462,12 +462,32 @@ fun SettingsScreen(
 
                             SonzaSettingsSwitchRow(
                                 icon = Icons.Default.PictureInPicture,
-                                title = "Floating Player Overlay",
-                                description = "Picture-in-Picture mode when backgrounded",
+                                title = "Dynamic Island Floating Player",
+                                description = "Show floating Dynamic Island outside app when music is playing",
                                 checked = floatingPlayerEnabled,
                                 accentColor = accentColor,
                                 onCheckedChange = { enabled ->
-                                    scope.launch { viewModel.setDynamicIslandEnabled(enabled) }
+                                    scope.launch {
+                                        viewModel.setDynamicIslandEnabled(enabled)
+                                        if (enabled && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                                            if (!android.provider.Settings.canDrawOverlays(context)) {
+                                                try {
+                                                    val intent = Intent(
+                                                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                                        Uri.parse("package:${context.packageName}")
+                                                    )
+                                                    context.startActivity(intent)
+                                                } catch (e: Exception) {
+                                                    // Fallback to generic settings if package uri fails
+                                                    try {
+                                                        context.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION))
+                                                    } catch (e2: Exception) {
+                                                        // Ignore
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             )
 

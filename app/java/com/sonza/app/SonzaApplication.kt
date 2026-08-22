@@ -178,6 +178,13 @@ class SonzaApplication : Application(), SingletonImageLoader.Factory, androidx.w
 
     override fun newImageLoader(context: Context): ImageLoader {
         return ImageLoader.Builder(context)
+            .components {
+                if (android.os.Build.VERSION.SDK_INT >= 28) {
+                    add(coil3.gif.AnimatedImageDecoder.Factory())
+                } else {
+                    add(coil3.gif.GifDecoder.Factory())
+                }
+            }
             .memoryCache {
                 MemoryCache.Builder()
                     .maxSizePercent(context, 0.30) // Use 30% of available heap for images (was 25%)

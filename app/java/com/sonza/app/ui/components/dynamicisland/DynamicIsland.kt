@@ -54,11 +54,11 @@ import com.sonza.app.ui.components.LocalSonzaDynamicColors
 import com.sonza.app.ui.theme.SonzaTypography
 
 /**
- * Premium Dynamic Island Floating Music Pill with custom image assets.
+ * Premium Dynamic Island Floating Music Pill with custom image assets and system overlay support.
  *
  * Positioned seamlessly below the camera cutout / top status bar.
  * - Compact State: Sleek 36dp squircle pill hugging the hardware cutout with album artwork,
- *   smooth marquee song title, and 4-bar dynamic audio waveform visualizer.
+ *   smooth marquee song title, dynamic loading indicator, and 4-bar audio waveform visualizer.
  * - Expanded State: Fluid spring-morph transition to full floating playback deck with high-res art,
  *   custom image playback controls (play/pause, rewind, forward, favorite, close),
  *   seek scrubber, and responsive animations.
@@ -76,6 +76,9 @@ fun DynamicIsland(
     onSeekTo: (Long) -> Unit,
     onLikeToggle: () -> Unit,
     modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
+    onOpenApp: (() -> Unit)? = null,
+    onExpandChange: ((Boolean) -> Unit)? = null,
     topInset: Dp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 ) {
     if (currentSong == null) return
@@ -106,7 +109,10 @@ fun DynamicIsland(
             .then(
                 if (isExpanded) {
                     Modifier.pointerInput(Unit) {
-                        detectTapGestures { isExpanded = false }
+                        detectTapGestures {
+                            isExpanded = false
+                            onExpandChange?.invoke(false)
+                        }
                     }
                 } else Modifier
             ),
@@ -141,7 +147,10 @@ fun DynamicIsland(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = {
-                        if (!isExpanded) isExpanded = true
+                        if (!isExpanded) {
+                            isExpanded = true
+                            onExpandChange?.invoke(true)
+                        }
                     }
                 )
                 .draggable(
@@ -149,8 +158,10 @@ fun DynamicIsland(
                     state = rememberDraggableState { delta ->
                         if (delta > 15f && !isExpanded) {
                             isExpanded = true
+                            onExpandChange?.invoke(true)
                         } else if (delta < -15f && isExpanded) {
                             isExpanded = false
+                            onExpandChange?.invoke(false)
                         }
                     }
                 )
@@ -171,6 +182,7 @@ fun DynamicIsland(
                 ExpandedIslandContent(
                     song = currentSong,
                     isPlaying = isPlaying,
+                    isLoading = isLoading,
                     currentPosition = currentPosition,
                     duration = duration,
                     isLiked = isLiked,
@@ -180,12 +192,18 @@ fun DynamicIsland(
                     onPrevious = onPrevious,
                     onSeekTo = onSeekTo,
                     onLikeToggle = onLikeToggle,
-                    onCollapse = { isExpanded = false }
+                    onOpenApp = onOpenApp,
+                    onCollapse = {
+                        isExpanded = false
+                        onExpandChange?.invoke(false)
+                    }
                 )
             } else {
                 CompactIslandContent(
                     song = currentSong,
-                    isPlaying = isPlaying
+                    isPlaying = isPlaying,
+                    isLoading = isLoading,
+                    onOpenApp = onOpenApp
                 )
             }
         }
@@ -198,7 +216,9 @@ fun DynamicIsland(
 @Composable
 private fun CompactIslandContent(
     song: Song,
-    isPlaying: Boolean
+    isPlaying: Boolean,
+    isLoading: Boolean = false,
+    onOpenApp: (() -> Unit)? = null
 ) {
     val dynamicColors = LocalSonzaDynamicColors.current
     val accentColor = dynamicColors.accent
@@ -207,31 +227,57 @@ private fun CompactIslandContent(
     Row(
         modifier = Modifier
             .height(36.dp)
-            .widthIn(min = 175.dp, max = 225.dp)
+            .widthIn(min = 175.dp, max = 235.dp)
             .padding(start = 5.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Leading Mini Artwork with placeholder image fallback
-        AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(song.thumbnailUrl?.takeIf { it.isNotBlank() } ?: R.drawable.di_album_placeholder)
-                .crossfade(true)
-                .build(),
-            contentDescription = "Album Art",
+        // Leading Mini Artwork with loading GIF support
+        Box(
             modifier = Modifier
                 .size(26.dp)
                 .clip(CircleShape)
                 .border(0.6.dp, Color.White.copy(alpha = 0.20f), CircleShape)
-                .background(Color(0xFF18181A)),
-            contentScale = ContentScale.Crop
-        )
+                .background(Color(0xFF18181A))
+                .then(
+                    if (onOpenApp != null) {
+                        Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onOpenApp
+                        )
+                    } else Modifier
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isLoading) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(R.raw.loding)
+                        .crossfade(false)
+                        .build(),
+                    contentDescription = "Loading",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(song.thumbnailUrl?.takeIf { it.isNotBlank() } ?: R.drawable.di_album_placeholder)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Album Art",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.width(8.dp))
 
         // Center Song Title with Marquee
         Text(
-            text = song.title,
+            text = if (isLoading && song.title.isBlank()) "Buffering..." else song.title,
             style = SonzaTypography.NavLabel.copy(
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold
@@ -241,12 +287,29 @@ private fun CompactIslandContent(
             modifier = Modifier
                 .weight(1f)
                 .basicMarquee(iterations = Int.MAX_VALUE)
+                .then(
+                    if (onOpenApp != null) {
+                        Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onOpenApp
+                        )
+                    } else Modifier
+                )
         )
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // Trailing Waveform Visualizer
-        SoundwaveVisualizer(isPlaying = isPlaying, accentColor = accentColor)
+        // Trailing Waveform Visualizer or Spinner
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(16.dp),
+                strokeWidth = 2.dp,
+                color = accentColor
+            )
+        } else {
+            SoundwaveVisualizer(isPlaying = isPlaying, accentColor = accentColor)
+        }
     }
 }
 
@@ -257,6 +320,7 @@ private fun CompactIslandContent(
 private fun ExpandedIslandContent(
     song: Song,
     isPlaying: Boolean,
+    isLoading: Boolean = false,
     currentPosition: Long,
     duration: Long,
     isLiked: Boolean,
@@ -266,6 +330,7 @@ private fun ExpandedIslandContent(
     onPrevious: () -> Unit,
     onSeekTo: (Long) -> Unit,
     onLikeToggle: () -> Unit,
+    onOpenApp: (() -> Unit)? = null,
     onCollapse: () -> Unit
 ) {
     val dynamicColors = LocalSonzaDynamicColors.current
@@ -290,23 +355,61 @@ private fun ExpandedIslandContent(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(song.thumbnailUrl?.takeIf { it.isNotBlank() } ?: R.drawable.di_album_placeholder)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = "Album Artwork",
+            Box(
                 modifier = Modifier
                     .size(54.dp)
                     .clip(RoundedCornerShape(14.dp))
                     .border(0.75.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(14.dp))
-                    .background(Color(0xFF18181A)),
-                contentScale = ContentScale.Crop
-            )
+                    .background(Color(0xFF18181A))
+                    .then(
+                        if (onOpenApp != null) {
+                            Modifier.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = onOpenApp
+                            )
+                        } else Modifier
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isLoading) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(R.raw.loding)
+                            .crossfade(false)
+                            .build(),
+                        contentDescription = "Loading",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(song.thumbnailUrl?.takeIf { it.isNotBlank() } ?: R.drawable.di_album_placeholder)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Album Artwork",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .then(
+                        if (onOpenApp != null) {
+                            Modifier.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = onOpenApp
+                            )
+                        } else Modifier
+                    )
+            ) {
                 Text(
                     text = song.title,
                     style = SonzaTypography.SongTitle.copy(
@@ -418,7 +521,7 @@ private fun ExpandedIslandContent(
                 )
             }
 
-            // Central Play/Pause Button
+            // Central Play/Pause Button with Loading state support
             Surface(
                 modifier = Modifier
                     .size(50.dp)
@@ -429,12 +532,20 @@ private fun ExpandedIslandContent(
                 shadowElevation = 4.dp
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        painter = painterResource(if (isPlaying) R.drawable.di_pause else R.drawable.di_play),
-                        contentDescription = if (isPlaying) "Pause" else "Play",
-                        tint = if (isPlaying) Color.Black else Color.White,
-                        modifier = Modifier.size(26.dp)
-                    )
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.5.dp,
+                            color = if (isPlaying) Color.Black else Color.White
+                        )
+                    } else {
+                        Icon(
+                            painter = painterResource(if (isPlaying) R.drawable.di_pause else R.drawable.di_play),
+                            contentDescription = if (isPlaying) "Pause" else "Play",
+                            tint = if (isPlaying) Color.Black else Color.White,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
                 }
             }
 

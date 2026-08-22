@@ -49,6 +49,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import coil3.request.crossfade
+import com.sonza.app.R
 import com.sonza.app.core.model.Song
 import com.sonza.app.ui.components.DominantColors
 import com.sonza.app.ui.theme.SonzaTypography
@@ -142,6 +144,7 @@ fun CompactFloatingMiniPlayer(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Square Album Artwork
+                val context = androidx.compose.ui.platform.LocalContext.current
                 Box(
                     modifier = Modifier
                         .size(40.dp)
@@ -149,7 +152,17 @@ fun CompactFloatingMiniPlayer(
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (!highResThumbnail.isNullOrBlank()) {
+                    if (isLoading) {
+                        AsyncImage(
+                            model = coil3.request.ImageRequest.Builder(context)
+                                .data(R.raw.loding)
+                                .crossfade(false)
+                                .build(),
+                            contentDescription = "Loading",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else if (!highResThumbnail.isNullOrBlank()) {
                         AsyncImage(
                             model = highResThumbnail,
                             contentDescription = song.title,

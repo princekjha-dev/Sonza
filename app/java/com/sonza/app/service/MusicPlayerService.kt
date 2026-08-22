@@ -309,6 +309,9 @@ class MusicPlayerService : MediaLibraryService() {
         
         createNotificationChannel()
         
+        // Start Dynamic Island Overlay Service for external floating player support
+        DynamicIslandOverlayService.start(this)
+        
         // Custom Notification Provider
         setMediaNotificationProvider(CustomNotificationProvider())
         

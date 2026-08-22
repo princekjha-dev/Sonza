@@ -57,6 +57,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.request.crossfade
+import com.sonza.app.R
 import com.sonza.app.core.model.Song
 import com.sonza.app.ui.components.DominantColors
 import com.sonza.app.ui.theme.SonzaTypography
@@ -201,6 +203,7 @@ fun PillMiniPlayer(
                         )
                     }
                     
+                    val context = androidx.compose.ui.platform.LocalContext.current
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -210,7 +213,17 @@ fun PillMiniPlayer(
                             .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (highResThumbnail != null) {
+                        if (isLoading) {
+                            AsyncImage(
+                                model = coil3.request.ImageRequest.Builder(context)
+                                    .data(R.raw.loding)
+                                    .crossfade(false)
+                                    .build(),
+                                contentDescription = "Loading",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else if (highResThumbnail != null) {
                             AsyncImage(
                                 model = highResThumbnail,
                                 contentDescription = song.title,
@@ -221,8 +234,8 @@ fun PillMiniPlayer(
                             Icon(
                                 imageVector = Icons.Default.MusicNote,
                                 contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                modifier = Modifier.size(18.dp),
+                                tint = dominantColors.onBackground.copy(alpha = 0.6f)
                             )
                         }
                     }

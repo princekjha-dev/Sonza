@@ -259,8 +259,7 @@ fun HomeScreen(
                 ) {
                     val formFactor = LocalDeviceFormFactor.current
                     val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                    val isMiniPlayerVisible = currentSong != null
-                    val bottomSystemHeight = if (isMiniPlayerVisible) 132.dp else (if (formFactor.isPhoneLike) 64.dp else 0.dp)
+                    val bottomSystemHeight = if (formFactor.isPhoneLike) com.sonza.app.ui.components.ExpressiveBottomNavTokens.TotalBottomBarHeight else 0.dp
                     val targetBottomPadding = navBarPadding + bottomSystemHeight + 20.dp
 
                     val animatedBottomPadding by animateDpAsState(

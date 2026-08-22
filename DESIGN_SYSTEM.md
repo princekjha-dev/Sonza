@@ -160,24 +160,28 @@ Unified, clean, confident hierarchy matching the premium music streaming referen
 - **Unselected:** `surface-variant` background, `on-surface-variant` text, `outline` border.
 - Defined in: `MoodChips.kt` (`MoodChipsSection`, `MoodChip`)
 
-### 6.3 Bottom Navigation (Idle State)
-- 4 items: Home, Search, Library, Settings. Fixed at the bottom on mobile.
-- **Active:** filled icon variant (`Icons.Filled.*`), dynamic `accent` tint, `NavLabel` (11.5sp Manrope) `SemiBold` (600) label visible.
-- **Inactive:** outlined icon variant (`Icons.Outlined.*`), neutral gray (`on-surface-variant` @ 70%) tint, `NavLabel` (11.5sp Manrope) `Medium` (500) label visible.
-- **Iconography:** standard 24dp Material Icons (`Home`, `Search`, `LibraryMusic`, `Settings`).
-- **Surface:** Clean, minimal, non-floating bar seamlessly integrated with Sonza's dark background (`SonzaBackground`). No background panel surrounding all four tabs, no outer border, no blur/glass effect, no floating container, and no empty player space. Extends edge-to-edge behind system navigation bar with `navigationBarsPadding()`.
-- **Accessibility:** Full touch targets (`fillMaxHeight()`, min 48dp), `Role.Tab` semantics with dynamic TalkBack announcements (`"Home, selected"`, `"Search"`, `"Library"`, `"Settings"`).
-- **Transition:** 150ms `FastOutSlowInEasing` color transition on tab change (`NavSelectionDuration`). Zero layout shift on state change.
-- Defined in: `ExpressiveBottomNav.kt` (`ExpressiveBottomNav`)
+### 6.3 Floating Bottom Navigation & Mini-Player System
+Sonza uses a unified floating glass bottom navigation system with **two distinct visual states**:
 
-### 6.4 Mini-Player
-- Fixed bar above bottom nav, `elevation-2` blur background.
-- Shows: album art thumbnail, title/artist (marquee if overflow), play/pause, next.
-- Subtle `accent-muted` wash matching current track's artwork.
-- **Buffering state:** thin linear progress line under the bar (reflects live stream
-  resolution isn't instant) — replaces static play icon briefly with a small spinner.
-- Tap to expand → Now Playing sheet (`elevation-3`, full dynamic background).
-- Defined in: `StandardMiniPlayer.kt`, `LiquidGlassMiniPlayer.kt`, `ExpandablePlayerSheet.kt`
+#### State 1: Idle (No Music Playing)
+- `[ Home | Search | Library | Settings ]`
+- **Surface:** Centered floating, rounded pill-shaped container (`RoundedCornerShape(28.dp)`, 56dp height token).
+- **Material:** Frosted dark glass surface with subtle rim border gradient (`Color.White` 16% to 4%), specular top sheen, and elevation shadow. Floats above the system gesture bar with `navigationBarsPadding()` and bottom padding.
+- **Active Tab:** Highlighted background pill with dynamic `accent` color wash (`accent.copy(alpha = 0.18f)`), filled icon variant (`Icons.Filled.*`), and `accent` text tint.
+- **Inactive Tab:** Transparent background, outlined icon variant (`Icons.Outlined.*`), and muted gray (`on-surface-variant` @ 70%) tint.
+- **Typography:** `NavLabel` (11.5sp Manrope), `SemiBold` (600) when selected, `Medium` (500) when unselected.
+- **Spacing:** Equal width and distribution across all 4 destinations.
+- **No empty placeholder:** Zero reserved playback spacing when idle.
+
+#### State 2: Music Playing
+- `[ Home (Circle) ] [ Mini-Player (Pill) ] [ Search (Circle) ]`
+- **Home Button (Far Left):** Independent circular floating glass button (`56.dp` x `56.dp`, `CircleShape`). Dynamic accent color when active on Home, muted gray when inactive. Handles single-click and double-click. Fixed on left.
+- **Mini-Player (Center):** Compact horizontal floating pill (`RoundedCornerShape(28.dp)`, 56dp height). Shows square album art with rounded corners (40dp, `radius-md`), marquee song title, artist subtitle, subtle bottom progress line, and compact play/pause button (or buffering spinner). Tap expands Now Playing sheet.
+- **Search Button (Far Right):** Independent circular floating glass button (`56.dp` x `56.dp`, `CircleShape`). Dynamic accent color when active on Search, muted gray when inactive. Fixed on right. Never part of the mini-player.
+
+#### State Transition
+- 220ms `FastOutSlowInEasing` fluid crossfade transition without vertical screen or content jump.
+- Defined in: `ExpressiveBottomNav.kt` (`ExpressiveBottomNav`, `ExpressiveBottomNavTokens`)
 
 ### 6.5 Now Playing (Expanded Sheet)
 - Full-bleed blurred background generated from album art (Apple Music-style), `scrim`
