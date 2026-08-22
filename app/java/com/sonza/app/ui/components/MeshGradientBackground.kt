@@ -43,7 +43,7 @@ fun MeshGradientBackground(
             isIdle = true
         )
     } else {
-        dominantColors!!
+        dominantColors
     }
 
     // Smooth spring animation for color transitions
