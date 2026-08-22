@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Language
@@ -276,7 +277,7 @@ fun AboutScreen(
                         modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)
                     )
                     AboutLinkRow(
-                        icon = Icons.Default.MenuBook,
+                        icon = Icons.AutoMirrored.Filled.MenuBook,
                         title = "Open Source Licenses",
                         subtitle = "Third-party libraries and tools",
                         accentColor = accentColor,
