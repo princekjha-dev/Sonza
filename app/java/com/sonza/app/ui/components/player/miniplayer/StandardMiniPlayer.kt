@@ -160,17 +160,7 @@ fun StandardMiniPlayer(
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (isLoading) {
-                        AsyncImage(
-                            model = coil3.request.ImageRequest.Builder(context)
-                                .data(R.raw.loding)
-                                .crossfade(false)
-                                .build(),
-                            contentDescription = "Loading",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else if (highResThumbnail != null) {
+                    if (highResThumbnail != null) {
                         AsyncImage(
                             model = highResThumbnail,
                             contentDescription = song.title,
@@ -216,15 +206,20 @@ fun StandardMiniPlayer(
 
                 Spacer(modifier = Modifier.width(4.dp))
 
-                // Play/Pause button (Right edge)
+                // Play/Pause button with single loader
                 IconButton(
                     onClick = onPlayPause,
                     modifier = Modifier.size(38.dp)
                 ) {
                     if (isLoading) {
-                        com.sonza.app.ui.components.SonzaLoadingLogo(
-                            color = SonzaOnBackground,
-                            modifier = Modifier.size(20.dp)
+                        AsyncImage(
+                            model = coil3.request.ImageRequest.Builder(context)
+                                .data(R.raw.loding)
+                                .crossfade(false)
+                                .build(),
+                            contentDescription = "Loading",
+                            modifier = Modifier.size(26.dp),
+                            contentScale = ContentScale.Fit
                         )
                     } else {
                         Icon(

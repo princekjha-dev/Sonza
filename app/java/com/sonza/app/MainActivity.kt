@@ -824,7 +824,9 @@ fun SonzaApp(
         val imePadding = androidx.compose.foundation.layout.WindowInsets.ime.asPaddingValues().calculateBottomPadding()
         val isKeyboardOpen = imePadding > 0.dp
         val shouldShowExpressiveBottomNav = showBottomNav && !isKeyboardOpen && !isPlayerExpanded && formFactor.isPhoneLike
-        val navBarHeight = if (shouldShowExpressiveBottomNav && formFactor != DeviceFormFactor.TV) com.sonza.app.ui.components.ExpressiveBottomNavTokens.TotalBottomBarHeight else 0.dp
+        val navBarHeight = if (shouldShowExpressiveBottomNav && formFactor != DeviceFormFactor.TV) {
+            com.sonza.app.ui.components.ExpressiveBottomNavTokens.getBottomSafePadding(playbackInfo.currentSong != null)
+        } else 0.dp
         val floatingSystemHeight = 0.dp
         val snackbarBottomPadding = when {
             isPlayerExpanded -> navBarPadding + 12.dp
@@ -1066,7 +1068,9 @@ fun SonzaApp(
         val imePadding = androidx.compose.foundation.layout.WindowInsets.ime.asPaddingValues().calculateBottomPadding()
         val isKeyboardOpen = imePadding > 0.dp
         val bottomPaddingPx = if (formFactor.isPhoneLike) {
-            val navBarHeight = if (shouldShowExpressiveBottomNav) com.sonza.app.ui.components.ExpressiveBottomNavTokens.TotalBottomBarHeight else 0.dp
+            val navBarHeight = if (shouldShowExpressiveBottomNav) {
+                com.sonza.app.ui.components.ExpressiveBottomNavTokens.getBottomSafePadding(playbackInfo.currentSong != null)
+            } else 0.dp
             with(density) { navBarPadding.toPx() + navBarHeight.toPx() }
         } else {
             val navBarHeight = if (showBottomNav && !isKeyboardOpen && formFactor != DeviceFormFactor.TV) com.sonza.app.ui.components.ExpressiveBottomNavTokens.TotalBottomBarHeight else 0.dp

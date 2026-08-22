@@ -232,7 +232,7 @@ private fun CompactIslandContent(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Leading Mini Artwork with loading GIF support
+        // Leading Mini Artwork
         Box(
             modifier = Modifier
                 .size(26.dp)
@@ -250,27 +250,15 @@ private fun CompactIslandContent(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            if (isLoading) {
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(R.raw.loding)
-                        .crossfade(false)
-                        .build(),
-                    contentDescription = "Loading",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(song.thumbnailUrl?.takeIf { it.isNotBlank() } ?: R.drawable.di_album_placeholder)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = "Album Art",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            }
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(song.thumbnailUrl?.takeIf { it.isNotBlank() } ?: R.drawable.di_album_placeholder)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "Album Art",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
         }
 
         Spacer(modifier = Modifier.width(8.dp))
@@ -300,12 +288,16 @@ private fun CompactIslandContent(
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // Trailing Waveform Visualizer or Spinner
+        // Trailing Waveform Visualizer or Single Loading GIF
         if (isLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(16.dp),
-                strokeWidth = 2.dp,
-                color = accentColor
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(R.raw.loding)
+                    .crossfade(false)
+                    .build(),
+                contentDescription = "Buffering",
+                modifier = Modifier.size(20.dp),
+                contentScale = ContentScale.Fit
             )
         } else {
             SoundwaveVisualizer(isPlaying = isPlaying, accentColor = accentColor)
@@ -372,27 +364,15 @@ private fun ExpandedIslandContent(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                if (isLoading) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(R.raw.loding)
-                            .crossfade(false)
-                            .build(),
-                        contentDescription = "Loading",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(song.thumbnailUrl?.takeIf { it.isNotBlank() } ?: R.drawable.di_album_placeholder)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = "Album Artwork",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                }
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(song.thumbnailUrl?.takeIf { it.isNotBlank() } ?: R.drawable.di_album_placeholder)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Album Artwork",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
             }
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -533,10 +513,14 @@ private fun ExpandedIslandContent(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     if (isLoading) {
-                        CircularProgressIndicator(
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(R.raw.loding)
+                                .crossfade(false)
+                                .build(),
+                            contentDescription = "Buffering",
                             modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.5.dp,
-                            color = if (isPlaying) Color.Black else Color.White
+                            contentScale = ContentScale.Fit
                         )
                     } else {
                         Icon(

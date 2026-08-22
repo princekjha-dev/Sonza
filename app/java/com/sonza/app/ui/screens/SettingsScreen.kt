@@ -172,7 +172,7 @@ fun SettingsScreen(
 
     // Dynamic inset calculation to prevent Mini Player & Bottom Nav from covering content
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val bottomSystemHeight = com.sonza.app.ui.components.ExpressiveBottomNavTokens.TotalBottomBarHeight
+    val bottomSystemHeight = com.sonza.app.ui.components.ExpressiveBottomNavTokens.getBottomSafePadding(currentSong != null)
     val dynamicBottomInset = navBarPadding + bottomSystemHeight + SpacingTokens.Space2Xl
 
     var settingsQuery by remember { mutableStateOf("") }

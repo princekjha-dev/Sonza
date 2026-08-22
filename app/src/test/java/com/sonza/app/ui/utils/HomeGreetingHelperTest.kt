@@ -20,11 +20,11 @@ class HomeGreetingHelperTest {
     }
 
     @Test
-    fun testBluntGreetingsWithoutUserName() {
+    fun testGreetingsWithoutUserName() {
         // Morning (5..11)
-        assertEquals("Good morning ☀️", HomeGreetingHelper.getGreetingText(userName = null, hour = 8))
-        assertEquals("Good morning ☀️", HomeGreetingHelper.getGreetingText(userName = "", hour = 8))
-        assertEquals("Good morning ☀️", HomeGreetingHelper.getGreetingText(userName = "   ", hour = 8))
+        assertEquals("Good morning 🌅", HomeGreetingHelper.getGreetingText(userName = null, hour = 8))
+        assertEquals("Good morning 🌅", HomeGreetingHelper.getGreetingText(userName = "", hour = 8))
+        assertEquals("Good morning 🌅", HomeGreetingHelper.getGreetingText(userName = "   ", hour = 8))
 
         // Afternoon (12..16)
         assertEquals("Good afternoon 🌤️", HomeGreetingHelper.getGreetingText(userName = null, hour = 14))
@@ -38,10 +38,10 @@ class HomeGreetingHelperTest {
     }
 
     @Test
-    fun testBluntGreetingsWithUserName() {
+    fun testGreetingsWithUserName() {
         // Morning (5..11)
-        assertEquals("Good morning, Naruto ☀️", HomeGreetingHelper.getGreetingText(userName = "Naruto", hour = 9))
-        assertEquals("Good morning, Naruto ☀️", HomeGreetingHelper.getGreetingText(userName = " Naruto  ", hour = 9))
+        assertEquals("Good morning, Naruto 🌅", HomeGreetingHelper.getGreetingText(userName = "Naruto", hour = 9))
+        assertEquals("Good morning, Naruto 🌅", HomeGreetingHelper.getGreetingText(userName = " Naruto  ", hour = 9))
 
         // Afternoon (12..16)
         assertEquals("Good afternoon, Naruto 🌤️", HomeGreetingHelper.getGreetingText(userName = "Naruto", hour = 13))
@@ -55,63 +55,11 @@ class HomeGreetingHelperTest {
     }
 
     @Test
-    fun testMoodGreetingsWithUserName() {
-        val romanticSong = createSong("1", "Romantic Love Song", "Artist")
-
-        assertEquals(
-            "Good morning, Naruto ☀️ Feeling romantic today? ❤️",
-            HomeGreetingHelper.getGreetingText(userName = "Naruto", currentSong = romanticSong, hour = 8)
-        )
-        assertEquals(
-            "Good afternoon, Naruto 🌤️ Love is in the air ❤️",
-            HomeGreetingHelper.getGreetingText(userName = "Naruto", currentSong = romanticSong, hour = 14)
-        )
-        assertEquals(
-            "Good evening, Naruto 🌆 In a romantic mood? ❤️",
-            HomeGreetingHelper.getGreetingText(userName = "Naruto", currentSong = romanticSong, hour = 19)
-        )
-        assertEquals(
-            "Good night, Naruto 🌙 One more love song? ❤️",
-            HomeGreetingHelper.getGreetingText(userName = "Naruto", currentSong = romanticSong, hour = 23)
-        )
-
-        val sadSong = createSong("2", "Sad Broken Tears", "Artist")
-        assertEquals(
-            "Good evening, Naruto 🌆 Feeling a little emotional? 💙",
-            HomeGreetingHelper.getGreetingText(userName = "Naruto", currentSong = sadSong, hour = 20)
-        )
-        assertEquals(
-            "Good night, Naruto 🌙 Some feelings need music 🎧",
-            HomeGreetingHelper.getGreetingText(userName = "Naruto", currentSong = sadSong, hour = 23)
-        )
-
-        val energeticSong = createSong("3", "Gym Workout Party Bass", "Artist")
-        assertEquals(
-            "Good evening, Naruto 🌆 Ready to turn it up? 🔥",
-            HomeGreetingHelper.getGreetingText(userName = "Naruto", currentSong = energeticSong, hour = 18)
-        )
-        assertEquals(
-            "Good night, Naruto 🌙 Still got energy? ⚡",
-            HomeGreetingHelper.getGreetingText(userName = "Naruto", currentSong = energeticSong, hour = 23)
-        )
-
-        val chillSong = createSong("4", "Lofi Chill Sunset Rain", "Artist")
-        assertEquals(
-            "Good evening, Naruto 🌆 Just vibing? 🌙",
-            HomeGreetingHelper.getGreetingText(userName = "Naruto", currentSong = chillSong, hour = 20)
-        )
-        assertEquals(
-            "Good night, Naruto 🌙 Time to relax 🎧",
-            HomeGreetingHelper.getGreetingText(userName = "Naruto", currentSong = chillSong, hour = 23)
-        )
-    }
-
-    @Test
     fun testPositionalCompatibilityOverload() {
-        val romanticSong = createSong("1", "Romantic Love Song", "Artist")
+        val song = createSong("1", "Romantic Love Song", "Artist")
         assertEquals(
-            "Good morning ☀️ Feeling romantic today? ❤️",
-            HomeGreetingHelper.getGreetingText(romanticSong, null, 8)
+            "Good morning 🌅",
+            HomeGreetingHelper.getGreetingText(song, null, 8)
         )
         assertEquals(
             "Good evening 🌆",

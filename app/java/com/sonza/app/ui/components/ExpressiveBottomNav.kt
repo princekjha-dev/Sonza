@@ -82,26 +82,30 @@ import com.sonza.app.ui.theme.SonzaTypography
 
 object ExpressiveBottomNavTokens {
     val NavBarHeight = 56.dp
+    val MiniPlayerHeight = 56.dp
+    val PillSpacing = 8.dp
     val FloatingBarBottomPadding = 8.dp
     val FloatingBarHorizontalPadding = 16.dp
-    val TotalBottomBarHeight = 64.dp
+    val TotalBottomBarHeight = 64.dp // 56dp + 8dp
+    val TotalStackedHeight = 128.dp // 56dp + 8dp + 56dp + 8dp
+
+    fun getBottomSafePadding(hasMusicPlaying: Boolean): androidx.compose.ui.unit.Dp {
+        return if (hasMusicPlaying) TotalStackedHeight else TotalBottomBarHeight
+    }
 }
 
 /**
- * Redesigned Floating Bottom Navigation & Mini-Player System:
+ * Floating Bottom Navigation & Mini-Player Stack:
  *
- * 1. NO MUSIC PLAYING:
- *    A centered floating, rounded pill-shaped container with subtle frosted dark glass surface
- *    housing all 4 destinations: [ Home | Search | Library | Settings ].
- *    Active tab receives a rounded highlighted background with dynamic accent color.
+ * 1. Normal State (No Music):
+ *    Standard 4-destination navigation pill [ Home | Search | Library | Settings ] floating
+ *    at the bottom with frosted glass background and smooth selection indicators.
  *
- * 2. MUSIC PLAYING:
- *    Transforms smoothly into 3 cohesive floating glass elements:
- *    [ Circular Home Button ] [ Compact Floating Mini-Player Pill ] [ Circular Search Button ]
- *    - Home button on the left is fixed and independently clickable.
- *    - Mini-player pill in the center shows artwork, marquee title/artist, bottom progress line,
- *      and play/pause button. Tapping expands the full player.
- *    - Search button on the far right is fixed and independently clickable.
+ * 2. Music Playing State:
+ *    Floating mini-player pill appears cleanly ABOVE the 4-destination navigation pill.
+ *    The bottom navigation remains 100% visible and interactive.
+ *    Single loading indicator (loding.gif) in the playback control slot when buffering.
+ *    Tapping mini-player expands the full player; dragging/swiping down collapses it back.
  */
 @Composable
 fun ExpressiveBottomNav(
@@ -123,9 +127,8 @@ fun ExpressiveBottomNav(
 ) {
     val dynamicColors = LocalSonzaDynamicColors.current
     val accentColor = dynamicColors.accent.takeIf { it != Color.Unspecified } ?: SonzaBrandAccent
-    val hasSong = currentSong != null
 
-    Box(
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
@@ -135,63 +138,56 @@ fun ExpressiveBottomNav(
                 bottom = ExpressiveBottomNavTokens.FloatingBarBottomPadding,
                 top = 0.dp
             ),
-        contentAlignment = Alignment.Center
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(ExpressiveBottomNavTokens.PillSpacing)
     ) {
-        AnimatedContent(
-            targetState = hasSong,
-            transitionSpec = {
-                fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) togetherWith
-                    fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing))
-            },
-            label = "bottomNavLayout"
-        ) { isPlayingTrack ->
-            if (isPlayingTrack && currentSong != null) {
-                InlinePlayerBottomNavBar(
+        // --- Layer 1 (Top): Floating Mini-Player Pill (visible when song is present) ---
+        androidx.compose.animation.AnimatedVisibility(
+            visible = currentSong != null,
+            enter = fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                    androidx.compose.animation.slideInVertically(animationSpec = tween(250, easing = FastOutSlowInEasing)) { it },
+            exit = fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
+                   androidx.compose.animation.slideOutVertically(animationSpec = tween(200, easing = FastOutSlowInEasing)) { it }
+        ) {
+            if (currentSong != null) {
+                FloatingMiniPlayerPill(
                     currentSong = currentSong,
                     isPlaying = isPlaying,
                     isLoading = isLoading,
                     progressProvider = progressProvider,
-                    currentDestination = currentDestination,
                     accentColor = accentColor,
                     userAlpha = alpha,
-                    onDestinationChange = onDestinationChange,
-                    onReClick = onReClick,
                     onPlayPause = onPlayPause,
                     onExpandPlayer = onExpandPlayer
                 )
-            } else {
-                Standard4TabsNavBar(
-                    currentDestination = currentDestination,
-                    accentColor = accentColor,
-                    userAlpha = alpha,
-                    onDestinationChange = onDestinationChange,
-                    onReClick = onReClick
-                )
             }
         }
+
+        // --- Layer 2 (Bottom): Full 4-Tabs Navigation Bar [ Home | Search | Library | Settings ] ---
+        Standard4TabsNavBar(
+            currentDestination = currentDestination,
+            accentColor = accentColor,
+            userAlpha = alpha,
+            onDestinationChange = onDestinationChange,
+            onReClick = onReClick
+        )
     }
 }
 
 /**
- * State 2: Music Playing
- * [ HOME (Circle) ]  [ MINI PLAYER (Pill) ]  [ SEARCH (Circle) ]
+ * Floating Mini-Player Pill sitting directly above the Bottom Navigation.
  */
 @Composable
-private fun InlinePlayerBottomNavBar(
+private fun FloatingMiniPlayerPill(
     currentSong: Song,
     isPlaying: Boolean,
     isLoading: Boolean,
     progressProvider: () -> Float,
-    currentDestination: Destination,
     accentColor: Color,
     userAlpha: Float,
-    onDestinationChange: (Destination) -> Unit,
-    onReClick: (Destination) -> Unit,
     onPlayPause: () -> Unit,
     onExpandPlayer: () -> Unit
 ) {
-    val isHomeSelected = currentDestination == Destination.Home
-    val isSearchSelected = currentDestination == Destination.Search
     val pillShape = RoundedCornerShape(28.dp)
     val effectiveAlpha = (0.90f * userAlpha).coerceIn(0.70f, 0.98f)
     val surfaceColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = effectiveAlpha)
@@ -209,229 +205,18 @@ private fun InlinePlayerBottomNavBar(
         1.0f to Color.Black.copy(alpha = 0.12f)
     )
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(ExpressiveBottomNavTokens.NavBarHeight),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // --- Far Left: Circular Home Button ---
-        FloatingGlassCircleButton(
-            icon = Icons.Outlined.Home,
-            selectedIcon = Icons.Filled.Home,
-            isSelected = isHomeSelected,
-            contentDescription = stringResource(R.string.nav_home),
-            accentColor = accentColor,
-            surfaceColor = surfaceColor,
-            borderBrush = borderBrush,
-            specularBrush = specularBrush,
-            onClick = {
-                if (isHomeSelected) onReClick(Destination.Home) else onDestinationChange(Destination.Home)
-            }
-        )
-
-        // --- Middle: Floating Mini-Player Pill ---
-        Surface(
-            modifier = Modifier
-                .weight(1f)
-                .height(ExpressiveBottomNavTokens.NavBarHeight)
-                .shadow(
-                    elevation = 8.dp,
-                    shape = pillShape,
-                    ambientColor = Color.Black.copy(alpha = 0.40f),
-                    spotColor = Color.Black.copy(alpha = 0.30f)
-                ),
-            shape = pillShape,
-            color = surfaceColor,
-            border = BorderStroke(0.75.dp, borderBrush)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(specularBrush)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onExpandPlayer
-                    )
-            ) {
-                // Subtle playback progress line along the bottom of the pill
-                val progress = progressProvider().coerceIn(0f, 1f)
-                if (progress > 0f) {
-                    Canvas(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(2.5.dp)
-                            .align(Alignment.BottomCenter)
-                    ) {
-                        drawRoundRect(
-                            color = accentColor.copy(alpha = 0.85f),
-                            size = androidx.compose.ui.geometry.Size(size.width * progress, size.height),
-                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx(), 2.dp.toPx())
-                        )
-                    }
-                }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(start = 7.dp, end = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Small square album artwork with rounded corners
-                    val thumbUrl = currentSong.thumbnailUrl
-                    val context = androidx.compose.ui.platform.LocalContext.current
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (isLoading) {
-                            AsyncImage(
-                                model = coil3.request.ImageRequest.Builder(context)
-                                    .data(R.raw.loding)
-                                    .crossfade(false)
-                                    .build(),
-                                contentDescription = "Loading",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else if (!thumbUrl.isNullOrBlank()) {
-                            AsyncImage(
-                                model = thumbUrl,
-                                contentDescription = currentSong.title,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Filled.MusicNote,
-                                contentDescription = null,
-                                tint = accentColor,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(9.dp))
-
-                    // Song title & artist info
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(vertical = 4.dp),
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = currentSong.title,
-                            style = SonzaTypography.SongTitle.copy(
-                                fontSize = 13.5.sp,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = SonzaOnBackground,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.basicMarquee()
-                        )
-                        if (!currentSong.artist.isNullOrBlank()) {
-                            Text(
-                                text = currentSong.artist,
-                                style = SonzaTypography.ArtistSubtitle.copy(
-                                    fontSize = 11.5.sp
-                                ),
-                                color = SonzaOnSurfaceVariant.copy(alpha = 0.85f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    // Compact Play/Pause button on the right
-                    IconButton(
-                        onClick = onPlayPause,
-                        modifier = Modifier.size(38.dp)
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp,
-                                color = accentColor
-                            )
-                        } else {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                contentDescription = if (isPlaying) "Pause" else "Play",
-                                tint = SonzaOnSurface,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // --- Far Right: Circular Search Button ---
-        FloatingGlassCircleButton(
-            icon = Icons.Outlined.Search,
-            selectedIcon = Icons.Filled.Search,
-            isSelected = isSearchSelected,
-            contentDescription = stringResource(R.string.nav_search),
-            accentColor = accentColor,
-            surfaceColor = surfaceColor,
-            borderBrush = borderBrush,
-            specularBrush = specularBrush,
-            onClick = {
-                if (isSearchSelected) onReClick(Destination.Search) else onDestinationChange(Destination.Search)
-            }
-        )
-    }
-}
-
-/**
- * Reusable circular floating glass button for Home and Search.
- */
-@Composable
-private fun FloatingGlassCircleButton(
-    icon: ImageVector,
-    selectedIcon: ImageVector,
-    isSelected: Boolean,
-    contentDescription: String,
-    accentColor: Color,
-    surfaceColor: Color,
-    borderBrush: Brush,
-    specularBrush: Brush,
-    onClick: () -> Unit
-) {
-    val unselectedIconColor = SonzaOnSurfaceVariant.copy(alpha = 0.70f)
-
-    val animatedBgColor by animateColorAsState(
-        targetValue = if (isSelected) accentColor.copy(alpha = 0.22f) else surfaceColor,
-        animationSpec = tween(durationMillis = MotionTokens.NavSelectionDuration, easing = FastOutSlowInEasing),
-        label = "circleBtnBg"
-    )
-
-    val animatedIconColor by animateColorAsState(
-        targetValue = if (isSelected) accentColor else unselectedIconColor,
-        animationSpec = tween(durationMillis = MotionTokens.NavSelectionDuration, easing = FastOutSlowInEasing),
-        label = "circleBtnIcon"
-    )
-
     Surface(
         modifier = Modifier
-            .size(ExpressiveBottomNavTokens.NavBarHeight)
+            .fillMaxWidth()
+            .height(ExpressiveBottomNavTokens.MiniPlayerHeight)
             .shadow(
                 elevation = 8.dp,
-                shape = CircleShape,
+                shape = pillShape,
                 ambientColor = Color.Black.copy(alpha = 0.40f),
                 spotColor = Color.Black.copy(alpha = 0.30f)
             ),
-        shape = CircleShape,
-        color = animatedBgColor,
+        shape = pillShape,
+        color = surfaceColor,
         border = BorderStroke(0.75.dp, borderBrush)
     ) {
         Box(
@@ -441,16 +226,119 @@ private fun FloatingGlassCircleButton(
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = onClick
-                ),
-            contentAlignment = Alignment.Center
+                    onClick = onExpandPlayer
+                )
         ) {
-            Icon(
-                imageVector = if (isSelected) selectedIcon else icon,
-                contentDescription = contentDescription,
-                tint = animatedIconColor,
-                modifier = Modifier.size(24.dp)
-            )
+            // Subtle playback progress line along the bottom of the pill
+            val progress = progressProvider().coerceIn(0f, 1f)
+            if (progress > 0f) {
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.5.dp)
+                        .align(Alignment.BottomCenter)
+                ) {
+                    drawRoundRect(
+                        color = accentColor.copy(alpha = 0.85f),
+                        size = androidx.compose.ui.geometry.Size(size.width * progress, size.height),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx(), 2.dp.toPx())
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(start = 7.dp, end = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Small square album artwork with rounded corners
+                val thumbUrl = currentSong.thumbnailUrl
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (!thumbUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = thumbUrl,
+                            contentDescription = currentSong.title,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.MusicNote,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(9.dp))
+
+                // Song title & artist info
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(vertical = 4.dp),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = currentSong.title,
+                        style = SonzaTypography.SongTitle.copy(
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = SonzaOnBackground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.basicMarquee()
+                    )
+                    if (!currentSong.artist.isNullOrBlank()) {
+                        Text(
+                            text = currentSong.artist,
+                            style = SonzaTypography.ArtistSubtitle.copy(
+                                fontSize = 11.5.sp
+                            ),
+                            color = SonzaOnSurfaceVariant.copy(alpha = 0.85f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                // Single Play/Pause / Buffering button on the right
+                val context = androidx.compose.ui.platform.LocalContext.current
+                IconButton(
+                    onClick = onPlayPause,
+                    modifier = Modifier.size(38.dp)
+                ) {
+                    if (isLoading) {
+                        AsyncImage(
+                            model = coil3.request.ImageRequest.Builder(context)
+                                .data(R.raw.loding)
+                                .crossfade(false)
+                                .build(),
+                            contentDescription = "Loading",
+                            modifier = Modifier.size(26.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                    } else {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                            contentDescription = if (isPlaying) "Pause" else "Play",
+                            tint = SonzaOnSurface,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
         }
     }
 }

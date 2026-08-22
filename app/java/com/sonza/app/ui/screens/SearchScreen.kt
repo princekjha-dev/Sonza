@@ -165,7 +165,7 @@ fun SearchScreen(
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val imePadding = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
     val isKeyboardOpen = imePadding > 0.dp
-    val bottomSystemHeight = com.sonza.app.ui.components.ExpressiveBottomNavTokens.TotalBottomBarHeight
+    val bottomSystemHeight = com.sonza.app.ui.components.ExpressiveBottomNavTokens.getBottomSafePadding(playbackInfo.currentSong != null)
     val contentBottomInset = if (isKeyboardOpen) {
         SpacingTokens.SpaceMd
     } else {

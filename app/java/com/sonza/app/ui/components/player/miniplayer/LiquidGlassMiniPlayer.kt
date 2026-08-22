@@ -173,17 +173,7 @@ fun LiquidGlassMiniPlayer(
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (isLoading) {
-                            AsyncImage(
-                                model = coil3.request.ImageRequest.Builder(context)
-                                    .data(R.raw.loding)
-                                    .crossfade(false)
-                                    .build(),
-                                contentDescription = "Loading",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else if (highResThumbnail != null) {
+                        if (highResThumbnail != null) {
                             AsyncImage(
                                 model = highResThumbnail,
                                 contentDescription = song.title,
@@ -229,12 +219,17 @@ fun LiquidGlassMiniPlayer(
 
                     Spacer(modifier = Modifier.width(4.dp))
 
-                    // Play/Pause Button (Right-anchored)
+                    // Play/Pause Button with single loader
                     GlassButton(onClick = onPlayPause, size = 38.dp) {
                         if (isLoading) {
-                            com.sonza.app.ui.components.SonzaLoadingLogo(
-                                color = dominantColors.onBackground,
-                                modifier = Modifier.size(20.dp)
+                            AsyncImage(
+                                model = coil3.request.ImageRequest.Builder(context)
+                                    .data(R.raw.loding)
+                                    .crossfade(false)
+                                    .build(),
+                                contentDescription = "Loading",
+                                modifier = Modifier.size(26.dp),
+                                contentScale = ContentScale.Fit
                             )
                         } else {
                             AnimatedContent(

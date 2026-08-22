@@ -259,7 +259,7 @@ fun HomeScreen(
                 ) {
                     val formFactor = LocalDeviceFormFactor.current
                     val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                    val bottomSystemHeight = if (formFactor.isPhoneLike) com.sonza.app.ui.components.ExpressiveBottomNavTokens.TotalBottomBarHeight else 0.dp
+                    val bottomSystemHeight = if (formFactor.isPhoneLike) com.sonza.app.ui.components.ExpressiveBottomNavTokens.getBottomSafePadding(currentSong != null) else 0.dp
                     val targetBottomPadding = navBarPadding + bottomSystemHeight + 20.dp
 
                     val animatedBottomPadding by animateDpAsState(

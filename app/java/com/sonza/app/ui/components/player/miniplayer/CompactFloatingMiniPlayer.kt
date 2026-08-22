@@ -152,17 +152,7 @@ fun CompactFloatingMiniPlayer(
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (isLoading) {
-                        AsyncImage(
-                            model = coil3.request.ImageRequest.Builder(context)
-                                .data(R.raw.loding)
-                                .crossfade(false)
-                                .build(),
-                            contentDescription = "Loading",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else if (!highResThumbnail.isNullOrBlank()) {
+                    if (!highResThumbnail.isNullOrBlank()) {
                         AsyncImage(
                             model = highResThumbnail,
                             contentDescription = song.title,
@@ -209,15 +199,20 @@ fun CompactFloatingMiniPlayer(
 
                 Spacer(modifier = Modifier.width(6.dp))
 
-                // Compact Play/Pause button
+                // Compact Play/Pause button with single loader
                 IconButton(
                     onClick = onPlayPause,
                     modifier = Modifier.size(38.dp)
                 ) {
                     if (isLoading) {
-                        SonzaLoadingLogo(
-                            modifier = Modifier.size(20.dp),
-                            color = accentColor
+                        AsyncImage(
+                            model = coil3.request.ImageRequest.Builder(context)
+                                .data(R.raw.loding)
+                                .crossfade(false)
+                                .build(),
+                            contentDescription = "Loading",
+                            modifier = Modifier.size(26.dp),
+                            contentScale = ContentScale.Fit
                         )
                     } else {
                         AnimatedContent(

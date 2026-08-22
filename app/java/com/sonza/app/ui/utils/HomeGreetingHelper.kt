@@ -146,9 +146,14 @@ object HomeGreetingHelper {
     }
 
     /**
-     * Generates the complete, context-aware greeting text.
-     * When [userName] is provided and non-blank, it is seamlessly integrated
-     * into both the blunt/default time-based greeting and mood-specific greetings.
+     * Generates the clean single-line time-based greeting text.
+     * When [userName] is provided and non-blank, it is integrated into the greeting.
+     *
+     * Time-based behavior:
+     * - Morning (5..11)   → Good morning 🌅
+     * - Afternoon (12..16) → Good afternoon 🌤️
+     * - Evening (17..21)   → Good evening 🌆
+     * - Night (22..4)     → Good night 🌙
      */
     fun getGreetingText(
         userName: String? = null,
@@ -157,42 +162,13 @@ object HomeGreetingHelper {
         hour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     ): String {
         val timePeriod = getTimePeriod(hour)
-        val mood = detectMood(currentSong, recentlyPlayed)
         val nameSuffix = if (!userName.isNullOrBlank()) ", ${userName.trim()}" else ""
 
-        val baseGreeting = when (timePeriod) {
-            TimePeriod.MORNING -> "Good morning$nameSuffix ☀️"
+        return when (timePeriod) {
+            TimePeriod.MORNING -> "Good morning$nameSuffix 🌅"
             TimePeriod.AFTERNOON -> "Good afternoon$nameSuffix 🌤️"
             TimePeriod.EVENING -> "Good evening$nameSuffix 🌆"
             TimePeriod.NIGHT -> "Good night$nameSuffix 🌙"
-        }
-
-        return when (mood) {
-            ListeningMood.ROMANTIC -> when (timePeriod) {
-                TimePeriod.MORNING -> "$baseGreeting Feeling romantic today? ❤️"
-                TimePeriod.AFTERNOON -> "$baseGreeting Love is in the air ❤️"
-                TimePeriod.EVENING -> "$baseGreeting In a romantic mood? ❤️"
-                TimePeriod.NIGHT -> "$baseGreeting One more love song? ❤️"
-            }
-            ListeningMood.SAD -> when (timePeriod) {
-                TimePeriod.MORNING -> "$baseGreeting Feeling a little emotional? 💙"
-                TimePeriod.AFTERNOON -> "$baseGreeting Feeling a little emotional? 💙"
-                TimePeriod.EVENING -> "$baseGreeting Feeling a little emotional? 💙"
-                TimePeriod.NIGHT -> "$baseGreeting Some feelings need music 🎧"
-            }
-            ListeningMood.ENERGETIC -> when (timePeriod) {
-                TimePeriod.MORNING -> "$baseGreeting Ready to turn it up? 🔥"
-                TimePeriod.AFTERNOON -> "$baseGreeting Ready to turn it up? 🔥"
-                TimePeriod.EVENING -> "$baseGreeting Ready to turn it up? 🔥"
-                TimePeriod.NIGHT -> "$baseGreeting Still got energy? ⚡"
-            }
-            ListeningMood.CHILL -> when (timePeriod) {
-                TimePeriod.MORNING -> "$baseGreeting Time to relax 🎧"
-                TimePeriod.AFTERNOON -> "$baseGreeting Just vibing? 🌙"
-                TimePeriod.EVENING -> "$baseGreeting Just vibing? 🌙"
-                TimePeriod.NIGHT -> "$baseGreeting Time to relax 🎧"
-            }
-            null -> baseGreeting
         }
     }
 
@@ -203,10 +179,5 @@ object HomeGreetingHelper {
         currentSong: Song?,
         recentlyPlayed: List<RecentlyPlayed>?,
         hour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-    ): String = getGreetingText(
-        userName = null,
-        currentSong = currentSong,
-        recentlyPlayed = recentlyPlayed,
-        hour = hour
-    )
+    ): String = getGreetingText(userName = null, currentSong = currentSong, recentlyPlayed = recentlyPlayed, hour = hour)
 }
