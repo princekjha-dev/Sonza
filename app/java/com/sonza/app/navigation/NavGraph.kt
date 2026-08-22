@@ -780,12 +780,7 @@ fun NavGraph(
         composable<Destination.About> {
             AboutScreen(
                 onBack = { navController.popBackStack() },
-                onDeveloperClick = { navController.navigate(Destination.AboutDeveloper) },
-                onPrivacyPolicyClick = { navController.navigate(Destination.PrivacyPolicy) },
-                onTermsOfServiceClick = { navController.navigate(Destination.TermsOfService) },
-                onLicensesClick = { navController.navigate(Destination.OpenSourceLicenses) },
-                onHowItWorksClick = { navController.navigate(Destination.HowItWorks) },
-                onSupportClick = { navController.navigate(Destination.Support) }
+                onDeveloperClick = { navController.navigate(Destination.AboutDeveloper) }
             )
         }
 

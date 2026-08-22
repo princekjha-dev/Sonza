@@ -89,14 +89,16 @@ import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * Rebuilt Sonza Profile page.
- * Acts as the centralized Profile & About center for the application.
+ * Acts as the centralized Profile center for the application.
  *
  * Sections:
  * 1. Header (Back arrow + Title)
  * 2. Profile / Account Card
  * 3. Activity & Insights
- * 4. About & Support
- * 5. App Information
+ * 4. Support & Feedback
+ * 5. Privacy & Legal
+ * 6. About
+ * 7. App Information
  */
 @Composable
 fun UserProfileScreen(
@@ -358,10 +360,10 @@ fun UserProfileScreen(
                 }
             }
 
-            // 4. About & Support Section
+            // 4. Support & Feedback Section
             item {
                 Text(
-                    text = "About & Support",
+                    text = "Support & Feedback",
                     style = SonzaTypography.TitleMedium.copy(fontWeight = FontWeight.Bold),
                     color = SonzaOnBackground,
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
@@ -386,10 +388,19 @@ fun UserProfileScreen(
                         accentColor = accentColor,
                         onClick = onFeedbackClick
                     )
-                    HorizontalDivider(
-                        color = SonzaOutline.copy(alpha = 0.25f),
-                        modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)
-                    )
+                }
+            }
+
+            // 5. Privacy & Legal Section
+            item {
+                Text(
+                    text = "Privacy & Legal",
+                    style = SonzaTypography.TitleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = SonzaOnBackground,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+
+                SettingsCard(flat = true, modifier = Modifier.fillMaxWidth()) {
                     ProfileOptionRow(
                         icon = Icons.Default.Security,
                         title = "Privacy Policy",
@@ -413,6 +424,26 @@ fun UserProfileScreen(
                         modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)
                     )
                     ProfileOptionRow(
+                        icon = Icons.AutoMirrored.Filled.MenuBook,
+                        title = "Open Source Licenses",
+                        subtitle = "Third-party libraries used by Sonza",
+                        accentColor = accentColor,
+                        onClick = onOpenSourceLicensesClick
+                    )
+                }
+            }
+
+            // 6. About Section
+            item {
+                Text(
+                    text = "About",
+                    style = SonzaTypography.TitleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = SonzaOnBackground,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+
+                SettingsCard(flat = true, modifier = Modifier.fillMaxWidth()) {
+                    ProfileOptionRow(
                         icon = Icons.Default.Info,
                         title = "About Sonza",
                         subtitle = "Learn more about Sonza",
@@ -433,7 +464,7 @@ fun UserProfileScreen(
                 }
             }
 
-            // 5. App Information Section
+            // 7. App Information Section
             item {
                 Text(
                     text = "App Information",
@@ -459,17 +490,6 @@ fun UserProfileScreen(
                         subtitle = "Check whether a newer version is available",
                         accentColor = accentColor,
                         onClick = onCheckForUpdatesClick
-                    )
-                    HorizontalDivider(
-                        color = SonzaOutline.copy(alpha = 0.25f),
-                        modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)
-                    )
-                    ProfileOptionRow(
-                        icon = Icons.AutoMirrored.Filled.MenuBook,
-                        title = "Open Source Licenses",
-                        subtitle = "Third-party libraries used by Sonza",
-                        accentColor = accentColor,
-                        onClick = onOpenSourceLicensesClick
                     )
                 }
             }

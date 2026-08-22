@@ -95,6 +95,8 @@ class PlayerViewModel @Inject constructor(
         old.shuffleEnabled == new.shuffleEnabled &&
         old.repeatMode == new.repeatMode &&
         old.isLoading == new.isLoading &&
+        old.isLiked == new.isLiked &&
+        old.isDisliked == new.isDisliked &&
         old.error == new.error &&
         old.videoQuality == new.videoQuality &&
         old.isVideoMode == new.isVideoMode &&

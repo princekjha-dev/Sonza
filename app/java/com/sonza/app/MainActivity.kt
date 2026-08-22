@@ -473,7 +473,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         com.sonza.app.service.DynamicIslandOverlayService.setAppForeground(false)
-        com.sonza.app.service.DynamicIslandOverlayService.stop(this)
+        if (isFinishing && !musicPlayer.hasActivePlayback()) {
+            com.sonza.app.service.DynamicIslandOverlayService.stop(this)
+        }
         super.onDestroy()
     }
 }

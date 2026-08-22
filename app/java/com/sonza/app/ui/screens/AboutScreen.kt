@@ -26,19 +26,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Feedback
-import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,7 +39,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
@@ -78,12 +70,7 @@ import org.koin.compose.koinInject
 @Composable
 fun AboutScreen(
     onBack: () -> Unit,
-    onDeveloperClick: () -> Unit = {},
-    onPrivacyPolicyClick: () -> Unit = {},
-    onTermsOfServiceClick: () -> Unit = {},
-    onLicensesClick: () -> Unit = {},
-    onHowItWorksClick: () -> Unit = {},
-    onSupportClick: () -> Unit = {}
+    onDeveloperClick: () -> Unit = {}
 ) {
     val dynamicColors = LocalSonzaDynamicColors.current
     val accentColor = dynamicColors.accent.takeIf { it != Color.Unspecified } ?: SonzaBrandAccent
@@ -235,10 +222,10 @@ fun AboutScreen(
                 }
             }
 
-            // Navigation Links Section
+            // Project & Developer Section
             item {
                 Text(
-                    text = "Information & Legal",
+                    text = "Project & Developer",
                     style = SonzaTypography.TitleMedium.copy(fontWeight = FontWeight.Bold),
                     color = SonzaOnBackground,
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
@@ -251,50 +238,6 @@ fun AboutScreen(
                         subtitle = "Meet Prince Kumar Jha",
                         accentColor = accentColor,
                         onClick = onDeveloperClick
-                    )
-                    HorizontalDivider(
-                        color = SonzaOutline.copy(alpha = 0.25f),
-                        modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)
-                    )
-                    AboutLinkRow(
-                        icon = Icons.Default.Feedback,
-                        title = "Send Feedback",
-                        subtitle = "Share suggestions and support the project",
-                        accentColor = accentColor,
-                        onClick = onSupportClick
-                    )
-                    HorizontalDivider(
-                        color = SonzaOutline.copy(alpha = 0.25f),
-                        modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)
-                    )
-                    AboutLinkRow(
-                        icon = Icons.Default.Security,
-                        title = "Privacy Policy",
-                        subtitle = "How Sonza handles your data",
-                        accentColor = accentColor,
-                        onClick = onPrivacyPolicyClick
-                    )
-                    HorizontalDivider(
-                        color = SonzaOutline.copy(alpha = 0.25f),
-                        modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)
-                    )
-                    AboutLinkRow(
-                        icon = Icons.Default.Gavel,
-                        title = "Terms of Service",
-                        subtitle = "Usage terms and licensing conditions",
-                        accentColor = accentColor,
-                        onClick = onTermsOfServiceClick
-                    )
-                    HorizontalDivider(
-                        color = SonzaOutline.copy(alpha = 0.25f),
-                        modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)
-                    )
-                    AboutLinkRow(
-                        icon = Icons.AutoMirrored.Filled.MenuBook,
-                        title = "Open Source Licenses",
-                        subtitle = "Third-party libraries and tools",
-                        accentColor = accentColor,
-                        onClick = onLicensesClick
                     )
                     HorizontalDivider(
                         color = SonzaOutline.copy(alpha = 0.25f),

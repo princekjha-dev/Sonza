@@ -733,7 +733,20 @@ class MusicPlayer @Inject constructor(
      */
     private fun syncStateFromController(controller: MediaController) {
         val itemCount = controller.mediaItemCount
-        if (itemCount <= 0) return
+        if (itemCount <= 0) {
+            _playerState.update { current ->
+                current.copy(
+                    currentSong = null,
+                    currentIndex = -1,
+                    currentPosition = 0L,
+                    duration = 0L,
+                    isPlaying = false,
+                    isLoading = false,
+                    queue = emptyList()
+                )
+            }
+            return
+        }
 
         val currentIndex = controller.currentMediaItemIndex
         val currentItem = controller.currentMediaItem
@@ -816,14 +829,37 @@ class MusicPlayer @Inject constructor(
                 musicHapticsManager.stop()
             }
         }
+
+        override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
+            if (timeline.isEmpty) {
+                _playerState.update {
+                    it.copy(
+                        currentSong = null,
+                        currentIndex = -1,
+                        currentPosition = 0L,
+                        duration = 0L,
+                        isPlaying = false,
+                        isLoading = false,
+                        queue = emptyList()
+                    )
+                }
+            }
+        }
         
         override fun onPlaybackStateChanged(playbackState: Int) {
+            val controller = mediaController
+            val isBuffering = playbackState == Player.STATE_BUFFERING
+            val isIdle = playbackState == Player.STATE_IDLE
+            val itemCount = controller?.mediaItemCount ?: 0
+
             _playerState.update {
                 it.copy(
-                    isLoading = playbackState == Player.STATE_BUFFERING,
-                    // Bug Fix: Only clear errors on STATE_READY, not during STATE_BUFFERING
-                    // which would wipe errors set by onPlayerError before user sees them
-                    error = if (playbackState == Player.STATE_READY) null else it.error
+                    isLoading = isBuffering,
+                    isPlaying = if (isIdle || playbackState == Player.STATE_ENDED) false else it.isPlaying,
+                    error = if (playbackState == Player.STATE_READY) null else it.error,
+                    currentSong = if (isIdle && itemCount == 0) null else it.currentSong,
+                    currentIndex = if (isIdle && itemCount == 0) -1 else it.currentIndex,
+                    queue = if (isIdle && itemCount == 0) emptyList() else it.queue
                 )
             }
             
@@ -946,7 +982,26 @@ class MusicPlayer @Inject constructor(
                 mediaController?.let { c -> if (c.volume < 1f) c.volume = 1f }
             }
 
-            mediaItem?.let { item ->
+            if (mediaItem == null) {
+                val controller = mediaController
+                val count = controller?.mediaItemCount ?: 0
+                if (count == 0) {
+                    _playerState.update {
+                        it.copy(
+                            currentSong = null,
+                            currentIndex = -1,
+                            currentPosition = 0L,
+                            duration = 0L,
+                            isPlaying = false,
+                            isLoading = false,
+                            queue = emptyList()
+                        )
+                    }
+                }
+                return
+            }
+
+            mediaItem.let { item ->
                 val controller = mediaController ?: return@let
                 val index = controller.currentMediaItemIndex
 
@@ -3700,15 +3755,19 @@ class MusicPlayer @Inject constructor(
     }
     
     fun stop() {
+        positionUpdateJob?.cancel()
         mediaController?.stop()
         mediaController?.clearMediaItems()
         _playerState.update { 
             it.copy(
                 currentSong = null,
+                currentIndex = -1,
                 isPlaying = false,
-                currentPosition = 0,
-                duration = 0,
-                queue = emptyList()
+                isLoading = false,
+                currentPosition = 0L,
+                duration = 0L,
+                queue = emptyList(),
+                error = null
             ) 
         }
     }

@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import android.os.Build
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -1673,12 +1674,17 @@ class MusicPlayerService : MediaLibraryService() {
         ): MediaNotification {
             val mediaNotification = defaultProvider.createNotification(session, customLayout, actionFactory, onNotificationChangedCallback)
 
-            // Android 14+ FGS type is declared via android:foregroundServiceType
-            // in AndroidManifest.xml ("mediaPlayback") — Media3 propagates that
-            // to startForeground() automatically. MediaNotification itself only
-            // has a (id, notification) constructor in Media3 1.10.0.
-            mediaNotification.notification.flags =
-                mediaNotification.notification.flags or android.app.Notification.FLAG_ONGOING_EVENT
+            val isPlaying = session.player.playWhenReady &&
+                session.player.playbackState != androidx.media3.common.Player.STATE_IDLE &&
+                session.player.playbackState != androidx.media3.common.Player.STATE_ENDED
+
+            if (isPlaying) {
+                mediaNotification.notification.flags =
+                    mediaNotification.notification.flags or android.app.Notification.FLAG_ONGOING_EVENT
+            } else {
+                mediaNotification.notification.flags =
+                    mediaNotification.notification.flags and android.app.Notification.FLAG_ONGOING_EVENT.inv()
+            }
             return mediaNotification
         }
 
@@ -1717,28 +1723,33 @@ class MusicPlayerService : MediaLibraryService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = mediaLibrarySession
     
     override fun onTaskRemoved(rootIntent: Intent?) {
-        // Ensure floating overlay service is stopped when the task is removed from Recents
+        // 1. Ensure floating Dynamic Island overlay service is immediately stopped
         DynamicIslandOverlayService.stop(this)
 
-        // Read the cached setting synchronously — the framework decides whether
-        // to keep the service alive immediately after this method returns.
+        // 2. Stop active player playback and clear media items
         val player = mediaLibrarySession?.player
-        if (stopMusicOnTaskClearCached) {
-            // Explicitly pause and clear queue so Media3 releases the foreground state
-            player?.pause()
-            player?.clearMediaItems()
-            stopSelf()
-            return
+        player?.stop()
+        player?.clearMediaItems()
+
+        // 3. Remove foreground service notification and cancel active notifications
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
         }
-        
-        // If the player is actively playing, maintain ongoing foreground playback
-        val isPlaying = player?.playWhenReady == true &&
-            player.playbackState != androidx.media3.common.Player.STATE_IDLE &&
-            player.playbackState != androidx.media3.common.Player.STATE_ENDED
-            
-        if (!isPlaying && (player == null || player.mediaItemCount == 0 || !player.playWhenReady)) {
-            super.onTaskRemoved(rootIntent)
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+        notificationManager?.cancel(1001) // Default Media3 notification ID
+        notificationManager?.cancel(NOTIFICATION_ID_SLEEP_TIMER)
+
+        // 4. Clear persistent playback state in SessionManager so next startup is completely clean
+        serviceScope.launch {
+            sessionManager.clearPlaybackState()
         }
+
+        // 5. Stop the service and notify super
+        stopSelf()
+        super.onTaskRemoved(rootIntent)
     }
     
     private val volumeReceiver = object : android.content.BroadcastReceiver() {
