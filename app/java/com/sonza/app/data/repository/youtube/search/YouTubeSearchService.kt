@@ -105,7 +105,7 @@ class YouTubeSearchService @Inject constructor(
         val albums = searchAlbums(trimmedQuery)
         val playlists = searchPlaylists(trimmedQuery)
 
-        SearchResults(songs = songs, artists = artists, albums = albums, playlists = playlists)
+        SearchResults(songs = songs, albums = albums, artists = artists, playlists = playlists)
     }
 
     /**
@@ -301,7 +301,7 @@ class YouTubeSearchService @Inject constructor(
         val trimmedQuery = query.trim()
         if (trimmedQuery.isBlank()) return@withContext emptyList()
 
-        val cacheKey = "yt:${trimmedQuery.lowercase()}"
+        val cacheKey = "yt:album:${trimmedQuery.lowercase()}"
         try {
             val hl = YouTubeLocale.hl(sessionManager)
             val jsonQuery = JSONObject.quote(trimmedQuery)
@@ -319,37 +319,8 @@ class YouTubeSearchService @Inject constructor(
             android.util.Log.w("YouTubeSearch", "InnerTube searchAlbums failed: ${e.message}")
         }
 
-        // Fallback to NewPipe if InnerTube fails
-        try {
-            val ytService = ServiceList.all().find { it.serviceInfo.name == "YouTube" }
-                ?: return@withContext (OfflineCache.getAlbums(cacheKey) ?: emptyList())
-
-            val searchExtractor = ytService.getSearchExtractor(trimmedQuery, listOf(FILTER_ALBUMS), "")
-            searchExtractor.fetchPage()
-
-            val albums = searchExtractor.initialPage.items.filterIsInstance<org.schabi.newpipe.extractor.playlist.PlaylistInfoItem>().mapNotNull { item ->
-                try {
-                    val albumId = item.url?.substringAfter("list=")?.substringBefore("&")
-                    if (albumId.isNullOrBlank()) return@mapNotNull null
-
-                    Album(
-                        id = albumId,
-                        title = item.name ?: "Unknown Album",
-                        artist = item.uploaderName ?: "Unknown Artist",
-                        thumbnailUrl = item.thumbnails.lastOrNull()?.url,
-                        year = ""
-                    )
-                } catch (e: Exception) {
-                    null
-                }
-            }
-            if (albums.isNotEmpty()) OfflineCache.putAlbums(cacheKey, albums)
-            albums
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Telemetry.report("searchAlbums", "youtube", e.toAppError(), mapOf("qlen" to trimmedQuery.length.toString()))
-            OfflineCache.getAlbums(cacheKey) ?: emptyList()
-        }
+        // Return cached albums if available. Do not convert generic YouTube playlists to fake albums.
+        OfflineCache.getAlbums(trimmedQuery) ?: OfflineCache.getAlbums(cacheKey) ?: emptyList()
     }
 
     /**

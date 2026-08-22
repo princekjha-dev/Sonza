@@ -38,20 +38,20 @@ object RootNavLock {
     @Volatile
     private var lastCommitTime = 0L
 
-    /** Duration in ms matching the NavHost slide transition (300ms) plus a safety cooldown buffer. */
-    const val COOLDOWN_MS = 380L
+    /** Duration in ms matching the NavHost slide transition (300ms). */
+    const val COOLDOWN_MS = 300L
 
     private val lockScope = CoroutineScope(Dispatchers.Main.immediate)
 
     fun canNavigate(): Boolean {
         val now = System.currentTimeMillis()
-        return !isTransitionRunning && (now - lastCommitTime > COOLDOWN_MS)
+        return !isTransitionRunning && (now - lastCommitTime >= COOLDOWN_MS)
     }
 
     fun commitNavigation(action: () -> Unit): Boolean {
         val now = System.currentTimeMillis()
         synchronized(this) {
-            if (isTransitionRunning || (now - lastCommitTime <= COOLDOWN_MS)) {
+            if (isTransitionRunning || (now - lastCommitTime < COOLDOWN_MS)) {
                 return false
             }
             isTransitionRunning = true
@@ -107,9 +107,9 @@ fun Modifier.carouselSwipeShield(): Modifier {
                 val absDy = abs(totalDy)
 
                 if (!isHorizontal && !isVertical) {
-                    if (absDy > slop && absDy > absDx * 1.2f) {
+                    if (absDy > slop && absDy > absDx) {
                         isVertical = true
-                    } else if (absDx > slop && absDx > absDy * 1.2f) {
+                    } else if (absDx > slop && absDx > absDy) {
                         isHorizontal = true
                     }
                 }
@@ -133,19 +133,18 @@ fun Modifier.carouselSwipeShield(): Modifier {
  *
  * Characteristics:
  * - Real-time finger following: Page shifts smoothly with the user's finger via [translationX].
- * - Direction-slop filtered: Requires strict horizontal dominance (horizontal > vertical * 1.75)
- *   so vertical list scrolling is never hijacked.
+ * - Direction-slop filtered: Responsive disambiguation so vertical list scrolling is never hijacked.
  * - Child-gesture aware: If any child horizontally scrollable component (e.g. LazyRow carousel)
  *   consumes the horizontal gesture, this modifier immediately yields.
  * - Boundary resistance: When dragging past boundaries (e.g. Home swiping right or Profile swiping left),
  *   applies elastic damping and snaps back cleanly on release.
- * - Settle animation: If swipe distance/velocity does not cross the threshold, smoothly springs back to 0.
- * - Transition locking: Coordinated with [RootNavLock] to ensure 1 swipe = 1 page jump.
+ * - Settle animation: Smooth spring settle and fluid page navigation.
+ * - Transition locking: Coordinated with [RootNavLock] to ensure 1 swipe = exactly 1 page jump.
  */
 fun Modifier.horizontalSwipeNavigation(
     onSwipeLeft: (() -> Unit)? = null,
     onSwipeRight: (() -> Unit)? = null,
-    threshold: Dp = 80.dp,
+    threshold: Dp = 56.dp,
     enabled: Boolean = true
 ): Modifier = composed {
     if (!enabled || (onSwipeLeft == null && onSwipeRight == null)) return@composed this
@@ -154,15 +153,9 @@ fun Modifier.horizontalSwipeNavigation(
     val offsetX = remember { Animatable(0f) }
     val density = LocalDensity.current
     val thresholdPx = with(density) { threshold.toPx() }
-    val minVelocityThreshold = with(density) { 800.dp.toPx() }
-    val minFlickDistancePx = with(density) { 36.dp.toPx() }
-    val maxDragDampingPx = with(density) { 40.dp.toPx() }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            // Cleanup on leaving composition
-        }
-    }
+    val minVelocityThreshold = with(density) { 350.dp.toPx() }
+    val minFlickDistancePx = with(density) { 20.dp.toPx() }
+    val maxDragDampingPx = with(density) { 48.dp.toPx() }
 
     this
         .graphicsLayer {
@@ -170,14 +163,9 @@ fun Modifier.horizontalSwipeNavigation(
         }
         .pointerInput(enabled, onSwipeLeft, onSwipeRight) {
             val velocityTracker = VelocityTracker()
-            val touchSlop = viewConfiguration.touchSlop * 1.25f
+            val touchSlop = viewConfiguration.touchSlop
 
             awaitEachGesture {
-                if (!RootNavLock.canNavigate()) {
-                    // Transition or cooldown in progress; ignore this touch sequence for page navigation
-                    return@awaitEachGesture
-                }
-
                 val down = awaitFirstDown(pass = PointerEventPass.Initial)
                 velocityTracker.resetTracking()
                 velocityTracker.addPosition(down.uptimeMillis, down.position)
@@ -205,12 +193,12 @@ fun Modifier.horizontalSwipeNavigation(
                     val absDx = abs(totalDx)
                     val absDy = abs(totalDy)
 
-                    // Determine gesture direction once movement exceeds initial slop
+                    // Determine gesture direction once movement exceeds initial touch slop
                     if (!isHorizontalIntent && !isVerticalScrolling) {
-                        if (absDy > touchSlop && absDy > absDx * 1.5f) {
+                        if (absDy > touchSlop && absDy >= absDx) {
                             // Clear vertical intent -> let vertical scroll handle everything
                             isVerticalScrolling = true
-                        } else if (absDx > touchSlop && absDx > absDy * 1.75f) {
+                        } else if (absDx > touchSlop && absDx > absDy) {
                             // Clear horizontal intent -> commit to horizontal tracking
                             isHorizontalIntent = true
                         }
@@ -275,34 +263,26 @@ fun Modifier.horizontalSwipeNavigation(
                         onSwipeRight()
                     }
                     coroutineScope.launch {
-                        if (committed) {
-                            offsetX.snapTo(0f)
-                        } else {
-                            offsetX.animateTo(
-                                0f,
-                                spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = Spring.StiffnessMediumLow
-                                )
+                        offsetX.animateTo(
+                            0f,
+                            spring(
+                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                stiffness = Spring.StiffnessMedium
                             )
-                        }
+                        )
                     }
                 } else if (shouldNavigateLeft && RootNavLock.canNavigate()) {
                     val committed = RootNavLock.commitNavigation {
                         onSwipeLeft()
                     }
                     coroutineScope.launch {
-                        if (committed) {
-                            offsetX.snapTo(0f)
-                        } else {
-                            offsetX.animateTo(
-                                0f,
-                                spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = Spring.StiffnessMediumLow
-                                )
+                        offsetX.animateTo(
+                            0f,
+                            spring(
+                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                stiffness = Spring.StiffnessMedium
                             )
-                        }
+                        )
                     }
                 } else {
                     // Settle back to original position smoothly

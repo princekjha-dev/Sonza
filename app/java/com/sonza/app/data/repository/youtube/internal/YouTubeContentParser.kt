@@ -989,7 +989,7 @@ class YouTubeContentParser @Inject constructor(
                             parseSearchArtistItem(item)?.let { artists.add(it) }
                         }
                     }
-                    shelfTitle.equals("Albums", ignoreCase = true) || shelfTitle.equals("Singles", ignoreCase = true) -> {
+                    shelfTitle.equals("Albums", ignoreCase = true) || shelfTitle.equals("Singles", ignoreCase = true) || shelfTitle.equals("EPs", ignoreCase = true) -> {
                         for (i in 0 until contents.length()) {
                             val item = contents.optJSONObject(i) ?: continue
                             parseSearchAlbumItem(item)?.let { albums.add(it) }
@@ -1001,14 +1001,14 @@ class YouTubeContentParser @Inject constructor(
                             parseSearchPlaylistItem(item)?.let { playlists.add(it) }
                         }
                     }
-                    // Videos shelf -> explicitly dropped / ignored
+                    // Videos shelf -> explicitly dropped / ignored in music app
                 }
             }
 
             return SearchResults(
                 songs = songs.distinctBy { it.id },
-                artists = artists.distinctBy { it.id },
                 albums = albums.distinctBy { it.id },
+                artists = artists.distinctBy { it.id },
                 playlists = playlists.distinctBy { it.id }
             )
         } catch (e: Exception) {
@@ -1110,8 +1110,60 @@ class YouTubeContentParser @Inject constructor(
             ?: subtitle.split("•").firstOrNull()?.trim() ?: ""
 
         when {
-            // Song
-            firstSubtitleToken.equals("Song", ignoreCase = true) || (!videoId.isNullOrBlank() && !firstSubtitleToken.equals("Video", ignoreCase = true)) -> {
+            // Artist: channel/artist browseId or pageType ARTIST, or subtitle "Artist"
+            (browseId != null && (browseId.startsWith("UC") || browseId.startsWith("FEmusic_artist") || pageType.contains("ARTIST"))) ||
+                (firstSubtitleToken.equals("Artist", ignoreCase = true) && browseId != null && !browseId.startsWith("MPRE") && !browseId.startsWith("VL")) -> {
+                if (browseId != null) {
+                    val subscribers = subtitle.split("•").find { it.contains("subscriber", ignoreCase = true) }?.trim()
+                    return Artist(
+                        id = browseId,
+                        name = title,
+                        thumbnailUrl = thumbnail,
+                        subscribers = subscribers
+                    )
+                }
+            }
+            // Album: album browseId or pageType ALBUM, or subtitle "Album"/"Single"/"EP"
+            (browseId != null && (browseId.startsWith("MPRE") || browseId.startsWith("OLAK") || pageType.contains("ALBUM"))) ||
+                ((firstSubtitleToken.equals("Album", ignoreCase = true) || firstSubtitleToken.equals("Single", ignoreCase = true) || firstSubtitleToken.equals("EP", ignoreCase = true)) &&
+                    browseId != null && !browseId.startsWith("VL") && !browseId.startsWith("PL") && !browseId.startsWith("UC")) -> {
+                if (browseId != null) {
+                    val parts = subtitle.split("•").map { it.trim() }
+                    var artist = ""
+                    var year = ""
+                    for (part in parts) {
+                        if (part.matches(Regex("\\d{4}"))) {
+                            year = part
+                        } else if (!part.equals("Album", ignoreCase = true) && !part.equals("Single", ignoreCase = true) && !part.equals("EP", ignoreCase = true)) {
+                            if (artist.isEmpty()) artist = part
+                        }
+                    }
+                    return Album(
+                        id = browseId,
+                        title = title,
+                        artist = artist.ifBlank { "Unknown Artist" },
+                        year = year,
+                        thumbnailUrl = thumbnail
+                    )
+                }
+            }
+            // Playlist: playlist browseId or pageType PLAYLIST, or subtitle "Playlist"
+            (browseId != null && (browseId.startsWith("VL") || browseId.startsWith("PL") || browseId.startsWith("RD") || pageType.contains("PLAYLIST"))) ||
+                (firstSubtitleToken.equals("Playlist", ignoreCase = true) && browseId != null && !browseId.startsWith("MPRE") && !browseId.startsWith("UC")) -> {
+                if (browseId != null) {
+                    val cleanId = browseId.removePrefix("VL")
+                    val author = subtitle.split("•").getOrNull(1)?.trim() ?: ""
+                    return Playlist(
+                        id = cleanId,
+                        title = title,
+                        author = author,
+                        thumbnailUrl = thumbnail,
+                        songs = emptyList()
+                    )
+                }
+            }
+            // Song: has playable videoId
+            !videoId.isNullOrBlank() && !firstSubtitleToken.equals("Video", ignoreCase = true) -> {
                 var artist = "Unknown Artist"
                 var artistId: String? = null
                 var album = ""
@@ -1131,56 +1183,15 @@ class YouTubeContentParser @Inject constructor(
                         }
                     }
                 }
-                if (videoId != null) {
-                    return Song.fromYouTube(
-                        videoId = videoId,
-                        title = title,
-                        artist = artist,
-                        album = album,
-                        duration = 0L,
-                        thumbnailUrl = thumbnail,
-                        artistId = artistId
-                    )
-                }
-            }
-            // Artist
-            firstSubtitleToken.equals("Artist", ignoreCase = true) || (browseId != null && (browseId.startsWith("UC") || browseId.startsWith("FEmusic_artist") || pageType.contains("ARTIST"))) -> {
-                if (browseId != null) {
-                    val subscribers = subtitle.split("•").find { it.contains("subscriber", ignoreCase = true) }?.trim()
-                    return Artist(
-                        id = browseId,
-                        name = title,
-                        thumbnailUrl = thumbnail,
-                        subscribers = subscribers
-                    )
-                }
-            }
-            // Album
-            firstSubtitleToken.equals("Album", ignoreCase = true) || firstSubtitleToken.equals("Single", ignoreCase = true) || firstSubtitleToken.equals("EP", ignoreCase = true) || (browseId != null && (browseId.startsWith("MPRE") || browseId.startsWith("OLAK") || pageType.contains("ALBUM"))) -> {
-                if (browseId != null) {
-                    val parts = subtitle.split("•").map { it.trim() }
-                    val artist = parts.getOrNull(1) ?: ""
-                    val year = parts.find { it.matches(Regex("\\d{4}")) } ?: ""
-                    return Album(
-                        id = browseId,
-                        title = title,
-                        artist = artist,
-                        year = year,
-                        thumbnailUrl = thumbnail
-                    )
-                }
-            }
-            // Playlist
-            firstSubtitleToken.equals("Playlist", ignoreCase = true) || (browseId != null && (browseId.startsWith("VL") || browseId.startsWith("PL") || browseId.startsWith("RD"))) -> {
-                if (browseId != null) {
-                    return Playlist(
-                        id = browseId.removePrefix("VL"),
-                        title = title,
-                        author = subtitle.split("•").getOrNull(1)?.trim() ?: "",
-                        thumbnailUrl = thumbnail,
-                        songs = emptyList()
-                    )
-                }
+                return Song.fromYouTube(
+                    videoId = videoId,
+                    title = title,
+                    artist = artist,
+                    album = album,
+                    duration = 0L,
+                    thumbnailUrl = thumbnail,
+                    artistId = artistId
+                )
             }
         }
         return null
@@ -1266,14 +1277,34 @@ class YouTubeContentParser @Inject constructor(
             ?: return null
 
         val nav = renderer.optJSONObject("navigationEndpoint")
-        val browseId = nav?.optJSONObject("browseEndpoint")?.optString("browseId")
-            ?: renderer.optJSONArray("flexColumns")?.optJSONObject(0)
-                ?.optJSONObject("musicResponsiveListItemFlexColumnRenderer")
-                ?.optJSONObject("text")?.optJSONArray("runs")?.optJSONObject(0)
-                ?.optJSONObject("navigationEndpoint")?.optJSONObject("browseEndpoint")?.optString("browseId")
-            ?: return null
+        var browseId = nav?.optJSONObject("browseEndpoint")?.optString("browseId")
+        var pageType = nav?.optJSONObject("browseEndpoint")
+            ?.optJSONObject("browseEndpointContextSupportedConfigs")
+            ?.optJSONObject("browseEndpointContextMusicConfig")
+            ?.optString("pageType") ?: ""
 
-        if (!browseId.startsWith("UC") && !browseId.startsWith("FEmusic_artist")) return null
+        if (browseId == null) {
+            val runs = renderer.optJSONArray("flexColumns")?.optJSONObject(0)
+                ?.optJSONObject("musicResponsiveListItemFlexColumnRenderer")
+                ?.optJSONObject("text")?.optJSONArray("runs")
+            val runEndpoint = runs?.optJSONObject(0)?.optJSONObject("navigationEndpoint")?.optJSONObject("browseEndpoint")
+            browseId = runEndpoint?.optString("browseId")
+            if (pageType.isEmpty()) {
+                pageType = runEndpoint?.optJSONObject("browseEndpointContextSupportedConfigs")
+                    ?.optJSONObject("browseEndpointContextMusicConfig")
+                    ?.optString("pageType") ?: ""
+            }
+        }
+        if (browseId.isNullOrBlank()) return null
+
+        // Strict entity type check: Artist IDs start with UC or FEmusic_artist, or pageType ARTIST
+        val isArtistType = browseId.startsWith("UC") || browseId.startsWith("FEmusic_artist") || pageType.contains("ARTIST")
+        if (!isArtistType) return null
+
+        // Disallow album or playlist IDs
+        if (browseId.startsWith("MPRE") || browseId.startsWith("OLAK") || browseId.startsWith("VL") || browseId.startsWith("PL") || browseId.startsWith("RD")) {
+            return null
+        }
 
         val subtitle = json.extractFullSubtitle(renderer).ifBlank {
             json.getRunText(renderer.optJSONObject("subtitle")) ?: ""
@@ -1303,26 +1334,97 @@ class YouTubeContentParser @Inject constructor(
 
         val nav = renderer.optJSONObject("navigationEndpoint")
         var browseId = nav?.optJSONObject("browseEndpoint")?.optString("browseId")
+        var pageType = nav?.optJSONObject("browseEndpoint")
+            ?.optJSONObject("browseEndpointContextSupportedConfigs")
+            ?.optJSONObject("browseEndpointContextMusicConfig")
+            ?.optString("pageType") ?: ""
+
+        val flexColumns = renderer.optJSONArray("flexColumns")
         if (browseId == null) {
-            val runs = renderer.optJSONArray("flexColumns")?.optJSONObject(0)
+            val runs = flexColumns?.optJSONObject(0)
                 ?.optJSONObject("musicResponsiveListItemFlexColumnRenderer")
                 ?.optJSONObject("text")?.optJSONArray("runs")
-            browseId = runs?.optJSONObject(0)?.optJSONObject("navigationEndpoint")?.optJSONObject("browseEndpoint")?.optString("browseId")
+            val runEndpoint = runs?.optJSONObject(0)?.optJSONObject("navigationEndpoint")?.optJSONObject("browseEndpoint")
+            browseId = runEndpoint?.optString("browseId")
+            if (pageType.isEmpty()) {
+                pageType = runEndpoint?.optJSONObject("browseEndpointContextSupportedConfigs")
+                    ?.optJSONObject("browseEndpointContextMusicConfig")
+                    ?.optString("pageType") ?: ""
+            }
         }
         if (browseId.isNullOrBlank()) return null
 
         val subtitle = json.extractFullSubtitle(renderer).ifBlank {
             json.getRunText(renderer.optJSONObject("subtitle")) ?: ""
         }
-        val parts = subtitle.split("•").map { it.trim() }
+        val firstSubtitleToken = subtitle.split("•").firstOrNull()?.trim() ?: ""
 
+        // Strict entity type check: Album IDs start with MPRE or OLAK, pageType is ALBUM, or subtitle has Album/Single/EP
+        val isExplicitAlbumId = browseId.startsWith("MPRE") || browseId.startsWith("OLAK") || pageType.contains("ALBUM")
+        val isSubtitleAlbum = firstSubtitleToken.equals("Album", ignoreCase = true) ||
+            firstSubtitleToken.equals("Single", ignoreCase = true) ||
+            firstSubtitleToken.equals("EP", ignoreCase = true)
+
+        if (!isExplicitAlbumId && !isSubtitleAlbum) {
+            return null
+        }
+
+        // Strictly reject playlist IDs and artist IDs
+        if (browseId.startsWith("VL") || browseId.startsWith("PL") || browseId.startsWith("RD") ||
+            browseId.startsWith("UC") || browseId.startsWith("FEmusic_artist")) {
+            return null
+        }
+
+        // Extract album artist: find artist run in flexColumns[1] or subtitle runs
         var artist = ""
         var year: String? = null
-        for (part in parts) {
-            if (part.matches(Regex("\\d{4}"))) {
-                year = part
-            } else if (!part.equals("Album", ignoreCase = true) && !part.equals("Single", ignoreCase = true) && !part.equals("EP", ignoreCase = true)) {
-                if (artist.isEmpty()) artist = part
+
+        val subRuns = flexColumns?.optJSONObject(1)
+            ?.optJSONObject("musicResponsiveListItemFlexColumnRenderer")
+            ?.optJSONObject("text")?.optJSONArray("runs")
+            ?: renderer.optJSONObject("subtitle")?.optJSONArray("runs")
+
+        if (subRuns != null) {
+            for (i in 0 until subRuns.length()) {
+                val run = subRuns.optJSONObject(i) ?: continue
+                val text = run.optString("text").trim()
+                if (text == "•" || text.isEmpty()) continue
+
+                val runBrowseEndpoint = run.optJSONObject("navigationEndpoint")?.optJSONObject("browseEndpoint")
+                val runBrowseId = runBrowseEndpoint?.optString("browseId")
+                val runPageType = runBrowseEndpoint?.optJSONObject("browseEndpointContextSupportedConfigs")
+                    ?.optJSONObject("browseEndpointContextMusicConfig")?.optString("pageType") ?: ""
+
+                if (runBrowseId != null && (runBrowseId.startsWith("UC") || runPageType.contains("ARTIST"))) {
+                    artist = text
+                } else if (text.contains("•")) {
+                    val tokens = text.split("•").map { it.trim() }
+                    for (token in tokens) {
+                        if (token.matches(Regex("\\d{4}"))) {
+                            if (year == null) year = token
+                        } else if (!token.equals("Album", ignoreCase = true) &&
+                            !token.equals("Single", ignoreCase = true) &&
+                            !token.equals("EP", ignoreCase = true) &&
+                            token.isNotEmpty() && artist.isEmpty()) {
+                            artist = token
+                        }
+                    }
+                } else if (text.matches(Regex("\\d{4}"))) {
+                    if (year == null) year = text
+                } else if (artist.isEmpty() && !text.equals("Album", ignoreCase = true) && !text.equals("Single", ignoreCase = true) && !text.equals("EP", ignoreCase = true)) {
+                    artist = text
+                }
+            }
+        }
+
+        if (artist.isEmpty()) {
+            val parts = subtitle.split("•").map { it.trim() }
+            for (part in parts) {
+                if (part.matches(Regex("\\d{4}"))) {
+                    year = part
+                } else if (!part.equals("Album", ignoreCase = true) && !part.equals("Single", ignoreCase = true) && !part.equals("EP", ignoreCase = true)) {
+                    if (artist.isEmpty()) artist = part
+                }
             }
         }
 
@@ -1345,25 +1447,54 @@ class YouTubeContentParser @Inject constructor(
 
         val nav = renderer.optJSONObject("navigationEndpoint")
         var browseId = nav?.optJSONObject("browseEndpoint")?.optString("browseId")
+        var pageType = nav?.optJSONObject("browseEndpoint")
+            ?.optJSONObject("browseEndpointContextSupportedConfigs")
+            ?.optJSONObject("browseEndpointContextMusicConfig")
+            ?.optString("pageType") ?: ""
+
+        val flexColumns = renderer.optJSONArray("flexColumns")
         if (browseId == null) {
-            val runs = renderer.optJSONArray("flexColumns")?.optJSONObject(0)
+            val runs = flexColumns?.optJSONObject(0)
                 ?.optJSONObject("musicResponsiveListItemFlexColumnRenderer")
                 ?.optJSONObject("text")?.optJSONArray("runs")
-            browseId = runs?.optJSONObject(0)?.optJSONObject("navigationEndpoint")?.optJSONObject("browseEndpoint")?.optString("browseId")
+            val runEndpoint = runs?.optJSONObject(0)?.optJSONObject("navigationEndpoint")?.optJSONObject("browseEndpoint")
+            browseId = runEndpoint?.optString("browseId")
+            if (pageType.isEmpty()) {
+                pageType = runEndpoint?.optJSONObject("browseEndpointContextSupportedConfigs")
+                    ?.optJSONObject("browseEndpointContextMusicConfig")
+                    ?.optString("pageType") ?: ""
+            }
         }
         if (browseId.isNullOrBlank()) return null
 
-        val cleanId = browseId.removePrefix("VL")
         val subtitle = json.extractFullSubtitle(renderer).ifBlank {
             json.getRunText(renderer.optJSONObject("subtitle")) ?: ""
         }
+        val firstSubtitleToken = subtitle.split("•").firstOrNull()?.trim() ?: ""
+
+        // Strict entity type check: Playlist IDs start with VL, PL, RD, pageType is PLAYLIST, or subtitle has Playlist
+        val isExplicitPlaylistId = browseId.startsWith("VL") || browseId.startsWith("PL") || browseId.startsWith("RD") || pageType.contains("PLAYLIST")
+        val isSubtitlePlaylist = firstSubtitleToken.contains("Playlist", ignoreCase = true)
+
+        if (!isExplicitPlaylistId && !isSubtitlePlaylist) {
+            return null
+        }
+
+        // Strictly reject album IDs and artist IDs
+        if (browseId.startsWith("MPRE") || browseId.startsWith("OLAK") ||
+            browseId.startsWith("UC") || browseId.startsWith("FEmusic_artist")) {
+            return null
+        }
+
+        val cleanId = browseId.removePrefix("VL")
         val parts = subtitle.split("•").map { it.trim() }
         val author = parts.firstOrNull {
             !it.equals("Playlist", ignoreCase = true) &&
             !it.equals("Community playlist", ignoreCase = true) &&
             !it.equals("Featured playlist", ignoreCase = true) &&
             !it.contains("song", ignoreCase = true) &&
-            !it.contains("track", ignoreCase = true)
+            !it.contains("track", ignoreCase = true) &&
+            !it.contains("view", ignoreCase = true)
         } ?: ""
 
         return Playlist(

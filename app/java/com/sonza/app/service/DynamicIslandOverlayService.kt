@@ -227,6 +227,12 @@ class DynamicIslandOverlayService : Service(), LifecycleOwner, ViewModelStoreOwn
         }
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        hideOverlay()
+        stopSelf()
+    }
+
     override fun onDestroy() {
         hideOverlay()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)

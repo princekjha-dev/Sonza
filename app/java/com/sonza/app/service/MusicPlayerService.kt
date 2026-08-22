@@ -1717,6 +1717,9 @@ class MusicPlayerService : MediaLibraryService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = mediaLibrarySession
     
     override fun onTaskRemoved(rootIntent: Intent?) {
+        // Ensure floating overlay service is stopped when the task is removed from Recents
+        DynamicIslandOverlayService.stop(this)
+
         // Read the cached setting synchronously — the framework decides whether
         // to keep the service alive immediately after this method returns.
         val player = mediaLibrarySession?.player

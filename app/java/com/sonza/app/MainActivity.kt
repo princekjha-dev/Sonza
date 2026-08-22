@@ -430,7 +430,6 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         com.sonza.app.service.DynamicIslandOverlayService.setAppForeground(false)
-        com.sonza.app.service.DynamicIslandOverlayService.start(this)
         
         // Disable video track for bandwidth optimization when backgrounded
         // but NOT when entering PiP mode (video needs to remain active for PiP)
@@ -442,7 +441,6 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         com.sonza.app.service.DynamicIslandOverlayService.setAppForeground(false)
-        com.sonza.app.service.DynamicIslandOverlayService.start(this)
     }
 
     override fun onUserLeaveHint() {
@@ -471,6 +469,12 @@ class MainActivity : ComponentActivity() {
         
         // Update PiP params (e.g., sync play/pause icon after returning from PiP)
         pipHelper.updatePipParams(this, isPipEnabled)
+    }
+
+    override fun onDestroy() {
+        com.sonza.app.service.DynamicIslandOverlayService.setAppForeground(false)
+        com.sonza.app.service.DynamicIslandOverlayService.stop(this)
+        super.onDestroy()
     }
 }
 

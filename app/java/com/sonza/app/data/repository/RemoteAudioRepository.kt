@@ -1507,42 +1507,86 @@ class RemoteAudioRepository @Inject constructor(
                 songs = search(query)
             }
 
-            // Parse Albums
-            val albums = emptyList<com.sonza.app.core.model.Album>()
+            // Parse Albums concurrently
+            val albumsDeferred = async {
+                val directAlbums = data?.albums?.results?.mapNotNull { dto ->
+                    val id = dto.id ?: return@mapNotNull null
+                    com.sonza.app.core.model.Album(
+                        id = id,
+                        title = (dto.name ?: "").decodeHtml(),
+                        artist = "",
+                        thumbnailUrl = dto.image?.lastOrNull()?.url,
+                        year = dto.year
+                    )
+                }.orEmpty()
+                if (directAlbums.isNotEmpty()) {
+                    directAlbums
+                } else {
+                    searchAlbums(query)
+                }
+            }
             
-            // Parse Artists and Playlists using the new API concurrently
+            // Parse Artists concurrently
             val artistsDeferred = async {
-                try {
-                    playlistApiService.searchArtists(query).data?.results.orEmpty().mapNotNull { dto ->
-                        val id = dto.id ?: return@mapNotNull null
-                        com.sonza.app.core.model.Artist(
-                            id = id,
-                            name = dto.name.orEmpty().decodeHtml(),
-                            thumbnailUrl = dto.image?.lastOrNull()?.url
-                        )
+                val directArtists = data?.artists?.results?.mapNotNull { dto ->
+                    val id = dto.id ?: return@mapNotNull null
+                    com.sonza.app.core.model.Artist(
+                        id = id,
+                        name = (dto.name ?: "").decodeHtml(),
+                        thumbnailUrl = dto.image?.lastOrNull()?.url
+                    )
+                }.orEmpty()
+                if (directArtists.isNotEmpty()) {
+                    directArtists
+                } else {
+                    try {
+                        playlistApiService.searchArtists(query).data?.results.orEmpty().mapNotNull { dto ->
+                            val id = dto.id ?: return@mapNotNull null
+                            com.sonza.app.core.model.Artist(
+                                id = id,
+                                name = dto.name.orEmpty().decodeHtml(),
+                                thumbnailUrl = dto.image?.lastOrNull()?.url
+                            )
+                        }
+                    } catch (e: Exception) {
+                        if (is429(e)) noteRateLimited()
+                        android.util.Log.e("RemoteAudio", "searchAll('$query') artists failed: ${e.javaClass.simpleName}: ${e.message}")
+                        emptyList()
                     }
-                } catch (e: Exception) {
-                    if (is429(e)) noteRateLimited()
-                    android.util.Log.e("RemoteAudio", "searchAll('$query') artists failed: ${e.javaClass.simpleName}: ${e.message}")
-                    emptyList()
                 }
             }
 
+            // Parse Playlists concurrently
             val playlistsDeferred = async {
-                try {
-                    playlistApiService.searchPlaylists(query).data?.results.orEmpty()
-                        .mapNotNull { dto -> dto.toPlaylist(author = "") }
-                } catch (e: Exception) {
-                    if (is429(e)) noteRateLimited()
-                    android.util.Log.e("RemoteAudio", "searchAll('$query') playlists failed: ${e.javaClass.simpleName}: ${e.message}")
-                    emptyList()
+                val directPlaylists = data?.playlists?.results?.mapNotNull { dto ->
+                    val id = dto.id ?: return@mapNotNull null
+                    com.sonza.app.core.model.Playlist(
+                        id = id,
+                        title = (dto.name ?: "").decodeHtml().ifBlank { "Playlist" },
+                        author = "",
+                        thumbnailUrl = dto.image?.lastOrNull()?.url,
+                        songs = emptyList()
+                    )
+                }.orEmpty()
+                if (directPlaylists.isNotEmpty()) {
+                    directPlaylists
+                } else {
+                    try {
+                        playlistApiService.searchPlaylists(query).data?.results.orEmpty()
+                            .mapNotNull { dto -> dto.toPlaylist(author = "") }
+                    } catch (e: Exception) {
+                        if (is429(e)) noteRateLimited()
+                        android.util.Log.e("RemoteAudio", "searchAll('$query') playlists failed: ${e.javaClass.simpleName}: ${e.message}")
+                        emptyList()
+                    }
                 }
             }
 
+            val albums = albumsDeferred.await()
             val artists = artistsDeferred.await()
             val playlists = playlistsDeferred.await()
             
-            return@withContext SearchResults(songs, albums, artists, playlists)
+            return@withContext SearchResults(songs = songs, albums = albums, artists = artists, playlists = playlists)
 
         } catch (e: Exception) {
             if (is429(e)) noteRateLimited()
