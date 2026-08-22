@@ -278,34 +278,24 @@ fun ExpandablePlayerSheet(
                                 }
                             )
                         }
-                        .pointerInput(swipeDownToDismissEnabled) {
-                            val dismissThreshold = -0.05f
+                        .pointerInput(Unit) {
                             detectVerticalDragGestures(
                                 onDragEnd = {
                                     coroutineScope.launch {
-                                        if (expansion.value <= dismissThreshold && swipeDownToDismissEnabled) {
-                                            expansion.animateTo(
-                                                targetValue = -0.6f,
-                                                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                                        val targetValue = if (expansion.value > 0.35f) 1f else 0f
+                                        expansion.animateTo(
+                                            targetValue = targetValue,
+                                            animationSpec = tween(
+                                                durationMillis = 250,
+                                                easing = FastOutSlowInEasing
                                             )
-                                            onClose()
-                                            expansion.snapTo(0f)
-                                        } else {
-                                            val targetValue = if (expansion.value > 0.4f) 1f else 0f
-                                            expansion.animateTo(
-                                                targetValue = targetValue,
-                                                animationSpec = tween(
-                                                    durationMillis = 250,
-                                                    easing = FastOutSlowInEasing
-                                                )
-                                            )
-                                            onExpandChange(targetValue == 1f)
-                                        }
+                                        )
+                                        onExpandChange(targetValue == 1f)
                                     }
                                 },
                                 onDragCancel = {
                                     coroutineScope.launch {
-                                        val targetValue = if (expansion.value > 0.4f) 1f else 0f
+                                        val targetValue = if (expansion.value > 0.35f) 1f else 0f
                                         expansion.animateTo(
                                             targetValue = targetValue,
                                             animationSpec = tween(
@@ -320,9 +310,8 @@ fun ExpandablePlayerSheet(
                                     change.consume()
                                     val delta = -dragAmount / dragRange
                                     coroutineScope.launch {
-                                        val minExpansion = if (swipeDownToDismissEnabled) -0.7f else 0f
                                         expansion.snapTo(
-                                            (expansion.value + delta).coerceIn(minExpansion, 1f)
+                                            (expansion.value + delta).coerceIn(0f, 1f)
                                         )
                                     }
                                 }

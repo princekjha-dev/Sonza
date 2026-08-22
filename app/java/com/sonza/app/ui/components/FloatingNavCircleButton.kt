@@ -60,7 +60,7 @@ fun FloatingNavCircleButton(
         label = "circleNavBorder"
     )
     val animatedIconColor by animateColorAsState(
-        targetValue = if (isSelected) accentColor else SonzaOnSurfaceVariant,
+        targetValue = if (isSelected) accentColor else SonzaOnSurfaceVariant.copy(alpha = 0.70f),
         animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
         label = "circleNavIcon"
     )
