@@ -43,6 +43,12 @@ import com.sonza.app.ui.screens.YouTubeLoginScreen
 import com.sonza.app.ui.screens.UserProfileScreen
 import com.sonza.app.ui.screens.MiscScreen
 import com.sonza.app.ui.screens.LyricsProvidersScreen
+import com.sonza.app.ui.screens.library.LibraryAlbumsScreen
+import com.sonza.app.ui.screens.library.LibraryArtistsScreen
+import com.sonza.app.ui.screens.library.LibraryPlaylistsScreen
+import com.sonza.app.ui.screens.library.LibraryGenresScreen
+import com.sonza.app.ui.screens.library.LibraryGenreDetailScreen
+import androidx.navigation.toRoute
 import com.sonza.app.ui.screens.ChangelogScreen
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.SharedFlow
@@ -517,6 +523,18 @@ fun NavGraph(
                 onMigratePlaylistsClick = {
                     navController.navigate(Destination.MigratePlaylists)
                 },
+                onNavigateToPlaylists = {
+                    navController.navigate(Destination.LibraryPlaylists)
+                },
+                onNavigateToArtists = {
+                    navController.navigate(Destination.LibraryArtists)
+                },
+                onNavigateToAlbums = {
+                    navController.navigate(Destination.LibraryAlbums)
+                },
+                onNavigateToGenres = {
+                    navController.navigate(Destination.LibraryGenres)
+                },
                 onNavigateToSearch = {
                     navController.navigate(Destination.Search) {
                         popUpTo<Destination.Home> {
@@ -534,6 +552,77 @@ fun NavGraph(
                         launchSingleTop = true
                         restoreState = true
                     }
+                }
+            )
+        }
+
+        composable<Destination.LibraryPlaylists> {
+            LibraryPlaylistsScreen(
+                onBackClick = { navController.popBackStack() },
+                onPlaylistClick = { playlist ->
+                    navController.navigate(
+                        Destination.Playlist(
+                            playlistId = playlist.id,
+                            name = playlist.name,
+                            thumbnailUrl = playlist.thumbnailUrl
+                        )
+                    )
+                }
+            )
+        }
+
+        composable<Destination.LibraryArtists> {
+            LibraryArtistsScreen(
+                onBackClick = { navController.popBackStack() },
+                onArtistClick = { artistId ->
+                    navController.navigate(Destination.Artist(artistId))
+                }
+            )
+        }
+
+        composable<Destination.LibraryAlbums> {
+            LibraryAlbumsScreen(
+                onBackClick = { navController.popBackStack() },
+                onAlbumClick = { album ->
+                    navController.navigate(
+                        Destination.Album(
+                            albumId = album.id,
+                            name = album.title,
+                            thumbnailUrl = album.thumbnailUrl
+                        )
+                    )
+                },
+                onPlayAll = { albums, shuffle ->
+                    val firstAlbum = if (shuffle) albums.shuffled().firstOrNull() else albums.firstOrNull()
+                    firstAlbum?.let { album ->
+                        navController.navigate(
+                            Destination.Album(
+                                albumId = album.id,
+                                name = album.title,
+                                thumbnailUrl = album.thumbnailUrl
+                            )
+                        )
+                    }
+                }
+            )
+        }
+
+        composable<Destination.LibraryGenres> {
+            LibraryGenresScreen(
+                onBackClick = { navController.popBackStack() },
+                onGenreClick = { genre ->
+                    navController.navigate(Destination.LibraryGenreDetail(genre))
+                }
+            )
+        }
+
+        composable<Destination.LibraryGenreDetail> { backStackEntry ->
+            val genreDetail = backStackEntry.toRoute<Destination.LibraryGenreDetail>()
+            LibraryGenreDetailScreen(
+                genre = genreDetail.genre,
+                onBackClick = { navController.popBackStack() },
+                onSongClick = { songs, index ->
+                    onPlaySong(songs, index)
                 }
             )
         }
@@ -685,7 +774,8 @@ fun NavGraph(
                 onPrivacyPolicyClick = { navController.navigate(Destination.PrivacyPolicy) },
                 onTermsOfServiceClick = { navController.navigate(Destination.TermsOfService) },
                 onLicensesClick = { navController.navigate(Destination.OpenSourceLicenses) },
-                onHowItWorksClick = { navController.navigate(Destination.HowItWorks) }
+                onHowItWorksClick = { navController.navigate(Destination.HowItWorks) },
+                onSupportClick = { navController.navigate(Destination.Support) }
             )
         }
 

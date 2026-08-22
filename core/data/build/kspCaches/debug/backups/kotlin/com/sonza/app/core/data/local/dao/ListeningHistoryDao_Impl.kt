@@ -5,6 +5,7 @@ import androidx.room.EntityInsertAdapter
 import androidx.room.EntityUpsertAdapter
 import androidx.room.RoomDatabase
 import androidx.room.coroutines.createFlow
+import androidx.room.util.appendPlaceholders
 import androidx.room.util.getColumnIndexOrThrow
 import androidx.room.util.performSuspending
 import androidx.sqlite.SQLiteStatement
@@ -21,6 +22,7 @@ import kotlin.collections.List
 import kotlin.collections.MutableList
 import kotlin.collections.mutableListOf
 import kotlin.reflect.KClass
+import kotlin.text.StringBuilder
 import kotlinx.coroutines.flow.Flow
 
 @Generated(value = ["androidx.room.RoomProcessor"])
@@ -829,6 +831,42 @@ public class ListeningHistoryDao_Impl(
     return performSuspending(__db, false, true) { _connection ->
       val _stmt: SQLiteStatement = _connection.prepare(_sql)
       try {
+        _stmt.step()
+      } finally {
+        _stmt.close()
+      }
+    }
+  }
+
+  public override suspend fun deleteSong(songId: String) {
+    val _sql: String = "DELETE FROM listening_history WHERE songId = ?"
+    return performSuspending(__db, false, true) { _connection ->
+      val _stmt: SQLiteStatement = _connection.prepare(_sql)
+      try {
+        var _argIndex: Int = 1
+        _stmt.bindText(_argIndex, songId)
+        _stmt.step()
+      } finally {
+        _stmt.close()
+      }
+    }
+  }
+
+  public override suspend fun deleteSongs(songIds: List<String>) {
+    val _stringBuilder: StringBuilder = StringBuilder()
+    _stringBuilder.append("DELETE FROM listening_history WHERE songId IN (")
+    val _inputSize: Int = songIds.size
+    appendPlaceholders(_stringBuilder, _inputSize)
+    _stringBuilder.append(")")
+    val _sql: String = _stringBuilder.toString()
+    return performSuspending(__db, false, true) { _connection ->
+      val _stmt: SQLiteStatement = _connection.prepare(_sql)
+      try {
+        var _argIndex: Int = 1
+        for (_item: String in songIds) {
+          _stmt.bindText(_argIndex, _item)
+          _argIndex++
+        }
         _stmt.step()
       } finally {
         _stmt.close()

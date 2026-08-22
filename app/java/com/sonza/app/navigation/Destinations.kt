@@ -75,6 +75,16 @@ sealed class Destination {
     data object MigratePlaylists : Destination()
     @Serializable
     data object Podcasts : Destination()
+    @Serializable
+    data object LibraryPlaylists : Destination()
+    @Serializable
+    data object LibraryArtists : Destination()
+    @Serializable
+    data object LibraryAlbums : Destination()
+    @Serializable
+    data object LibraryGenres : Destination()
+    @Serializable
+    data class LibraryGenreDetail(val genre: String) : Destination()
 
     @Serializable
     data class Playlist(

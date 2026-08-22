@@ -18,9 +18,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddToQueue
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -60,6 +62,8 @@ fun SongMenuBottomSheet(
     onAddToPlaylist: () -> Unit,
     onDownload: () -> Unit,
     onShare: () -> Unit,
+    onPlay: (() -> Unit)? = null,
+    onRemoveFromHistory: (() -> Unit)? = null,
     onRemoveFromPlaylist: (() -> Unit)? = null,
     onMoveUp: (() -> Unit)? = null,
     onMoveDown: (() -> Unit)? = null,
@@ -187,6 +191,15 @@ fun SongMenuBottomSheet(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // List Actions
+                if (onPlay != null) {
+                    MenuActionItem(
+                        icon = Icons.Default.PlayArrow,
+                        title = "Play",
+                        subtitle = "Play this song now",
+                        onClick = { onPlay(); onDismiss() }
+                    )
+                }
+
                 if (!isCurrentlyPlaying) {
                     MenuActionItem(
                         icon = Icons.Default.AddToQueue,
@@ -206,6 +219,15 @@ fun SongMenuBottomSheet(
                     subtitle = "Make available for offline playback",
                     onClick = { onDownload(); onDismiss() }
                 )
+
+                if (onRemoveFromHistory != null) {
+                    MenuActionItem(
+                        icon = Icons.Default.DeleteOutline,
+                        title = "Remove from history",
+                        subtitle = "Remove from your listening history",
+                        onClick = { onRemoveFromHistory(); onDismiss() }
+                    )
+                }
 
 
                 

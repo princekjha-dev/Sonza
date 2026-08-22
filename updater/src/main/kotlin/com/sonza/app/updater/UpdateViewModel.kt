@@ -49,29 +49,39 @@ class UpdateViewModel @Inject constructor(
         }
     }
 
-    fun checkForUpdate(currentVersionCode: Int, silent: Boolean = false, isNightly: Boolean = false) {
+    fun checkForUpdate(
+        currentVersionName: String = "",
+        currentVersionCode: Int = 0,
+        silent: Boolean = false,
+        isNightly: Boolean = false
+    ) {
         viewModelScope.launch {
             if (!silent) _updateState.value = UpdateState.Checking
-            
-            // Fetch both update info and changelog to ensure everything is fresh
+
             val updateJob = launch {
                 val updateInfo = checker.checkForUpdate(isNightly)
                 if (updateInfo != null) {
                     _lastUpdated.value = System.currentTimeMillis()
-                    if (updateInfo.versionCode > currentVersionCode) {
+                    val isNewer = VersionComparator.isNewer(
+                        remoteVersionName = updateInfo.versionName,
+                        currentVersionName = currentVersionName,
+                        remoteVersionCode = updateInfo.versionCode,
+                        currentVersionCode = currentVersionCode
+                    )
+                    if (isNewer) {
                         _updateState.value = UpdateState.UpdateAvailable(updateInfo)
                     } else {
                         _updateState.value = UpdateState.NoUpdate(updateInfo)
                     }
                 } else {
-                    if (!silent) _updateState.value = UpdateState.Error("Could not check for updates")
+                    if (!silent) _updateState.value = UpdateState.Error("Could not connect to update server")
                 }
             }
-            
+
             val changelogJob = launch {
                 loadChangelog()
             }
-            
+
             updateJob.join()
             changelogJob.join()
         }
@@ -81,16 +91,25 @@ class UpdateViewModel @Inject constructor(
         downloader.downloadAndInstall(info.downloadUrl, info.versionName, info.sha256)
     }
 
-    fun triggerUpdateAvailable(versionCode: Int, versionName: String, currentVersionCode: Int) {
-        // We re-fetch to get the real download URL and sha256
-        checkForUpdate(currentVersionCode, silent = true)
+    fun triggerUpdateAvailable(
+        versionCode: Int,
+        versionName: String,
+        currentVersionName: String = "",
+        currentVersionCode: Int = 0
+    ) {
+        checkForUpdate(
+            currentVersionName = currentVersionName,
+            currentVersionCode = currentVersionCode,
+            silent = true
+        )
     }
 
     fun dismissDialog() {
         _updateState.value = UpdateState.Idle
     }
-    
+
     fun resetUpdateState() {
         _updateState.value = UpdateState.Idle
+        downloader.resetDownloadState()
     }
 }

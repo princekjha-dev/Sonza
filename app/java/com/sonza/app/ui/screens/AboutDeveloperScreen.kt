@@ -278,9 +278,9 @@ fun AboutDeveloperScreen(
                     DeveloperLinkRow(
                         icon = Icons.Default.Email,
                         title = "Contact Email",
-                        subtitle = "princekjha.dev@gmail.com",
+                        subtitle = "pkjha2028@gmail.com",
                         accentColor = accentColor,
-                        onClick = { uriHandler.openUri("mailto:princekjha.dev@gmail.com") }
+                        onClick = { uriHandler.openUri("mailto:pkjha2028@gmail.com") }
                     )
                 }
             }

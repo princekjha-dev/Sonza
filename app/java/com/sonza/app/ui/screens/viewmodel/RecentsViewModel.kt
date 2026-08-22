@@ -67,8 +67,26 @@ class RecentsViewModel @Inject constructor(
         )
 
     fun clearHistory() {
+        _selectedSongs.value = emptySet()
         viewModelScope.launch {
             repository.clearHistory()
+        }
+    }
+
+    fun removeFromHistory(songId: String) {
+        _selectedSongs.update { it - songId }
+        viewModelScope.launch {
+            repository.removeFromHistory(songId)
+        }
+    }
+
+    fun deleteSelectedSongs() {
+        val ids = _selectedSongs.value.toList()
+        if (ids.isNotEmpty()) {
+            _selectedSongs.value = emptySet()
+            viewModelScope.launch {
+                repository.removeSongsFromHistory(ids)
+            }
         }
     }
 

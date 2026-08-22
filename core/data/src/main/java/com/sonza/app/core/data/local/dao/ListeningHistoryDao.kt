@@ -84,6 +84,18 @@ interface ListeningHistoryDao {
      */
     @Query("DELETE FROM listening_history")
     suspend fun clearAll()
+
+    /**
+     * Delete listening history for a specific song.
+     */
+    @Query("DELETE FROM listening_history WHERE songId = :songId")
+    suspend fun deleteSong(songId: String)
+
+    /**
+     * Delete listening history for a list of songs.
+     */
+    @Query("DELETE FROM listening_history WHERE songId IN (:songIds)")
+    suspend fun deleteSongs(songIds: List<String>)
     
     /**
      * Delete old entries (older than N days).

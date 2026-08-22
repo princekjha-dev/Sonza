@@ -66,7 +66,7 @@ fun UpdaterScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.checkForUpdate(currentVersionCode) }) {
+                    IconButton(onClick = { viewModel.checkForUpdate(currentVersionName = currentVersionName, currentVersionCode = currentVersionCode) }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
                 },
@@ -91,7 +91,7 @@ fun UpdaterScreen(
                     updateState = updateState,
                     downloadState = downloadState,
                     lastUpdated = lastUpdated,
-                    onCheckUpdate = { viewModel.checkForUpdate(currentVersionCode) },
+                    onCheckUpdate = { viewModel.checkForUpdate(currentVersionName = currentVersionName, currentVersionCode = currentVersionCode) },
                     onDownloadUpdate = { info -> viewModel.downloadAndInstallUpdate(info) },
                     onDismiss = { viewModel.resetUpdateState() }
                 )

@@ -28,6 +28,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Feedback
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MenuBook
@@ -81,7 +82,8 @@ fun AboutScreen(
     onPrivacyPolicyClick: () -> Unit = {},
     onTermsOfServiceClick: () -> Unit = {},
     onLicensesClick: () -> Unit = {},
-    onHowItWorksClick: () -> Unit = {}
+    onHowItWorksClick: () -> Unit = {},
+    onSupportClick: () -> Unit = {}
 ) {
     val dynamicColors = LocalSonzaDynamicColors.current
     val accentColor = dynamicColors.accent.takeIf { it != Color.Unspecified } ?: SonzaBrandAccent
@@ -249,6 +251,17 @@ fun AboutScreen(
                         subtitle = "Meet Prince Kumar Jha",
                         accentColor = accentColor,
                         onClick = onDeveloperClick
+                    )
+                    HorizontalDivider(
+                        color = SonzaOutline.copy(alpha = 0.25f),
+                        modifier = Modifier.padding(horizontal = SpacingTokens.SpaceLg)
+                    )
+                    AboutLinkRow(
+                        icon = Icons.Default.Feedback,
+                        title = "Send Feedback",
+                        subtitle = "Share suggestions and support the project",
+                        accentColor = accentColor,
+                        onClick = onSupportClick
                     )
                     HorizontalDivider(
                         color = SonzaOutline.copy(alpha = 0.25f),

@@ -1,52 +1,116 @@
 package com.sonza.app.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SearchOff
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.koin.compose.viewmodel.koinViewModel
 import coil3.compose.AsyncImage
-import com.sonza.app.core.model.Song
 import com.sonza.app.core.model.RecentlyPlayed
+import com.sonza.app.core.model.Song
 import com.sonza.app.ui.components.AddToPlaylistSheet
 import com.sonza.app.ui.components.CreatePlaylistDialog
-import com.sonza.app.ui.screens.viewmodel.RecentsViewModel
-import com.sonza.app.ui.viewmodel.PlaylistManagementViewModel
-import java.text.SimpleDateFormat
-import java.util.*
-
+import com.sonza.app.ui.components.LocalSonzaDynamicColors
 import com.sonza.app.ui.components.SongMenuBottomSheet
-import android.text.format.DateUtils
+import com.sonza.app.ui.screens.viewmodel.RecentsViewModel
+import com.sonza.app.ui.theme.RadiusTokens
+import com.sonza.app.ui.theme.SonzaBackground
+import com.sonza.app.ui.theme.SonzaBrandAccent
+import com.sonza.app.ui.theme.SonzaOnBackground
+import com.sonza.app.ui.theme.SonzaOnSurfaceVariant
+import com.sonza.app.ui.theme.SonzaOutline
+import com.sonza.app.ui.theme.SonzaTypography
+import com.sonza.app.ui.theme.SpacingTokens
+import com.sonza.app.ui.theme.SquircleShape
+import com.sonza.app.ui.viewmodel.PlayerViewModel
+import com.sonza.app.ui.viewmodel.PlaylistManagementViewModel
+import org.koin.compose.viewmodel.koinViewModel
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 /**
- * Recents screen showing listening history with YT Music-inspired UI.
- * Now includes Incognito Mode and Multi-select functionality.
+ * Polished History (Recents) screen showing listening history with:
+ * - Clean header, back navigation, proper icon alignment & touch targets
+ * - Instant search filtering with rounded search field and empty-search state
+ * - Chronological grouping: Today, Yesterday, Earlier this week, Older dates
+ * - Truncated items with vertically aligned 3-dot overflow menu
+ * - Bottom sheet actions: Play, Play Next, Add to Queue, Add to Playlist, Download, Share, Remove from History
+ * - Multi-select mode with batch actions
+ * - Clear history confirmation dialog
+ * - Centered empty state with "Start Listening" action
  */
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -54,191 +118,325 @@ fun RecentsScreen(
     onSongClick: (List<Song>, Int) -> Unit,
     onBack: () -> Unit,
     viewModel: RecentsViewModel = koinViewModel(),
+    playerViewModel: PlayerViewModel = koinViewModel(),
     playlistViewModel: PlaylistManagementViewModel = koinViewModel()
 ) {
     val recentlyPlayed by viewModel.recentSongs.collectAsState()
     val selectedSongIds by viewModel.selectedSongs.collectAsState()
     val incognitoModeEnabled by viewModel.incognitoModeEnabled.collectAsState()
-    val context = androidx.compose.ui.platform.LocalContext.current
-    
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+
+    val dynamicColors = LocalSonzaDynamicColors.current
+    val accentColor = dynamicColors.accent.takeIf { it != Color.Unspecified } ?: SonzaBrandAccent
+
     var searchQuery by remember { mutableStateOf("") }
     var showClearConfirmDialog by remember { mutableStateOf(false) }
-    
+
     // Song Menu State
     var showSongMenu by remember { mutableStateOf(false) }
     var selectedSong: Song? by remember { mutableStateOf(null) }
-    
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
-    val haptic = LocalHapticFeedback.current
-    
+
     val filteredHistory = remember(recentlyPlayed, searchQuery) {
-        if (searchQuery.isEmpty()) recentlyPlayed
-        else recentlyPlayed.filter { 
-            it.song.title.contains(searchQuery, ignoreCase = true) || 
-            it.song.artist.contains(searchQuery, ignoreCase = true) 
+        if (searchQuery.trim().isEmpty()) recentlyPlayed
+        else {
+            val query = searchQuery.trim()
+            recentlyPlayed.filter {
+                it.song.title.contains(query, ignoreCase = true) ||
+                    it.song.artist.contains(query, ignoreCase = true)
+            }
         }
     }
 
     val isSelectionMode = selectedSongIds.isNotEmpty()
 
+    // Confirmation dialog for clearing history
     if (showClearConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showClearConfirmDialog = false },
-            title = { Text("Clear history?", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
-            text = { Text("This will remove all songs from your listening history. This action cannot be undone.", style = MaterialTheme.typography.bodyMedium) },
+            title = {
+                Text(
+                    text = "Clear listening history?",
+                    style = SonzaTypography.Headline,
+                    fontWeight = FontWeight.Bold,
+                    color = SonzaOnBackground
+                )
+            },
+            text = {
+                Text(
+                    text = "This will permanently remove all songs from your listening history.",
+                    style = SonzaTypography.BodyMedium,
+                    color = SonzaOnSurfaceVariant
+                )
+            },
             confirmButton = {
-                TextButton(onClick = { viewModel.clearHistory(); showClearConfirmDialog = false }) {
-                    Text("Clear All", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                TextButton(
+                    onClick = {
+                        viewModel.clearHistory()
+                        showClearConfirmDialog = false
+                    }
+                ) {
+                    Text(
+                        text = "Clear History",
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold,
+                        style = SonzaTypography.BodyMedium
+                    )
                 }
             },
-            dismissButton = { TextButton(onClick = { showClearConfirmDialog = false }) { Text("Cancel") } },
-            shape = RoundedCornerShape(28.dp)
+            dismissButton = {
+                TextButton(onClick = { showClearConfirmDialog = false }) {
+                    Text(
+                        text = "Cancel",
+                        color = SonzaOnSurfaceVariant,
+                        style = SonzaTypography.BodyMedium
+                    )
+                }
+            },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
     }
-    
-    Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SonzaBackground)
+            .statusBarsPadding()
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Header Bar
             if (isSelectionMode) {
-                TopAppBar(
-                    title = { Text("${selectedSongIds.size} selected") },
-                    navigationIcon = {
-                        IconButton(onClick = { viewModel.clearSelection() }) {
-                            Icon(Icons.Default.Clear, "Clear Selection")
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = {
+                // Multi-selection Top Bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = SpacingTokens.SpaceMd, vertical = SpacingTokens.SpaceXs),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = { viewModel.clearSelection() },
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Clear Selection",
+                            tint = SonzaOnBackground
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
+
+                    Text(
+                        text = "${selectedSongIds.size} selected",
+                        style = SonzaTypography.TitleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = SonzaOnBackground,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    IconButton(
+                        onClick = {
                             val selectedSongs = recentlyPlayed
                                 .filter { selectedSongIds.contains(it.song.id) }
                                 .map { it.song }
                             playlistViewModel.showAddToPlaylistSheet(selectedSongs)
-                        }) {
-                            Icon(Icons.Default.PlaylistAdd, "Add to Playlist")
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-                    )
-                )
+                        },
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
+                            contentDescription = "Add to Playlist",
+                            tint = accentColor
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { viewModel.deleteSelectedSongs() },
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteOutline,
+                            contentDescription = "Delete Selected",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
             } else {
-                LargeTopAppBar(
-                    title = { Text(text = "History", fontWeight = FontWeight.Bold) },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                    },
-                    actions = {
-                        // Incognito Mode Toggle
-                        IconButton(onClick = { viewModel.setIncognitoMode(!incognitoModeEnabled) }) {
+                // Normal Header: Back Arrow, Title, Incognito Mode & Clear History
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = SpacingTokens.SpaceMd, vertical = SpacingTokens.SpaceXs),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = SonzaOnBackground
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
+
+                    Text(
+                        text = "History",
+                        style = SonzaTypography.Headline,
+                        fontWeight = FontWeight.Bold,
+                        color = SonzaOnBackground,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    // Incognito Mode Toggle
+                    IconButton(
+                        onClick = { viewModel.setIncognitoMode(!incognitoModeEnabled) },
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (incognitoModeEnabled) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = if (incognitoModeEnabled) "Incognito Mode On" else "Incognito Mode Off",
+                            tint = if (incognitoModeEnabled) accentColor else SonzaOnSurfaceVariant
+                        )
+                    }
+
+                    // Clear History Button (visible when history is not empty)
+                    if (recentlyPlayed.isNotEmpty()) {
+                        IconButton(
+                            onClick = { showClearConfirmDialog = true },
+                            modifier = Modifier.size(44.dp)
+                        ) {
                             Icon(
-                                imageVector = if (incognitoModeEnabled) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = "Incognito Mode",
-                                tint = if (incognitoModeEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                imageVector = Icons.Default.DeleteOutline,
+                                contentDescription = "Clear History",
+                                tint = SonzaOnSurfaceVariant
                             )
                         }
-                        
-                        if (recentlyPlayed.isNotEmpty()) {
-                            IconButton(onClick = { showClearConfirmDialog = true }) {
-                                Icon(Icons.Default.DeleteOutline, "Clear")
-                            }
-                        }
-                    },
-                    scrollBehavior = scrollBehavior
-                )
+                    }
+                }
             }
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(paddingValues)
-        ) {
-            // Incognito Indicator
+
+            // Incognito Status Banner
             AnimatedVisibility(
                 visible = incognitoModeEnabled,
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
                 Surface(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(12.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceXs),
+                    color = accentColor.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, accentColor.copy(alpha = 0.3f))
                 ) {
                     Row(
-                        modifier = Modifier.padding(12.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(Icons.Default.VisibilityOff, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                        Icon(
+                            imageVector = Icons.Default.VisibilityOff,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(20.dp)
+                        )
                         Text(
-                            text = "Incognito Mode is on. Your listening history is not being saved.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            text = "Incognito Mode is on. Listening history is not being saved.",
+                            style = SonzaTypography.BodySmall.copy(fontWeight = FontWeight.Medium),
+                            color = SonzaOnBackground
                         )
                     }
                 }
             }
 
-            // Search Bar
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Search history") },
-                leadingIcon = { Icon(Icons.Default.Search, null) },
-                trailingIcon = if (searchQuery.isNotEmpty()) {
-                    { IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Default.Clear, null) } }
-                } else null,
-                shape = CircleShape,
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                    unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant,
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            // Search Field (Only shown if history has items or user has typed a query)
+            if (recentlyPlayed.isNotEmpty() || searchQuery.isNotEmpty()) {
+                HistorySearchField(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    onClearQuery = { searchQuery = "" },
+                    accentColor = accentColor,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = SpacingTokens.SpaceLg, vertical = SpacingTokens.SpaceSm)
                 )
-            )
+            }
 
-            if (filteredHistory.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Icon(imageVector = Icons.Default.History, contentDescription = null, modifier = Modifier.size(80.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
-                        Text(text = if (searchQuery.isEmpty()) "No history yet" else "No results found", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
+            // Main Content Area
+            if (recentlyPlayed.isEmpty()) {
+                // Empty Listening History State
+                EmptyHistoryState(
+                    onStartListening = onBack,
+                    accentColor = accentColor,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 80.dp)
+                )
+            } else if (filteredHistory.isEmpty()) {
+                // Empty Search Result State
+                EmptySearchState(
+                    query = searchQuery,
+                    onClearSearch = { searchQuery = "" },
+                    accentColor = accentColor,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 80.dp)
+                )
             } else {
+                // Chronologically Grouped History List
                 val groupedByDate = remember(filteredHistory) {
-                    filteredHistory.groupBy { getDateLabel(it.playedAt) }
+                    filteredHistory.groupBy { getDateGroupHeader(it.playedAt) }
                 }
-                
-                LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 120.dp)) {
-                    groupedByDate.forEach { (dateLabel, items) ->
-                        stickyHeader {
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 140.dp)
+                ) {
+                    groupedByDate.forEach { (dateGroup, items) ->
+                        stickyHeader(key = dateGroup) {
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
-                                color = MaterialTheme.colorScheme.background
+                                color = SonzaBackground
                             ) {
                                 Text(
-                                    text = dateLabel,
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp),
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                                    text = dateGroup,
+                                    style = SonzaTypography.TitleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.5.sp
+                                    ),
+                                    color = accentColor,
+                                    modifier = Modifier.padding(
+                                        start = SpacingTokens.SpaceLg,
+                                        end = SpacingTokens.SpaceLg,
+                                        top = SpacingTokens.SpaceMd,
+                                        bottom = SpacingTokens.SpaceXs
+                                    )
                                 )
                             }
                         }
-                        
-                        items(items, key = { "${it.song.id}_${it.playedAt}" }) { recent ->
+
+                        items(
+                            items = items,
+                            key = { "${it.song.id}_${it.playedAt}" }
+                        ) { recent ->
                             val isSelected = selectedSongIds.contains(recent.song.id)
                             val allSongsInHistory = recentlyPlayed.map { it.song }
                             val indexInAll = allSongsInHistory.indexOf(recent.song)
-                            
-                            RecentSongItem(
+
+                            HistorySongItem(
                                 recent = recent,
                                 isSelected = isSelected,
                                 isSelectionMode = isSelectionMode,
-                                onClick = { 
-                                    if (isSelectionMode) viewModel.toggleSelection(recent.song.id)
-                                    else onSongClick(allSongsInHistory, indexInAll)
+                                accentColor = accentColor,
+                                onClick = {
+                                    if (isSelectionMode) {
+                                        viewModel.toggleSelection(recent.song.id)
+                                    } else {
+                                        onSongClick(allSongsInHistory, indexInAll)
+                                    }
                                 },
                                 onLongClick = {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -256,22 +454,36 @@ fun RecentsScreen(
         }
     }
 
-    // Song Menu
+    // Song Overflow Menu Bottom Sheet
     if (showSongMenu && selectedSong != null) {
+        val song = selectedSong!!
+        val allSongsInHistory = recentlyPlayed.map { it.song }
+        val songIndex = allSongsInHistory.indexOf(song)
+
         SongMenuBottomSheet(
             isVisible = true,
             onDismiss = { showSongMenu = false },
-            song = selectedSong!!,
-            onPlayNext = { /* handled by navigation/player */ },
-            onAddToQueue = { /* handled by navigation/player */ },
-            onAddToPlaylist = { playlistViewModel.showAddToPlaylistSheet(selectedSong!!) },
-            onDownload = { viewModel.downloadSong(selectedSong!!) },
-            onShare = { 
+            song = song,
+            onPlay = {
+                if (songIndex >= 0) {
+                    onSongClick(allSongsInHistory, songIndex)
+                } else {
+                    onSongClick(listOf(song), 0)
+                }
+            },
+            onPlayNext = { playerViewModel.playNext(song) },
+            onAddToQueue = { playerViewModel.addToQueue(song) },
+            onAddToPlaylist = { playlistViewModel.showAddToPlaylistSheet(song) },
+            onDownload = { viewModel.downloadSong(song) },
+            onShare = {
                 val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                     type = "text/plain"
-                    putExtra(android.content.Intent.EXTRA_TEXT, "Listen to ${selectedSong!!.title} by ${selectedSong!!.artist} on Sonza")
+                    putExtra(android.content.Intent.EXTRA_TEXT, "Listen to ${song.title} by ${song.artist} on Sonza")
                 }
                 context.startActivity(android.content.Intent.createChooser(shareIntent, "Share song"))
+            },
+            onRemoveFromHistory = {
+                viewModel.removeFromHistory(song.id)
             }
         )
     }
@@ -285,7 +497,7 @@ fun RecentsScreen(
             playlists = playlistMgmtState.userPlaylists,
             isLoading = playlistMgmtState.isLoadingPlaylists || playlistMgmtState.isAddingSong,
             onDismiss = { playlistViewModel.hideAddToPlaylistSheet() },
-            onAddToPlaylist = { playlistId -> 
+            onAddToPlaylist = { playlistId ->
                 playlistViewModel.addSongsToPlaylist(playlistId)
                 viewModel.clearSelection()
             },
@@ -304,12 +516,107 @@ fun RecentsScreen(
     }
 }
 
+/**
+ * Rounded Sonza-style search input field for history.
+ */
+@Composable
+private fun HistorySearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClearQuery: () -> Unit,
+    accentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    var isFocused by remember { mutableStateOf(false) }
+
+    val animatedBorderColor by animateColorAsState(
+        targetValue = if (isFocused) accentColor.copy(alpha = 0.65f) else SonzaOutline.copy(alpha = 0.25f),
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        label = "historySearchBorder"
+    )
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(50.dp)
+            .shadow(
+                elevation = if (isFocused) 4.dp else 1.dp,
+                shape = RoundedCornerShape(25.dp),
+                ambientColor = Color.Black.copy(alpha = 0.3f),
+                spotColor = Color.Black.copy(alpha = 0.2f)
+            ),
+        shape = RoundedCornerShape(25.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, animatedBorderColor)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Search,
+                contentDescription = "Search",
+                tint = if (isFocused || query.isNotEmpty()) accentColor else SonzaOnSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 2.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (query.isEmpty()) {
+                    Text(
+                        text = "Search history",
+                        style = SonzaTypography.BodyMedium,
+                        color = SonzaOnSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
+
+                BasicTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { isFocused = it.isFocused },
+                    textStyle = SonzaTypography.BodyMedium.copy(color = SonzaOnBackground),
+                    singleLine = true,
+                    cursorBrush = SolidColor(accentColor)
+                )
+            }
+
+            if (query.isNotEmpty()) {
+                IconButton(
+                    onClick = onClearQuery,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Clear,
+                        contentDescription = "Clear search",
+                        tint = SonzaOnSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Individual History Song item row with artwork, clean truncation, and vertically aligned 3-dot menu.
+ */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun RecentSongItem(
+private fun HistorySongItem(
     recent: RecentlyPlayed,
     isSelected: Boolean,
     isSelectionMode: Boolean,
+    accentColor: Color,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onMoreClick: () -> Unit
@@ -317,54 +624,255 @@ private fun RecentSongItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent)
+            .background(
+                if (isSelected) accentColor.copy(alpha = 0.15f) else Color.Transparent
+            )
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = SpacingTokens.SpaceLg, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Box(contentAlignment = Alignment.Center) {
+        // Album Artwork with Selection Checkmark Overlay
+        Box(
+            modifier = Modifier.size(52.dp),
+            contentAlignment = Alignment.Center
+        ) {
             AsyncImage(
                 model = recent.song.thumbnailUrl,
-                contentDescription = null,
-                modifier = Modifier.size(52.dp).clip(RoundedCornerShape(4.dp)),
+                contentDescription = recent.song.title,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(SquircleShape),
                 contentScale = ContentScale.Crop,
                 alpha = if (isSelected) 0.5f else 1f
             )
+
             if (isSelected) {
-                Icon(Icons.Default.CheckCircle, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                Surface(
+                    shape = CircleShape,
+                    color = accentColor,
+                    modifier = Modifier.size(26.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = "Selected",
+                        tint = SonzaBackground,
+                        modifier = Modifier.padding(2.dp)
+                    )
+                }
             }
         }
-        
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(text = recent.song.title, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
-            Text(text = "${recent.song.artist} • ${getTimeLabel(recent.playedAt)}", style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+        // Title and Artist + Time Label
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Text(
+                text = recent.song.title,
+                style = SonzaTypography.BodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = SonzaOnBackground
+            )
+
+            Text(
+                text = "${recent.song.artist} • ${getTimeLabel(recent.playedAt)}",
+                style = SonzaTypography.BodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = SonzaOnSurfaceVariant
+            )
         }
-        
+
+        // Vertically centered 3-dot overflow menu
         if (!isSelectionMode) {
-            IconButton(onClick = onMoreClick) {
-                Icon(imageVector = Icons.Default.MoreVert, contentDescription = "More options", tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), modifier = Modifier.size(20.dp))
+            IconButton(
+                onClick = onMoreClick,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "More options",
+                    tint = SonzaOnSurfaceVariant.copy(alpha = 0.8f),
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }
 }
 
-private fun getDateLabel(timestamp: Long): String {
-    val calendar = Calendar.getInstance()
-    val today = calendar.get(Calendar.DAY_OF_YEAR)
-    val year = calendar.get(Calendar.YEAR)
-    val playedCalendar = Calendar.getInstance().apply { timeInMillis = timestamp }
-    val playedDay = playedCalendar.get(Calendar.DAY_OF_YEAR)
-    val playedYear = playedCalendar.get(Calendar.YEAR)
-    return when {
-        DateUtils.isToday(timestamp) -> "Today"
-        DateUtils.isToday(timestamp + DateUtils.DAY_IN_MILLIS) -> "Yesterday"
-        year == playedYear -> SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date(timestamp))
-        else -> SimpleDateFormat("d MMMM yyyy", Locale.getDefault()).format(Date(timestamp))
+/**
+ * Centered Empty Listening History State.
+ */
+@Composable
+private fun EmptyHistoryState(
+    onStartListening: () -> Unit,
+    accentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(horizontal = 32.dp)
+        ) {
+            Surface(
+                shape = SquircleShape,
+                color = accentColor.copy(alpha = 0.12f),
+                modifier = Modifier.size(80.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.History,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.padding(20.dp)
+                )
+            }
+
+            Text(
+                text = "No listening history",
+                style = SonzaTypography.Headline,
+                fontWeight = FontWeight.Bold,
+                color = SonzaOnBackground,
+                textAlign = TextAlign.Center
+            )
+
+            Text(
+                text = "Songs you play will appear here.",
+                style = SonzaTypography.BodyMedium,
+                color = SonzaOnSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Button(
+                onClick = onStartListening,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = accentColor,
+                    contentColor = SonzaBackground
+                ),
+                shape = RoundedCornerShape(RadiusTokens.Pill),
+                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+            ) {
+                Text(
+                    text = "Start Listening",
+                    style = SonzaTypography.BodyMedium.copy(fontWeight = FontWeight.Bold)
+                )
+            }
+        }
     }
 }
 
+/**
+ * Empty search results state with clear query action.
+ */
+@Composable
+private fun EmptySearchState(
+    query: String,
+    onClearSearch: () -> Unit,
+    accentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.padding(horizontal = 32.dp)
+        ) {
+            Surface(
+                shape = SquircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                modifier = Modifier.size(72.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SearchOff,
+                    contentDescription = null,
+                    tint = SonzaOnSurfaceVariant,
+                    modifier = Modifier.padding(18.dp)
+                )
+            }
 
+            Text(
+                text = "No results found",
+                style = SonzaTypography.TitleMedium.copy(fontWeight = FontWeight.Bold),
+                color = SonzaOnBackground,
+                textAlign = TextAlign.Center
+            )
+
+            Text(
+                text = "No songs match \"$query\"",
+                style = SonzaTypography.BodySmall,
+                color = SonzaOnSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+
+            TextButton(
+                onClick = onClearSearch,
+                shape = RoundedCornerShape(RadiusTokens.Pill)
+            ) {
+                Text(
+                    text = "Clear search",
+                    color = accentColor,
+                    style = SonzaTypography.BodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Group timestamps chronologically:
+ * - "Today"
+ * - "Yesterday"
+ * - "Earlier this week"
+ * - "Older dates" (or date labels)
+ */
+private fun getDateGroupHeader(timestamp: Long): String {
+    val now = Calendar.getInstance()
+
+    val todayStart = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+
+    val yesterdayStart = (todayStart.clone() as Calendar).apply {
+        add(Calendar.DAY_OF_YEAR, -1)
+    }
+
+    val weekStart = (todayStart.clone() as Calendar).apply {
+        add(Calendar.DAY_OF_YEAR, -6)
+    }
+
+    return when {
+        timestamp >= todayStart.timeInMillis -> "Today"
+        timestamp >= yesterdayStart.timeInMillis -> "Yesterday"
+        timestamp >= weekStart.timeInMillis -> "Earlier this week"
+        else -> {
+            val itemCal = Calendar.getInstance().apply { timeInMillis = timestamp }
+            val nowYear = now.get(Calendar.YEAR)
+            val itemYear = itemCal.get(Calendar.YEAR)
+            if (nowYear == itemYear) {
+                SimpleDateFormat("MMMM d", Locale.getDefault()).format(Date(timestamp))
+            } else {
+                SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(Date(timestamp))
+            }
+        }
+    }
+}
+
+/**
+ * Formats played timestamp to e.g. "3:45 PM".
+ */
 private fun getTimeLabel(timestamp: Long): String {
     return SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(timestamp))
 }

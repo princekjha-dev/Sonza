@@ -20,6 +20,8 @@ data class DiscoveryArtMeta(
  */
 object DiscoveryArtRegistry {
 
+    fun get(key: String): DiscoveryArtMeta? = curatedArt[key.lowercase().trim()]
+
     private val curatedArt: Map<String, DiscoveryArtMeta> = mapOf(
         "pop" to DiscoveryArtMeta(
             title = "Pop",

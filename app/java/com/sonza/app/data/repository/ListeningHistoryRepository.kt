@@ -209,6 +209,22 @@ class ListeningHistoryRepository @Inject constructor(
     suspend fun clearHistory() {
         listeningHistoryDao.clearAll()
     }
+
+    /**
+     * Remove a single song from listening history.
+     */
+    suspend fun removeFromHistory(songId: String) {
+        listeningHistoryDao.deleteSong(songId)
+    }
+
+    /**
+     * Remove multiple songs from listening history.
+     */
+    suspend fun removeSongsFromHistory(songIds: List<String>) {
+        if (songIds.isNotEmpty()) {
+            listeningHistoryDao.deleteSongs(songIds)
+        }
+    }
     
     /**
      * Clean up old entries (older than 90 days).

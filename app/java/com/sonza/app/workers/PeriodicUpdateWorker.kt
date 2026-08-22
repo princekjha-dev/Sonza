@@ -5,9 +5,10 @@ import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.sonza.app.core.model.UpdateChannel
 import com.sonza.app.data.SessionManager
 import com.sonza.app.updater.UpdateChecker
-import com.sonza.app.core.model.UpdateChannel
+import com.sonza.app.updater.VersionComparator
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
@@ -28,9 +29,17 @@ class PeriodicUpdateWorker @AssistedInject constructor(
             val updateInfo = updateChecker.checkForUpdate(isNightly)
 
             if (updateInfo != null) {
-                val currentVersionCode = getVersionCode()
-                // Compare as Long so a large versionCode can't overflow when truncated.
-                if (updateInfo.versionCode.toLong() > currentVersionCode) {
+                val currentVersionCode = getVersionCode().toInt()
+                val currentVersionName = getVersionName()
+
+                val isNewer = VersionComparator.isNewer(
+                    remoteVersionName = updateInfo.versionName,
+                    currentVersionName = currentVersionName,
+                    remoteVersionCode = updateInfo.versionCode,
+                    currentVersionCode = currentVersionCode
+                )
+
+                if (isNewer) {
                     Log.i("PeriodicUpdateWorker", "New update available: ${updateInfo.versionName}")
                     sessionManager.setPendingUpdateInfo(updateInfo.versionCode, updateInfo.versionName)
                 }
@@ -38,8 +47,6 @@ class PeriodicUpdateWorker @AssistedInject constructor(
             Result.success()
         } catch (e: Exception) {
             Log.e("PeriodicUpdateWorker", "Update check failed (attempt ${runAttemptCount})", e)
-            // Cap retries so a persistently failing check (e.g. offline for hours)
-            // doesn't retry unbounded and drain battery/network.
             if (runAttemptCount < MAX_RETRIES) Result.retry() else Result.failure()
         }
     }
@@ -55,6 +62,15 @@ class PeriodicUpdateWorker @AssistedInject constructor(
             }
         } catch (e: Exception) {
             0L
+        }
+    }
+
+    private fun getVersionName(): String {
+        return try {
+            val pInfo = applicationContext.packageManager.getPackageInfo(applicationContext.packageName, 0)
+            pInfo.versionName ?: ""
+        } catch (e: Exception) {
+            ""
         }
     }
 

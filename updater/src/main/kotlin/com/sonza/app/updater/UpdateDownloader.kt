@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.provider.Settings
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.CoroutineScope
@@ -55,7 +56,17 @@ class UpdateDownloader @Inject constructor(
     fun downloadAndInstall(url: String, versionName: String, sha256: String? = null) {
         expectedSha256 = sha256?.lowercase()
 
-        val fileName = "Sonza-v$versionName.apk"
+        val cleanVer = VersionComparator.cleanVersion(versionName)
+        val fileName = "Sonza-v$cleanVer.apk"
+
+        // Clear previous download if present
+        try {
+            val existingFile = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), fileName)
+            if (existingFile.exists()) {
+                existingFile.delete()
+            }
+        } catch (_: Exception) {}
+
         val request = DownloadManager.Request(Uri.parse(url))
             .setTitle("Downloading Sonza Update")
             .setDescription("Version $versionName")
@@ -74,9 +85,6 @@ class UpdateDownloader @Inject constructor(
 
         startProgressTracking()
 
-        // Register the completion receiver privately — system DownloadManager
-        // dispatches to registered receivers, but NOT_EXPORTED blocks other apps
-        // from spoofing ACTION_DOWNLOAD_COMPLETE with a malicious download id.
         val completionReceiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context, intent: Intent) {
                 val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
@@ -89,12 +97,18 @@ class UpdateDownloader @Inject constructor(
                 }
             }
         }
+
         ContextCompat.registerReceiver(
             context,
             completionReceiver,
             IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
+    }
+
+    fun resetDownloadState() {
+        stopProgressTracking()
+        _downloadState.value = DownloadState.Idle
     }
 
     private fun startProgressTracking() {
@@ -117,7 +131,7 @@ class UpdateDownloader @Inject constructor(
                         if (status == DownloadManager.STATUS_SUCCESSFUL) {
                             isDownloading = false
                         } else if (status == DownloadManager.STATUS_FAILED) {
-                            _downloadState.value = DownloadState.Error("Download failed")
+                            _downloadState.value = DownloadState.Error("Download failed. Please check network connection.")
                             isDownloading = false
                         } else if (totalBytes > 0) {
                             val progress = bytesDownloaded.toFloat() / totalBytes.toFloat()
@@ -136,11 +150,13 @@ class UpdateDownloader @Inject constructor(
         progressJob = null
     }
 
-    private fun installApk(file: File) {
-        if (!file.exists()) return
+    fun installApk(file: File) {
+        if (!file.exists()) {
+            _downloadState.value = DownloadState.Error("Downloaded installer file not found")
+            return
+        }
 
-        // Refuse to launch the installer if an expected hash was supplied and
-        // the downloaded file doesn't match — defends against MITM swaps.
+        // Validate expected hash if provided
         expectedSha256?.let { expected ->
             val actual = sha256(file)
             if (actual == null || !actual.equals(expected, ignoreCase = true)) {
@@ -164,7 +180,7 @@ class UpdateDownloader @Inject constructor(
         try {
             context.startActivity(intent)
         } catch (e: Exception) {
-            _downloadState.value = DownloadState.Error("Error starting installation")
+            _downloadState.value = DownloadState.Error("Error launching package installer: ${e.localizedMessage ?: "Unknown error"}")
         }
     }
 

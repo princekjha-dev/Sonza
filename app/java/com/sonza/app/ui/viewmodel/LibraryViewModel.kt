@@ -29,6 +29,32 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+sealed class RecentlyAddedItem {
+    data class SongItem(val song: Song) : RecentlyAddedItem()
+    data class PlaylistItem(val playlist: PlaylistDisplayItem) : RecentlyAddedItem()
+    data class AlbumItem(val album: Album) : RecentlyAddedItem()
+
+    val id: String get() = when (this) {
+        is SongItem -> song.id
+        is PlaylistItem -> playlist.id
+        is AlbumItem -> album.id
+    }
+    val title: String get() = when (this) {
+        is SongItem -> song.title
+        is PlaylistItem -> playlist.name
+        is AlbumItem -> album.title
+    }
+    val subtitle: String get() = when (this) {
+        is SongItem -> song.artist
+        is PlaylistItem -> "${playlist.songCount} songs"
+        is AlbumItem -> album.artist
+    }
+    val thumbnailUrl: String? get() = when (this) {
+        is SongItem -> song.thumbnailUrl
+        is PlaylistItem -> playlist.thumbnailUrl
+        is AlbumItem -> album.thumbnailUrl
+    }
+}
 
 data class LibraryUiState(
     val playlists: List<PlaylistDisplayItem> = emptyList(),
@@ -43,6 +69,7 @@ data class LibraryUiState(
     val localArtists: List<Artist> = emptyList(),
     val localAlbums: List<Album> = emptyList(),
     val localFolders: Map<String, List<Song>> = emptyMap(),
+    val recentlyAdded: List<RecentlyAddedItem> = emptyList(),
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val importState: ImportState = ImportState.Idle,
@@ -160,6 +187,7 @@ class LibraryViewModel @Inject constructor(
                     localArtists = localArtists,
                     localFolders = localFolders
                 ) }
+                updateRecentlyAdded()
             } catch (e: Exception) { }
         }
     }
@@ -247,6 +275,7 @@ class LibraryViewModel @Inject constructor(
         viewModelScope.launch {
             downloadRepository.downloadedSongs.collect { songs ->
                 _uiState.update { it.copy(downloadedSongs = songs) }
+                updateRecentlyAdded()
             }
         }
     }
@@ -307,6 +336,7 @@ class LibraryViewModel @Inject constructor(
         top50.await()?.let { count ->
             _uiState.update { it.copy(top50SongCount = count) }
         }
+        updateRecentlyAdded()
     }
 
     fun refresh() {
@@ -349,6 +379,7 @@ class LibraryViewModel @Inject constructor(
                         userPlaylists = displayItems
                     )
                 }
+                updateRecentlyAdded()
             }
         }
     }
@@ -369,6 +400,7 @@ class LibraryViewModel @Inject constructor(
                 playlists = presentPlaylists(combined, state.sortOption, state.librarySearchQuery)
             )
         }
+        updateRecentlyAdded()
     }
 
     /** Unsorted, unfiltered source list — sort/search are presentation-only. */
@@ -703,5 +735,44 @@ class LibraryViewModel @Inject constructor(
             cachedIds.size
         }
         _uiState.update { it.copy(cachedSongCount = count) }
+    }
+
+    fun updateRecentlyAdded() {
+        val state = _uiState.value
+        val items = mutableListOf<RecentlyAddedItem>()
+
+        // Add recent downloads
+        state.downloadedSongs.take(8).forEach { song ->
+            items.add(RecentlyAddedItem.SongItem(song))
+        }
+
+        // Add user & saved playlists
+        state.playlists.take(6).forEach { playlist ->
+            items.add(RecentlyAddedItem.PlaylistItem(playlist))
+        }
+
+        // Add library albums
+        state.libraryAlbums.take(6).forEach { album ->
+            items.add(RecentlyAddedItem.AlbumItem(album))
+        }
+
+        // Add local songs if few items
+        if (items.size < 6) {
+            state.localSongs.take(6).forEach { song ->
+                items.add(RecentlyAddedItem.SongItem(song))
+            }
+        }
+
+        _uiState.update { it.copy(recentlyAdded = items.distinctBy { it.id }) }
+    }
+
+    fun getSongsForGenre(genre: String): List<Song> {
+        val lower = genre.lowercase().trim()
+        val allSongs = (_uiState.value.downloadedSongs + _uiState.value.localSongs + _uiState.value.likedSongs)
+        return allSongs.filter { song ->
+            song.title.lowercase().contains(lower) ||
+            song.artist.lowercase().contains(lower) ||
+            song.album.lowercase().contains(lower)
+        }.distinctBy { it.id }
     }
 }

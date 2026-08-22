@@ -202,19 +202,31 @@ class MainActivity : ComponentActivity() {
         enableMaxRefreshRate()
         
         lifecycleScope.launch {
-            // Check for manual updates on launch
+            // Check for updates on launch
             val channel = sessionManager.getUpdateChannel()
             updateViewModel.checkForUpdate(
-                com.sonza.app.BuildConfig.VERSION_CODE,
+                currentVersionName = com.sonza.app.BuildConfig.VERSION_NAME,
+                currentVersionCode = com.sonza.app.BuildConfig.VERSION_CODE,
+                silent = true,
                 isNightly = channel == com.sonza.app.core.model.UpdateChannel.NIGHTLY
             )
 
             // Also check if PeriodicUpdateWorker found anything while app was closed
             val pendingCode = sessionManager.getPendingUpdateVersionCode()
-            if (pendingCode != null && pendingCode > com.sonza.app.BuildConfig.VERSION_CODE) {
-                val pendingName = sessionManager.getPendingUpdateVersionName() ?: "New Version"
-                // Trigger the UpdateAvailable state in ViewModel so the dialog shows
-                updateViewModel.triggerUpdateAvailable(pendingCode, pendingName, com.sonza.app.BuildConfig.VERSION_CODE)
+            val pendingName = sessionManager.getPendingUpdateVersionName()
+            if (pendingName != null && com.sonza.app.updater.VersionComparator.isNewer(
+                    remoteVersionName = pendingName,
+                    currentVersionName = com.sonza.app.BuildConfig.VERSION_NAME,
+                    remoteVersionCode = pendingCode ?: 0,
+                    currentVersionCode = com.sonza.app.BuildConfig.VERSION_CODE
+                )
+            ) {
+                updateViewModel.triggerUpdateAvailable(
+                    versionCode = pendingCode ?: 0,
+                    versionName = pendingName,
+                    currentVersionName = com.sonza.app.BuildConfig.VERSION_NAME,
+                    currentVersionCode = com.sonza.app.BuildConfig.VERSION_CODE
+                )
             }
         }
         
@@ -702,6 +714,21 @@ fun SonzaApp(
     
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val destination = navBackStackEntry?.destination
+    val isDirectlyOnHome = destination?.hasRoute<Destination.Home>() == true
+    val isDirectlyOnSearch = destination?.hasRoute<Destination.Search>() == true
+    val isDirectlyOnLibrary = destination?.hasRoute<Destination.Library>() == true
+    val isDirectlyOnProfile = destination?.hasRoute<Destination.Profile>() == true
+    val isInsideLibrary = destination?.let {
+        it.hasRoute<Destination.Library>() ||
+        it.hasRoute<Destination.LibraryPlaylists>() ||
+        it.hasRoute<Destination.LibraryArtists>() ||
+        it.hasRoute<Destination.LibraryAlbums>() ||
+        it.hasRoute<Destination.LibraryGenres>() ||
+        it.hasRoute<Destination.LibraryGenreDetail>() ||
+        it.hasRoute<Destination.Downloads>() ||
+        it.hasRoute<Destination.MigratePlaylists>()
+    } ?: false
+    val lastHomeClickTime = remember { mutableLongStateOf(0L) }
     
     var currentDestination by remember { mutableStateOf<Destination>(Destination.Home) }
     
@@ -719,17 +746,17 @@ fun SonzaApp(
     
     // Update current destination based on route
     currentDestination = when {
-        destination?.hasRoute<Destination.Home>() == true -> Destination.Home
-        destination?.hasRoute<Destination.Search>() == true -> Destination.Search
-        destination?.hasRoute<Destination.Library>() == true -> Destination.Library
-        destination?.hasRoute<Destination.Profile>() == true -> Destination.Profile
+        isDirectlyOnHome -> Destination.Home
+        isDirectlyOnSearch -> Destination.Search
+        isInsideLibrary -> Destination.Library
+        isDirectlyOnProfile -> Destination.Profile
         else -> currentDestination
     }
     
     val showBottomNav = destination?.let {
         it.hasRoute<Destination.Home>() ||
         it.hasRoute<Destination.Search>() ||
-        it.hasRoute<Destination.Library>() ||
+        isInsideLibrary ||
         it.hasRoute<Destination.Profile>()
     } ?: false
     
@@ -823,7 +850,7 @@ fun SonzaApp(
         val navBarPadding = androidx.compose.foundation.layout.WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         val imePadding = androidx.compose.foundation.layout.WindowInsets.ime.asPaddingValues().calculateBottomPadding()
         val isKeyboardOpen = imePadding > 0.dp
-        val shouldShowExpressiveBottomNav = showBottomNav && !isKeyboardOpen && !isPlayerExpanded && formFactor.isPhoneLike
+        val shouldShowExpressiveBottomNav = (showBottomNav || hasSong) && !isKeyboardOpen && !isPlayerExpanded && formFactor.isPhoneLike
         val navBarHeight = if (shouldShowExpressiveBottomNav && formFactor != DeviceFormFactor.TV) {
             com.sonza.app.ui.components.ExpressiveBottomNavTokens.getBottomSafePadding(playbackInfo.currentSong != null)
         } else 0.dp
@@ -859,31 +886,62 @@ fun SonzaApp(
                             val navBarAlpha by sessionManager.navBarAlphaFlow.collectAsStateWithLifecycle(initialValue = 1.0f)
                             val navBarBlur by sessionManager.navBarBlurFlow.collectAsStateWithLifecycle(initialValue = 60.0f)
                             val iosLiquidGlassEnabled by sessionManager.iosLiquidGlassEnabledFlow.collectAsStateWithLifecycle(initialValue = false)
-
-                            val lastHomeClickTime = remember { mutableLongStateOf(0L) }
-
                             ExpressiveBottomNav(
-                                currentDestination = currentDestination,
+                                currentDestination = when {
+                                    isDirectlyOnHome -> Destination.Home
+                                    isDirectlyOnSearch -> Destination.Search
+                                    isInsideLibrary -> Destination.Library
+                                    isDirectlyOnProfile -> Destination.Profile
+                                    else -> Destination.Home
+                                },
                                 onDestinationChange = { dest ->
-                                    navController.navigate(dest) {
-                                        popUpTo<Destination.Home> {
-                                            saveState = true
+                                    if (dest == Destination.Home) {
+                                        navController.navigate(Destination.Home) {
+                                            popUpTo<Destination.Home> {
+                                                inclusive = false
+                                            }
+                                            launchSingleTop = true
                                         }
-                                        launchSingleTop = true
-                                        restoreState = true
+                                    } else {
+                                        navController.navigate(dest) {
+                                            popUpTo<Destination.Home> {
+                                                saveState = true
+                                            }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
                                     }
                                 },
                                 onReClick = { dest ->
                                     if (dest == Destination.Home) {
-                                        val currentTime = System.currentTimeMillis()
-                                        if ((currentTime - lastHomeClickTime.longValue) < 500L) {
-                                            // Double tap -> Refresh
-                                            homeViewModel.triggerRefresh()
+                                        if (isDirectlyOnHome) {
+                                            val currentTime = System.currentTimeMillis()
+                                            if ((currentTime - lastHomeClickTime.longValue) < 500L) {
+                                                // Double tap -> Refresh
+                                                homeViewModel.triggerRefresh()
+                                            } else {
+                                                // Single tap -> Scroll to top
+                                                homeViewModel.scrollToTop()
+                                            }
+                                            lastHomeClickTime.longValue = currentTime
                                         } else {
-                                            // Single tap -> Scroll to top
-                                            homeViewModel.scrollToTop()
+                                            // Subpage -> Navigate straight back to Home
+                                            navController.navigate(Destination.Home) {
+                                                popUpTo<Destination.Home> {
+                                                    inclusive = false
+                                                }
+                                                launchSingleTop = true
+                                            }
                                         }
-                                        lastHomeClickTime.longValue = currentTime
+                                    } else if (dest == Destination.Library) {
+                                        if (!isDirectlyOnLibrary) {
+                                            navController.navigate(Destination.Library) {
+                                                popUpTo<Destination.Library> {
+                                                    inclusive = false
+                                                }
+                                                launchSingleTop = true
+                                            }
+                                        }
                                     }
                                 },
                                 currentSong = playbackInfo.currentSong,
@@ -1078,9 +1136,6 @@ fun SonzaApp(
             val navBarHeight = if (showBottomNav && !isKeyboardOpen && formFactor != DeviceFormFactor.TV) com.sonza.app.ui.components.ExpressiveBottomNavTokens.TotalBottomBarHeight else 0.dp
             with(density) { navBarPadding.toPx() + navBarHeight.toPx() }
         }
-
-        val lastHomeClickTime = remember { mutableLongStateOf(0L) }
-
         ExpandablePlayerSheet(
             currentSong = playbackInfo.currentSong,
             isPlaying = playbackInfo.isPlaying,
@@ -1100,7 +1155,7 @@ fun SonzaApp(
             swipeDownToDismissEnabled = swipeDownToDismissEnabled,
             currentDestination = currentDestination,
             onHomeClick = {
-                if (currentDestination == Destination.Home) {
+                if (isDirectlyOnHome) {
                     val currentTime = System.currentTimeMillis()
                     if ((currentTime - lastHomeClickTime.longValue) < 500L) {
                         homeViewModel.triggerRefresh()
@@ -1111,10 +1166,9 @@ fun SonzaApp(
                 } else {
                     navController.navigate(Destination.Home) {
                         popUpTo<Destination.Home> {
-                            saveState = true
+                            inclusive = false
                         }
                         launchSingleTop = true
-                        restoreState = true
                     }
                 }
             },
@@ -1227,8 +1281,9 @@ fun SonzaApp(
                     playerViewModel = playerViewModel,
                     volumeKeyEvents = volumeKeyEvents
                 )
-             }
+            }
         )
+    }
 
         // Multiple Artists Selection Dialog
         if (showMultipleArtistsDialog) {
@@ -1243,7 +1298,7 @@ fun SonzaApp(
                 dominantColors = currentDominantColors
             )
         }
-    }    
+
         // Global Volume Indicator (shows on all screens except PlayerScreen when song is playing)
         if (showGlobalVolumeIndicator && volumeSliderEnabled) {
             VolumeIndicator(
@@ -1267,10 +1322,13 @@ fun SonzaApp(
         }
 
         val updateState by updateViewModel.updateState.collectAsStateWithLifecycle()
+        val downloadState by updateViewModel.downloadState.collectAsStateWithLifecycle()
         if (updateState is UpdateState.UpdateAvailable) {
             val info = (updateState as UpdateState.UpdateAvailable).info
             UpdateDialog(
                 updateInfo = info,
+                currentVersionName = com.sonza.app.BuildConfig.VERSION_NAME,
+                downloadState = downloadState,
                 onDismiss = { 
                     scope.launch { sessionManager.clearPendingUpdateInfo() }
                     updateViewModel.dismissDialog() 
