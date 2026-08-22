@@ -9,6 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,26 +60,50 @@ private val LocalShimmerProgress = compositionLocalOf<State<Float>?> { null }
  * Wrap large clusters of shimmering placeholders (e.g. the home loading grid) with
  * this so ~12 boxes share one infinite transition rather than one each.
  */
+/**
+ * Provides a single shared shimmer animation for all descendant skeletons.
+ * Wrap large clusters of shimmering placeholders (e.g. the home loading grid) with
+ * this so ~12 boxes share one infinite transition rather than one each.
+ * Respects Android reduced motion / animation duration scale.
+ */
 @Composable
 fun ShimmerContainer(content: @Composable () -> Unit) {
-    val transition = rememberInfiniteTransition(label = "shimmer_shared")
-    // Keep this as a State<Float> (no `by`) so it can be provided down and read in the
-    // DRAW phase (state.value) without a composable context — reading it there animates
-    // the shimmer without recomposing any descendant.
-    val translateAnim: State<Float> = transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1000f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = 1200,
-                easing = FastOutSlowInEasing
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val isReducedMotion = remember(context) {
+        try {
+            val scale = android.provider.Settings.Global.getFloat(
+                context.contentResolver,
+                android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+                1.0f
+            )
+            scale == 0f
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    if (isReducedMotion) {
+        val staticProgress = remember { androidx.compose.runtime.mutableStateOf(500f) }
+        CompositionLocalProvider(LocalShimmerProgress provides staticProgress) {
+            content()
+        }
+    } else {
+        val transition = rememberInfiniteTransition(label = "shimmer_shared")
+        val translateAnim: State<Float> = transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1000f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(
+                    durationMillis = 1200,
+                    easing = FastOutSlowInEasing
+                ),
+                repeatMode = RepeatMode.Restart
             ),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "shimmer_shared"
-    )
-    CompositionLocalProvider(LocalShimmerProgress provides translateAnim) {
-        content()
+            label = "shimmer_shared"
+        )
+        CompositionLocalProvider(LocalShimmerProgress provides translateAnim) {
+            content()
+        }
     }
 }
 
@@ -92,24 +117,37 @@ fun Modifier.shimmerBackground(
     shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(0.dp)
 ): Modifier = composed {
     val shared = LocalShimmerProgress.current
-    // Whether a shared container is present is stable for a given call-site instance,
-    // so branching on it here does not violate the rules of composition. Either way we end
-    // up with a State<Float> that is read in the DRAW phase (progress.value) — never at
-    // composition — so the animation drives redraws without recomposition.
     val progress: State<Float> = shared ?: run {
-        val transition = rememberInfiniteTransition(label = "shimmer")
-        transition.animateFloat(
-            initialValue = 0f,
-            targetValue = 1000f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(
-                    durationMillis = 1200,
-                    easing = FastOutSlowInEasing
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val isReducedMotion = remember(context) {
+            try {
+                val scale = android.provider.Settings.Global.getFloat(
+                    context.contentResolver,
+                    android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+                    1.0f
+                )
+                scale == 0f
+            } catch (_: Exception) {
+                false
+            }
+        }
+        if (isReducedMotion) {
+            remember { androidx.compose.runtime.mutableStateOf(500f) }
+        } else {
+            val transition = rememberInfiniteTransition(label = "shimmer")
+            transition.animateFloat(
+                initialValue = 0f,
+                targetValue = 1000f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(
+                        durationMillis = 1200,
+                        easing = FastOutSlowInEasing
+                    ),
+                    repeatMode = RepeatMode.Restart
                 ),
-                repeatMode = RepeatMode.Restart
-            ),
-            label = "shimmer"
-        )
+                label = "shimmer"
+            )
+        }
     }
 
     this.clip(shape).drawWithCache {
@@ -308,36 +346,35 @@ fun SearchResultsSkeleton(
 }
 
 /**
- * Home screen loading skeleton
+ * Home screen loading skeleton matching editorial layout
  */
 @Composable
-fun HomeLoadingSkeleton() {
-    // All shimmering placeholders below share a single infinite transition instead of
-    // each allocating their own (previously ~12+ concurrent transitions during home load).
+fun HomeLoadingSkeleton(modifier: Modifier = Modifier) {
     ShimmerContainer {
         Column(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
-                .padding(top = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(28.dp)
+                .padding(vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Greeting Header
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                ShimmerBox(width = 200.dp, height = 32.dp)
-            }
+            // Featured Hero Card Skeleton
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .height(180.dp)
+                    .shimmerBackground(RoundedCornerShape(20.dp))
+            )
 
-            // Simulate 3 sections
+            // Horizontal sections
             repeat(3) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     // Section Title
-                    SectionHeaderSkeleton(modifier = Modifier.padding(horizontal = 16.dp))
+                    SectionHeaderSkeleton(modifier = Modifier.padding(horizontal = 20.dp))
 
-                    // Horizontal List
+                    // Horizontal Rail
                     LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        contentPadding = PaddingValues(horizontal = 20.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         userScrollEnabled = false
                     ) {

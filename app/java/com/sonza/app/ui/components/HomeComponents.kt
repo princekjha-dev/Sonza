@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircleFilled
@@ -230,6 +231,7 @@ fun FeaturedHeroCard(
     tag: String = "FEATURED",
     onClick: () -> Unit,
     onPlayClick: (() -> Unit)? = null,
+    isPlaying: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -324,7 +326,7 @@ fun FeaturedHeroCard(
                 )
             }
 
-            // Play FAB Affordance
+            // Play / Pause FAB Affordance
             Surface(
                 modifier = Modifier
                     .size(44.dp)
@@ -339,8 +341,8 @@ fun FeaturedHeroCard(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = Icons.Filled.PlayArrow,
-                        contentDescription = "Play",
+                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
                         tint = dynamicColors.onAccent,
                         modifier = Modifier.size(24.dp)
                     )

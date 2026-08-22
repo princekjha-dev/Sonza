@@ -1718,19 +1718,23 @@ class MusicPlayerService : MediaLibraryService() {
     
     override fun onTaskRemoved(rootIntent: Intent?) {
         // Read the cached setting synchronously — the framework decides whether
-        // to keep the service alive immediately after this method returns, so
-        // launching a coroutine to read DataStore raced that decision.
+        // to keep the service alive immediately after this method returns.
         val player = mediaLibrarySession?.player
         if (stopMusicOnTaskClearCached) {
-            // Fix: Explicitly pause and clear queue so Media3 releases the foreground state
+            // Explicitly pause and clear queue so Media3 releases the foreground state
             player?.pause()
             player?.clearMediaItems()
             stopSelf()
             return
         }
         
-        if (player?.playWhenReady == false && player.mediaItemCount == 0) {
-            stopSelf()
+        // If the player is actively playing, maintain ongoing foreground playback
+        val isPlaying = player?.playWhenReady == true &&
+            player.playbackState != androidx.media3.common.Player.STATE_IDLE &&
+            player.playbackState != androidx.media3.common.Player.STATE_ENDED
+            
+        if (!isPlaying && (player == null || player.mediaItemCount == 0 || !player.playWhenReady)) {
+            super.onTaskRemoved(rootIntent)
         }
     }
     

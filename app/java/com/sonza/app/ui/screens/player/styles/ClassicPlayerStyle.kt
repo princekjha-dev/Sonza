@@ -659,8 +659,9 @@ private fun SeekbarSection(
         WaveformSeeker(
             progressProvider = progressProvider, isPlaying = isPlaying,
             onSeek = { actions.onSeekTo((it * duration).toLong()) },
-            modifier = Modifier.fillMaxWidth(), activeColor = dominantColors.accent,
-            inactiveColor = dominantColors.onBackground.copy(alpha = 0.3f),
+            modifier = Modifier.fillMaxWidth(),
+            activeColor = Color.White.copy(alpha = 0.88f),
+            inactiveColor = Color.White.copy(alpha = 0.20f),
             initialStyle = currentSeekbarStyle, onStyleChange = onSeekbarStyleChange,
             duration = duration, sponsorSegments = sponsorSegments
         )

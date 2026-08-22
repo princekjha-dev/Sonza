@@ -12,6 +12,7 @@ import com.sonza.app.data.repository.YouTubeRepository
 import com.sonza.app.data.SessionManager
 import com.sonza.app.data.error.toUserFriendlyMessage
 import com.sonza.app.recommendation.RecommendationEngine
+import com.sonza.app.recommendation.SeasonalSectionHelper
 import com.sonza.app.core.model.MusicSource
 import com.sonza.app.lastfm.LastFmRepository
 import com.sonza.app.lastfm.RecommendedArtist
@@ -82,11 +83,22 @@ class HomeViewModel @Inject constructor(
     private val downloadRepository: DownloadRepository
 ) : ViewModel() {
     
+    private val initialHomeSections = sessionManager.getCachedHomeSectionsFast()
+    private val initialQuickPicks = sessionManager.getCachedQuickPicksFast()
+
     private val _uiState = MutableStateFlow(
         HomeUiState(
+            homeSections = initialHomeSections,
+            filteredSections = initialHomeSections.filter { s ->
+                !s.title.contains("Quick picks", ignoreCase = true) &&
+                !s.title.contains("radio", ignoreCase = true) &&
+                !SeasonalSectionHelper.isSeasonalSectionTitle(s.title)
+            },
+            recommendations = initialQuickPicks,
             userAvatarUrl = sessionManager.getCachedUserAvatar(),
             userName = sessionManager.getCachedUserName(),
-            isLoggedIn = sessionManager.isLoggedIn()
+            isLoggedIn = sessionManager.isLoggedIn(),
+            isLoading = initialHomeSections.isEmpty() && initialQuickPicks.isEmpty()
         )
     )
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -94,6 +106,9 @@ class HomeViewModel @Inject constructor(
     private val _events = MutableSharedFlow<HomeEvent>()
     val events: SharedFlow<HomeEvent> = _events.asSharedFlow()
     
+    private var loadHomeJob: kotlinx.coroutines.Job? = null
+    private var secondaryDataJob: kotlinx.coroutines.Job? = null
+
     init {
         // 1. Immutable observations (continuous flows)
         observeSession()
@@ -102,7 +117,7 @@ class HomeViewModel @Inject constructor(
         observeHomeSectionsVisibility()
         observeRecentlyPlayed()
         
-        // 2. Structured data loading
+        // 2. Structured data loading (background, non-blocking)
         loadHomeContent()
     }
 
@@ -125,36 +140,51 @@ class HomeViewModel @Inject constructor(
     /**
      * Entry point for all home-related data loading.
      * Launches a single coroutine to coordinate multiple data sources and avoid over-allocation.
+     * Deduplicates simultaneous requests so Activity recreation or duplicate triggers never stack calls.
      */
     private fun loadHomeContent(forceRefresh: Boolean = false) {
-        viewModelScope.launch {
-            // 1. Prioritize base data (HomeSections from YouTube/RemoteAudio)
+        if (loadHomeJob?.isActive == true && !forceRefresh) {
+            return
+        }
+
+        if (forceRefresh) {
+            loadHomeJob?.cancel()
+            secondaryDataJob?.cancel()
+        }
+
+        loadHomeJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            // 1. Prioritize base data (HomeSections from YouTube)
             loadData(forceRefresh)
             
-            // 2. Stagger background taste-profile-driven content with larger delays to prevent memory spikes
-            kotlinx.coroutines.delay(2000L) 
-            launch { loadRecommendations() }
-            
-            kotlinx.coroutines.delay(1500L)
-            launch { loadPersonalizedSections() }
-            
-            // 3. Further stagger secondary metadata and low-priority detections.
-            kotlinx.coroutines.delay(2000L)
-            launch { loadGenreSections() }
-            
-            kotlinx.coroutines.delay(1500L)
-            launch { loadContextSections() }
-            
-            kotlinx.coroutines.delay(1500L)
-            launch { loadLastFmRecommendations() }
-            launch { detectMood() }
+            // 2. Stagger background taste-profile-driven content
+            secondaryDataJob?.cancel()
+            secondaryDataJob = launch(kotlinx.coroutines.Dispatchers.IO) {
+                kotlinx.coroutines.delay(1000L) 
+                launch { loadRecommendations() }
+                
+                kotlinx.coroutines.delay(1000L)
+                launch { loadPersonalizedSections() }
+                
+                // 3. Further stagger secondary metadata and low-priority detections.
+                kotlinx.coroutines.delay(1500L)
+                launch { loadGenreSections() }
+                
+                kotlinx.coroutines.delay(1000L)
+                launch { loadContextSections() }
+                
+                kotlinx.coroutines.delay(1000L)
+                launch { loadLastFmRecommendations() }
+                launch { detectMood() }
+            }
         }
     }
 
     override fun onCleared() {
         super.onCleared()
+        loadHomeJob?.cancel()
+        secondaryDataJob?.cancel()
         // Clear memory-heavy recommendation caches when leaving Home
-        recommendationEngine.onAuthStateChanged() // This clears all caches
+        recommendationEngine.onAuthStateChanged()
     }
     
     private fun observeSession() {
@@ -183,7 +213,7 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun refreshAccountProfile() {
-        viewModelScope.launch {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 if (!sessionManager.isLoggedIn()) return@launch
                 val account = youTubeRepository.fetchAccountInfo()
@@ -230,52 +260,56 @@ class HomeViewModel @Inject constructor(
                 val currentSource = _uiState.value.currentSource
                 if (source != currentSource) {
                     _uiState.update { it.copy(currentSource = source) }
-                    loadData() // Reload when source changes
+                    loadHomeContent(forceRefresh = true) // Reload when source changes
                 }
             }
         }
     }
 
-    private fun loadData(forceRefresh: Boolean = false) {
-        viewModelScope.launch {
-            val source = sessionManager.getMusicSource()
-            _uiState.update { it.copy(currentSource = source) }
-            
-            // 1. Load Cache Synchronously from disk/prefs without waiting on DataStore flows
-            val cachedSections = sessionManager.getCachedHomeSectionsSync()
-            val cachedQuickPicks = sessionManager.getCachedQuickPicksSync()
-            
-            if (cachedSections.isNotEmpty() || cachedQuickPicks.isNotEmpty()) {
-                _uiState.update { 
-                    it.copy(
-                        homeSections = cachedSections, 
-                        filteredSections = cachedSections.filter { s -> !s.title.contains("Quick picks", ignoreCase = true) && !s.title.contains("radio", ignoreCase = true) },
-                        recommendations = cachedQuickPicks,
-                        isLoading = false,
-                        error = null
-                    ) 
-                }
-            } else {
-                _uiState.update { it.copy(isLoading = true) }
+    private suspend fun loadData(forceRefresh: Boolean = false) {
+        val source = sessionManager.getMusicSource()
+        _uiState.update { it.copy(currentSource = source) }
+        
+        // 1. Ensure cached data is reflected immediately
+        val cachedSections = sessionManager.getCachedHomeSectionsSync()
+        val cachedQuickPicks = sessionManager.getCachedQuickPicksSync()
+        
+        if (cachedSections.isNotEmpty() || cachedQuickPicks.isNotEmpty()) {
+            _uiState.update { 
+                it.copy(
+                    homeSections = cachedSections, 
+                    filteredSections = cachedSections.filter { s ->
+                        !s.title.contains("Quick picks", ignoreCase = true) &&
+                        !s.title.contains("radio", ignoreCase = true) &&
+                        !SeasonalSectionHelper.isSeasonalSectionTitle(s.title)
+                    },
+                    recommendations = cachedQuickPicks,
+                    isLoading = false,
+                    error = null
+                ) 
             }
-            
-            // 2. Throttled Fresh Data Fetching
-            val lastFetchTime = sessionManager.getLastHomeFetchTime(source)
-            val cooldown = 30 * 60 * 1000L // 30 minutes cooldown
-            val isCooldownActive = System.currentTimeMillis() - lastFetchTime < cooldown
-            
-            // Only fetch if forced, cooldown expired, or we have absolutely no data
-            if (forceRefresh || !isCooldownActive || _uiState.value.homeSections.isEmpty()) {
-                fetchFreshData(source)
-            } else {
-                _uiState.update { it.copy(isLoading = false, isRefreshing = false) }
-            }
+        } else {
+            _uiState.update { it.copy(isLoading = true) }
+        }
+        
+        // 2. Throttled Fresh Data Fetching in Background
+        val lastFetchTime = sessionManager.getLastHomeFetchTime(source)
+        val cooldown = 15 * 60 * 1000L // 15 minutes cooldown
+        val isCooldownActive = System.currentTimeMillis() - lastFetchTime < cooldown
+        
+        // Only fetch if forced, cooldown expired, or we have absolutely no data
+        if (forceRefresh || !isCooldownActive || _uiState.value.homeSections.isEmpty()) {
+            fetchFreshData(source)
+        } else {
+            _uiState.update { it.copy(isLoading = false, isRefreshing = false) }
         }
     }
 
     private suspend fun fetchFreshData(source: MusicSource) {
         try {
-            _uiState.update { it.copy(isRefreshing = true) }
+            val hasData = _uiState.value.homeSections.isNotEmpty() || _uiState.value.recommendations.isNotEmpty()
+            _uiState.update { it.copy(isRefreshing = hasData, isLoading = !hasData) }
+            
             // Browsing always uses YouTube — HQ Audio source only swaps playback streams.
             val sections = youTubeRepository.getHomeSections()
             
@@ -283,7 +317,11 @@ class HomeViewModel @Inject constructor(
                 _uiState.update { 
                     it.copy(
                         homeSections = sections,
-                        filteredSections = sections.filter { s -> !s.title.contains("Quick picks", ignoreCase = true) && !s.title.contains("radio", ignoreCase = true) },
+                        filteredSections = sections.filter { s ->
+                            !s.title.contains("Quick picks", ignoreCase = true) &&
+                            !s.title.contains("radio", ignoreCase = true) &&
+                            !SeasonalSectionHelper.isSeasonalSectionTitle(s.title)
+                        },
                         isLoading = false,
                         isRefreshing = false,
                         error = null
@@ -291,7 +329,7 @@ class HomeViewModel @Inject constructor(
                 }
                 sessionManager.updateLastHomeFetchTime(source)
 
-                // Always cache to the YouTube bucket — browsing is YouTube-only.
+                // Cache to disk
                 sessionManager.saveHomeCache(sections)
             } else {
                 _uiState.update { it.copy(isLoading = false, isRefreshing = false) }
@@ -299,7 +337,7 @@ class HomeViewModel @Inject constructor(
         } catch (e: Exception) {
             _uiState.update { 
                 it.copy(
-                    error = if (it.homeSections.isEmpty()) e.toUserFriendlyMessage() else null,
+                    error = if (it.homeSections.isEmpty() && it.recommendations.isEmpty()) e.toUserFriendlyMessage() else null,
                     isLoading = false,
                     isRefreshing = false
                 ) 
@@ -365,9 +403,10 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val sections = recommendationEngine.getPersonalizedHomeSections()
-                // Filter out "Quick picks" since it's shown separately
                 val extraSections = sections.filter { 
-                    !it.title.equals("Quick picks", ignoreCase = true) && !it.title.contains("radio", ignoreCase = true)
+                    !it.title.equals("Quick picks", ignoreCase = true) &&
+                    !it.title.contains("radio", ignoreCase = true) &&
+                    !SeasonalSectionHelper.isSeasonalSectionTitle(it.title)
                 }
                 _uiState.update { it.copy(personalizedSections = extraSections) }
             } catch (e: Exception) {
@@ -568,6 +607,7 @@ class HomeViewModel @Inject constructor(
         state.genreSections.mapTo(titles) { it.title }
         state.contextSections.mapTo(titles) { it.title }
         state.moreSections.mapTo(titles) { it.title }
+        titles.addAll(SeasonalSectionHelper.getAllSeasonalTitles())
         return titles
     }
 }

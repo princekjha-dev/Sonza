@@ -2955,7 +2955,41 @@ class SessionManager @Inject constructor(
         return array.toString()
     }
     
+    @Volatile
+    private var inMemoryHomeSections: List<HomeSection>? = null
+
+    @Volatile
+    private var inMemoryQuickPicks: List<Song>? = null
+
+    fun getCachedHomeSectionsFast(): List<HomeSection> {
+        inMemoryHomeSections?.let { return it }
+        val json = try { encryptedPrefs.getString("home_cache", null) } catch (e: Exception) { null }
+        val parsed = parseHomeSections(json)
+        if (parsed.isNotEmpty()) {
+            inMemoryHomeSections = parsed
+        }
+        return parsed
+    }
+
+    fun getCachedQuickPicksFast(): List<Song> {
+        inMemoryQuickPicks?.let { return it }
+        val json = try { encryptedPrefs.getString("quick_picks_cache", null) } catch (e: Exception) { null }
+        val parsed = if (json.isNullOrBlank()) emptyList() else try {
+            val array = JSONArray(json)
+            (0 until array.length()).mapNotNull { i ->
+                jsonToSong(array.optJSONObject(i) ?: return@mapNotNull null)
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+        if (parsed.isNotEmpty()) {
+            inMemoryQuickPicks = parsed
+        }
+        return parsed
+    }
+
     suspend fun saveHomeCache(sections: List<HomeSection>) {
+        inMemoryHomeSections = sections
         val json = withContext(Dispatchers.Default) {
             serializeHomeSections(sections)
         }
@@ -2974,10 +3008,10 @@ class SessionManager @Inject constructor(
             }
         }
 
-    suspend fun getCachedHomeSectionsSync(): List<HomeSection> = withContext(Dispatchers.IO) {
-        val json = encryptedPrefs.getString("home_cache", null)
-        withContext(Dispatchers.Default) {
-            parseHomeSections(json)
+    suspend fun getCachedHomeSectionsSync(): List<HomeSection> {
+        inMemoryHomeSections?.let { return it }
+        return withContext(Dispatchers.IO) {
+            getCachedHomeSectionsFast()
         }
     }
 
@@ -3008,6 +3042,7 @@ class SessionManager @Inject constructor(
     }
 
     suspend fun saveQuickPicksCache(songs: List<Song>) {
+        inMemoryQuickPicks = songs
         val json = withContext(Dispatchers.Default) {
             val array = JSONArray()
             songs.forEach { song -> array.put(songToJson(song)) }
@@ -3036,17 +3071,10 @@ class SessionManager @Inject constructor(
             }
         }
 
-    suspend fun getCachedQuickPicksSync(): List<Song> = withContext(Dispatchers.IO) {
-        val json = encryptedPrefs.getString("quick_picks_cache", null) ?: return@withContext emptyList()
-        withContext(Dispatchers.Default) {
-            try {
-                val array = JSONArray(json)
-                (0 until array.length()).mapNotNull { i ->
-                    jsonToSong(array.optJSONObject(i) ?: return@mapNotNull null)
-                }
-            } catch (e: Exception) {
-                emptyList()
-            }
+    suspend fun getCachedQuickPicksSync(): List<Song> {
+        inMemoryQuickPicks?.let { return it }
+        return withContext(Dispatchers.IO) {
+            getCachedQuickPicksFast()
         }
     }
 

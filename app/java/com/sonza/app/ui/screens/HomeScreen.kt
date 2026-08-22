@@ -96,6 +96,8 @@ fun HomeScreen(
     onExploreClick: (String, String) -> Unit = { _, _ -> },
     onCreateMixClick: () -> Unit = {},
     currentSong: Song? = null,
+    isPlaying: Boolean = false,
+    onPlayPause: () -> Unit = {},
     viewModel: HomeViewModel = koinViewModel(),
     playlistViewModel: PlaylistManagementViewModel = koinViewModel()
 ) {
@@ -190,93 +192,47 @@ fun HomeScreen(
             )
         }
 
-        // Home Content State Machine
-        when {
-            uiState.isLoading && uiState.homeSections.isEmpty() && uiState.recommendations.isEmpty() -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .statusBarsPadding(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    com.sonza.app.ui.components.SonzaLoadingIndicator(modifier = Modifier.size(72.dp))
-                }
+        // Infinite scroll detection for smooth discovery feed
+        LaunchedEffect(lazyListState, uiState.isLoadingMore) {
+            snapshotFlow {
+                val layoutInfo = lazyListState.layoutInfo
+                val totalItems = layoutInfo.totalItemsCount
+                val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                lastVisibleIndex >= totalItems - 6 && totalItems > 0 && !uiState.isLoadingMore
             }
-
-            uiState.error != null && uiState.homeSections.isEmpty() && uiState.recommendations.isEmpty() -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .statusBarsPadding(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    SonzaErrorState(
-                        title = "Couldn't load music",
-                        message = uiState.error,
-                        onRetry = { viewModel.refresh() }
-                    )
+                .distinctUntilChanged()
+                .filter { it }
+                .collectLatest {
+                    viewModel.loadMore()
                 }
-            }
+        }
 
-            !uiState.isLoading && uiState.homeSections.isEmpty() && uiState.recommendations.isEmpty() && uiState.personalizedSections.isEmpty() -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .statusBarsPadding(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    SonzaEmptyState(
-                        title = "Welcome to Sonza",
-                        description = "Start listening to discover personalized recommendations and trending tracks.",
-                        icon = Icons.Rounded.Search,
-                        actionText = "Explore Music",
-                        onActionClick = { onExploreClick("FEmusic_explore", "Explore") }
-                    )
-                }
-            }
+        val pullRefreshState = rememberPullToRefreshState()
 
-            else -> {
-                // Infinite scroll detection for smooth discovery feed
-                LaunchedEffect(lazyListState, uiState.isLoadingMore) {
-                    snapshotFlow {
-                        val layoutInfo = lazyListState.layoutInfo
-                        val totalItems = layoutInfo.totalItemsCount
-                        val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-                        lastVisibleIndex >= totalItems - 6 && totalItems > 0 && !uiState.isLoadingMore
+        PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { viewModel.refresh() },
+            state = pullRefreshState,
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding(),
+            indicator = {
+                if (uiState.isRefreshing) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        com.sonza.app.ui.components.SonzaLoadingIndicator(modifier = Modifier.size(36.dp))
                     }
-                        .distinctUntilChanged()
-                        .filter { it }
-                        .collectLatest {
-                            viewModel.loadMore()
-                        }
                 }
-
-                val pullRefreshState = rememberPullToRefreshState()
-
-                PullToRefreshBox(
-                    isRefreshing = uiState.isRefreshing,
-                    onRefresh = { viewModel.refresh() },
-                    state = pullRefreshState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .statusBarsPadding(),
-                    indicator = {
-                        if (uiState.isRefreshing) {
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.TopCenter)
-                                    .padding(top = 16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                com.sonza.app.ui.components.SonzaLoadingIndicator(modifier = Modifier.size(36.dp))
-                            }
-                        }
-                    }
-                ) {
-                    val formFactor = LocalDeviceFormFactor.current
-                    val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                    val bottomSystemHeight = if (formFactor.isPhoneLike) com.sonza.app.ui.components.ExpressiveBottomNavTokens.getBottomSafePadding(currentSong != null) else 0.dp
-                    val targetBottomPadding = navBarPadding + bottomSystemHeight + 20.dp
+            }
+        ) {
+            val formFactor = LocalDeviceFormFactor.current
+            val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            val bottomSystemHeight = if (formFactor.isPhoneLike) com.sonza.app.ui.components.ExpressiveBottomNavTokens.getBottomSafePadding(currentSong != null) else 0.dp
+            val targetBottomPadding = navBarPadding + bottomSystemHeight + 20.dp
 
                     val animatedBottomPadding by animateDpAsState(
                         targetValue = targetBottomPadding,
@@ -288,7 +244,7 @@ fun HomeScreen(
                     )
 
                     // Hero Content Derived from Real Available Data
-                    val heroContent = remember(currentSong, uiState.recommendations, uiState.filteredSections, uiState.personalizedSections) {
+                    val heroContent = remember(currentSong, isPlaying, uiState.recommendations, uiState.filteredSections, uiState.personalizedSections) {
                         when {
                             currentSong != null -> {
                                 FeaturedHeroData(
@@ -296,7 +252,9 @@ fun HomeScreen(
                                     subtitle = currentSong.artist,
                                     thumbnailUrl = currentSong.thumbnailUrl,
                                     tag = "NOW PLAYING",
-                                    onClick = { onSongClick(listOf(currentSong), 0) }
+                                    onClick = { onSongClick(listOf(currentSong), 0) },
+                                    onPlayClick = onPlayPause,
+                                    isPlaying = isPlaying
                                 )
                             }
                             uiState.recommendations.isNotEmpty() -> {
@@ -387,8 +345,45 @@ fun HomeScreen(
                             }
                         }
 
-                        // 2. Featured / Spotlight Hero Card (P4 & P5)
-                        if (heroContent != null) {
+                        if (uiState.isLoading && uiState.homeSections.isEmpty() && uiState.recommendations.isEmpty() && uiState.personalizedSections.isEmpty()) {
+                            item(key = "home_loading_skeleton", contentType = "skeleton") {
+                                HomeLoadingSkeleton()
+                            }
+                        } else if (uiState.error != null && uiState.homeSections.isEmpty() && uiState.recommendations.isEmpty()) {
+                            item(key = "home_error", contentType = "error") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 24.dp, vertical = 48.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    SonzaErrorState(
+                                        title = "Couldn't load music",
+                                        message = uiState.error,
+                                        onRetry = { viewModel.refresh() }
+                                    )
+                                }
+                            }
+                        } else if (!uiState.isLoading && uiState.homeSections.isEmpty() && uiState.recommendations.isEmpty() && uiState.personalizedSections.isEmpty()) {
+                            item(key = "home_empty", contentType = "empty") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 24.dp, vertical = 48.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    SonzaEmptyState(
+                                        title = "Welcome to Sonza",
+                                        description = "Start listening to discover personalized recommendations and trending tracks.",
+                                        icon = Icons.Rounded.Search,
+                                        actionText = "Explore Music",
+                                        onActionClick = { onExploreClick("FEmusic_explore", "Explore") }
+                                    )
+                                }
+                            }
+                        } else {
+                            // 2. Featured / Spotlight Hero Card (P4 & P5)
+                            if (heroContent != null) {
                             item(key = "featured_hero", contentType = "hero") {
                                 Box(
                                     modifier = Modifier
@@ -404,7 +399,9 @@ fun HomeScreen(
                                         subtitle = heroContent.subtitle,
                                         thumbnailUrl = heroContent.thumbnailUrl,
                                         tag = heroContent.tag,
-                                        onClick = heroContent.onClick
+                                        onClick = heroContent.onClick,
+                                        onPlayClick = heroContent.onPlayClick,
+                                        isPlaying = heroContent.isPlaying
                                     )
                                 }
                             }
@@ -624,7 +621,6 @@ fun HomeScreen(
                     }
                 }
             }
-        }
 
         // Song Options Menu Bottom Sheet
         selectedSong?.let { song ->
@@ -691,7 +687,9 @@ private data class FeaturedHeroData(
     val subtitle: String,
     val thumbnailUrl: String?,
     val tag: String,
-    val onClick: () -> Unit
+    val onClick: () -> Unit,
+    val onPlayClick: (() -> Unit)? = null,
+    val isPlaying: Boolean = false
 )
 
 

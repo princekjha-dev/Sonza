@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.sonza.app.core.model.Playlist
+import com.sonza.app.core.model.SearchResults
 import com.sonza.app.core.model.Song
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -1552,9 +1553,3 @@ class RemoteAudioRepository @Inject constructor(
     }
 }
 
-data class SearchResults(
-    val songs: List<Song> = emptyList(),
-    val albums: List<com.sonza.app.core.model.Album> = emptyList(),
-    val artists: List<com.sonza.app.core.model.Artist> = emptyList(),
-    val playlists: List<Playlist> = emptyList()
-)

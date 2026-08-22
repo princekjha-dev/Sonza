@@ -1,15 +1,20 @@
 package com.sonza.app.data.repository.youtube.search
 
-import com.sonza.app.data.SessionManager
+import com.sonza.app.cache.OfflineCache
+import com.sonza.app.core.model.Album
 import com.sonza.app.core.model.Artist
 import com.sonza.app.core.model.Playlist
+import com.sonza.app.core.model.SearchResults
 import com.sonza.app.core.model.Song
-import com.sonza.app.cache.OfflineCache
+import com.sonza.app.data.SessionManager
 import com.sonza.app.data.error.toAppError
-import com.sonza.app.telemetry.Telemetry
+import com.sonza.app.data.repository.youtube.internal.YouTubeApiClient
 import com.sonza.app.data.repository.youtube.internal.YouTubeConfig
+import com.sonza.app.data.repository.youtube.internal.YouTubeContentParser
 import com.sonza.app.data.repository.youtube.internal.YouTubeJsonParser
+import com.sonza.app.data.repository.youtube.internal.YouTubeLocale
 import com.sonza.app.data.repository.youtube.internal.addYouTubeAuthHeaders
+import com.sonza.app.telemetry.Telemetry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -24,13 +29,15 @@ import javax.inject.Singleton
 
 /**
  * Handles all YouTube Music search functionality.
- * Includes song search, artist search, playlist search, suggestions, and recommendations.
+ * Canonical search uses YouTube Music InnerTube endpoint with proper entity type classifications.
  */
 @Singleton
 class YouTubeSearchService @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val sessionManager: SessionManager,
-    private val jsonParser: YouTubeJsonParser
+    private val jsonParser: YouTubeJsonParser,
+    private val apiClient: YouTubeApiClient,
+    private val parser: YouTubeContentParser
 ) {
 
     companion object {
@@ -39,33 +46,111 @@ class YouTubeSearchService @Inject constructor(
         const val FILTER_ALBUMS = "music_albums"
         const val FILTER_PLAYLISTS = "music_playlists"
         const val FILTER_ARTISTS = "music_artists"
+        
+        // Canonical YouTube Music InnerTube search filter params tokens
+        private const val PARAMS_SONGS = "EgWKAQIIAWoQEAMQBBAJEA4QChAFEBEQEBA="
+        private const val PARAMS_ALBUMS = "EgWKAQIYAWoQEAMQBBAJEA4QChAFEBEQEBA="
+        private const val PARAMS_ARTISTS = "EgWKAQIgAWoQEAMQBBAJEA4QChAFEBEQEBA="
+        private const val PARAMS_PLAYLISTS = "EgWKAQIwAWoQEAMQBBAJEA4QChAFEBEQEBA="
     }
 
     /**
-     * Search for songs/videos on YouTube Music.
+     * Grouped Search for YouTube Music InnerTube (All tab).
+     * Returns canonical SearchResults containing songs, albums, artists, and playlists without mixing.
+     */
+    suspend fun searchAll(query: String): SearchResults = withContext(Dispatchers.IO) {
+        val trimmedQuery = query.trim()
+        if (trimmedQuery.isBlank()) return@withContext SearchResults()
+
+        val cacheKey = "yt:all:${trimmedQuery.lowercase()}"
+        try {
+            val hl = YouTubeLocale.hl(sessionManager)
+            val jsonQuery = JSONObject.quote(trimmedQuery)
+            val requestBody = """{ "query": $jsonQuery }"""
+
+            val response = apiClient.fetchPublicApiWithBody("search", requestBody, hl = hl)
+            if (response.isNotBlank()) {
+                val results = parser.parseSearchResults(response)
+                if (results.songs.isNotEmpty() || results.artists.isNotEmpty() || results.albums.isNotEmpty() || results.playlists.isNotEmpty()) {
+                    if (results.songs.isNotEmpty()) OfflineCache.putSearch("yt:music_songs:${trimmedQuery.lowercase()}", results.songs)
+                    if (results.artists.isNotEmpty()) OfflineCache.putArtists(trimmedQuery, results.artists)
+                    if (results.albums.isNotEmpty()) OfflineCache.putAlbums(trimmedQuery, results.albums)
+                    if (results.playlists.isNotEmpty()) OfflineCache.putPlaylists(trimmedQuery, results.playlists)
+                    return@withContext results
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Telemetry.report("searchAll", "youtube", e.toAppError(), mapOf("qlen" to trimmedQuery.length.toString()))
+        }
+
+        // Fallback if InnerTube search fails (e.g. offline): read from cache
+        val cachedSongs = OfflineCache.getSearch("yt:music_songs:${trimmedQuery.lowercase()}") ?: emptyList()
+        val cachedArtists = OfflineCache.getArtists(trimmedQuery) ?: emptyList()
+        val cachedAlbums = OfflineCache.getAlbums(trimmedQuery) ?: emptyList()
+        val cachedPlaylists = OfflineCache.getPlaylists(trimmedQuery) ?: emptyList()
+
+        if (cachedSongs.isNotEmpty() || cachedArtists.isNotEmpty() || cachedAlbums.isNotEmpty() || cachedPlaylists.isNotEmpty()) {
+            return@withContext SearchResults(
+                songs = cachedSongs,
+                artists = cachedArtists,
+                albums = cachedAlbums,
+                playlists = cachedPlaylists
+            )
+        }
+
+        // If cache empty, query typed searches cleanly
+        val songs = search(trimmedQuery, FILTER_SONGS)
+        val artists = searchArtists(trimmedQuery)
+        val albums = searchAlbums(trimmedQuery)
+        val playlists = searchPlaylists(trimmedQuery)
+
+        SearchResults(songs = songs, artists = artists, albums = albums, playlists = playlists)
+    }
+
+    /**
+     * Search for songs on YouTube Music.
      */
     suspend fun search(query: String, filter: String = FILTER_SONGS): List<Song> = withContext(Dispatchers.IO) {
-        // Namespaced per source+filter so YouTube song/video results never collide with
-        // each other or with RemoteAudio's entries in the shared disk cache.
-        val cacheKey = "yt:$filter:${query.trim().lowercase()}"
+        val trimmedQuery = query.trim()
+        if (trimmedQuery.isBlank()) return@withContext emptyList()
+
+        val cacheKey = "yt:$filter:${trimmedQuery.lowercase()}"
+        try {
+            val hl = YouTubeLocale.hl(sessionManager)
+            val jsonQuery = JSONObject.quote(trimmedQuery)
+            val requestBody = """{ "query": $jsonQuery, "params": "$PARAMS_SONGS" }"""
+
+            val response = apiClient.fetchPublicApiWithBody("search", requestBody, hl = hl)
+            if (response.isNotBlank()) {
+                val songs = parser.parseSearchSongs(response)
+                if (songs.isNotEmpty()) {
+                    OfflineCache.putSearch(cacheKey, songs)
+                    return@withContext songs
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("YouTubeSearch", "InnerTube search failed: ${e.message}")
+        }
+
+        // Fallback to NewPipe if InnerTube fails
         try {
             val ytService = ServiceList.all().find { it.serviceInfo.name == "YouTube" }
-                ?: return@withContext emptyList()
+                ?: return@withContext (OfflineCache.getSearch(cacheKey) ?: emptyList())
 
-            val searchExtractor = ytService.getSearchExtractor(query, listOf(filter), "")
+            val searchExtractor = ytService.getSearchExtractor(trimmedQuery, listOf(FILTER_SONGS), "")
             searchExtractor.fetchPage()
 
             val songs = searchExtractor.initialPage.items.filterIsInstance<StreamInfoItem>().mapNotNull { item ->
                 try {
-                    // Extract artist ID from uploader URL (format: youtube.com/channel/UC...)
                     val artistId = item.uploaderUrl?.let { url ->
                         when {
                             url.contains("/channel/") -> url.substringAfter("/channel/").substringBefore("/").substringBefore("?")
-                            url.contains("/@") -> null // Handle URLs don't have direct channel IDs
+                            url.contains("/@") -> null
                             else -> null
                         }
                     }
-                    
+
                     Song.fromYouTube(
                         videoId = jsonParser.extractVideoId(item.url),
                         title = item.name ?: "Unknown",
@@ -74,51 +159,65 @@ class YouTubeSearchService @Inject constructor(
                         duration = item.duration * 1000L,
                         thumbnailUrl = item.thumbnails.maxByOrNull { it.width * it.height }?.url,
                         artistId = artistId,
-                        isVideo = filter == FILTER_VIDEOS,
-                        isMembersOnly = false // Default to false until we verify the field name
+                        isVideo = false,
+                        isMembersOnly = false
                     )
                 } catch (e: Exception) {
-                    // A dropped item usually means NewPipe's item shape drifted (e.g.
-                    // extractVideoId couldn't parse item.url). Log so silent result
-                    // loss is detectable instead of just showing fewer results.
-                    android.util.Log.w("YouTubeSearch", "dropped search item (url=${item.url}): ${e.javaClass.simpleName}: ${e.message}")
                     null
                 }
             }
-            // Persist non-empty results so a cold start / offline launch can still show them.
             if (songs.isNotEmpty()) OfflineCache.putSearch(cacheKey, songs)
             songs
         } catch (e: Exception) {
             e.printStackTrace()
-            Telemetry.report("search", "youtube", e.toAppError(), mapOf("qlen" to query.length.toString()))
-            // Offline-first fallback: last-known results beat a blank screen.
+            Telemetry.report("search", "youtube", e.toAppError(), mapOf("qlen" to trimmedQuery.length.toString()))
             OfflineCache.getSearch(cacheKey) ?: emptyList()
         }
     }
 
     /**
-     * Search for artists/channels on YouTube Music.
-     * Returns a list of Artist objects with basic info (id, name, thumbnail, subscribers).
+     * Search for artists on YouTube Music.
      */
     suspend fun searchArtists(query: String): List<Artist> = withContext(Dispatchers.IO) {
-        val cacheKey = "yt:${query.trim().lowercase()}"
+        val trimmedQuery = query.trim()
+        if (trimmedQuery.isBlank()) return@withContext emptyList()
+
+        val cacheKey = "yt:${trimmedQuery.lowercase()}"
+        try {
+            val hl = YouTubeLocale.hl(sessionManager)
+            val jsonQuery = JSONObject.quote(trimmedQuery)
+            val requestBody = """{ "query": $jsonQuery, "params": "$PARAMS_ARTISTS" }"""
+
+            val response = apiClient.fetchPublicApiWithBody("search", requestBody, hl = hl)
+            if (response.isNotBlank()) {
+                val artists = parser.parseSearchArtists(response)
+                if (artists.isNotEmpty()) {
+                    OfflineCache.putArtists(trimmedQuery, artists)
+                    return@withContext artists
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("YouTubeSearch", "InnerTube searchArtists failed: ${e.message}")
+        }
+
+        // Fallback to NewPipe channel search if InnerTube fails
         try {
             val ytService = ServiceList.all().find { it.serviceInfo.name == "YouTube" }
-                ?: return@withContext emptyList()
+                ?: return@withContext (OfflineCache.getArtists(cacheKey) ?: emptyList())
 
-            val searchExtractor = ytService.getSearchExtractor(query, listOf("channels"), "")
+            val searchExtractor = ytService.getSearchExtractor(trimmedQuery, listOf("channels"), "")
             searchExtractor.fetchPage()
 
-            val artists = searchExtractor.initialPage.items.filterIsInstance<org.schabi.newpipe.extractor.channel.ChannelInfoItem>().take(3).mapNotNull { item ->
+            val artists = searchExtractor.initialPage.items.filterIsInstance<org.schabi.newpipe.extractor.channel.ChannelInfoItem>().take(5).mapNotNull { item ->
                 try {
                     val channelId = item.url?.substringAfter("/channel/")?.substringBefore("/")?.substringBefore("?")
                     if (channelId.isNullOrBlank()) return@mapNotNull null
-                    
+
                     Artist(
                         id = channelId,
                         name = item.name ?: "Unknown Artist",
                         thumbnailUrl = item.thumbnails.lastOrNull()?.url,
-                        subscribers = item.subscriberCount.let { 
+                        subscribers = item.subscriberCount.let {
                             if (it >= 1_000_000) "${it / 1_000_000}M subscribers"
                             else if (it >= 1_000) "${it / 1_000}K subscribers"
                             else "$it subscribers"
@@ -132,35 +231,55 @@ class YouTubeSearchService @Inject constructor(
             artists
         } catch (e: Exception) {
             e.printStackTrace()
-            Telemetry.report("searchArtists", "youtube", e.toAppError(), mapOf("qlen" to query.length.toString()))
+            Telemetry.report("searchArtists", "youtube", e.toAppError(), mapOf("qlen" to trimmedQuery.length.toString()))
             OfflineCache.getArtists(cacheKey) ?: emptyList()
         }
     }
 
     /**
      * Search for playlists on YouTube Music.
-     * Returns a list of Playlist objects with basic info (id, title, author, thumbnail).
      */
     suspend fun searchPlaylists(query: String): List<Playlist> = withContext(Dispatchers.IO) {
-        val cacheKey = "yt:${query.trim().lowercase()}"
+        val trimmedQuery = query.trim()
+        if (trimmedQuery.isBlank()) return@withContext emptyList()
+
+        val cacheKey = "yt:${trimmedQuery.lowercase()}"
+        try {
+            val hl = YouTubeLocale.hl(sessionManager)
+            val jsonQuery = JSONObject.quote(trimmedQuery)
+            val requestBody = """{ "query": $jsonQuery, "params": "$PARAMS_PLAYLISTS" }"""
+
+            val response = apiClient.fetchPublicApiWithBody("search", requestBody, hl = hl)
+            if (response.isNotBlank()) {
+                val playlists = parser.parseSearchPlaylists(response)
+                if (playlists.isNotEmpty()) {
+                    OfflineCache.putPlaylists(trimmedQuery, playlists)
+                    return@withContext playlists
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("YouTubeSearch", "InnerTube searchPlaylists failed: ${e.message}")
+        }
+
+        // Fallback to NewPipe if InnerTube fails
         try {
             val ytService = ServiceList.all().find { it.serviceInfo.name == "YouTube" }
-                ?: return@withContext emptyList()
+                ?: return@withContext (OfflineCache.getPlaylists(cacheKey) ?: emptyList())
 
-            val searchExtractor = ytService.getSearchExtractor(query, listOf(FILTER_PLAYLISTS), "")
+            val searchExtractor = ytService.getSearchExtractor(trimmedQuery, listOf(FILTER_PLAYLISTS), "")
             searchExtractor.fetchPage()
 
-            val playlists = searchExtractor.initialPage.items.filterIsInstance<org.schabi.newpipe.extractor.playlist.PlaylistInfoItem>().take(5).mapNotNull { item ->
+            val playlists = searchExtractor.initialPage.items.filterIsInstance<org.schabi.newpipe.extractor.playlist.PlaylistInfoItem>().take(10).mapNotNull { item ->
                 try {
                     val playlistId = item.url?.substringAfter("list=")?.substringBefore("&")
                     if (playlistId.isNullOrBlank()) return@mapNotNull null
-                    
+
                     Playlist(
                         id = playlistId,
                         title = item.name ?: "Unknown Playlist",
                         author = item.uploaderName ?: "",
                         thumbnailUrl = item.thumbnails.lastOrNull()?.url,
-                        songs = emptyList() // Will be loaded when clicked
+                        songs = emptyList()
                     )
                 } catch (e: Exception) {
                     null
@@ -170,7 +289,7 @@ class YouTubeSearchService @Inject constructor(
             playlists
         } catch (e: Exception) {
             e.printStackTrace()
-            Telemetry.report("searchPlaylists", "youtube", e.toAppError(), mapOf("qlen" to query.length.toString()))
+            Telemetry.report("searchPlaylists", "youtube", e.toAppError(), mapOf("qlen" to trimmedQuery.length.toString()))
             OfflineCache.getPlaylists(cacheKey) ?: emptyList()
         }
     }
@@ -178,26 +297,47 @@ class YouTubeSearchService @Inject constructor(
     /**
      * Search for albums on YouTube Music.
      */
-    suspend fun searchAlbums(query: String): List<com.sonza.app.core.model.Album> = withContext(Dispatchers.IO) {
-        val cacheKey = "yt:${query.trim().lowercase()}"
+    suspend fun searchAlbums(query: String): List<Album> = withContext(Dispatchers.IO) {
+        val trimmedQuery = query.trim()
+        if (trimmedQuery.isBlank()) return@withContext emptyList()
+
+        val cacheKey = "yt:${trimmedQuery.lowercase()}"
+        try {
+            val hl = YouTubeLocale.hl(sessionManager)
+            val jsonQuery = JSONObject.quote(trimmedQuery)
+            val requestBody = """{ "query": $jsonQuery, "params": "$PARAMS_ALBUMS" }"""
+
+            val response = apiClient.fetchPublicApiWithBody("search", requestBody, hl = hl)
+            if (response.isNotBlank()) {
+                val albums = parser.parseSearchAlbums(response)
+                if (albums.isNotEmpty()) {
+                    OfflineCache.putAlbums(trimmedQuery, albums)
+                    return@withContext albums
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("YouTubeSearch", "InnerTube searchAlbums failed: ${e.message}")
+        }
+
+        // Fallback to NewPipe if InnerTube fails
         try {
             val ytService = ServiceList.all().find { it.serviceInfo.name == "YouTube" }
-                ?: return@withContext emptyList()
+                ?: return@withContext (OfflineCache.getAlbums(cacheKey) ?: emptyList())
 
-            val searchExtractor = ytService.getSearchExtractor(query, listOf(FILTER_ALBUMS), "")
+            val searchExtractor = ytService.getSearchExtractor(trimmedQuery, listOf(FILTER_ALBUMS), "")
             searchExtractor.fetchPage()
 
             val albums = searchExtractor.initialPage.items.filterIsInstance<org.schabi.newpipe.extractor.playlist.PlaylistInfoItem>().mapNotNull { item ->
                 try {
                     val albumId = item.url?.substringAfter("list=")?.substringBefore("&")
                     if (albumId.isNullOrBlank()) return@mapNotNull null
-                    
-                    com.sonza.app.core.model.Album(
+
+                    Album(
                         id = albumId,
                         title = item.name ?: "Unknown Album",
                         artist = item.uploaderName ?: "Unknown Artist",
                         thumbnailUrl = item.thumbnails.lastOrNull()?.url,
-                        year = "" // NewPipe often doesn't give year in search results
+                        year = ""
                     )
                 } catch (e: Exception) {
                     null
@@ -207,7 +347,7 @@ class YouTubeSearchService @Inject constructor(
             albums
         } catch (e: Exception) {
             e.printStackTrace()
-            Telemetry.report("searchAlbums", "youtube", e.toAppError(), mapOf("qlen" to query.length.toString()))
+            Telemetry.report("searchAlbums", "youtube", e.toAppError(), mapOf("qlen" to trimmedQuery.length.toString()))
             OfflineCache.getAlbums(cacheKey) ?: emptyList()
         }
     }
@@ -274,7 +414,6 @@ class YouTubeSearchService @Inject constructor(
                     })
                 })
                 put("videoId", videoId)
-                // RDAMVM + videoId is the standard radio playlist for a song on YT Music
                 put("playlistId", "RDAMVM$videoId")
                 put("enablePersistentPlaylistPanel", true)
                 put("isAudioOnly", true)
@@ -303,8 +442,6 @@ class YouTubeSearchService @Inject constructor(
         val songs = mutableListOf<Song>()
         try {
             val root = JSONObject(json)
-            
-            // Use a more robust deep search for the playlist items
             val playlistItems = mutableListOf<JSONObject>()
             jsonParser.findAllObjects(root, "playlistPanelVideoRenderer", playlistItems)
             
@@ -315,7 +452,6 @@ class YouTubeSearchService @Inject constructor(
                     
                     val title = jsonParser.getRunText(item.optJSONObject("title")) ?: "Unknown"
                     
-                    // Extract artist and album from byline or longByline
                     val bylineObj = item.optJSONObject("longBylineText") ?: item.optJSONObject("shortBylineText")
                     val fullByline = jsonParser.getRunText(bylineObj) ?: ""
                     
@@ -341,7 +477,6 @@ class YouTubeSearchService @Inject constructor(
                     )?.let { songs.add(it) }
                 }
             } else {
-                // Fallback to older navigation if deep search yielded nothing
                 val contents = root.optJSONObject("contents")
                     ?.optJSONObject("singleColumnMusicWatchNextResultsRenderer")
                     ?.optJSONObject("tabbedRenderer")

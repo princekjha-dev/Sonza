@@ -310,7 +310,10 @@ class RecommendationEngine @Inject constructor(
 
         // Process seasonal section first
         val seasonalSongs = deferredSeasonalSongs.awaitAll().flatten()
-        val scoredSeasonal = scoreAndRank(seasonalSongs, profile)
+        val eligibleSeasonalSongs = seasonalSongs.filter {
+            SeasonalSectionHelper.isEligibleSeasonalSong(it, season)
+        }
+        val scoredSeasonal = scoreAndRank(eligibleSeasonalSongs, profile)
         val uniqueSeasonal = deduplicate(scoredSeasonal, seenIds, seenFingerprints).take(14)
         if (uniqueSeasonal.isNotEmpty()) {
             sections.add(
@@ -489,7 +492,7 @@ class RecommendationEngine @Inject constructor(
         if (pageContent.isEmpty()) return@coroutineScope emptyList()
 
         val deferredSections = pageContent
-            .filter { (title, _, _) -> title !in existingTitles }
+            .filter { (title, _, _) -> title !in existingTitles && !SeasonalSectionHelper.isSeasonalSectionTitle(title) }
             .map { (title, query, type) ->
                 async(Dispatchers.IO) {
                     apiSemaphore.withPermit {

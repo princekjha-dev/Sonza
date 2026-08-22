@@ -6,6 +6,7 @@ import com.sonza.app.core.model.BrowseCategory
 import com.sonza.app.core.model.HomeSection
 import com.sonza.app.core.model.Playlist
 import com.sonza.app.core.model.PlaylistDisplayItem
+import com.sonza.app.core.model.SearchResults
 import com.sonza.app.core.model.Song
 import com.sonza.app.core.model.SongSource
 import com.sonza.app.core.model.VideoQuality
@@ -115,6 +116,9 @@ class YouTubeRepository @Inject constructor(
     // ============================================================================================
     // Search & streams
     // ============================================================================================
+
+    suspend fun searchAll(query: String): SearchResults =
+        if (isOnline()) searchService.searchAll(query) else SearchResults()
 
     suspend fun search(query: String, filter: String = FILTER_SONGS): List<Song> =
         if (isOnline()) searchService.search(query, filter) else emptyList()

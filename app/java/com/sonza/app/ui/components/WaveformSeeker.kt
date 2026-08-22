@@ -42,8 +42,9 @@ import com.sonza.app.ui.sponsorblock.color
 import com.sonza.app.util.TimeUtil
 
 /**
- * Clean, straight horizontal seekbar with smooth rounded track,
- * clear played-progress section, and small circular thumb.
+ * Apple Music-style minimal seekbar with a thin, clean rounded track,
+ * neutral soft white played progress, subtle semi-transparent gray remaining track,
+ * and no visible circular thumb during normal playback.
  */
 @Composable
 fun WaveformSeeker(
@@ -51,8 +52,8 @@ fun WaveformSeeker(
     isPlaying: Boolean,
     onSeek: (Float) -> Unit,
     modifier: Modifier = Modifier,
-    activeColor: Color = MaterialTheme.colorScheme.primary,
-    inactiveColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+    activeColor: Color = Color.White.copy(alpha = 0.88f),
+    inactiveColor: Color = Color.White.copy(alpha = 0.20f),
     initialStyle: SeekbarStyle = SeekbarStyle.CLASSIC,
     onStyleChange: ((SeekbarStyle) -> Unit)? = null,
     duration: Long = 0L,
@@ -71,8 +72,9 @@ fun WaveformSeeker(
         }
     }
 
+    // Thumb is only visible (subtle 4dp) while actively dragging, completely hidden (0dp) during normal playback
     val animatedThumbRadius by animateDpAsState(
-        targetValue = if (isDragging) 7.dp else 5.dp,
+        targetValue = if (isDragging) 4.dp else 0.dp,
         animationSpec = spring(stiffness = 500f),
         label = "thumbRadius"
     )
@@ -107,7 +109,7 @@ fun WaveformSeeker(
                     style = MaterialTheme.typography.labelLarge.copy(
                         fontWeight = FontWeight.Bold
                     ),
-                    color = activeColor
+                    color = Color.White
                 )
             }
         }
@@ -156,26 +158,26 @@ fun WaveformSeeker(
                 if (width <= 0f || height <= 0f) return@Canvas
 
                 val centerY = height / 2f
-                val trackHeight = 3.5.dp.toPx()
+                val trackHeight = 3.dp.toPx()
                 val cornerRadius = CornerRadius(trackHeight / 2f, trackHeight / 2f)
                 val clampedProgress = currentProgress.coerceIn(0f, 1f)
                 val progressX = clampedProgress * width
                 val thumbRadiusPx = animatedThumbRadius.toPx()
 
-                // 1. Inactive Background Track (smooth rounded straight line)
+                // 1. Inactive Background Track (Apple Music style: subtle semi-transparent track with rounded ends)
                 drawRoundRect(
-                    color = inactiveColor.copy(alpha = 0.35f),
+                    color = inactiveColor,
                     topLeft = Offset(0f, centerY - trackHeight / 2f),
                     size = Size(width, trackHeight),
                     cornerRadius = cornerRadius
                 )
 
-                // 2. Active Played-Progress Section (smooth rounded straight line)
+                // 2. Active Played-Progress Section (Apple Music style: soft white/light gray line with rounded ends)
                 if (progressX > 0f) {
                     drawRoundRect(
                         color = activeColor,
                         topLeft = Offset(0f, centerY - trackHeight / 2f),
-                        size = Size(progressX, trackHeight),
+                        size = Size(progressX.coerceAtMost(width), trackHeight),
                         cornerRadius = cornerRadius
                     )
                 }
@@ -205,12 +207,14 @@ fun WaveformSeeker(
                     }
                 }
 
-                // 4. Small Circular Thumb at Current Position
-                drawCircle(
-                    color = activeColor,
-                    radius = thumbRadiusPx,
-                    center = Offset(progressX, centerY)
-                )
+                // 4. Subtle Neutral Thumb visible ONLY while actively dragging (hidden in normal playback)
+                if (animatedThumbRadius > 0.dp) {
+                    drawCircle(
+                        color = Color.White,
+                        radius = thumbRadiusPx,
+                        center = Offset(progressX, centerY)
+                    )
+                }
             }
         }
     }

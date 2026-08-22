@@ -99,6 +99,9 @@ class MusicPlayer @Inject constructor(
     private val _playerState = MutableStateFlow(PlayerState())
     val playerState: StateFlow<PlayerState> = _playerState.asStateFlow()
     
+    private val _isServiceConnected = MutableStateFlow(false)
+    val isServiceConnected: StateFlow<Boolean> = _isServiceConnected.asStateFlow()
+    
     private val scope = CoroutineScope(
         Dispatchers.Main + SupervisorJob() + CoroutineExceptionHandler { _, throwable ->
             android.util.Log.e("MusicPlayer", "Uncaught coroutine exception", throwable)
@@ -107,6 +110,11 @@ class MusicPlayer @Inject constructor(
     
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var mediaController: MediaController? = null
+    
+    fun hasActivePlayback(): Boolean {
+        val controller = mediaController ?: return _playerState.value.currentSong != null
+        return controller.mediaItemCount > 0 || controller.isPlaying || _playerState.value.currentSong != null
+    }
     
     private var positionUpdateJob: Job? = null
     
@@ -705,12 +713,14 @@ class MusicPlayer @Inject constructor(
                 val controller = controllerFuture?.get()
                 mediaController = controller
                 controller?.addListener(playerListener)
+                _isServiceConnected.value = true
                 
                 // Immediately synchronize complete playback state from existing service session
                 if (controller != null && controller.mediaItemCount > 0) {
                     syncStateFromController(controller)
                 }
             } catch (e: Exception) {
+                _isServiceConnected.value = false
                 _playerState.update { it.copy(error = "Failed to connect to music service") }
             }
         }, MoreExecutors.directExecutor())

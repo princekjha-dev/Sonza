@@ -44,7 +44,6 @@ enum class SearchTab {
 enum class ResultFilter {
     ALL,
     SONGS,
-    VIDEOS,
     ALBUMS,
     ARTISTS,
     COMMUNITY_PLAYLISTS,
@@ -394,36 +393,19 @@ class SearchViewModel @Inject constructor(
                             
                             when (filter) {
                                 ResultFilter.ALL -> {
-                                    val songsDeferred = async { youTubeRepository.search(query, YouTubeRepository.FILTER_SONGS) }
-                                    val videosDeferred = async { youTubeRepository.search(query, YouTubeRepository.FILTER_VIDEOS) }
-                                    val artistsDeferred = async { youTubeRepository.searchArtists(query) }
-                                    val playlistsDeferred = async { youTubeRepository.searchPlaylists(query) }
-                                    val albumsDeferred = async { youTubeRepository.searchAlbums(query) }
-                                    
-                                    val songs = songsDeferred.await()
-                                    val videos = videosDeferred.await()
-                                    val artists = artistsDeferred.await()
-                                    val playlists = playlistsDeferred.await()
-                                    val albums = albumsDeferred.await()
-                                    
-                                    val combinedResults = (songs + videos).distinctBy { it.id }
-                                    
+                                    val searchResults = youTubeRepository.searchAll(query)
                                     _uiState.update { 
                                         it.copy(
-                                            results = combinedResults,
-                                            artistResults = artists,
-                                            playlistResults = playlists,
-                                            albumResults = albums,
+                                            results = searchResults.songs,
+                                            artistResults = searchResults.artists,
+                                            playlistResults = searchResults.playlists,
+                                            albumResults = searchResults.albums,
                                             isLoading = false
                                         )
                                     }
                                 }
                                 ResultFilter.SONGS -> {
                                     val results = youTubeRepository.search(query, YouTubeRepository.FILTER_SONGS)
-                                    _uiState.update { it.copy(results = results, isLoading = false) }
-                                }
-                                ResultFilter.VIDEOS -> {
-                                    val results = youTubeRepository.search(query, YouTubeRepository.FILTER_VIDEOS)
                                     _uiState.update { it.copy(results = results, isLoading = false) }
                                 }
                                 ResultFilter.ALBUMS -> {
@@ -434,21 +416,9 @@ class SearchViewModel @Inject constructor(
                                     val results = youTubeRepository.searchArtists(query)
                                     _uiState.update { it.copy(artistResults = results, isLoading = false) }
                                 }
-                                ResultFilter.COMMUNITY_PLAYLISTS -> {
+                                ResultFilter.COMMUNITY_PLAYLISTS, ResultFilter.FEATURED_PLAYLISTS -> {
                                     val results = youTubeRepository.searchPlaylists(query)
-                                    val filtered = results.filter { 
-                                        !it.author.equals("YouTube Music", ignoreCase = true) && 
-                                        !it.author.equals("YouTube", ignoreCase = true) 
-                                    }
-                                    _uiState.update { it.copy(playlistResults = filtered, isLoading = false) }
-                                }
-                                ResultFilter.FEATURED_PLAYLISTS -> {
-                                    val results = youTubeRepository.searchPlaylists(query)
-                                    val filtered = results.filter { 
-                                        it.author.equals("YouTube Music", ignoreCase = true) || 
-                                        it.author.equals("YouTube", ignoreCase = true) 
-                                    }
-                                    _uiState.update { it.copy(playlistResults = filtered, isLoading = false) }
+                                    _uiState.update { it.copy(playlistResults = results, isLoading = false) }
                                 }
                             }
                         }
@@ -470,7 +440,7 @@ class SearchViewModel @Inject constructor(
                                         )
                                     }
                                 }
-                                ResultFilter.SONGS, ResultFilter.VIDEOS -> {
+                                ResultFilter.SONGS -> {
                                     val results = remoteAudioRepository.search(query)
                                     _uiState.update { it.copy(results = results, isLoading = false) }
                                 }

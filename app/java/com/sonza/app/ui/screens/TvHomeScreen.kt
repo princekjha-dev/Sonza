@@ -52,9 +52,9 @@ fun TvHomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    if (uiState.isLoading && uiState.homeSections.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            SonzaLoadingIndicator(modifier = Modifier.size(64.dp))
+    if (uiState.isLoading && uiState.homeSections.isEmpty() && uiState.recommendations.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            com.sonza.app.ui.components.HomeLoadingSkeleton(modifier = Modifier.padding(32.dp))
         }
         return
     }

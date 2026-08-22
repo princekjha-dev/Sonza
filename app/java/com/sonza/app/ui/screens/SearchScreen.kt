@@ -555,7 +555,7 @@ fun SearchScreen(
                         if (uiState.query.isNotBlank() && !uiState.isLoading) {
                             if (uiState.resultFilter != ResultFilter.ALL) {
                                 when (uiState.resultFilter) {
-                                    ResultFilter.SONGS, ResultFilter.VIDEOS -> {
+                                    ResultFilter.SONGS -> {
                                         itemsIndexed(uiState.results, key = { _, song -> "song_${song.id}" }) { index, song ->
                                             SearchResultItem(
                                                 song = song,
@@ -938,7 +938,6 @@ private fun SearchCategoryTabs(
     val filters = listOf(
         ResultFilter.ALL to "All",
         ResultFilter.SONGS to "Songs",
-        ResultFilter.VIDEOS to "Videos",
         ResultFilter.ALBUMS to "Albums",
         ResultFilter.ARTISTS to "Artists",
         ResultFilter.COMMUNITY_PLAYLISTS to "Playlists"

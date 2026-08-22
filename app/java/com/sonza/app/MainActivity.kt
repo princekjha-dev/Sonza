@@ -728,9 +728,7 @@ fun SonzaApp(
     LaunchedEffect(Unit) {
         if (!restoreAttempted && intent?.data == null) {
             restoreAttempted = true
-            if (playbackInfo.currentSong == null) {
-                playerViewModel.restoreLastPlayback()
-            }
+            playerViewModel.restoreLastPlayback()
         }
     }
     

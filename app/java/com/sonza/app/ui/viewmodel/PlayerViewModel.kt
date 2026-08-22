@@ -47,11 +47,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import javax.inject.Inject
 
@@ -1337,9 +1340,17 @@ class PlayerViewModel @Inject constructor(
      * Restore last playback state if available.
      */
     suspend fun restoreLastPlayback() {
-        // Skip restore if MusicPlayer already has a song loaded
-        // (prevents interrupting active playback when activity is recreated)
-        if (musicPlayer.playerState.value.currentSong != null) return
+        // Wait briefly for service connection if it is in progress
+        if (!musicPlayer.isServiceConnected.value) {
+            kotlinx.coroutines.withTimeoutOrNull(1500L) {
+                musicPlayer.isServiceConnected.filter { it }.first()
+            }
+        }
+
+        // Never interrupt or overwrite an active playback session
+        if (musicPlayer.hasActivePlayback() || musicPlayer.playerState.value.currentSong != null) {
+            return
+        }
 
         val lastState = sessionManager.getLastPlaybackState() ?: return
         
@@ -1369,6 +1380,11 @@ class PlayerViewModel @Inject constructor(
                 Pair(queueList, lastState.index)
             }
             
+            // Double check after parsing JSON that service hasn't loaded or started playback in the meantime
+            if (musicPlayer.hasActivePlayback() || musicPlayer.playerState.value.currentSong != null) {
+                return
+            }
+
             if (queue.isNotEmpty() && index in queue.indices) {
                 val song = queue[index]
                 // Load song without auto-playing (user can resume manually)
