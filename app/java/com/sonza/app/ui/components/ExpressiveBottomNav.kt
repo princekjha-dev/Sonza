@@ -10,10 +10,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,25 +24,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -59,7 +49,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -68,28 +57,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil3.compose.AsyncImage
-import coil3.request.crossfade
 import com.sonza.app.R
 import com.sonza.app.core.model.Song
 import com.sonza.app.navigation.Destination
 import com.sonza.app.ui.components.player.miniplayer.CompactFloatingMiniPlayer
 import com.sonza.app.ui.theme.MotionTokens
-import com.sonza.app.ui.theme.SonzaBackground
 import com.sonza.app.ui.theme.SonzaBrandAccent
-import com.sonza.app.ui.theme.SonzaOnBackground
-import com.sonza.app.ui.theme.SonzaOnSurface
 import com.sonza.app.ui.theme.SonzaOnSurfaceVariant
-import com.sonza.app.ui.theme.SonzaSurface
 import com.sonza.app.ui.theme.SonzaTypography
 
 object ExpressiveBottomNavTokens {
     val NavBarHeight = 52.dp
+    val IdleNavBarHeight = 56.dp
     val MiniPlayerHeight = 52.dp
     val Spacing = 8.dp
     val FloatingBarBottomPadding = 8.dp
     val FloatingBarHorizontalPadding = 16.dp
-    val TotalBottomBarHeight = 60.dp // 52dp + 8dp
+    val TotalBottomBarHeight = 64.dp // 56dp + 8dp
 
     fun getBottomSafePadding(hasMusicPlaying: Boolean = false): androidx.compose.ui.unit.Dp {
         return TotalBottomBarHeight
@@ -97,19 +81,17 @@ object ExpressiveBottomNavTokens {
 }
 
 /**
- * Compact Floating Glass Bottom Navigation System:
+ * Apple Music-Style Minimal Floating Glass Bottom Navigation System:
  *
  * 1. Playing State (`currentSong != null`):
- *    Single compact horizontal floating row:
- *    [ Home ○ ] — [ Compact Mini Player ] — [ ○ Search ]
- *    The mini player is the dominant center element flanked by small circular floating navigation controls.
+ *    Three-part floating layout:
+ *    [ Home ○ ]   [ Compact Mini Player ————————— ▶ ]   [ Search ○ ]
+ *    The mini-player is a small translucent floating pill between independent circular Home and Search buttons.
  *
  * 2. Idle State (`currentSong == null`):
- *    Single compact 4-destination navigation pill [ Home | Search | Library | Settings ] floating
- *    at the bottom above the Android gesture navigation area.
- *    No mini player or reserved placeholder space is shown.
- *
- * Smooth animated transition between playing and idle states.
+ *    Compact floating navigation pill containing all 4 destinations:
+ *    [ Home | Search | Library | Settings ]
+ *    Mini-player completely disappears, floating smoothly above content.
  */
 @Composable
 fun ExpressiveBottomNav(
@@ -159,10 +141,10 @@ fun ExpressiveBottomNav(
             targetState = currentSong != null,
             transitionSpec = {
                 (fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
-                        scaleIn(animationSpec = tween(220, easing = FastOutSlowInEasing), initialScale = 0.96f))
+                        scaleIn(animationSpec = tween(220, easing = FastOutSlowInEasing), initialScale = 0.94f))
                     .togetherWith(
                         fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
-                                scaleOut(animationSpec = tween(180, easing = FastOutSlowInEasing), targetScale = 0.96f)
+                                scaleOut(animationSpec = tween(180, easing = FastOutSlowInEasing), targetScale = 0.94f)
                     )
             },
             label = "bottomNavModeTransition"
@@ -193,7 +175,7 @@ fun ExpressiveBottomNav(
                         }
                     )
 
-                    // 2. Compact Floating Mini Player (Dominant center element)
+                    // 2. Compact Floating Mini Player (Center floating translucent capsule)
                     CompactFloatingMiniPlayer(
                         song = currentSong,
                         isPlaying = isPlaying,
@@ -227,8 +209,8 @@ fun ExpressiveBottomNav(
                     )
                 }
             } else {
-                // --- Idle State: [ Home | Search | Library | Settings ] Floating Pill ---
-                Standard4TabsNavBar(
+                // --- Idle State (No Music Playing): Compact 4-Destination Floating Pill [ Home | Search | Library | Settings ] ---
+                CompactFloating4TabsNav(
                     currentDestination = currentDestination,
                     accentColor = accentColor,
                     userAlpha = alpha,
@@ -241,27 +223,22 @@ fun ExpressiveBottomNav(
 }
 
 /**
- * Idle State (No Music Playing):
- * Centered floating pill with all 4 destinations: [ Home | Search | Library | Settings ]
+ * Compact 4-Destination Floating Glass Navigation Pill for Idle State.
+ * Features generous spacing, individual subtle rounded tabs, small labels,
+ * and translucent frosted glass styling floating above the content.
  */
 @Composable
-private fun Standard4TabsNavBar(
+private fun CompactFloating4TabsNav(
     currentDestination: Destination,
     accentColor: Color,
     userAlpha: Float,
     onDestinationChange: (Destination) -> Unit,
-    onReClick: (Destination) -> Unit
+    onReClick: (Destination) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val pillShape = RoundedCornerShape(26.dp)
-    val effectiveAlpha = (0.90f * userAlpha).coerceIn(0.70f, 0.98f)
+    val pillShape = RoundedCornerShape(28.dp)
+    val effectiveAlpha = (0.88f * userAlpha).coerceIn(0.70f, 0.98f)
     val surfaceColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = effectiveAlpha)
-
-    val borderBrush = Brush.verticalGradient(
-        colors = listOf(
-            Color.White.copy(alpha = 0.16f),
-            Color.White.copy(alpha = 0.04f)
-        )
-    )
 
     val specularBrush = Brush.verticalGradient(
         0.0f to Color.White.copy(alpha = 0.08f),
@@ -299,18 +276,18 @@ private fun Standard4TabsNavBar(
     }
 
     Surface(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .height(ExpressiveBottomNavTokens.NavBarHeight)
+            .height(ExpressiveBottomNavTokens.IdleNavBarHeight)
             .shadow(
                 elevation = 8.dp,
                 shape = pillShape,
-                ambientColor = Color.Black.copy(alpha = 0.40f),
-                spotColor = Color.Black.copy(alpha = 0.30f)
+                ambientColor = Color.Black.copy(alpha = 0.35f),
+                spotColor = Color.Black.copy(alpha = 0.25f)
             ),
         shape = pillShape,
         color = surfaceColor,
-        border = BorderStroke(0.75.dp, borderBrush)
+        border = BorderStroke(0.75.dp, Color.White.copy(alpha = 0.12f))
     ) {
         Box(
             modifier = Modifier
@@ -320,7 +297,7 @@ private fun Standard4TabsNavBar(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -328,7 +305,7 @@ private fun Standard4TabsNavBar(
                     val isSelected = currentDestination == item.destination
                     val label = stringResource(item.labelRes)
 
-                    BottomNavItemView(
+                    CompactNavItemView(
                         item = item,
                         label = label,
                         isSelected = isSelected,
@@ -349,11 +326,11 @@ private fun Standard4TabsNavBar(
 }
 
 /**
- * Individual destination tab in the 4-tab floating navigation pill.
- * Features an active rounded highlighted background with dynamic accent color.
+ * Individual destination tab in the compact 4-tab floating navigation pill.
+ * Features subtle rounded indicator when active with dynamic accent color.
  */
 @Composable
-private fun BottomNavItemView(
+private fun CompactNavItemView(
     item: BottomNavItem,
     label: String,
     isSelected: Boolean,
@@ -362,7 +339,7 @@ private fun BottomNavItemView(
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val unselectedColor = SonzaOnSurfaceVariant.copy(alpha = 0.70f)
+    val unselectedColor = SonzaOnSurfaceVariant.copy(alpha = 0.75f)
 
     val contentColor by animateColorAsState(
         targetValue = if (isSelected) accentColor else unselectedColor,
@@ -370,16 +347,16 @@ private fun BottomNavItemView(
             durationMillis = MotionTokens.NavSelectionDuration,
             easing = FastOutSlowInEasing
         ),
-        label = "navItemColor"
+        label = "compactNavItemColor"
     )
 
     val indicatorBgColor by animateColorAsState(
-        targetValue = if (isSelected) accentColor.copy(alpha = 0.18f) else Color.Transparent,
+        targetValue = if (isSelected) accentColor.copy(alpha = 0.16f) else Color.Transparent,
         animationSpec = tween(
             durationMillis = MotionTokens.NavSelectionDuration,
             easing = FastOutSlowInEasing
         ),
-        label = "navItemIndicatorBg"
+        label = "compactNavItemIndicatorBg"
     )
 
     val itemSemanticsDescription = if (isSelected) "$label, selected" else label
@@ -409,7 +386,7 @@ private fun BottomNavItemView(
             Icon(
                 imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
                 contentDescription = null,
-                modifier = Modifier.size(23.dp),
+                modifier = Modifier.size(22.dp),
                 tint = contentColor
             )
 
@@ -418,7 +395,7 @@ private fun BottomNavItemView(
             Text(
                 text = label,
                 style = SonzaTypography.NavLabel.copy(
-                    fontSize = 11.5.sp,
+                    fontSize = 11.sp,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
                 ),
                 color = contentColor,
@@ -435,4 +412,5 @@ private data class BottomNavItem(
     val unselectedIcon: ImageVector,
     val selectedIcon: ImageVector
 )
+
 

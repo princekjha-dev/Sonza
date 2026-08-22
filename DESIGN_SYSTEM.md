@@ -161,27 +161,26 @@ Unified, clean, confident hierarchy matching the premium music streaming referen
 - Defined in: `MoodChips.kt` (`MoodChipsSection`, `MoodChip`)
 
 ### 6.3 Floating Bottom Navigation & Mini-Player System
-Sonza uses a unified floating glass bottom navigation system with **two distinct visual states**:
+Sonza uses a minimal floating glass bottom navigation system with **two distinct visual states**:
 
 #### State 1: Idle (No Music Playing)
-- `[ Home | Search | Library | Settings ]`
-- **Surface:** Centered floating, rounded pill-shaped container (`RoundedCornerShape(28.dp)`, 56dp height token).
-- **Material:** Frosted dark glass surface with subtle rim border gradient (`Color.White` 16% to 4%), specular top sheen, and elevation shadow. Floats above the system gesture bar with `navigationBarsPadding()` and bottom padding.
-- **Active Tab:** Highlighted background pill with dynamic `accent` color wash (`accent.copy(alpha = 0.18f)`), filled icon variant (`Icons.Filled.*`), and `accent` text tint.
-- **Inactive Tab:** Transparent background, outlined icon variant (`Icons.Outlined.*`), and muted gray (`on-surface-variant` @ 70%) tint.
-- **Typography:** `NavLabel` (11.5sp Manrope), `SemiBold` (600) when selected, `Medium` (500) when unselected.
-- **Spacing:** Equal width and distribution across all 4 destinations.
-- **No empty placeholder:** Zero reserved playback spacing when idle.
+- `[ Home ○ ]   [ Search ○ ]`
+- **Surface:** Centered floating circular buttons (`52.dp` x `52.dp`, `CircleShape`).
+- **Material:** Frosted dark glass surface with subtle white border (12%), specular top sheen, ambient/spot shadow, and edge-to-edge floating layout above system gesture navigation.
+- **Active Button:** Orange dynamic accent color, subtle radial ambient glow behind the icon, and accent border stroke.
+- **Inactive Button:** Neutral light-gray / off-white icon with translucent dark glass surface and soft subtle border.
+- **No empty placeholder:** The mini-player is completely hidden without leaving empty gaps or stretching across the screen.
 
 #### State 2: Music Playing
-- `[ Home (Circle) ] [ Mini-Player (Pill) ] [ Search (Circle) ]`
-- **Home Button (Far Left):** Independent circular floating glass button (`56.dp` x `56.dp`, `CircleShape`). Dynamic accent color when active on Home, muted gray when inactive. Handles single-click and double-click. Fixed on left.
-- **Mini-Player (Center):** Compact horizontal floating pill (`RoundedCornerShape(28.dp)`, 56dp height). Shows square album art with rounded corners (40dp, `radius-md`), marquee song title, artist subtitle, subtle bottom progress line, and compact play/pause button (or buffering spinner). Tap expands Now Playing sheet.
-- **Search Button (Far Right):** Independent circular floating glass button (`56.dp` x `56.dp`, `CircleShape`). Dynamic accent color when active on Search, muted gray when inactive. Fixed on right. Never part of the mini-player.
+- `[ Home ○ ]   [ Mini-Player (Pill) ————————— ▶ ]   [ Search ○ ]`
+- **Home Button (Left):** Independent circular floating glass button (`52.dp` x `52.dp`, `CircleShape`). Orange accent and glow when active on Home, neutral off-white when inactive.
+- **Mini-Player (Center):** Compact horizontal floating pill capsule (`RoundedCornerShape(26.dp)`, 52dp height). Translucent frosted glass with subtle border, 36dp album artwork with rounded corners, single-line marquee song title, artist subtitle, slim progress bar at bottom, and compact play/pause button. Tap expands Now Playing sheet.
+- **Search Button (Right):** Independent circular floating glass button (`52.dp` x `52.dp`, `CircleShape`). Orange accent and glow when active on Search, neutral off-white when inactive.
 
 #### State Transition
-- 220ms `FastOutSlowInEasing` fluid crossfade transition without vertical screen or content jump.
-- Defined in: `ExpressiveBottomNav.kt` (`ExpressiveBottomNav`, `ExpressiveBottomNavTokens`)
+- 220ms `FastOutSlowInEasing` fluid scale and crossfade transition without vertical screen or content jump.
+- Defined in: `ExpressiveBottomNav.kt` (`ExpressiveBottomNav`, `ExpressiveBottomNavTokens`), `FloatingNavCircleButton.kt`, `CompactFloatingMiniPlayer.kt`
+
 
 ### 6.5 Now Playing (Expanded Sheet)
 - Full-bleed blurred background generated from album art (Apple Music-style), `scrim`

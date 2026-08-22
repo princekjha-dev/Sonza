@@ -31,12 +31,13 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.sonza.app.ui.theme.MotionTokens
-import com.sonza.app.ui.theme.SonzaOnSurface
 import com.sonza.app.ui.theme.SonzaOnSurfaceVariant
 
 /**
- * Small circular floating navigation button designed to accompany the Mini Player
- * in Sonza's compact floating glass navigation system.
+ * Independent circular floating navigation button designed for Sonza's
+ * 3-part floating bottom navigation system ([ Home ○ ] [ Mini Player ] [ Search ○ ]).
+ * Features frosted glassmorphism, active orange accent with subtle glow,
+ * and neutral inactive states.
  */
 @Composable
 fun FloatingNavCircleButton(
@@ -50,23 +51,35 @@ fun FloatingNavCircleButton(
     size: Dp = 52.dp
 ) {
     val animatedBgColor by animateColorAsState(
-        targetValue = if (isSelected) accentColor.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.90f),
+        targetValue = if (isSelected) {
+            accentColor.copy(alpha = 0.20f)
+        } else {
+            MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.88f)
+        },
         animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
         label = "circleNavBg"
     )
     val animatedBorderColor by animateColorAsState(
-        targetValue = if (isSelected) accentColor.copy(alpha = 0.60f) else Color.White.copy(alpha = 0.12f),
+        targetValue = if (isSelected) {
+            accentColor.copy(alpha = 0.55f)
+        } else {
+            Color.White.copy(alpha = 0.12f)
+        },
         animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
         label = "circleNavBorder"
     )
     val animatedIconColor by animateColorAsState(
-        targetValue = if (isSelected) accentColor else SonzaOnSurfaceVariant.copy(alpha = 0.70f),
+        targetValue = if (isSelected) {
+            accentColor
+        } else {
+            SonzaOnSurfaceVariant.copy(alpha = 0.85f)
+        },
         animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
         label = "circleNavIcon"
     )
 
     val specularBrush = Brush.verticalGradient(
-        0.0f to Color.White.copy(alpha = if (isSelected) 0.15f else 0.08f),
+        0.0f to Color.White.copy(alpha = if (isSelected) 0.16f else 0.08f),
         0.5f to Color.Transparent,
         1.0f to Color.Black.copy(alpha = 0.15f)
     )
@@ -100,6 +113,24 @@ fun FloatingNavCircleButton(
                 ),
             contentAlignment = Alignment.Center
         ) {
+            // Subtle ambient glow behind the active icon
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    accentColor.copy(alpha = 0.30f),
+                                    accentColor.copy(alpha = 0.10f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                )
+            }
+
             Icon(
                 imageVector = if (isSelected) selectedIcon else icon,
                 contentDescription = null,
@@ -109,4 +140,5 @@ fun FloatingNavCircleButton(
         }
     }
 }
+
 
