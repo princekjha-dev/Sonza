@@ -15,10 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -37,14 +35,7 @@ import com.sonza.app.core.model.ChangelogData
 import com.sonza.app.core.model.ChangelogEntry
 
 /**
- * "What's New" changelog list — ported from
- * `app/.../ui/screens/ChangelogScreen.kt` to commonMain.
- *
- * Differences vs the Android original (matches AISettingsScreen / SponsorBlock pattern):
- *   - Stateless: takes only `modifier` + `contentPadding`. The host owns chrome
- *     (Scaffold + TopAppBar) so we don't double-render it on either platform.
- *   - Background gradient (surface → surfaceContainer) preserved as a wrapping Box.
- *   - Data still comes from `ChangelogData` in core:model commonMain.
+ * "What's New" changelog screen — displays exclusively the latest release.
  */
 @Composable
 fun ChangelogScreen(
@@ -53,6 +44,7 @@ fun ChangelogScreen(
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
     val surfaceContainer = MaterialTheme.colorScheme.surfaceContainer
+    val latestEntry = ChangelogData.latestEntry
 
     Box(
         modifier = modifier
@@ -66,8 +58,8 @@ fun ChangelogScreen(
             contentPadding = contentPadding,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            items(ChangelogData.entries, key = { it.version }) { entry ->
-                ChangelogCard(entry)
+            item(key = latestEntry.version) {
+                ChangelogCard(latestEntry)
             }
 
             item {
@@ -83,17 +75,9 @@ private fun ChangelogCard(entry: ChangelogEntry) {
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (entry.isLatest) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f)
-            },
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
         ),
-        border = if (entry.isLatest) {
-            BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-        } else {
-            null
-        },
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(
@@ -103,13 +87,9 @@ private fun ChangelogCard(entry: ChangelogEntry) {
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = if (entry.isLatest) Icons.Default.NewReleases else Icons.Default.History,
+                        imageVector = Icons.Default.NewReleases,
                         contentDescription = null,
-                        tint = if (entry.isLatest) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp),
                     )
                     Spacer(modifier = Modifier.width(12.dp))
@@ -117,11 +97,7 @@ private fun ChangelogCard(entry: ChangelogEntry) {
                         text = "v${entry.version}",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = if (entry.isLatest) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
 
@@ -132,20 +108,18 @@ private fun ChangelogCard(entry: ChangelogEntry) {
                 )
             }
 
-            if (entry.isLatest) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Surface(
-                    color = MaterialTheme.colorScheme.primary,
-                    shape = RoundedCornerShape(8.dp),
-                ) {
-                    Text(
-                        text = "LATEST",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                        fontWeight = FontWeight.Black,
-                    )
-                }
+            Spacer(modifier = Modifier.height(8.dp))
+            Surface(
+                color = MaterialTheme.colorScheme.primary,
+                shape = RoundedCornerShape(8.dp),
+            ) {
+                Text(
+                    text = "LATEST",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                    fontWeight = FontWeight.Black,
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))

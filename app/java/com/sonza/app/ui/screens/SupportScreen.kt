@@ -1,13 +1,8 @@
 package com.sonza.app.ui.screens
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.net.Uri
-import android.widget.Toast
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -19,7 +14,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -42,9 +36,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.koin.compose.koinInject
 
 /**
- * Android host for the shared SupportScreen — provides the back-button
- * topbar and the Android implementations of open-URI/copy/share that the
- * commonMain body invokes via callbacks.
+ * Android host for the dedicated Send Feedback screen.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,33 +47,42 @@ fun SupportScreen(onBack: () -> Unit) {
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        containerColor = Color.Black,
         topBar = {
             TopAppBar(
-                title = { Text("Support", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        text = "Send Feedback",
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFF5F5F7)
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
+                            tint = Color(0xFFF5F5F7)
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Black,
+                    titleContentColor = Color(0xFFF5F5F7),
+                    navigationIconContentColor = Color(0xFFF5F5F7)
+                ),
             )
         },
     ) { paddingValues ->
         com.sonza.app.composeapp.ui.settings.SupportScreen(
-            onOpenUri = { uri -> context.openUri(uri) },
-            onCopyText = { text, label -> context.copyToClipboard(text, label) },
-            onShareText = { text -> context.shareText(text) },
-            onSubmitFeedback = { rating, category, message, userName, userEmail, onSuccess, onError ->
+            onSubmitFeedback = { message, onSuccess, onError ->
                 scope.launch {
                     try {
                         val appName = "Sonza"
                         val appPackage = context.packageName
                         val appVersion = runCatching {
                             context.packageManager.getPackageInfo(context.packageName, 0).versionName
-                        }.getOrDefault("2.6.3.0")
+                        }.getOrDefault(com.sonza.app.BuildConfig.VERSION_NAME)
 
                         val deviceBrand = android.os.Build.BRAND
                         val deviceModel = android.os.Build.MODEL
@@ -96,11 +97,9 @@ fun SupportScreen(onBack: () -> Unit) {
                             addProperty("appName", appName)
                             addProperty("appVersion", appVersion)
                             addProperty("appPackage", appPackage)
-                            addProperty("rating", rating)
-                            addProperty("category", category.lowercase())
+                            addProperty("rating", 5)
+                            addProperty("category", "feedback")
                             addProperty("message", message)
-                            if (!userName.isNullOrBlank()) addProperty("userName", userName)
-                            if (!userEmail.isNullOrBlank()) addProperty("userEmail", userEmail)
                             addProperty("deviceBrand", deviceBrand)
                             addProperty("deviceModel", deviceModel)
                             addProperty("osVersion", osVersion)
@@ -124,11 +123,11 @@ fun SupportScreen(onBack: () -> Unit) {
                         if (response.isSuccessful) {
                             onSuccess()
                         } else {
-                            onError("Server returned ${response.code}")
+                            onError("Server returned ${response.code}. Please try again.")
                         }
                     } catch (e: Exception) {
                         android.util.Log.e("SupportScreen", "Error submitting feedback", e)
-                        onError(e.message ?: "Unknown error")
+                        onError(e.message ?: "Failed to connect to feedback server.")
                     }
                 }
             },
@@ -136,31 +135,9 @@ fun SupportScreen(onBack: () -> Unit) {
                 .fillMaxSize()
                 .padding(paddingValues),
             contentPadding = PaddingValues(
-                bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 100.dp,
+                bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp,
             ),
         )
-    }
-}
-
-private fun Context.openUri(uri: String) {
-    runCatching {
-        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uri)))
-    }
-}
-
-private fun Context.copyToClipboard(text: String, label: String) {
-    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
-    clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
-    Toast.makeText(this, "$label copied", Toast.LENGTH_SHORT).show()
-}
-
-private fun Context.shareText(text: String) {
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, text)
-    }
-    runCatching {
-        startActivity(Intent.createChooser(intent, "Share"))
     }
 }
 

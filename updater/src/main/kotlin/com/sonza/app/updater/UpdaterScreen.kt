@@ -1,14 +1,15 @@
 package com.sonza.app.updater
 
-import androidx.compose.animation.AnimatedVisibility
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.os.Build.VERSION.SDK_INT
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -33,10 +34,8 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -44,7 +43,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -57,22 +55,29 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.launch
+import coil3.ImageLoader
+import coil3.compose.AsyncImage
+import coil3.gif.AnimatedImageDecoder
+import coil3.gif.GifDecoder
+import coil3.request.ImageRequest
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -87,14 +92,21 @@ fun UpdaterScreen(
     currentVersionName: String,
     viewModel: UpdateViewModel,
     onBackClick: () -> Unit,
-    onViewPreviousUpdates: (() -> Unit)? = null
+    onViewPreviousUpdates: (() -> Unit)? = null,
+    appLogo: (@Composable () -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val downloadState by viewModel.downloadState.collectAsStateWithLifecycle()
 
     var showHistorySheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val scope = rememberCoroutineScope()
+
+    // Compute previous releases strictly older than current installed version
+    val previousReleases = remember(uiState.allReleases, currentVersionName) {
+        uiState.allReleases.filter {
+            VersionComparator.compare(it.versionName, currentVersionName) < 0
+        }
+    }
 
     // Auto-check on first launch if not already checked
     LaunchedEffect(currentVersionName, currentVersionCode) {
@@ -105,17 +117,6 @@ fun UpdaterScreen(
             )
         }
     }
-
-    val refreshRotation = rememberInfiniteTransition(label = "RefreshRotation")
-    val rotationAngle by refreshRotation.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "RotationAngle"
-    )
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -154,11 +155,16 @@ fun UpdaterScreen(
                         },
                         enabled = !uiState.isChecking
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Check for Updates",
-                            modifier = if (uiState.isChecking) Modifier.rotate(rotationAngle) else Modifier
-                        )
+                        if (uiState.isChecking) {
+                            UpdaterLoadingIndicator(
+                                size = 24.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Check for Updates"
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -181,6 +187,7 @@ fun UpdaterScreen(
                     installedVersionName = currentVersionName,
                     uiState = uiState,
                     downloadState = downloadState,
+                    appLogo = appLogo,
                     onCheckAgain = {
                         viewModel.checkForUpdate(
                             currentVersionName = currentVersionName,
@@ -192,11 +199,11 @@ fun UpdaterScreen(
                 )
             }
 
-            // Secondary Action: View Previous Updates
-            if (uiState.allReleases.isNotEmpty()) {
+            // Secondary Action: View Previous Updates (shown ONLY if historical releases exist)
+            if (previousReleases.isNotEmpty()) {
                 item {
                     PreviousUpdatesButton(
-                        releaseCount = uiState.allReleases.size,
+                        releaseCount = previousReleases.size,
                         onClick = {
                             if (onViewPreviousUpdates != null) {
                                 onViewPreviousUpdates()
@@ -214,8 +221,8 @@ fun UpdaterScreen(
         }
     }
 
-    // Modal Bottom Sheet for historical releases if no dedicated route callback is supplied
-    if (showHistorySheet) {
+    // Modal Bottom Sheet for historical releases if previous versions exist and no dedicated route callback is supplied
+    if (showHistorySheet && previousReleases.isNotEmpty()) {
         ModalBottomSheet(
             onDismissRequest = { showHistorySheet = false },
             sheetState = sheetState,
@@ -238,7 +245,7 @@ fun UpdaterScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "${uiState.allReleases.size} versions",
+                        text = "${previousReleases.size} ${if (previousReleases.size == 1) "version" else "versions"}",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold
@@ -252,7 +259,7 @@ fun UpdaterScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(bottom = 32.dp)
                 ) {
-                    items(uiState.allReleases) { release ->
+                    items(previousReleases) { release ->
                         HistoricalReleaseCard(release = release)
                     }
                 }
@@ -262,8 +269,8 @@ fun UpdaterScreen(
 }
 
 /**
- * Main Update Card implementing clean iOS-style information hierarchy:
- * 1. Icon badge & Version
+ * Main Update Card implementing clean information hierarchy:
+ * 1. App Logo Badge & Version
  * 2. Update status / metadata
  * 3. Release notes (for relevant update only)
  * 4. Primary action button / Download progress
@@ -273,6 +280,7 @@ private fun MainUpdateCard(
     installedVersionName: String,
     uiState: SystemUpdateUiState,
     downloadState: DownloadState,
+    appLogo: (@Composable () -> Unit)?,
     onCheckAgain: () -> Unit,
     onUpdateNow: (UpdateInfo) -> Unit,
     onDismissError: () -> Unit
@@ -295,7 +303,8 @@ private fun MainUpdateCard(
                 downloadState is DownloadState.Downloading -> {
                     DownloadingStateContent(
                         targetVersionName = uiState.nextUpdate?.versionName ?: installedVersionName,
-                        downloadState = downloadState
+                        downloadState = downloadState,
+                        appLogo = appLogo
                     )
                 }
 
@@ -312,7 +321,10 @@ private fun MainUpdateCard(
 
                 // 3. Checking for updates
                 uiState.isChecking -> {
-                    CheckingStateContent(installedVersionName = installedVersionName)
+                    CheckingStateContent(
+                        installedVersionName = installedVersionName,
+                        appLogo = appLogo
+                    )
                 }
 
                 // 4. Update available (Immediate next version only)
@@ -321,6 +333,7 @@ private fun MainUpdateCard(
                         installedVersionName = installedVersionName,
                         updateInfo = uiState.nextUpdate,
                         releaseNotes = uiState.nextReleaseNotes,
+                        appLogo = appLogo,
                         onUpdateNow = { onUpdateNow(uiState.nextUpdate) }
                     )
                 }
@@ -339,6 +352,7 @@ private fun MainUpdateCard(
                     UpToDateContent(
                         installedVersionName = installedVersionName,
                         lastCheckedTimestamp = uiState.lastCheckedTimestamp,
+                        appLogo = appLogo,
                         onCheckAgain = onCheckAgain
                     )
                 }
@@ -351,12 +365,13 @@ private fun MainUpdateCard(
 private fun UpToDateContent(
     installedVersionName: String,
     lastCheckedTimestamp: Long?,
+    appLogo: (@Composable () -> Unit)?,
     onCheckAgain: () -> Unit
 ) {
-    // Top icon badge
+    // Top official Sonza app logo badge
     UpdateIconBadge(
-        tint = MaterialTheme.colorScheme.primary,
-        isSuccess = true
+        isChecking = false,
+        appLogo = appLogo
     )
 
     Spacer(modifier = Modifier.height(20.dp))
@@ -430,37 +445,22 @@ private fun UpdateAvailableContent(
     installedVersionName: String,
     updateInfo: UpdateInfo,
     releaseNotes: Release?,
+    appLogo: (@Composable () -> Unit)?,
     onUpdateNow: () -> Unit
 ) {
     val uriHandler = LocalUriHandler.current
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        // Header Row: Icon + Version + Size
+        // Header Row: Sonza Logo Badge + Version + Size
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.SystemUpdate,
-                    contentDescription = null,
-                    modifier = Modifier.size(28.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
-            }
+            UpdateIconBadge(
+                modifier = Modifier.size(56.dp),
+                isChecking = false,
+                appLogo = appLogo
+            )
 
             Spacer(modifier = Modifier.width(16.dp))
 
@@ -596,10 +596,13 @@ private fun UpdateAvailableContent(
 }
 
 @Composable
-private fun CheckingStateContent(installedVersionName: String) {
+private fun CheckingStateContent(
+    installedVersionName: String,
+    appLogo: (@Composable () -> Unit)?
+) {
     UpdateIconBadge(
-        tint = MaterialTheme.colorScheme.primary,
-        isChecking = true
+        isChecking = true,
+        appLogo = appLogo
     )
 
     Spacer(modifier = Modifier.height(20.dp))
@@ -618,10 +621,8 @@ private fun CheckingStateContent(installedVersionName: String) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
-        CircularProgressIndicator(
-            modifier = Modifier.size(18.dp),
-            strokeWidth = 2.5.dp,
-            color = MaterialTheme.colorScheme.primary
+        UpdaterLoadingIndicator(
+            size = 20.dp
         )
         Spacer(modifier = Modifier.width(10.dp))
         Text(
@@ -713,9 +714,13 @@ private fun ErrorStateContent(
 @Composable
 private fun DownloadingStateContent(
     targetVersionName: String,
-    downloadState: DownloadState.Downloading
+    downloadState: DownloadState.Downloading,
+    appLogo: (@Composable () -> Unit)?
 ) {
-    UpdateIconBadge(tint = MaterialTheme.colorScheme.primary)
+    UpdateIconBadge(
+        isChecking = false,
+        appLogo = appLogo
+    )
 
     Spacer(modifier = Modifier.height(20.dp))
 
@@ -763,11 +768,15 @@ private fun DownloadingStateContent(
     )
 }
 
+/**
+ * App Logo Badge replacing the generic download icon.
+ * Displays the official Sonza logo inside a modern squircle container with gradient backdrop.
+ */
 @Composable
 private fun UpdateIconBadge(
-    tint: Color,
-    isSuccess: Boolean = false,
-    isChecking: Boolean = false
+    modifier: Modifier = Modifier,
+    isChecking: Boolean = false,
+    appLogo: (@Composable () -> Unit)? = null
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "IconPulse")
     val pulseScale by infiniteTransition.animateFloat(
@@ -780,26 +789,107 @@ private fun UpdateIconBadge(
         label = "PulseScale"
     )
 
+    val badgeShape = RoundedCornerShape(20.dp)
+    val context = LocalContext.current
+
+    // Dynamically retrieve the real launcher icon as fallback when custom composable is not supplied
+    val appIconBitmap = remember(context) {
+        try {
+            val appInfo = context.packageManager.getApplicationInfo(context.packageName, 0)
+            val drawable = context.packageManager.getApplicationIcon(appInfo)
+            val size = 512
+            val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            drawable.setBounds(0, 0, size, size)
+            drawable.draw(canvas)
+            bitmap.asImageBitmap()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     Box(
-        modifier = Modifier
+        modifier = modifier
             .size(76.dp)
             .scale(if (isChecking) pulseScale else 1f)
-            .clip(CardShape)
+            .clip(badgeShape)
             .background(
                 Brush.linearGradient(
                     listOf(
-                        MaterialTheme.colorScheme.primaryContainer,
-                        MaterialTheme.colorScheme.secondaryContainer
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f)
                     )
                 )
             ),
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            imageVector = Icons.Default.SystemUpdate,
-            contentDescription = null,
-            modifier = Modifier.size(38.dp),
-            tint = tint
+        if (appLogo != null) {
+            Box(
+                modifier = Modifier.size(48.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                appLogo()
+            }
+        } else if (appIconBitmap != null) {
+            Image(
+                bitmap = appIconBitmap,
+                contentDescription = "Sonza App Icon",
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Fit
+            )
+        } else {
+            Image(
+                painter = painterResource(id = R.drawable.ic_sonza_logo),
+                contentDescription = "Sonza Logo",
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Fit
+            )
+        }
+    }
+}
+
+/**
+ * Official hardware-accelerated animated GIF loading indicator using `loading.gif`.
+ * Smoothly scales to specified dimensions with zero distortion.
+ */
+@Composable
+fun UpdaterLoadingIndicator(
+    modifier: Modifier = Modifier,
+    size: Dp = 24.dp
+) {
+    val context = LocalContext.current
+    val imageLoader = remember(context) {
+        ImageLoader.Builder(context)
+            .components {
+                if (SDK_INT >= 28) {
+                    add(AnimatedImageDecoder.Factory())
+                } else {
+                    add(GifDecoder.Factory())
+                }
+            }
+            .build()
+    }
+
+    val request = remember(context) {
+        ImageRequest.Builder(context)
+            .data(R.drawable.loading)
+            .build()
+    }
+
+    Box(
+        modifier = modifier.size(size),
+        contentAlignment = Alignment.Center
+    ) {
+        AsyncImage(
+            model = request,
+            imageLoader = imageLoader,
+            contentDescription = "Loading...",
+            modifier = Modifier.size(size),
+            contentScale = ContentScale.Fit
         )
     }
 }
@@ -835,7 +925,7 @@ private fun PreviousUpdatesButton(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "$releaseCount previous versions available",
+                    text = "$releaseCount previous ${if (releaseCount == 1) "version" else "versions"} available",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
@@ -890,4 +980,3 @@ private fun HistoricalReleaseCard(release: Release) {
         }
     }
 }
-

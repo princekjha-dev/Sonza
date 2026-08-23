@@ -80,6 +80,8 @@ class UpdateViewModel @Inject constructor(
         silent: Boolean = false,
         isNightly: Boolean = false
     ) {
+        if (!silent && _uiState.value.isChecking) return
+
         val effectiveInstalled = currentVersionName.ifBlank { _uiState.value.installedVersionName }
         val effectiveCode = if (currentVersionCode > 0) currentVersionCode else _uiState.value.installedVersionCode
 

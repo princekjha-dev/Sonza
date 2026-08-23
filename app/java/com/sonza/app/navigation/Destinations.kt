@@ -56,6 +56,8 @@ sealed class Destination {
     @Serializable
     data object Support : Destination()
     @Serializable
+    data object Feedback : Destination()
+    @Serializable
     data object Misc : Destination()
     @Serializable
     data object LyricsProviders : Destination()

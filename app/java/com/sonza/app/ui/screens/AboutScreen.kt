@@ -48,9 +48,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clip
 import com.sonza.app.BuildConfig
 import com.sonza.app.core.model.LogoVariant
 import com.sonza.app.data.SessionManager
+import com.sonza.app.ui.components.AppLauncherIcon
 import com.sonza.app.ui.components.ExpressiveBottomNavTokens
 import com.sonza.app.ui.components.LocalSonzaDynamicColors
 import com.sonza.app.ui.components.SettingsCard
@@ -142,14 +144,14 @@ fun AboutScreen(
                     ) {
                         Surface(
                             shape = SquircleShape,
-                            color = accentColor.copy(alpha = 0.15f),
+                            color = Color.Transparent,
                             modifier = Modifier.size(80.dp)
                         ) {
-                            Icon(
-                                painter = painterResource(id = logoVariant.drawableRes()),
-                                contentDescription = "Sonza Logo",
-                                tint = accentColor,
-                                modifier = Modifier.padding(16.dp)
+                            AppLauncherIcon(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(SquircleShape),
+                                contentDescription = "Sonza App Icon",
                             )
                         }
 

@@ -1,15 +1,21 @@
 package com.sonza.app.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,13 +23,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -32,10 +42,9 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
@@ -47,6 +56,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -125,6 +135,7 @@ fun RecentsScreen(
     playlistViewModel: PlaylistManagementViewModel = koinViewModel()
 ) {
     val recentlyPlayed by viewModel.recentSongs.collectAsState()
+    val isEditMode by viewModel.isEditMode.collectAsState()
     val selectedSongIds by viewModel.selectedSongs.collectAsState()
     val incognitoModeEnabled by viewModel.incognitoModeEnabled.collectAsState()
     val context = LocalContext.current
@@ -132,13 +143,21 @@ fun RecentsScreen(
 
     val dynamicColors = LocalSonzaDynamicColors.current
     val accentColor = dynamicColors.accent.takeIf { it != Color.Unspecified } ?: SonzaBrandAccent
+    val destructiveRed = Color(0xFFFF3B30)
 
     var searchQuery by remember { mutableStateOf("") }
-    var showClearConfirmDialog by remember { mutableStateOf(false) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
     // Song Menu State
     var showSongMenu by remember { mutableStateOf(false) }
     var selectedSong: Song? by remember { mutableStateOf(null) }
+
+    val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+    // Back handling: when in edit/selection mode, exit edit mode and clear selection instead of leaving screen
+    BackHandler(enabled = isEditMode) {
+        viewModel.exitEditMode()
+    }
 
     val filteredHistory = remember(recentlyPlayed, searchQuery) {
         if (searchQuery.trim().isEmpty()) recentlyPlayed
@@ -151,12 +170,10 @@ fun RecentsScreen(
         }
     }
 
-    val isSelectionMode = selectedSongIds.isNotEmpty()
-
-    // Confirmation dialog for clearing history
-    if (showClearConfirmDialog) {
+    // Confirmation dialog for clearing selected history
+    if (showDeleteConfirmDialog) {
         AlertDialog(
-            onDismissRequest = { showClearConfirmDialog = false },
+            onDismissRequest = { showDeleteConfirmDialog = false },
             title = {
                 Text(
                     text = "Clear listening history?",
@@ -167,7 +184,7 @@ fun RecentsScreen(
             },
             text = {
                 Text(
-                    text = "This will permanently remove all songs from your listening history.",
+                    text = "This will permanently remove the selected songs from your listening history.",
                     style = SonzaTypography.BodyMedium,
                     color = SonzaOnSurfaceVariant
                 )
@@ -175,20 +192,20 @@ fun RecentsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.clearHistory()
-                        showClearConfirmDialog = false
+                        viewModel.deleteSelectedSongs()
+                        showDeleteConfirmDialog = false
                     }
                 ) {
                     Text(
-                        text = "Clear History",
-                        color = accentColor,
+                        text = "Delete",
+                        color = destructiveRed,
                         fontWeight = FontWeight.Bold,
                         style = SonzaTypography.BodyMedium
                     )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showClearConfirmDialog = false }) {
+                TextButton(onClick = { showDeleteConfirmDialog = false }) {
                     Text(
                         text = "Cancel",
                         color = SonzaOnSurfaceVariant,
@@ -209,8 +226,8 @@ fun RecentsScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Header Bar
-            if (isSelectionMode) {
-                // Multi-selection Top Bar
+            if (isEditMode) {
+                // Edit / Selection Mode Top Bar: Back Arrow, "N Selected" Title, Cancel Action
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -218,12 +235,12 @@ fun RecentsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(
-                        onClick = { viewModel.clearSelection() },
+                        onClick = { viewModel.exitEditMode() },
                         modifier = Modifier.size(44.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Clear Selection",
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Exit Selection",
                             tint = SonzaOnBackground
                         )
                     }
@@ -231,41 +248,28 @@ fun RecentsScreen(
                     Spacer(modifier = Modifier.width(SpacingTokens.SpaceSm))
 
                     Text(
-                        text = "${selectedSongIds.size} selected",
-                        style = SonzaTypography.TitleMedium.copy(fontWeight = FontWeight.Bold),
+                        text = "${selectedSongIds.size} Selected",
+                        style = SonzaTypography.Headline,
+                        fontWeight = FontWeight.Bold,
                         color = SonzaOnBackground,
                         modifier = Modifier.weight(1f)
                     )
 
-                    IconButton(
-                        onClick = {
-                            val selectedSongs = recentlyPlayed
-                                .filter { selectedSongIds.contains(it.song.id) }
-                                .map { it.song }
-                            playlistViewModel.showAddToPlaylistSheet(selectedSongs)
-                        },
-                        modifier = Modifier.size(44.dp)
+                    TextButton(
+                        onClick = { viewModel.exitEditMode() },
+                        shape = RoundedCornerShape(RadiusTokens.Pill),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
-                            contentDescription = "Add to Playlist",
-                            tint = accentColor
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { viewModel.deleteSelectedSongs() },
-                        modifier = Modifier.size(44.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteOutline,
-                            contentDescription = "Delete Selected",
-                            tint = MaterialTheme.colorScheme.error
+                        Text(
+                            text = "Cancel",
+                            style = SonzaTypography.BodyLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = SonzaOnBackground
                         )
                     }
                 }
             } else {
-                // Standard Top Bar: Back Arrow, History Title, Incognito & Clear History
+                // Standard Top Bar: Back Arrow, History Title, Incognito Toggle, Edit Text Action
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -305,16 +309,18 @@ fun RecentsScreen(
                         )
                     }
 
-                    // Clear History Button (visible when history is not empty)
+                    // Text Action "Edit" (replaces previous trash icon action)
                     if (recentlyPlayed.isNotEmpty()) {
-                        IconButton(
-                            onClick = { showClearConfirmDialog = true },
-                            modifier = Modifier.size(44.dp)
+                        TextButton(
+                            onClick = { viewModel.enterEditMode() },
+                            shape = RoundedCornerShape(RadiusTokens.Pill),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.DeleteOutline,
-                                contentDescription = "Clear History",
-                                tint = SonzaOnSurfaceVariant
+                            Text(
+                                text = "Edit",
+                                style = SonzaTypography.BodyLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = SonzaOnBackground
                             )
                         }
                     }
@@ -396,7 +402,7 @@ fun RecentsScreen(
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 140.dp)
+                    contentPadding = PaddingValues(bottom = 160.dp)
                 ) {
                     groupedByDate.forEach { (dateGroup, items) ->
                         stickyHeader(key = dateGroup) {
@@ -432,10 +438,9 @@ fun RecentsScreen(
                             HistorySongItem(
                                 recent = recent,
                                 isSelected = isSelected,
-                                isSelectionMode = isSelectionMode,
-                                accentColor = accentColor,
+                                isSelectionMode = isEditMode,
                                 onClick = {
-                                    if (isSelectionMode) {
+                                    if (isEditMode) {
                                         viewModel.toggleSelection(recent.song.id)
                                     } else {
                                         onSongClick(allSongsInHistory, indexInAll)
@@ -443,6 +448,9 @@ fun RecentsScreen(
                                 },
                                 onLongClick = {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    if (!isEditMode) {
+                                        viewModel.enterEditMode()
+                                    }
                                     viewModel.toggleSelection(recent.song.id)
                                 },
                                 onMoreClick = {
@@ -451,6 +459,70 @@ fun RecentsScreen(
                                 }
                             )
                         }
+                    }
+                }
+            }
+        }
+
+        // iOS-style Bottom Action Sheet when items are selected
+        AnimatedVisibility(
+            visible = isEditMode && selectedSongIds.isNotEmpty(),
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(horizontal = SpacingTokens.SpaceLg)
+                .padding(bottom = navBarPadding + 76.dp)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 480.dp),
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                border = BorderStroke(1.dp, SonzaOutline.copy(alpha = 0.2f)),
+                shadowElevation = 8.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    TextButton(
+                        onClick = { showDeleteConfirmDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "Delete",
+                            style = SonzaTypography.BodyLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = destructiveRed
+                            )
+                        )
+                    }
+
+                    HorizontalDivider(
+                        color = SonzaOutline.copy(alpha = 0.15f),
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+
+                    TextButton(
+                        onClick = { viewModel.exitEditMode() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "Cancel",
+                            style = SonzaTypography.BodyLarge.copy(
+                                fontWeight = FontWeight.Medium,
+                                color = SonzaOnBackground
+                            )
+                        )
                     }
                 }
             }
@@ -619,7 +691,6 @@ private fun HistorySongItem(
     recent: RecentlyPlayed,
     isSelected: Boolean,
     isSelectionMode: Boolean,
-    accentColor: Color,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onMoreClick: () -> Unit
@@ -638,14 +709,55 @@ private fun HistorySongItem(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                if (isSelected) accentColor.copy(alpha = 0.15f) else Color.Transparent
+                if (isSelected) SonzaSurfaceVariant.copy(alpha = 0.5f) else Color.Transparent
             )
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = SpacingTokens.SpaceLg, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Album Artwork (56dp square) with neutral placeholder fallback & selection checkmark overlay
+        // Left circular selection control (visible during selection/edit mode)
+        AnimatedVisibility(
+            visible = isSelectionMode,
+            enter = fadeIn() + expandHorizontally(),
+            exit = fadeOut() + shrinkHorizontally()
+        ) {
+            Box(
+                modifier = Modifier.size(26.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isSelected) {
+                    // Filled circular checkmark
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0xFF007AFF),
+                        modifier = Modifier.size(22.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Selected",
+                                tint = Color.White,
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
+                    }
+                } else {
+                    // Empty circle
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .border(
+                                width = 1.5.dp,
+                                color = SonzaOnSurfaceVariant.copy(alpha = 0.5f),
+                                shape = CircleShape
+                            )
+                    )
+                }
+            }
+        }
+
+        // Album Artwork (56dp square) with neutral placeholder fallback
         Box(
             modifier = Modifier.size(56.dp),
             contentAlignment = Alignment.Center
@@ -660,8 +772,7 @@ private fun HistorySongItem(
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(SquircleShape),
-                    contentScale = ContentScale.Crop,
-                    alpha = if (isSelected) 0.45f else 1f
+                    contentScale = ContentScale.Crop
                 )
             } else {
                 Surface(
@@ -677,21 +788,6 @@ private fun HistorySongItem(
                             modifier = Modifier.size(24.dp)
                         )
                     }
-                }
-            }
-
-            if (isSelected) {
-                Surface(
-                    shape = CircleShape,
-                    color = accentColor,
-                    modifier = Modifier.size(26.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Selected",
-                        tint = SonzaBackground,
-                        modifier = Modifier.padding(2.dp)
-                    )
                 }
             }
         }

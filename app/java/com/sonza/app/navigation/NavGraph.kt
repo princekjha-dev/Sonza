@@ -55,8 +55,10 @@ import kotlinx.coroutines.flow.SharedFlow
 import androidx.media3.common.Player
 import com.sonza.app.ui.screens.SponsorBlockSettingsScreen
 import org.koin.compose.viewmodel.koinViewModel
+import com.sonza.app.ui.components.AppLogo
+import com.sonza.app.ui.components.AppLauncherIcon
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.toRoute
 
 /**
  * Main navigation graph for the app.
@@ -431,7 +433,8 @@ fun NavGraph(
                 currentVersionName = com.sonza.app.BuildConfig.VERSION_NAME,
                 viewModel = koinViewModel(),
                 onBackClick = { navController.popBackStack() },
-                onViewPreviousUpdates = { navController.navigate(Destination.Changelog) }
+                onViewPreviousUpdates = { navController.navigate(Destination.Changelog) },
+                appLogo = { AppLauncherIcon(size = 48.dp) }
             )
         }
 
@@ -550,6 +553,12 @@ fun NavGraph(
         }
         
         composable<Destination.Support> {
+            SupportScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable<Destination.Feedback> {
             SupportScreen(
                 onBack = { navController.popBackStack() }
             )

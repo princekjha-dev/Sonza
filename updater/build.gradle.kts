@@ -67,6 +67,10 @@ dependencies {
     // Serialization
     implementation(libs.kotlinx.serialization.json)
 
+    // Image loading (Coil 3 for hardware-accelerated animated GIF loading)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.gif)
+
     // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

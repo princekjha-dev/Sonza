@@ -26,8 +26,20 @@ class RecentsViewModel @Inject constructor(
     val incognitoModeEnabled: StateFlow<Boolean> = repository.sessionManager.incognitoModeEnabledFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    private val _isEditMode = MutableStateFlow(false)
+    val isEditMode = _isEditMode.asStateFlow()
+
     private val _selectedSongs = MutableStateFlow<Set<String>>(emptySet())
     val selectedSongs = _selectedSongs.asStateFlow()
+
+    fun enterEditMode() {
+        _isEditMode.value = true
+    }
+
+    fun exitEditMode() {
+        _isEditMode.value = false
+        _selectedSongs.value = emptySet()
+    }
 
     fun toggleSelection(songId: String) {
         _selectedSongs.update { current ->
@@ -68,6 +80,7 @@ class RecentsViewModel @Inject constructor(
 
     fun clearHistory() {
         _selectedSongs.value = emptySet()
+        _isEditMode.value = false
         viewModelScope.launch {
             repository.clearHistory()
         }
@@ -84,6 +97,7 @@ class RecentsViewModel @Inject constructor(
         val ids = _selectedSongs.value.toList()
         if (ids.isNotEmpty()) {
             _selectedSongs.value = emptySet()
+            _isEditMode.value = false
             viewModelScope.launch {
                 repository.removeSongsFromHistory(ids)
             }
