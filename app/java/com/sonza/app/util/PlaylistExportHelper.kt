@@ -165,5 +165,5 @@ object PlaylistExportHelper {
         }
     }
 
-    fun exportPlaylistToSUV(context: Context, playlist: Playlist) = exportPlaylistToSonza(context, playlist)
+    fun exportPlaylistToSONZA(context: Context, playlist: Playlist) = exportPlaylistToSonza(context, playlist)
 }

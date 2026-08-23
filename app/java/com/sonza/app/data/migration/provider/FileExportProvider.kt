@@ -46,7 +46,7 @@ class FileExportProvider @Inject constructor(
                     tracks = tracks.map { SourceTrack(title = it.title, artist = it.artist, durationMs = it.durationMs, sourceId = it.sourceId) }
                 )
             }
-            fileName.endsWith(".sonza") || fileName.endsWith(".suv") -> {
+            fileName.endsWith(".sonza") || fileName.endsWith(".SONZA") -> {
                 val (name, tracks) = playlistImportHelper.parseSonza(uri)
                 if (tracks.isEmpty()) null else ParsedPlaylist(
                     title = name,

@@ -41,7 +41,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val AmberAccent = Color(0xFFF59E0B)
 private val AmoledBackground = Color(0xFF000000)
 private val CardBackground = Color(0xFF141416)
 private val BorderColor = Color(0xFF2E2E33)
@@ -60,6 +59,8 @@ fun SupportScreen(
     ) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(bottom = 32.dp),
+    accentColor: Color = MaterialTheme.colorScheme.primary,
+    onAccentColor: Color = MaterialTheme.colorScheme.onPrimary,
 ) {
     var message by remember { mutableStateOf("") }
     var isSubmitting by remember { mutableStateOf(false) }
@@ -90,13 +91,13 @@ fun SupportScreen(
                 modifier = Modifier
                     .size(56.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(AmberAccent.copy(alpha = 0.15f)),
+                    .background(accentColor.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Feedback,
                     contentDescription = null,
-                    tint = AmberAccent,
+                    tint = accentColor,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -190,9 +191,9 @@ fun SupportScreen(
                         focusedContainerColor = CardBackground,
                         unfocusedContainerColor = CardBackground,
                         disabledContainerColor = CardBackground,
-                        focusedBorderColor = AmberAccent,
+                        focusedBorderColor = accentColor,
                         unfocusedBorderColor = BorderColor,
-                        cursorColor = AmberAccent,
+                        cursorColor = accentColor,
                         focusedTextColor = TextPrimary,
                         unfocusedTextColor = TextPrimary
                     ),
@@ -238,16 +239,16 @@ fun SupportScreen(
                         .height(54.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = AmberAccent,
-                        contentColor = Color.Black,
-                        disabledContainerColor = AmberAccent.copy(alpha = 0.2f),
-                        disabledContentColor = Color.White.copy(alpha = 0.35f)
+                        containerColor = accentColor,
+                        contentColor = onAccentColor,
+                        disabledContainerColor = accentColor.copy(alpha = 0.2f),
+                        disabledContentColor = onAccentColor.copy(alpha = 0.35f)
                     )
                 ) {
                     if (isSubmitting) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(22.dp),
-                            color = Color.Black,
+                            color = onAccentColor,
                             strokeWidth = 2.5.dp
                         )
                     } else {

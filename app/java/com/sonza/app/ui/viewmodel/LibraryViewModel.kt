@@ -501,7 +501,7 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    fun importSUV(uri: Uri) = importSonza(uri)
+    fun importSONZA(uri: Uri) = importSonza(uri)
 
     fun cancelImport() {
         val context = appContext
@@ -544,7 +544,7 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    fun exportPlaylistToSUV(context: Context, playlistItem: com.sonza.app.core.model.PlaylistDisplayItem) =
+    fun exportPlaylistToSONZA(context: Context, playlistItem: com.sonza.app.core.model.PlaylistDisplayItem) =
         exportPlaylistToSonza(context, playlistItem)
 
     fun resetImportState() {

@@ -209,7 +209,7 @@ class PlaylistImportHelper @Inject constructor(
     }
 
     /**
-     * Parse an .sonza or .suv file from a Uri.
+     * Parse an .sonza or .SONZA file from a Uri.
      */
     suspend fun parseSonza(uri: Uri): Pair<String, List<ImportTrack>> = withContext(Dispatchers.IO) {
         val tracksMap = mutableMapOf<String, ImportTrack>()
@@ -304,5 +304,5 @@ class PlaylistImportHelper @Inject constructor(
         playlistName to orderedTracks
     }
 
-    suspend fun parseSUV(uri: Uri): Pair<String, List<ImportTrack>> = parseSonza(uri)
+    suspend fun parseSONZA(uri: Uri): Pair<String, List<ImportTrack>> = parseSonza(uri)
 }

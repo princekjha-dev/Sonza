@@ -33,13 +33,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -141,30 +139,6 @@ fun UpdaterScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            if (!uiState.isChecking) {
-                                viewModel.checkForUpdate(
-                                    currentVersionName = currentVersionName,
-                                    currentVersionCode = currentVersionCode
-                                )
-                            }
-                        },
-                        enabled = !uiState.isChecking
-                    ) {
-                        if (uiState.isChecking) {
-                            UpdaterLoadingIndicator(
-                                size = 24.dp
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "Check for Updates"
-                            )
-                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -319,15 +293,7 @@ private fun MainUpdateCard(
                     )
                 }
 
-                // 3. Checking for updates
-                uiState.isChecking -> {
-                    CheckingStateContent(
-                        installedVersionName = installedVersionName,
-                        appLogo = appLogo
-                    )
-                }
-
-                // 4. Update available (Immediate next version only)
+                // 3. Update available (Immediate next version only)
                 uiState.hasUpdate && uiState.nextUpdate != null -> {
                     UpdateAvailableContent(
                         installedVersionName = installedVersionName,
@@ -338,8 +304,8 @@ private fun MainUpdateCard(
                     )
                 }
 
-                // 5. Error state
-                uiState.errorMessage != null -> {
+                // 4. Error state
+                uiState.errorMessage != null && !uiState.isChecking -> {
                     ErrorStateContent(
                         title = "Couldn't check for updates",
                         description = "Check your internet connection and try again.",
@@ -347,11 +313,12 @@ private fun MainUpdateCard(
                     )
                 }
 
-                // 6. Up to date (Latest version state)
+                // 5. Up to date / Checking for updates
                 else -> {
                     UpToDateContent(
                         installedVersionName = installedVersionName,
                         lastCheckedTimestamp = uiState.lastCheckedTimestamp,
+                        isChecking = uiState.isChecking,
                         appLogo = appLogo,
                         onCheckAgain = onCheckAgain
                     )
@@ -365,6 +332,7 @@ private fun MainUpdateCard(
 private fun UpToDateContent(
     installedVersionName: String,
     lastCheckedTimestamp: Long?,
+    isChecking: Boolean = false,
     appLogo: (@Composable () -> Unit)?,
     onCheckAgain: () -> Unit
 ) {
@@ -423,20 +391,35 @@ private fun UpToDateContent(
 
     Button(
         onClick = onCheckAgain,
+        enabled = !isChecking,
         modifier = Modifier
             .fillMaxWidth()
             .height(54.dp),
         shape = ButtonShape,
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
+            disabledContentColor = MaterialTheme.colorScheme.onPrimary
         )
     ) {
-        Text(
-            text = "Check Again",
-            fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.titleSmall
-        )
+        if (isChecking) {
+            UpdaterLoadingIndicator(
+                size = 20.dp
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = "Checking...",
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleSmall
+            )
+        } else {
+            Text(
+                text = "Check Again",
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleSmall
+            )
+        }
     }
 }
 
@@ -592,62 +575,6 @@ private fun UpdateAvailableContent(
                 style = MaterialTheme.typography.titleSmall
             )
         }
-    }
-}
-
-@Composable
-private fun CheckingStateContent(
-    installedVersionName: String,
-    appLogo: (@Composable () -> Unit)?
-) {
-    UpdateIconBadge(
-        isChecking = true,
-        appLogo = appLogo
-    )
-
-    Spacer(modifier = Modifier.height(20.dp))
-
-    Text(
-        text = "Sonza $installedVersionName",
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onSurface,
-        textAlign = TextAlign.Center
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
-    ) {
-        UpdaterLoadingIndicator(
-            size = 20.dp
-        )
-        Spacer(modifier = Modifier.width(10.dp))
-        Text(
-            text = "Checking for updates...",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-
-    Spacer(modifier = Modifier.height(28.dp))
-
-    Button(
-        onClick = {},
-        enabled = false,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(54.dp),
-        shape = ButtonShape
-    ) {
-        Text(
-            text = "Checking...",
-            fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.titleSmall
-        )
     }
 }
 

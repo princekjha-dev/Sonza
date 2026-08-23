@@ -126,6 +126,7 @@ private val hiltBridgedModule: Module = module {
     single { bridge(androidContext()).spotifyProvider() }
     single { bridge(androidContext()).youTubeMusicProvider() }
     single { bridge(androidContext()).fileExportProvider() }
+    single { com.sonza.app.data.repository.FeedbackRepository(get()) }
 
     // MainViewModel uses a deferred Cache accessor (was dagger.Lazy<Cache>) to
     // avoid forcing SimpleCache initialization on app start. Provided as a

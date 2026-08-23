@@ -3361,7 +3361,7 @@ class MusicPlayer @Inject constructor(
                 uriString.contains(com.sonza.app.data.repository.remote.RemoteConstants.LEGACY_HOST_B) ||
                 uriString.contains("saavncdn") ||
                 uriString.contains("hqaudio") ||
-                uriString.contains("narutosengupta")
+                uriString.contains("naruto")
             )) {
                 bitrateKbps = when {
                     uriString.contains("320") -> 320

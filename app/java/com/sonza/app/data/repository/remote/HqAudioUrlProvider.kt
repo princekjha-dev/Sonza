@@ -42,11 +42,11 @@ object HqAudioUrlProvider {
     private const val KEY_TRIP_COUNT = "breaker_trip_count"
     private const val ONE_DAY_MS = 24 * 60 * 60 * 1000L
 
-    const val ASIA_BASE_URL = "https://hqaudio-asia.narutosengupta.in/api/"
-    const val DEFAULT_BASE_URL = "https://hqaudio.narutosengupta.in/api/"
+    const val ASIA_BASE_URL = "https://hqaudio-asia.naruto.in/api/"
+    const val DEFAULT_BASE_URL = "https://hqaudio.naruto.in/api/"
 
-    const val ASIA_HOST = "hqaudio-asia.narutosengupta.in"
-    const val DEFAULT_HOST = "hqaudio.narutosengupta.in"
+    const val ASIA_HOST = "hqaudio-asia.naruto.in"
+    const val DEFAULT_HOST = "hqaudio.naruto.in"
 
     /** Consecutive Asia failures that trip the breaker. */
     private const val FAILURE_THRESHOLD = 3

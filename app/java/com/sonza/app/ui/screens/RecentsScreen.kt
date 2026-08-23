@@ -11,8 +11,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -255,6 +253,21 @@ fun RecentsScreen(
                         modifier = Modifier.weight(1f)
                     )
 
+                    if (selectedSongIds.isNotEmpty()) {
+                        TextButton(
+                            onClick = { showDeleteConfirmDialog = true },
+                            shape = RoundedCornerShape(RadiusTokens.Pill),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "Delete",
+                                style = SonzaTypography.BodyLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = destructiveRed
+                            )
+                        }
+                    }
+
                     TextButton(
                         onClick = { viewModel.exitEditMode() },
                         shape = RoundedCornerShape(RadiusTokens.Pill),
@@ -459,70 +472,6 @@ fun RecentsScreen(
                                 }
                             )
                         }
-                    }
-                }
-            }
-        }
-
-        // iOS-style Bottom Action Sheet when items are selected
-        AnimatedVisibility(
-            visible = isEditMode && selectedSongIds.isNotEmpty(),
-            enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
-            exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(horizontal = SpacingTokens.SpaceLg)
-                .padding(bottom = navBarPadding + 76.dp)
-        ) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 480.dp),
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                border = BorderStroke(1.dp, SonzaOutline.copy(alpha = 0.2f)),
-                shadowElevation = 8.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                ) {
-                    TextButton(
-                        onClick = { showDeleteConfirmDialog = true },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            text = "Delete",
-                            style = SonzaTypography.BodyLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = destructiveRed
-                            )
-                        )
-                    }
-
-                    HorizontalDivider(
-                        color = SonzaOutline.copy(alpha = 0.15f),
-                        modifier = Modifier.padding(horizontal = 8.dp)
-                    )
-
-                    TextButton(
-                        onClick = { viewModel.exitEditMode() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            text = "Cancel",
-                            style = SonzaTypography.BodyLarge.copy(
-                                fontWeight = FontWeight.Medium,
-                                color = SonzaOnBackground
-                            )
-                        )
                     }
                 }
             }

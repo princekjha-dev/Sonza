@@ -554,13 +554,15 @@ fun NavGraph(
         
         composable<Destination.Support> {
             SupportScreen(
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                currentSong = playbackInfo.currentSong
             )
         }
 
         composable<Destination.Feedback> {
             SupportScreen(
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                currentSong = playbackInfo.currentSong
             )
         }
 
