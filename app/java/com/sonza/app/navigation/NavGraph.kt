@@ -104,10 +104,12 @@ fun NavGraph(
     downloadRepository: com.sonza.app.data.repository.DownloadRepository? = null,
     startDestination: Any = Destination.Home,
     dominantColors: com.sonza.app.ui.components.DominantColors? = null,
-    snackbarHostState: androidx.compose.material3.SnackbarHostState? = null
+    snackbarHostState: androidx.compose.material3.SnackbarHostState? = null,
+    pagerState: androidx.compose.foundation.pager.PagerState? = null
 ) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val formFactor = LocalDeviceFormFactor.current
+    val mainPagerState = pagerState ?: androidx.compose.foundation.pager.rememberPagerState(initialPage = 0, pageCount = { 4 })
 
     NavHost(
         navController = navController,
@@ -211,144 +213,13 @@ fun NavGraph(
         }
     ) {
         composable<Destination.Home> {
-            when {
-                formFactor == DeviceFormFactor.TV -> {
-                    com.sonza.app.ui.screens.TvHomeScreen(
-                        onSongClick = { songs, index -> onPlaySong(songs, index) },
-                        onPlaylistClick = { playlist ->
-                            navController.navigate(
-                                Destination.Playlist(
-                                    playlistId = playlist.id,
-                                    name = playlist.name,
-                                    thumbnailUrl = playlist.thumbnailUrl
-                                )
-                            )
-                        },
-                        onAlbumClick = { album ->
-                            navController.navigate(
-                                Destination.Album(
-                                    albumId = album.id,
-                                    name = album.title,
-                                    thumbnailUrl = album.thumbnailUrl
-                                )
-                            )
-                        }
-                    )
-                }
-                formFactor.isTabletLike -> {
-                    com.sonza.app.ui.screens.TabletHomeScreen(
-                        onSongClick = { songs, index -> onPlaySong(songs, index) },
-                        onPlaylistClick = { playlist ->
-                            navController.navigate(
-                                Destination.Playlist(
-                                    playlistId = playlist.id,
-                                    name = playlist.name,
-                                    thumbnailUrl = playlist.thumbnailUrl
-                                )
-                            )
-                        },
-                        onAlbumClick = { album ->
-                            navController.navigate(
-                                Destination.Album(
-                                    albumId = album.id,
-                                    name = album.title,
-                                    thumbnailUrl = album.thumbnailUrl
-                                )
-                            )
-                        },
-                        onHistoryClick = {
-                            navController.navigate(Destination.Recents)
-                        },
-                        onExploreClick = { browseId, title ->
-                            if (browseId == "FEmusic_moods_and_genres") {
-                                navController.navigate(Destination.MoodAndGenres)
-                            } else if (browseId == "FEmusic_podcasts" || title.equals("Podcasts", ignoreCase = true)) {
-                                navController.navigate(Destination.Podcasts)
-                            } else {
-                                navController.navigate(Destination.Explore(browseId, title))
-                            }
-                        },
-                        currentSong = playbackInfo.currentSong
-                    )
-                }
-                else -> {
-                    HomeScreen(
-                        onSongClick = { songs, index -> onPlaySong(songs, index) },
-                        onPlaylistClick = { playlist ->
-                            navController.navigate(
-                                Destination.Playlist(
-                                    playlistId = playlist.id,
-                                    name = playlist.name,
-                                    thumbnailUrl = playlist.thumbnailUrl
-                                )
-                            )
-                        },
-                        onAlbumClick = { album ->
-                            navController.navigate(
-                                Destination.Album(
-                                    albumId = album.id,
-                                    name = album.title,
-                                    thumbnailUrl = album.thumbnailUrl
-                                )
-                            )
-                        },
-                        onHistoryClick = {
-                            navController.navigate(Destination.Recents)
-                        },
-                        onProfileClick = {
-                            navController.navigate(Destination.Profile) {
-                                popUpTo<Destination.Home> {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        onNavigateToSearch = {
-                            navController.navigate(Destination.Search) {
-                                popUpTo<Destination.Home> {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        onNavigateToLibrary = {
-                            navController.navigate(Destination.Library) {
-                                popUpTo<Destination.Home> {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        onNavigateToProfile = {
-                            navController.navigate(Destination.Profile) {
-                                popUpTo<Destination.Home> {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        onExploreClick = { browseId, title ->
-                            if (browseId == "FEmusic_moods_and_genres") {
-                                navController.navigate(Destination.MoodAndGenres)
-                            } else if (browseId == "FEmusic_podcasts" || title.equals("Podcasts", ignoreCase = true)) {
-                                navController.navigate(Destination.Podcasts)
-                            } else {
-                                navController.navigate(Destination.Explore(browseId, title))
-                            }
-                        },
-                        onCreateMixClick = {
-                            navController.navigate(Destination.PickMusic)
-                        },
-                        currentSong = playbackInfo.currentSong,
-                        isPlaying = playbackInfo.isPlaying,
-                        onPlayPause = onPlayPause
-                    )
-                }
-            }
+            com.sonza.app.ui.screens.MainPagerScreen(
+                pagerState = mainPagerState,
+                navController = navController,
+                playbackInfo = playbackInfo,
+                onPlaySong = onPlaySong,
+                onPlayPause = onPlayPause
+            )
         }
 
         composable<Destination.Podcasts> {
@@ -452,118 +323,16 @@ fun NavGraph(
         }
         
         composable<Destination.Search> {
-            SearchScreen(
-                onSongClick = { songs, index ->
-                    onPlaySong(songs, index)
-                },
-                onArtistClick = { artistId ->
-                    navController.navigate(Destination.Artist(artistId))
-                },
-                onPlaylistClick = { playlistId ->
-                    navController.navigate(
-                        Destination.Playlist(
-                            playlistId = playlistId,
-                            name = null,
-                            thumbnailUrl = null
-                        )
-                    )
-                },
-                onAlbumClick = { album ->
-                    navController.navigate(
-                        Destination.Album(
-                            albumId = album.id,
-                            name = album.title,
-                            thumbnailUrl = album.thumbnailUrl
-                        )
-                    )
-                },
-                onNavigateToHome = {
-                    navController.navigate(Destination.Home) {
-                        popUpTo<Destination.Home> {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
-                onNavigateToLibrary = {
-                    navController.navigate(Destination.Library) {
-                        popUpTo<Destination.Home> {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
-                currentSong = playbackInfo.currentSong
-            )
-        }        
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                navController.popBackStack<Destination.Home>(inclusive = false)
+                mainPagerState.scrollToPage(1)
+            }
+        }
         composable<Destination.Library> {
-            LibraryScreen(
-                onSongClick = { songs, index -> 
-                    onPlaySong(songs, index)
-                },
-                onHistoryClick = {
-                    navController.navigate(Destination.Recents)
-                },
-                onPlaylistClick = { playlist ->
-                    navController.navigate(
-                        Destination.Playlist(
-                            playlistId = playlist.id,
-                            name = playlist.name,
-                            thumbnailUrl = playlist.thumbnailUrl
-                        )
-                    )
-                },
-                onArtistClick = { artistId ->
-                    navController.navigate(Destination.Artist(artistId))
-                },
-                onAlbumClick = { album ->
-                    navController.navigate(
-                        Destination.Album(
-                            albumId = album.id,
-                            name = album.title,
-                            thumbnailUrl = album.thumbnailUrl
-                        )
-                    )
-                },
-                onDownloadsClick = {
-                    navController.navigate(Destination.Downloads)
-                },
-                onMigratePlaylistsClick = {
-                    navController.navigate(Destination.MigratePlaylists)
-                },
-                onNavigateToPlaylists = {
-                    navController.navigate(Destination.LibraryPlaylists)
-                },
-                onNavigateToArtists = {
-                    navController.navigate(Destination.LibraryArtists)
-                },
-                onNavigateToAlbums = {
-                    navController.navigate(Destination.LibraryAlbums)
-                },
-                onNavigateToGenres = {
-                    navController.navigate(Destination.LibraryGenres)
-                },
-                onNavigateToSearch = {
-                    navController.navigate(Destination.Search) {
-                        popUpTo<Destination.Home> {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
-                onNavigateToProfile = {
-                    navController.navigate(Destination.Profile) {
-                        popUpTo<Destination.Home> {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                }
-            )
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                navController.popBackStack<Destination.Home>(inclusive = false)
+                mainPagerState.scrollToPage(2)
+            }
         }
 
         composable<Destination.LibraryPlaylists> {
@@ -638,47 +407,10 @@ fun NavGraph(
         }
 
         composable<Destination.Profile> {
-            UserProfileScreen(
-                onBackClick = {
-                    navController.navigate(Destination.Library) {
-                        popUpTo<Destination.Home> {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
-                onNavigateToHome = {
-                    navController.navigate(Destination.Home) {
-                        popUpTo<Destination.Home> {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
-                onNavigateToLibrary = {
-                    navController.navigate(Destination.Library) {
-                        popUpTo<Destination.Home> {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
-                onLoginClick = { navController.navigate(Destination.YouTubeLogin) },
-                onHistoryClick = { navController.navigate(Destination.Recents) },
-                onDownloadsClick = { navController.navigate(Destination.Downloads) },
-                onStatsClick = { navController.navigate(Destination.ListeningStats) },
-                onFeedbackClick = { navController.navigate(Destination.Support) },
-                onPrivacyPolicyClick = { navController.navigate(Destination.PrivacyPolicy) },
-                onTermsOfServiceClick = { navController.navigate(Destination.TermsOfService) },
-                onAboutSonzaClick = { navController.navigate(Destination.About) },
-                onAboutDeveloperClick = { navController.navigate(Destination.AboutDeveloper) },
-                onCheckForUpdatesClick = { navController.navigate(Destination.Updater) },
-                onOpenSourceLicensesClick = { navController.navigate(Destination.OpenSourceLicenses) },
-                currentSong = playbackInfo.currentSong
-            )
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                navController.popBackStack<Destination.Home>(inclusive = false)
+                mainPagerState.scrollToPage(3)
+            }
         }
 
         composable<Destination.Downloads> {
@@ -698,7 +430,8 @@ fun NavGraph(
                 currentVersionCode = com.sonza.app.BuildConfig.VERSION_CODE,
                 currentVersionName = com.sonza.app.BuildConfig.VERSION_NAME,
                 viewModel = koinViewModel(),
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onViewPreviousUpdates = { navController.navigate(Destination.Changelog) }
             )
         }
 

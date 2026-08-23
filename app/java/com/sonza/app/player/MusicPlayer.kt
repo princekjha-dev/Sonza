@@ -714,12 +714,14 @@ class MusicPlayer @Inject constructor(
                 mediaController = controller
                 controller?.addListener(playerListener)
                 _isServiceConnected.value = true
+                android.util.Log.d("MusicPlayer", "MediaController connected to service, itemCount=${controller?.mediaItemCount}")
                 
                 // Immediately synchronize complete playback state from existing service session
                 if (controller != null && controller.mediaItemCount > 0) {
                     syncStateFromController(controller)
                 }
             } catch (e: Exception) {
+                android.util.Log.e("MusicPlayer", "Failed to connect to music service", e)
                 _isServiceConnected.value = false
                 _playerState.update { it.copy(error = "Failed to connect to music service") }
             }
@@ -733,6 +735,7 @@ class MusicPlayer @Inject constructor(
      */
     private fun syncStateFromController(controller: MediaController) {
         val itemCount = controller.mediaItemCount
+        android.util.Log.d("MusicPlayer", "syncStateFromController: itemCount=$itemCount, currentMediaItemIndex=${controller.currentMediaItemIndex}, isPlaying=${controller.isPlaying}")
         if (itemCount <= 0) {
             _playerState.update { current ->
                 current.copy(
@@ -817,6 +820,7 @@ class MusicPlayer @Inject constructor(
     
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
+            android.util.Log.d("MusicPlayer", "onIsPlayingChanged: isPlaying=$isPlaying")
             _playerState.update { it.copy(isPlaying = isPlaying) }
             
             // Music Haptics integration

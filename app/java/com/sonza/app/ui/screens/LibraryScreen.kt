@@ -81,7 +81,6 @@ import com.sonza.app.ui.components.LocalSonzaDynamicColors
 import com.sonza.app.ui.components.SonzaLoadingIndicator
 import com.sonza.app.ui.theme.SonzaColors
 import com.sonza.app.ui.theme.SonzaTypography
-import com.sonza.app.ui.utils.horizontalSwipeNavigation
 import com.sonza.app.ui.viewmodel.LibraryViewModel
 import com.sonza.app.ui.viewmodel.RecentlyAddedItem
 import org.koin.compose.viewmodel.koinViewModel
@@ -127,10 +126,6 @@ fun LibraryScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(SonzaColors.Background)
-            .horizontalSwipeNavigation(
-                onSwipeLeft = onNavigateToProfile,
-                onSwipeRight = onNavigateToSearch
-            )
     ) {
         PullToRefreshBox(
             isRefreshing = uiState.isRefreshing,

@@ -83,7 +83,6 @@ import com.sonza.app.ui.theme.SonzaOutline
 import com.sonza.app.ui.theme.SonzaTypography
 import com.sonza.app.ui.theme.SpacingTokens
 import com.sonza.app.ui.theme.SquircleShape
-import com.sonza.app.ui.utils.horizontalSwipeNavigation
 import com.sonza.app.ui.viewmodel.SettingsViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -134,10 +133,6 @@ fun UserProfileScreen(
             .fillMaxSize()
             .background(SonzaBackground)
             .statusBarsPadding()
-            .horizontalSwipeNavigation(
-                onSwipeLeft = null,
-                onSwipeRight = onNavigateToLibrary
-            )
     ) {
         LazyColumn(
             modifier = Modifier

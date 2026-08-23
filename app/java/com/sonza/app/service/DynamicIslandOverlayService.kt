@@ -80,6 +80,7 @@ class DynamicIslandOverlayService : Service(), LifecycleOwner, ViewModelStoreOwn
 
     override fun onCreate() {
         super.onCreate()
+        android.util.Log.d("DynamicIslandOverlay", "Service onCreate")
         savedStateRegistryController.performRestore(null)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
@@ -120,7 +121,7 @@ class DynamicIslandOverlayService : Service(), LifecycleOwner, ViewModelStoreOwn
 
     private fun showOverlay() {
         if (isViewAttached || windowManager == null || !canDrawOverlays()) return
-
+        android.util.Log.d("DynamicIslandOverlay", "showOverlay: displaying floating island overlay")
         try {
             val composeView = ComposeView(this).apply {
                 setViewTreeLifecycleOwner(this@DynamicIslandOverlayService)
@@ -216,6 +217,7 @@ class DynamicIslandOverlayService : Service(), LifecycleOwner, ViewModelStoreOwn
 
     private fun hideOverlay() {
         if (!isViewAttached || overlayComposeView == null || windowManager == null) return
+        android.util.Log.d("DynamicIslandOverlay", "hideOverlay: removing floating island overlay")
         try {
             windowManager?.removeView(overlayComposeView)
         } catch (e: Exception) {
@@ -229,11 +231,18 @@ class DynamicIslandOverlayService : Service(), LifecycleOwner, ViewModelStoreOwn
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        hideOverlay()
-        stopSelf()
+        val hasActive = musicPlayer.hasActivePlayback()
+        android.util.Log.d("DynamicIslandOverlay", "onTaskRemoved: hasActivePlayback=$hasActive")
+        if (!hasActive) {
+            hideOverlay()
+            stopSelf()
+        } else {
+            setAppForeground(false)
+        }
     }
 
     override fun onDestroy() {
+        android.util.Log.d("DynamicIslandOverlay", "Service onDestroy")
         hideOverlay()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)

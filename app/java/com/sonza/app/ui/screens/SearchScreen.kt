@@ -1,7 +1,6 @@
 package com.sonza.app.ui.screens
 
 import androidx.activity.compose.BackHandler
-import com.sonza.app.ui.utils.horizontalSwipeNavigation
 import com.sonza.app.ui.utils.carouselSwipeShield
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -222,11 +221,6 @@ fun SearchScreen(
             .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .imePadding()
-            .horizontalSwipeNavigation(
-                onSwipeLeft = onNavigateToLibrary,
-                onSwipeRight = onNavigateToHome,
-                enabled = !isKeyboardOpen
-            )
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
 

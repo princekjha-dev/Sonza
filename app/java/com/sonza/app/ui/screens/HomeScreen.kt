@@ -65,7 +65,6 @@ import com.sonza.app.ui.viewmodel.HomeViewModel
 import com.sonza.app.ui.viewmodel.PlaylistManagementViewModel
 import com.sonza.app.util.ImageUtils
 import com.sonza.app.ui.utils.carouselSwipeShield
-import com.sonza.app.ui.utils.horizontalSwipeNavigation
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -174,12 +173,7 @@ fun HomeScreen(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .horizontalSwipeNavigation(
-                onSwipeLeft = onNavigateToSearch,
-                onSwipeRight = null
-            )
+        modifier = Modifier.fillMaxSize()
     ) {
         // Fluid background
         if (animatedBackgroundEnabled) {

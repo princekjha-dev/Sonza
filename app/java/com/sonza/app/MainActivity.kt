@@ -424,11 +424,13 @@ class MainActivity : ComponentActivity() {
     
     override fun onStart() {
         super.onStart()
+        android.util.Log.d("MainActivity", "Activity onStart")
         com.sonza.app.service.DynamicIslandOverlayService.setAppForeground(true)
     }
 
     override fun onPause() {
         super.onPause()
+        android.util.Log.d("MainActivity", "Activity onPause")
         com.sonza.app.service.DynamicIslandOverlayService.setAppForeground(false)
         
         // Disable video track for bandwidth optimization when backgrounded
@@ -440,6 +442,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
+        android.util.Log.d("MainActivity", "Activity onStop")
         com.sonza.app.service.DynamicIslandOverlayService.setAppForeground(false)
     }
 
@@ -462,6 +465,7 @@ class MainActivity : ComponentActivity() {
     
     override fun onResume() {
         super.onResume()
+        android.util.Log.d("MainActivity", "Activity onResume")
         com.sonza.app.service.DynamicIslandOverlayService.setAppForeground(true)
         
         // Re-enable video track when returning to foreground
@@ -472,6 +476,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        android.util.Log.d("MainActivity", "Activity onDestroy, isFinishing=$isFinishing, hasActivePlayback=${musicPlayer.hasActivePlayback()}")
         com.sonza.app.service.DynamicIslandOverlayService.setAppForeground(false)
         if (isFinishing && !musicPlayer.hasActivePlayback()) {
             com.sonza.app.service.DynamicIslandOverlayService.stop(this)
@@ -718,12 +723,14 @@ fun SonzaApp(
     val isLoadingMoreSongs by playerViewModel.isLoadingMoreSongs.collectAsStateWithLifecycle(initialValue = false)
     val isMiniPlayerDismissed by playerViewModel.isMiniPlayerDismissed.collectAsStateWithLifecycle(initialValue = false)
     
+    val mainPagerState = androidx.compose.foundation.pager.rememberPagerState(initialPage = 0, pageCount = { 4 })
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val destination = navBackStackEntry?.destination
-    val isDirectlyOnHome = destination?.hasRoute<Destination.Home>() == true
-    val isDirectlyOnSearch = destination?.hasRoute<Destination.Search>() == true
-    val isDirectlyOnLibrary = destination?.hasRoute<Destination.Library>() == true
-    val isDirectlyOnProfile = destination?.hasRoute<Destination.Profile>() == true
+    val isOnRootHomeDestination = destination?.hasRoute<Destination.Home>() == true
+    val isDirectlyOnHome = isOnRootHomeDestination && mainPagerState.currentPage == 0
+    val isDirectlyOnSearch = isOnRootHomeDestination && mainPagerState.currentPage == 1
+    val isDirectlyOnLibrary = isOnRootHomeDestination && mainPagerState.currentPage == 2
+    val isDirectlyOnProfile = isOnRootHomeDestination && mainPagerState.currentPage == 3
     val lastHomeClickTime = remember { mutableLongStateOf(0L) }
     
     var currentDestination by remember { mutableStateOf<Destination>(Destination.Home) }
@@ -739,15 +746,25 @@ fun SonzaApp(
     }
     
     // Update current destination based on route
-    currentDestination = when {
-        isDirectlyOnHome -> Destination.Home
-        isDirectlyOnSearch -> Destination.Search
-        isDirectlyOnLibrary -> Destination.Library
-        isDirectlyOnProfile -> Destination.Profile
-        else -> currentDestination
+    val currentMainTabDestination = when (mainPagerState.currentPage) {
+        0 -> Destination.Home
+        1 -> Destination.Search
+        2 -> Destination.Library
+        3 -> Destination.Profile
+        else -> Destination.Home
+    }
+    currentDestination = if (isOnRootHomeDestination) {
+        currentMainTabDestination
+    } else {
+        when {
+            destination?.hasRoute<Destination.Search>() == true -> Destination.Search
+            destination?.hasRoute<Destination.Library>() == true -> Destination.Library
+            destination?.hasRoute<Destination.Profile>() == true -> Destination.Profile
+            else -> currentDestination
+        }
     }
     
-    val showBottomNav = isDirectlyOnHome || isDirectlyOnSearch || isDirectlyOnLibrary || isDirectlyOnProfile
+    val showBottomNav = isOnRootHomeDestination
     
     // Don't show MiniPlayer on Player screen itself or if explicitly dismissed
     // With bottom sheet, "Player screen" is just the expanded state.
@@ -858,26 +875,23 @@ fun SonzaApp(
                                     else -> Destination.Home
                                 },
                                 onDestinationChange = { dest ->
-                                    if (dest == Destination.Home) {
-                                        navController.navigate(Destination.Home) {
-                                            popUpTo<Destination.Home> {
-                                                inclusive = false
-                                            }
-                                            launchSingleTop = true
-                                        }
-                                    } else {
-                                        navController.navigate(dest) {
-                                            popUpTo<Destination.Home> {
-                                                saveState = true
-                                            }
-                                            launchSingleTop = true
-                                            restoreState = true
-                                        }
+                                    val targetPage = when (dest) {
+                                        Destination.Home -> 0
+                                        Destination.Search -> 1
+                                        Destination.Library -> 2
+                                        Destination.Profile -> 3
+                                        else -> 0
+                                    }
+                                    if (destination?.hasRoute<Destination.Home>() != true) {
+                                        navController.popBackStack<Destination.Home>(inclusive = false)
+                                    }
+                                    scope.launch {
+                                        mainPagerState.animateScrollToPage(targetPage)
                                     }
                                 },
                                 onReClick = { dest ->
                                     if (dest == Destination.Home) {
-                                        if (isDirectlyOnHome) {
+                                        if (destination?.hasRoute<Destination.Home>() == true && mainPagerState.currentPage == 0) {
                                             val currentTime = System.currentTimeMillis()
                                             if ((currentTime - lastHomeClickTime.longValue) < 500L) {
                                                 // Double tap -> Refresh
@@ -888,22 +902,33 @@ fun SonzaApp(
                                             }
                                             lastHomeClickTime.longValue = currentTime
                                         } else {
-                                            // Subpage -> Navigate straight back to Home
-                                            navController.navigate(Destination.Home) {
-                                                popUpTo<Destination.Home> {
-                                                    inclusive = false
-                                                }
-                                                launchSingleTop = true
+                                            if (destination?.hasRoute<Destination.Home>() != true) {
+                                                navController.popBackStack<Destination.Home>(inclusive = false)
+                                            }
+                                            scope.launch {
+                                                mainPagerState.animateScrollToPage(0)
                                             }
                                         }
                                     } else if (dest == Destination.Library) {
-                                        if (!isDirectlyOnLibrary) {
-                                            navController.navigate(Destination.Library) {
-                                                popUpTo<Destination.Library> {
-                                                    inclusive = false
-                                                }
-                                                launchSingleTop = true
-                                            }
+                                        if (destination?.hasRoute<Destination.Home>() != true) {
+                                            navController.popBackStack<Destination.Home>(inclusive = false)
+                                        }
+                                        scope.launch {
+                                            mainPagerState.animateScrollToPage(2)
+                                        }
+                                    } else if (dest == Destination.Search) {
+                                        if (destination?.hasRoute<Destination.Home>() != true) {
+                                            navController.popBackStack<Destination.Home>(inclusive = false)
+                                        }
+                                        scope.launch {
+                                            mainPagerState.animateScrollToPage(1)
+                                        }
+                                    } else if (dest == Destination.Profile) {
+                                        if (destination?.hasRoute<Destination.Home>() != true) {
+                                            navController.popBackStack<Destination.Home>(inclusive = false)
+                                        }
+                                        scope.launch {
+                                            mainPagerState.animateScrollToPage(3)
                                         }
                                     }
                                 },
@@ -940,12 +965,18 @@ fun SonzaApp(
                                 com.sonza.app.ui.components.TvNavigationRail(
                                     currentDestination = currentDestination,
                                     onDestinationChange = { dest ->
-                                        navController.navigate(dest) {
-                                            popUpTo<Destination.Home> {
-                                                saveState = true
-                                            }
-                                            launchSingleTop = true
-                                            restoreState = true
+                                        val targetPage = when (dest) {
+                                            Destination.Home -> 0
+                                            Destination.Search -> 1
+                                            Destination.Library -> 2
+                                            Destination.Profile -> 3
+                                            else -> 0
+                                        }
+                                        if (destination?.hasRoute<Destination.Home>() != true) {
+                                            navController.popBackStack<Destination.Home>(inclusive = false)
+                                        }
+                                        scope.launch {
+                                            mainPagerState.animateScrollToPage(targetPage)
                                         }
                                     }
                                 )
@@ -954,12 +985,18 @@ fun SonzaApp(
                                 com.sonza.app.ui.components.AdaptiveNavigationRail(
                                     currentDestination = currentDestination,
                                     onDestinationChange = { dest ->
-                                        navController.navigate(dest) {
-                                            popUpTo<Destination.Home> {
-                                                saveState = true
-                                            }
-                                            launchSingleTop = true
-                                            restoreState = true
+                                        val targetPage = when (dest) {
+                                            Destination.Home -> 0
+                                            Destination.Search -> 1
+                                            Destination.Library -> 2
+                                            Destination.Profile -> 3
+                                            else -> 0
+                                        }
+                                        if (destination?.hasRoute<Destination.Home>() != true) {
+                                            navController.popBackStack<Destination.Home>(inclusive = false)
+                                        }
+                                        scope.launch {
+                                            mainPagerState.animateScrollToPage(targetPage)
                                         }
                                     }
                                 )
@@ -1030,7 +1067,8 @@ fun SonzaApp(
                             startDestination = Destination.Home, // Always start at Home
                             // Removed sharedTransitionScope
                             dominantColors = currentDominantColors,
-                            snackbarHostState = snackbarHostState
+                            snackbarHostState = snackbarHostState,
+                            pagerState = mainPagerState
                         )
                     }
 
@@ -1123,7 +1161,7 @@ fun SonzaApp(
             swipeDownToDismissEnabled = swipeDownToDismissEnabled,
             currentDestination = currentDestination,
             onHomeClick = {
-                if (isDirectlyOnHome) {
+                if (destination?.hasRoute<Destination.Home>() == true && mainPagerState.currentPage == 0) {
                     val currentTime = System.currentTimeMillis()
                     if ((currentTime - lastHomeClickTime.longValue) < 500L) {
                         homeViewModel.triggerRefresh()
@@ -1132,23 +1170,20 @@ fun SonzaApp(
                     }
                     lastHomeClickTime.longValue = currentTime
                 } else {
-                    navController.navigate(Destination.Home) {
-                        popUpTo<Destination.Home> {
-                            inclusive = false
-                        }
-                        launchSingleTop = true
+                    if (destination?.hasRoute<Destination.Home>() != true) {
+                        navController.popBackStack<Destination.Home>(inclusive = false)
+                    }
+                    scope.launch {
+                        mainPagerState.animateScrollToPage(0)
                     }
                 }
             },
             onSearchClick = {
-                if (currentDestination != Destination.Search) {
-                    navController.navigate(Destination.Search) {
-                        popUpTo<Destination.Home> {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
+                if (destination?.hasRoute<Destination.Home>() != true) {
+                    navController.popBackStack<Destination.Home>(inclusive = false)
+                }
+                scope.launch {
+                    mainPagerState.animateScrollToPage(1)
                 }
             },
             isPhoneLike = formFactor.isPhoneLike,

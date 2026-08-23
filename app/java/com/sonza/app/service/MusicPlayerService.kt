@@ -306,6 +306,7 @@ class MusicPlayerService : MediaLibraryService() {
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
+        android.util.Log.d("MusicPlayerService", "Service onCreate")
         registerTelephonyListener()
         
         createNotificationChannel()
@@ -1685,6 +1686,7 @@ class MusicPlayerService : MediaLibraryService() {
                 mediaNotification.notification.flags =
                     mediaNotification.notification.flags and android.app.Notification.FLAG_ONGOING_EVENT.inv()
             }
+            android.util.Log.d("MusicPlayerService", "NotificationProvider: title=${session.player.currentMediaItem?.mediaMetadata?.title}, isPlaying=$isPlaying")
             return mediaNotification
         }
 
@@ -1717,38 +1719,60 @@ class MusicPlayerService : MediaLibraryService() {
     }
     
     override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
+        android.util.Log.d("MusicPlayerService", "onUpdateNotification: startInForegroundRequired=$startInForegroundRequired, isPlaying=${session.player.isPlaying}")
         super.onUpdateNotification(session, startInForegroundRequired)
     }
     
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = mediaLibrarySession
     
     override fun onTaskRemoved(rootIntent: Intent?) {
-        // 1. Ensure floating Dynamic Island overlay service is immediately stopped
-        DynamicIslandOverlayService.stop(this)
-
-        // 2. Stop active player playback and clear media items
         val player = mediaLibrarySession?.player
-        player?.stop()
-        player?.clearMediaItems()
+        val isPlaying = player?.isPlaying == true || (player?.playWhenReady == true && player.playbackState != Player.STATE_IDLE && player.playbackState != Player.STATE_ENDED)
+        val itemCount = player?.mediaItemCount ?: 0
 
-        // 3. Remove foreground service notification and cancel active notifications
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
+        android.util.Log.d(
+            "MusicPlayerService",
+            "onTaskRemoved: stopMusicOnTaskClearCached=$stopMusicOnTaskClearCached, isPlaying=$isPlaying, itemCount=$itemCount"
+        )
+
+        if (stopMusicOnTaskClearCached || !isPlaying || itemCount == 0) {
+            // The user explicitly requested to stop music on task clear, OR playback is not actively playing.
+            android.util.Log.i("MusicPlayerService", "Stopping playback and service on task removed")
+
+            // 1. Ensure floating Dynamic Island overlay service is immediately stopped
+            DynamicIslandOverlayService.stop(this)
+
+            // 2. Stop active player playback and clear media items
+            player?.stop()
+            player?.clearMediaItems()
+
+            // 3. Remove foreground service notification and cancel active notifications
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+            notificationManager?.cancel(1001) // Default Media3 notification ID
+            notificationManager?.cancel(NOTIFICATION_ID_SLEEP_TIMER)
+
+            // 4. Clear persistent playback state in SessionManager if stopping on task clear
+            if (stopMusicOnTaskClearCached) {
+                serviceScope.launch {
+                    sessionManager.clearPlaybackState()
+                }
+            }
+
+            // 5. Stop the service
+            stopSelf()
         } else {
-            @Suppress("DEPRECATION")
-            stopForeground(true)
-        }
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
-        notificationManager?.cancel(1001) // Default Media3 notification ID
-        notificationManager?.cancel(NOTIFICATION_ID_SLEEP_TIMER)
-
-        // 4. Clear persistent playback state in SessionManager so next startup is completely clean
-        serviceScope.launch {
-            sessionManager.clearPlaybackState()
+            // Playback is actively running and user did NOT request to stop on task clear.
+            // Keep foreground playback and notification active.
+            android.util.Log.i("MusicPlayerService", "Preserving active playback on task removed in foreground service")
+            DynamicIslandOverlayService.setAppForeground(false)
         }
 
-        // 5. Stop the service and notify super
-        stopSelf()
         super.onTaskRemoved(rootIntent)
     }
     
@@ -1821,6 +1845,7 @@ class MusicPlayerService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
+        android.util.Log.d("MusicPlayerService", "Service onDestroy")
         serviceScope.cancel()
         sponsorBlockJob?.cancel()
         try {
