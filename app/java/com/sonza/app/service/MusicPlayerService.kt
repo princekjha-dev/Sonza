@@ -1639,25 +1639,21 @@ class MusicPlayerService : MediaLibraryService() {
             else -> com.sonza.app.R.drawable.ic_repeat 
         }
         return listOf(
-            CommandButton.Builder()
+            CommandButton.Builder(shuffleIcon)
                 .setDisplayName(getString(com.sonza.app.R.string.notification_action_shuffle))
                 .setSessionCommand(SessionCommand(COMMAND_SHUFFLE, android.os.Bundle.EMPTY))
-                .setIconResId(shuffleIcon)
                 .build(),
-            CommandButton.Builder()
+            CommandButton.Builder(likeIcon)
                 .setDisplayName(getString(com.sonza.app.R.string.notification_action_like))
                 .setSessionCommand(SessionCommand(COMMAND_LIKE, android.os.Bundle.EMPTY))
-                .setIconResId(likeIcon)
                 .build(),
-            CommandButton.Builder()
+            CommandButton.Builder(repeatIcon)
                 .setDisplayName(getString(com.sonza.app.R.string.notification_action_repeat))
                 .setSessionCommand(SessionCommand(COMMAND_REPEAT, android.os.Bundle.EMPTY))
-                .setIconResId(repeatIcon)
                 .build(),
-            CommandButton.Builder()
+            CommandButton.Builder(com.sonza.app.R.drawable.ic_play)
                 .setDisplayName("Start Radio")
                 .setSessionCommand(SessionCommand(COMMAND_START_RADIO, android.os.Bundle.EMPTY))
-                .setIconResId(com.sonza.app.R.drawable.ic_play)
                 .build()
         )
     }
@@ -1666,7 +1662,10 @@ class MusicPlayerService : MediaLibraryService() {
     private inner class CustomNotificationProvider : MediaNotification.Provider {
         private val defaultProvider = androidx.media3.session.DefaultMediaNotificationProvider.Builder(this@MusicPlayerService)
             .setChannelId("media_playback_channel")
+            .setChannelName(com.sonza.app.R.string.app_name)
+            .setNotificationIdProvider { 1001 }
             .build()
+
         override fun createNotification(
             session: MediaSession,
             customLayout: ImmutableList<CommandButton>,
@@ -1674,19 +1673,14 @@ class MusicPlayerService : MediaLibraryService() {
             onNotificationChangedCallback: MediaNotification.Provider.Callback
         ): MediaNotification {
             val mediaNotification = defaultProvider.createNotification(session, customLayout, actionFactory, onNotificationChangedCallback)
-
             val isPlaying = session.player.playWhenReady &&
                 session.player.playbackState != androidx.media3.common.Player.STATE_IDLE &&
                 session.player.playbackState != androidx.media3.common.Player.STATE_ENDED
 
-            if (isPlaying) {
-                mediaNotification.notification.flags =
-                    mediaNotification.notification.flags or android.app.Notification.FLAG_ONGOING_EVENT
-            } else {
-                mediaNotification.notification.flags =
-                    mediaNotification.notification.flags and android.app.Notification.FLAG_ONGOING_EVENT.inv()
-            }
-            android.util.Log.d("MusicPlayerService", "NotificationProvider: title=${session.player.currentMediaItem?.mediaMetadata?.title}, isPlaying=$isPlaying")
+            android.util.Log.d(
+                "MusicPlayerService",
+                "NotificationProvider.createNotification: title=${session.player.currentMediaItem?.mediaMetadata?.title}, isPlaying=$isPlaying, notificationId=${mediaNotification.notificationId}"
+            )
             return mediaNotification
         }
 
@@ -1719,7 +1713,12 @@ class MusicPlayerService : MediaLibraryService() {
     }
     
     override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
-        android.util.Log.d("MusicPlayerService", "onUpdateNotification: startInForegroundRequired=$startInForegroundRequired, isPlaying=${session.player.isPlaying}")
+        val player = session.player
+        val isPlaying = player.isPlaying || (player.playWhenReady && player.playbackState != Player.STATE_IDLE && player.playbackState != Player.STATE_ENDED)
+        android.util.Log.d(
+            "MusicPlayerService",
+            "onUpdateNotification: startInForegroundRequired=$startInForegroundRequired, isPlaying=$isPlaying, playWhenReady=${player.playWhenReady}, state=${player.playbackState}"
+        )
         super.onUpdateNotification(session, startInForegroundRequired)
     }
     
@@ -2013,10 +2012,13 @@ class MusicPlayerService : MediaLibraryService() {
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        android.util.Log.d("MusicPlayerService", "onStartCommand: action=${intent?.action}, flags=$flags, startId=$startId")
         if (intent?.action == "ACTION_CANCEL_SLEEP_TIMER") sleepTimerManager.cancelTimer()
         
         return try {
-            super.onStartCommand(intent, flags, startId)
+            val result = super.onStartCommand(intent, flags, startId)
+            android.util.Log.d("MusicPlayerService", "super.onStartCommand returned: $result")
+            result
         } catch (e: Exception) {
             // Android 14 (API 34) and above restriction: 
             // ForegroundServiceStartNotAllowedException is thrown if the app is in the background.

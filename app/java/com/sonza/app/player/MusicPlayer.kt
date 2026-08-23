@@ -701,13 +701,36 @@ class MusicPlayer @Inject constructor(
     }
 
     
+    fun ensureServiceStartedInForeground() {
+        try {
+            val intent = android.content.Intent(context, MusicPlayerService::class.java)
+            androidx.core.content.ContextCompat.startForegroundService(context, intent)
+        } catch (e: Exception) {
+            android.util.Log.w("MusicPlayer", "Failed to start foreground service: ${e.message}")
+        }
+    }
+
     private fun connectToService() {
         val sessionToken = SessionToken(
             context,
             ComponentName(context, MusicPlayerService::class.java)
         )
         
-        controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+        val controllerListener = object : MediaController.Listener {
+            override fun onDisconnected(controller: MediaController) {
+                android.util.Log.w("MusicPlayer", "MediaController disconnected from service, scheduling reconnect")
+                _isServiceConnected.value = false
+                mediaController = null
+                scope.launch {
+                    delay(1000)
+                    connectToService()
+                }
+            }
+        }
+
+        controllerFuture = MediaController.Builder(context, sessionToken)
+            .setListener(controllerListener)
+            .buildAsync()
         controllerFuture?.addListener({
             try {
                 val controller = controllerFuture?.get()
@@ -2688,6 +2711,7 @@ class MusicPlayer @Inject constructor(
     }
 
     fun playSong(song: Song, queue: List<Song> = listOf(song), startIndex: Int = 0, autoPlay: Boolean = true, forceLow: Boolean = false, isRecovery: Boolean = false, startPositionMs: Long = 0L) {
+        ensureServiceStartedInForeground()
         // Cancel any pending play request
         playJob?.cancel()
         currentResolutionJob?.cancel()
@@ -2851,22 +2875,21 @@ class MusicPlayer @Inject constructor(
                             audioStreamUrl = videoResult.audioUrl
                             videoResult.videoUrl
                         } else {
-                            "https://placeholder.invalid/${song.id}"
+                            val fallbackVideoId = resolvedVideoIds[song.id] ?: song.id
+                            youTubeRepository.getVideoStreamUrl(fallbackVideoId)
                         }
                     } else {
-                        // Hybrid: prefer RemoteAudio HQ audio for YouTube songs when
-                        // the user has selected HQ Audio as their primary source.
                         val hqSelected = effectiveMusicSource(song) == MusicSource.REMOTE
-                        val hybrid = if (hqSelected) resolveHybridRemoteStream(song) else null
-                        if (hqSelected && hybrid == null) notifyHqFallbackIfNeeded(song)
-                        // Retry once if first attempt fails
-                        hybrid
+                        val streamUrl = (if (hqSelected) resolveHybridRemoteStream(song) else null)
                             ?: youTubeRepository.getStreamUrl(song.id, forceLow = forceLow)
-                            ?: run {
-                                kotlinx.coroutines.delay(500)
-                                youTubeRepository.getStreamUrl(song.id, forceLow = forceLow)
-                            }
-                            ?: "https://placeholder.invalid/${song.id}"
+
+                        // If the user asked for HQ and we fell back to YouTube, pop the notice
+                        // once so they understand why the track sounds like 128k opus.
+                        if (hqSelected && streamUrl != null && !streamUrl.contains(com.sonza.app.data.repository.remote.RemoteConstants.CDN_HOST)) {
+                            notifyHqFallbackIfNeeded(song)
+                        }
+
+                        streamUrl ?: "https://placeholder.invalid/${song.id}"
                     }
                 } else {
                     "https://youtube.com/watch?v=${song.id}"
@@ -2874,8 +2897,9 @@ class MusicPlayer @Inject constructor(
             }
         }
         
+        // Cache key logic:
         val activeSource = computeActiveAudioSource(song)
-        val cacheKey = if (_playerState.value.isVideoMode && resolveStream) {
+        val cacheKey = if (_playerState.value.isVideoMode) {
             "${song.id}_${_playerState.value.videoQuality.name}"
         } else if (resolveStream && activeSource != null) {
             "${song.id}_${activeSource.name}"
@@ -2902,28 +2926,25 @@ class MusicPlayer @Inject constructor(
         // Remote HQ CDN requires Referer + User-Agent to avoid 403 (queue pre-resolve path).
         val isRemoteAudioSource = song.source == SongSource.REMOTE || (uri != null && uri.contains(com.sonza.app.data.repository.remote.RemoteConstants.CDN_HOST))
 
+        val extras = android.os.Bundle()
         if (isRemoteAudioSource) {
             android.util.Log.i("SonzaRemote", "Applying mandatory headers (Queue pre-resolve) for: ${song.title}")
-            builder.setRequestMetadata(
-                MediaItem.RequestMetadata.Builder()
-                    .setExtras(android.os.Bundle().apply {
-                        val headers = android.os.Bundle().apply {
-                            putString("Referer", com.sonza.app.data.repository.remote.RemoteConstants.REFERER)
-                            putString("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36")
-                        }
-                        putBundle("headers", headers)
-                    })
-                    .build()
-            )
+            val headers = android.os.Bundle().apply {
+                putString("Referer", com.sonza.app.data.repository.remote.RemoteConstants.REFERER)
+                putString("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36")
+            }
+            extras.putBundle("headers", headers)
         }
         
         // Pass audio URL for dual-stream merging (video-only + audio-only)
         if (!audioStreamUrl.isNullOrEmpty()) {
+            extras.putString("audioStreamUrl", audioStreamUrl)
+        }
+
+        if (!extras.isEmpty) {
             builder.setRequestMetadata(
                 MediaItem.RequestMetadata.Builder()
-                    .setExtras(android.os.Bundle().apply {
-                        putString("audioStreamUrl", audioStreamUrl)
-                    })
+                    .setExtras(extras)
                     .build()
             )
         }
@@ -2938,6 +2959,7 @@ class MusicPlayer @Inject constructor(
 
     fun play() {
         android.util.Log.i("MusicPlayer", "[PLAY_CLICK] play() invoked")
+        ensureServiceStartedInForeground()
         val controller = mediaController
         if (controller == null) {
             android.util.Log.w("MusicPlayer", "[PLAY_CLICK] mediaController is null, connecting to service")
@@ -2998,12 +3020,14 @@ class MusicPlayer @Inject constructor(
         val controller = mediaController
         if (controller == null) {
             android.util.Log.i("MusicPlayer", "[PLAY_CLICK] togglePlayPause with null controller; triggering play()")
+            ensureServiceStartedInForeground()
             play()
             return
         }
         if (controller.isPlaying) {
             pause()
         } else {
+            ensureServiceStartedInForeground()
             play()
         }
     }
@@ -3013,6 +3037,7 @@ class MusicPlayer @Inject constructor(
     }
 
     fun seekToNext() {
+        ensureServiceStartedInForeground()
         currentResolutionJob?.cancel()
         // Bug Fix: Cancel any in-flight preload coroutine before we start our own resolution.
         // If preloadJob and our new coroutine both call replaceMediaItem(nextIndex, ...) concurrently,
@@ -3143,6 +3168,7 @@ class MusicPlayer @Inject constructor(
     }
     
     fun seekToPrevious() {
+        ensureServiceStartedInForeground()
         val state = _playerState.value
         // If played more than 3 seconds, restart current song
         if (state.currentPosition > 3000) {
