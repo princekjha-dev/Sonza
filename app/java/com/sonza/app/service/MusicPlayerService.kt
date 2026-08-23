@@ -1622,35 +1622,42 @@ class MusicPlayerService : MediaLibraryService() {
         setupSleepTimerNotification()
     }
     
-    @Suppress("DEPRECATION")
     private fun getCustomLayout(): List<CommandButton> {
         val player = mediaLibrarySession?.player
         val isShuffleOn = player?.shuffleModeEnabled == true
         val likeIcon = if (isCurrentSongLiked) com.sonza.app.R.drawable.ic_heart else com.sonza.app.R.drawable.ic_heart_outline
         
+        val shuffleIcon = if (isShuffleOn) {
+            com.sonza.app.R.drawable.ic_shuffle_on
+        } else {
+            com.sonza.app.R.drawable.ic_shuffle
+        }
+
+        val repeatIcon = when (player?.repeatMode) {
+            Player.REPEAT_MODE_ALL -> com.sonza.app.R.drawable.ic_repeat_all_on
+            Player.REPEAT_MODE_ONE -> com.sonza.app.R.drawable.ic_repeat_one_on
+            else -> com.sonza.app.R.drawable.ic_repeat 
+        }
         return listOf(
-            CommandButton.Builder(if (isShuffleOn) CommandButton.ICON_SHUFFLE_ON else CommandButton.ICON_SHUFFLE_OFF)
+            CommandButton.Builder()
                 .setDisplayName(getString(com.sonza.app.R.string.notification_action_shuffle))
                 .setSessionCommand(SessionCommand(COMMAND_SHUFFLE, android.os.Bundle.EMPTY))
+                .setIconResId(shuffleIcon)
                 .build(),
-            CommandButton.Builder(CommandButton.ICON_UNDEFINED)
+            CommandButton.Builder()
                 .setDisplayName(getString(com.sonza.app.R.string.notification_action_like))
                 .setSessionCommand(SessionCommand(COMMAND_LIKE, android.os.Bundle.EMPTY))
                 .setIconResId(likeIcon)
                 .build(),
-            CommandButton.Builder(
-                when (player?.repeatMode) {
-                    Player.REPEAT_MODE_ALL -> CommandButton.ICON_REPEAT_ALL
-                    Player.REPEAT_MODE_ONE -> CommandButton.ICON_REPEAT_ONE
-                    else -> CommandButton.ICON_REPEAT_OFF
-                }
-            )
+            CommandButton.Builder()
                 .setDisplayName(getString(com.sonza.app.R.string.notification_action_repeat))
                 .setSessionCommand(SessionCommand(COMMAND_REPEAT, android.os.Bundle.EMPTY))
+                .setIconResId(repeatIcon)
                 .build(),
-            CommandButton.Builder(CommandButton.ICON_PLAY)
+            CommandButton.Builder()
                 .setDisplayName("Start Radio")
                 .setSessionCommand(SessionCommand(COMMAND_START_RADIO, android.os.Bundle.EMPTY))
+                .setIconResId(com.sonza.app.R.drawable.ic_play)
                 .build()
         )
     }
@@ -1659,10 +1666,7 @@ class MusicPlayerService : MediaLibraryService() {
     private inner class CustomNotificationProvider : MediaNotification.Provider {
         private val defaultProvider = androidx.media3.session.DefaultMediaNotificationProvider.Builder(this@MusicPlayerService)
             .setChannelId("media_playback_channel")
-            .setChannelName(com.sonza.app.R.string.app_name)
-            .setNotificationIdProvider { 1001 }
             .build()
-
         override fun createNotification(
             session: MediaSession,
             customLayout: ImmutableList<CommandButton>,
@@ -1670,14 +1674,19 @@ class MusicPlayerService : MediaLibraryService() {
             onNotificationChangedCallback: MediaNotification.Provider.Callback
         ): MediaNotification {
             val mediaNotification = defaultProvider.createNotification(session, customLayout, actionFactory, onNotificationChangedCallback)
+
             val isPlaying = session.player.playWhenReady &&
                 session.player.playbackState != androidx.media3.common.Player.STATE_IDLE &&
                 session.player.playbackState != androidx.media3.common.Player.STATE_ENDED
 
-            android.util.Log.d(
-                "MusicPlayerService",
-                "NotificationProvider.createNotification: title=${session.player.currentMediaItem?.mediaMetadata?.title}, isPlaying=$isPlaying, notificationId=${mediaNotification.notificationId}"
-            )
+            if (isPlaying) {
+                mediaNotification.notification.flags =
+                    mediaNotification.notification.flags or android.app.Notification.FLAG_ONGOING_EVENT
+            } else {
+                mediaNotification.notification.flags =
+                    mediaNotification.notification.flags and android.app.Notification.FLAG_ONGOING_EVENT.inv()
+            }
+            android.util.Log.d("MusicPlayerService", "NotificationProvider: title=${session.player.currentMediaItem?.mediaMetadata?.title}, isPlaying=$isPlaying")
             return mediaNotification
         }
 
@@ -1710,12 +1719,7 @@ class MusicPlayerService : MediaLibraryService() {
     }
     
     override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
-        val player = session.player
-        val isPlaying = player.isPlaying || (player.playWhenReady && player.playbackState != Player.STATE_IDLE && player.playbackState != Player.STATE_ENDED)
-        android.util.Log.d(
-            "MusicPlayerService",
-            "onUpdateNotification: startInForegroundRequired=$startInForegroundRequired, isPlaying=$isPlaying, playWhenReady=${player.playWhenReady}, state=${player.playbackState}"
-        )
+        android.util.Log.d("MusicPlayerService", "onUpdateNotification: startInForegroundRequired=$startInForegroundRequired, isPlaying=${session.player.isPlaying}")
         super.onUpdateNotification(session, startInForegroundRequired)
     }
     
@@ -2009,13 +2013,10 @@ class MusicPlayerService : MediaLibraryService() {
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        android.util.Log.d("MusicPlayerService", "onStartCommand: action=${intent?.action}, flags=$flags, startId=$startId")
         if (intent?.action == "ACTION_CANCEL_SLEEP_TIMER") sleepTimerManager.cancelTimer()
         
         return try {
-            val result = super.onStartCommand(intent, flags, startId)
-            android.util.Log.d("MusicPlayerService", "super.onStartCommand returned: $result")
-            result
+            super.onStartCommand(intent, flags, startId)
         } catch (e: Exception) {
             // Android 14 (API 34) and above restriction: 
             // ForegroundServiceStartNotAllowedException is thrown if the app is in the background.

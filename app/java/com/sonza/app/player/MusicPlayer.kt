@@ -38,13 +38,10 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -704,51 +701,13 @@ class MusicPlayer @Inject constructor(
     }
 
     
-    suspend fun getConnectedController(): MediaController? {
-        mediaController?.let { return it }
-
-        if (controllerFuture == null || controllerFuture?.isDone == true) {
-            connectToService()
-        }
-
-        return try {
-            withTimeoutOrNull(4000) {
-                _isServiceConnected.filter { it }.first()
-                mediaController
-            }
-        } catch (e: Exception) {
-            android.util.Log.w("MusicPlayer", "Timeout awaiting MediaController: ${e.message}")
-            null
-        }
-    }
-
     private fun connectToService() {
-        if (_isServiceConnected.value && mediaController != null) {
-            return
-        }
-
-        android.util.Log.d("MusicPlayer", "connectToService: building MediaController")
         val sessionToken = SessionToken(
             context,
             ComponentName(context, MusicPlayerService::class.java)
         )
         
-        val controllerListener = object : MediaController.Listener {
-            override fun onDisconnected(controller: MediaController) {
-                android.util.Log.w("MusicPlayer", "MediaController disconnected from service, scheduling reconnect")
-                _isServiceConnected.value = false
-                mediaController = null
-                scope.launch {
-                    delay(1000)
-                    connectToService()
-                }
-            }
-        }
-
-        controllerFuture = MediaController.Builder(context, sessionToken)
-            .setListener(controllerListener)
-            .buildAsync()
-
+        controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
         controllerFuture?.addListener({
             try {
                 val controller = controllerFuture?.get()
@@ -757,15 +716,6 @@ class MusicPlayer @Inject constructor(
                 _isServiceConnected.value = true
                 android.util.Log.d("MusicPlayer", "MediaController connected to service, itemCount=${controller?.mediaItemCount}")
                 
-                // Clear any previous transient connection error
-                _playerState.update { current ->
-                    if (current.error == "Failed to connect to music service" || current.error == "Music service not connected") {
-                        current.copy(error = null)
-                    } else {
-                        current
-                    }
-                }
-
                 // Immediately synchronize complete playback state from existing service session
                 if (controller != null && controller.mediaItemCount > 0) {
                     syncStateFromController(controller)
@@ -773,8 +723,9 @@ class MusicPlayer @Inject constructor(
             } catch (e: Exception) {
                 android.util.Log.e("MusicPlayer", "Failed to connect to music service", e)
                 _isServiceConnected.value = false
+                _playerState.update { it.copy(error = "Failed to connect to music service") }
             }
-        }, androidx.core.content.ContextCompat.getMainExecutor(context))
+        }, MoreExecutors.directExecutor())
     }
 
     /**
@@ -2775,12 +2726,13 @@ class MusicPlayer @Inject constructor(
                     queue = queue,
                     currentIndex = actualStartIndex,
                     currentSong = song,
-                    isLoading = true,
-                    error = null
+                    isLoading = true
                 )
             }
 
             try {
+                _playerState.update { it.copy(isLoading = true) }
+
                 // Optimization 1: Parallelize queue resolution.
                 // Building the list of MediaItems can be slow for large queues.
                 // Only the actualStartIndex item actually performs network resolution here.
@@ -2792,25 +2744,23 @@ class MusicPlayer @Inject constructor(
                     }.awaitAll()
                 }
 
-                val controller = getConnectedController()
-                if (controller == null) {
-                    android.util.Log.e("MusicPlayer", "[PLAYER_ERROR] Music service not connected after waiting")
-                    _playerState.update { it.copy(error = "Music service not connected", isLoading = false) }
-                    return@launch
-                }
-
                 queueMutex.withLock {
-                    // Cancel any in-flight crossfade so the incoming track starts at full volume.
-                    crossfadeController.cancel()
-                    crossfadeTriggered = false
-                    if (controller.volume < 1f) controller.volume = 1f
+                    mediaController?.let { controller ->
+                        // Cancel any in-flight crossfade so the incoming track starts at full volume.
+                        crossfadeController.cancel()
+                        crossfadeTriggered = false
+                        if (controller.volume < 1f) controller.volume = 1f
 
-                    android.util.Log.i("MusicPlayer", "[PLAYER_PREPARE] setMediaItems(${mediaItems.size}, startIndex=$actualStartIndex)")
-                    controller.setMediaItems(mediaItems, actualStartIndex, startPositionMs.coerceAtLeast(0L))
-                    controller.prepare()
-                    if (autoPlay) {
-                        android.util.Log.i("MusicPlayer", "[PLAYER_PLAY] autoPlay=true, playing controller")
-                        controller.play()
+                        android.util.Log.i("MusicPlayer", "[PLAYER_PREPARE] setMediaItems(${mediaItems.size}, startIndex=$actualStartIndex)")
+                        controller.setMediaItems(mediaItems, actualStartIndex, startPositionMs.coerceAtLeast(0L))
+                        controller.prepare()
+                        if (autoPlay) {
+                            android.util.Log.i("MusicPlayer", "[PLAYER_PLAY] autoPlay=true, playing controller")
+                            controller.play()
+                        }
+                    } ?: run {
+                        android.util.Log.e("MusicPlayer", "[PLAYER_ERROR] Music service not connected")
+                        _playerState.update { it.copy(error = "Music service not connected", isLoading = false) }
                     }
                 }
             } catch (e: Exception) {
@@ -2901,31 +2851,31 @@ class MusicPlayer @Inject constructor(
                             audioStreamUrl = videoResult.audioUrl
                             videoResult.videoUrl
                         } else {
-                            val fallbackVideoId = resolvedVideoIds[song.id] ?: song.id
-                            youTubeRepository.getVideoStreamUrl(fallbackVideoId)
+                            "https://placeholder.invalid/${song.id}"
                         }
                     } else {
+                        // Hybrid: prefer RemoteAudio HQ audio for YouTube songs when
+                        // the user has selected HQ Audio as their primary source.
                         val hqSelected = effectiveMusicSource(song) == MusicSource.REMOTE
-                        val streamUrl = (if (hqSelected) resolveHybridRemoteStream(song) else null)
+                        val hybrid = if (hqSelected) resolveHybridRemoteStream(song) else null
+                        if (hqSelected && hybrid == null) notifyHqFallbackIfNeeded(song)
+                        // Retry once if first attempt fails
+                        hybrid
                             ?: youTubeRepository.getStreamUrl(song.id, forceLow = forceLow)
-
-                        // If the user asked for HQ and we fell back to YouTube, pop the notice
-                        // once so they understand why the track sounds like 128k opus.
-                        if (hqSelected && streamUrl != null && !streamUrl.contains(com.sonza.app.data.repository.remote.RemoteConstants.CDN_HOST)) {
-                            notifyHqFallbackIfNeeded(song)
-                        }
-
-                        streamUrl ?: "https://placeholder.invalid/${song.id}"
+                            ?: run {
+                                kotlinx.coroutines.delay(500)
+                                youTubeRepository.getStreamUrl(song.id, forceLow = forceLow)
+                            }
+                            ?: "https://placeholder.invalid/${song.id}"
                     }
                 } else {
-                    "https://placeholder.invalid/${song.id}"
+                    "https://youtube.com/watch?v=${song.id}"
                 }
             }
         }
         
-        // Cache key logic:
         val activeSource = computeActiveAudioSource(song)
-        val cacheKey = if (_playerState.value.isVideoMode) {
+        val cacheKey = if (_playerState.value.isVideoMode && resolveStream) {
             "${song.id}_${_playerState.value.videoQuality.name}"
         } else if (resolveStream && activeSource != null) {
             "${song.id}_${activeSource.name}"
@@ -2952,25 +2902,28 @@ class MusicPlayer @Inject constructor(
         // Remote HQ CDN requires Referer + User-Agent to avoid 403 (queue pre-resolve path).
         val isRemoteAudioSource = song.source == SongSource.REMOTE || (uri != null && uri.contains(com.sonza.app.data.repository.remote.RemoteConstants.CDN_HOST))
 
-        val extras = android.os.Bundle()
         if (isRemoteAudioSource) {
             android.util.Log.i("SonzaRemote", "Applying mandatory headers (Queue pre-resolve) for: ${song.title}")
-            val headers = android.os.Bundle().apply {
-                putString("Referer", com.sonza.app.data.repository.remote.RemoteConstants.REFERER)
-                putString("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36")
-            }
-            extras.putBundle("headers", headers)
+            builder.setRequestMetadata(
+                MediaItem.RequestMetadata.Builder()
+                    .setExtras(android.os.Bundle().apply {
+                        val headers = android.os.Bundle().apply {
+                            putString("Referer", com.sonza.app.data.repository.remote.RemoteConstants.REFERER)
+                            putString("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36")
+                        }
+                        putBundle("headers", headers)
+                    })
+                    .build()
+            )
         }
         
         // Pass audio URL for dual-stream merging (video-only + audio-only)
         if (!audioStreamUrl.isNullOrEmpty()) {
-            extras.putString("audioStreamUrl", audioStreamUrl)
-        }
-
-        if (!extras.isEmpty) {
             builder.setRequestMetadata(
                 MediaItem.RequestMetadata.Builder()
-                    .setExtras(extras)
+                    .setExtras(android.os.Bundle().apply {
+                        putString("audioStreamUrl", audioStreamUrl)
+                    })
                     .build()
             )
         }
@@ -2985,21 +2938,13 @@ class MusicPlayer @Inject constructor(
 
     fun play() {
         android.util.Log.i("MusicPlayer", "[PLAY_CLICK] play() invoked")
-        val currentController = mediaController
-        if (currentController == null) {
-            android.util.Log.w("MusicPlayer", "[PLAY_CLICK] mediaController is null, resolving connected controller")
-            scope.launch {
-                val controller = getConnectedController() ?: return@launch
-                withContext(Dispatchers.Main) {
-                    performPlay(controller)
-                }
-            }
+        val controller = mediaController
+        if (controller == null) {
+            android.util.Log.w("MusicPlayer", "[PLAY_CLICK] mediaController is null, connecting to service")
+            connectToService()
             return
         }
-        performPlay(currentController)
-    }
 
-    private fun performPlay(controller: MediaController) {
         val state = _playerState.value
         val song = state.currentSong
 
