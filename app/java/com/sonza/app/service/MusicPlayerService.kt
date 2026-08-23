@@ -1622,36 +1622,33 @@ class MusicPlayerService : MediaLibraryService() {
         setupSleepTimerNotification()
     }
     
+    @Suppress("DEPRECATION")
     private fun getCustomLayout(): List<CommandButton> {
         val player = mediaLibrarySession?.player
         val isShuffleOn = player?.shuffleModeEnabled == true
         val likeIcon = if (isCurrentSongLiked) com.sonza.app.R.drawable.ic_heart else com.sonza.app.R.drawable.ic_heart_outline
         
-        val shuffleIcon = if (isShuffleOn) {
-            com.sonza.app.R.drawable.ic_shuffle_on
-        } else {
-            com.sonza.app.R.drawable.ic_shuffle
-        }
-
-        val repeatIcon = when (player?.repeatMode) {
-            Player.REPEAT_MODE_ALL -> com.sonza.app.R.drawable.ic_repeat_all_on
-            Player.REPEAT_MODE_ONE -> com.sonza.app.R.drawable.ic_repeat_one_on
-            else -> com.sonza.app.R.drawable.ic_repeat 
-        }
         return listOf(
-            CommandButton.Builder(shuffleIcon)
+            CommandButton.Builder(if (isShuffleOn) CommandButton.ICON_SHUFFLE_ON else CommandButton.ICON_SHUFFLE_OFF)
                 .setDisplayName(getString(com.sonza.app.R.string.notification_action_shuffle))
                 .setSessionCommand(SessionCommand(COMMAND_SHUFFLE, android.os.Bundle.EMPTY))
                 .build(),
-            CommandButton.Builder(likeIcon)
+            CommandButton.Builder(CommandButton.ICON_UNDEFINED)
                 .setDisplayName(getString(com.sonza.app.R.string.notification_action_like))
                 .setSessionCommand(SessionCommand(COMMAND_LIKE, android.os.Bundle.EMPTY))
+                .setIconResId(likeIcon)
                 .build(),
-            CommandButton.Builder(repeatIcon)
+            CommandButton.Builder(
+                when (player?.repeatMode) {
+                    Player.REPEAT_MODE_ALL -> CommandButton.ICON_REPEAT_ALL
+                    Player.REPEAT_MODE_ONE -> CommandButton.ICON_REPEAT_ONE
+                    else -> CommandButton.ICON_REPEAT_OFF
+                }
+            )
                 .setDisplayName(getString(com.sonza.app.R.string.notification_action_repeat))
                 .setSessionCommand(SessionCommand(COMMAND_REPEAT, android.os.Bundle.EMPTY))
                 .build(),
-            CommandButton.Builder(com.sonza.app.R.drawable.ic_play)
+            CommandButton.Builder(CommandButton.ICON_PLAY)
                 .setDisplayName("Start Radio")
                 .setSessionCommand(SessionCommand(COMMAND_START_RADIO, android.os.Bundle.EMPTY))
                 .build()
