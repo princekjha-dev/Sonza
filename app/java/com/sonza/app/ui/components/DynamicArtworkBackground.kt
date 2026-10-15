@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -85,6 +86,7 @@ fun DynamicArtworkBackground(
     Box(
         modifier = modifier
             .fillMaxSize()
+            .clipToBounds()
             .background(animatedBg)
     ) {
         // 1. Blurred artwork influence layer
@@ -92,9 +94,13 @@ fun DynamicArtworkBackground(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .clipToBounds()
                     .then(
                         if (blurEffect != null) {
-                            Modifier.graphicsLayer { renderEffect = blurEffect }
+                            Modifier.graphicsLayer {
+                                renderEffect = blurEffect
+                                clip = true
+                            }
                         } else {
                             Modifier.blur(fallbackBlurDp.dp)
                         }

@@ -1,5 +1,6 @@
 package com.sonza.app.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
@@ -41,10 +43,13 @@ import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QueryStats
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -271,418 +276,157 @@ fun UserProfileScreen(
             }
 
             // ========================================================
-            // HERO: Centered Futuristic Glass Panel / Card
+            // HERO: Solid Premium Card (No Glass Door, Single Avatar Control)
             // ========================================================
             item {
-                val cardShape = RoundedCornerShape(38.dp)
+                val cardShape = RoundedCornerShape(24.dp)
 
-                BoxWithConstraints(
-                    modifier = Modifier.fillMaxWidth()
+                Surface(
+                    shape = cardShape,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    border = BorderStroke(1.dp, accentColor.copy(alpha = 0.25f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(
+                            elevation = 6.dp,
+                            shape = cardShape,
+                            spotColor = Color.Black.copy(alpha = 0.35f),
+                            ambientColor = Color.Black.copy(alpha = 0.15f)
+                        )
                 ) {
-                    val screenWidth = maxWidth
-                    val avatarSize = if (screenWidth < 360.dp) 150.dp else 172.dp
-
-                    Box(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(cardShape)
-                            .background(dynamicColors.dynamicSurface.copy(alpha = 0.82f))
-                            .border(
-                                width = 1.25.dp,
-                                brush = Brush.linearGradient(
-                                    colors = listOf(
-                                        dynamicColors.dynamicAccent.copy(alpha = 0.60f),
-                                        Color.White.copy(alpha = 0.35f),
-                                        dynamicColors.dynamicSecondary.copy(alpha = 0.55f),
-                                        dynamicColors.dynamicBorder.copy(alpha = 0.20f)
-                                    ),
-                                    start = Offset(0f, 0f),
-                                    end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
-                                ),
-                                shape = cardShape
-                            )
-                            .drawBehind {
-                                // Dynamic primary ambient lighting on left/top of card
-                                drawCircle(
-                                    brush = Brush.radialGradient(
-                                        colors = listOf(
-                                            dynamicColors.dynamicPrimary.copy(alpha = 0.22f),
-                                            Color.Transparent
-                                        ),
-                                        center = Offset(0f, 0f),
-                                        radius = size.width * 0.75f
-                                    )
-                                )
-                                // Dynamic accent ambient lighting on right of card
-                                drawCircle(
-                                    brush = Brush.radialGradient(
-                                        colors = listOf(
-                                            dynamicColors.dynamicAccent.copy(alpha = 0.18f),
-                                            Color.Transparent
-                                        ),
-                                        center = Offset(size.width, size.height * 0.70f),
-                                        radius = size.width * 0.70f
-                                    )
-                                )
-                                // Polished specular sheen on top lip
-                                drawRect(
-                                    brush = Brush.verticalGradient(
-                                        0.0f to Color.White.copy(alpha = 0.12f),
-                                        0.28f to Color.Transparent
-                                    )
-                                )
-                            }
-                            .padding(horizontal = 20.dp, vertical = 28.dp),
-                        contentAlignment = Alignment.Center
+                            .padding(horizontal = 24.dp, vertical = 28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                        // 1. Single Avatar with edit badge - Single Source of Truth
+                        Box(
+                            modifier = Modifier
+                                .size(136.dp)
+                                .clip(CircleShape)
+                                .clickable { showAvatarPicker = true },
+                            contentAlignment = Alignment.Center
                         ) {
-                            // ----------------------------------------------------
-                            // 1. Large Avatar at top with glowing ring & edit button
-                            // ----------------------------------------------------
                             Box(
-                                modifier = Modifier.size(avatarSize + 30.dp),
+                                modifier = Modifier
+                                    .size(136.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .border(2.5.dp, accentColor.copy(alpha = 0.8f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                // Soft outer dynamic luminous glow
-                                Box(
+                                Image(
+                                    painter = painterResource(id = currentAvatar.drawableRes),
+                                    contentDescription = currentAvatar.name,
+                                    contentScale = ContentScale.Crop,
                                     modifier = Modifier
-                                        .size(avatarSize + 26.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            Brush.radialGradient(
-                                                colors = listOf(
-                                                    dynamicColors.dynamicAccent.copy(alpha = 0.40f),
-                                                    dynamicColors.dynamicSecondary.copy(alpha = 0.25f),
-                                                    dynamicColors.dynamicPrimary.copy(alpha = 0.18f),
-                                                    Color.Transparent
-                                                )
-                                            )
-                                        )
-                                )
-
-                                // Dynamic glowing ring
-                                val ringBrush = Brush.sweepGradient(
-                                    listOf(
-                                        dynamicColors.dynamicAccent,
-                                        dynamicColors.dynamicSecondary,
-                                        dynamicColors.dynamicTextAccent,
-                                        dynamicColors.dynamicPrimary,
-                                        dynamicColors.dynamicAccent
-                                    )
-                                )
-
-                                Box(
-                                    modifier = Modifier
-                                        .size(avatarSize + 8.dp)
-                                        .clip(CircleShape)
-                                        .border(3.2.dp, ringBrush, CircleShape)
-                                )
-
-                                // Circular glass container behind the avatar
-                                Box(
-                                    modifier = Modifier
-                                        .size(avatarSize)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF141930).copy(alpha = 0.90f))
-                                        .border(
-                                            1.dp,
-                                            Color.White.copy(alpha = 0.22f),
-                                            CircleShape
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    // Real selected 3D avatar from AvatarRepository
-                                    Image(
-                                        painter = painterResource(id = currentAvatar.drawableRes),
-                                        contentDescription = currentAvatar.name,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(10.dp)
-                                    )
-
-                                    // Subtle specular glass highlight
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .clip(CircleShape)
-                                            .background(
-                                                Brush.verticalGradient(
-                                                    0.0f to Color.White.copy(alpha = 0.20f),
-                                                    0.45f to Color.Transparent
-                                                )
-                                            )
-                                    )
-                                }
-
-                                // Small circular edit/pencil button overlapping lower-right edge
-                                Surface(
-                                    onClick = { showAvatarPicker = true },
-                                    shape = CircleShape,
-                                    color = dynamicColors.dynamicSurfaceVariant.copy(alpha = 0.95f),
-                                    border = androidx.compose.foundation.BorderStroke(
-                                        1.5.dp,
-                                        Brush.linearGradient(
-                                            listOf(
-                                                dynamicColors.dynamicAccent,
-                                                dynamicColors.dynamicSecondary
-                                            )
-                                        )
-                                    ),
-                                    modifier = Modifier
-                                        .align(Alignment.BottomEnd)
-                                        .offset(x = (-4).dp, y = (-4).dp)
-                                        .size(42.dp)
-                                        .shadow(
-                                            elevation = 12.dp,
-                                            shape = CircleShape,
-                                            spotColor = dynamicColors.dynamicAccent.copy(alpha = 0.65f),
-                                            ambientColor = dynamicColors.dynamicSecondary.copy(alpha = 0.40f)
-                                        )
-                                        .bounceClick(scaleDown = 0.88f) {
-                                            showAvatarPicker = true
-                                        }
-                                ) {
-                                    Box(
-                                        contentAlignment = Alignment.Center,
-                                        modifier = Modifier.fillMaxSize()
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Edit,
-                                            contentDescription = "Edit Avatar",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(17.dp)
-                                        )
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(18.dp))
-
-                            // ----------------------------------------------------
-                            // 2. Change Avatar Pill Button
-                            // ----------------------------------------------------
-                            Surface(
-                                onClick = { showAvatarPicker = true },
-                                shape = CircleShape,
-                                color = dynamicColors.dynamicSurface.copy(alpha = 0.72f),
-                                border = androidx.compose.foundation.BorderStroke(
-                                    1.dp,
-                                    Brush.horizontalGradient(
-                                        listOf(
-                                            Color.White.copy(alpha = 0.30f),
-                                            dynamicColors.dynamicSecondary.copy(alpha = 0.45f),
-                                            Color.White.copy(alpha = 0.20f)
-                                        )
-                                    )
-                                ),
-                                modifier = Modifier
-                                    .shadow(
-                                        elevation = 8.dp,
-                                        shape = CircleShape,
-                                        spotColor = dynamicColors.dynamicAccent.copy(alpha = 0.30f)
-                                    )
-                                    .bounceClick(scaleDown = 0.93f) {
-                                        showAvatarPicker = true
-                                    }
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 9.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = cameraIcon,
-                                        contentDescription = null,
-                                        tint = Color(0xFFE2E8F0),
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Text(
-                                        text = "Change Avatar",
-                                        style = SonzaTypography.LabelLarge.copy(
-                                            fontWeight = FontWeight.SemiBold,
-                                            fontSize = 13.5.sp,
-                                            letterSpacing = 0.15.sp
-                                        ),
-                                        color = Color(0xFFF8FAFC)
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(20.dp))
-
-                            // ----------------------------------------------------
-                            // 3. Sonza Listener Title
-                            // ----------------------------------------------------
-                            Row(
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Sonza ",
-                                    style = SonzaTypography.Display.copy(
-                                        fontWeight = FontWeight.Black,
-                                        fontSize = 28.sp,
-                                        letterSpacing = (-0.5).sp
-                                    ),
-                                    color = Color.White
-                                )
-                                Text(
-                                    text = "Listener",
-                                    style = SonzaTypography.Display.copy(
-                                        fontWeight = FontWeight.Black,
-                                        fontSize = 28.sp,
-                                        letterSpacing = (-0.5).sp,
-                                        brush = Brush.horizontalGradient(
-                                            listOf(
-                                                dynamicColors.dynamicTextAccent,
-                                                dynamicColors.dynamicAccent,
-                                                dynamicColors.dynamicSecondary
-                                            )
-                                        )
-                                    )
+                                        .fillMaxSize()
+                                        .padding(8.dp)
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // ----------------------------------------------------
-                            // 4. Subtitle
-                            // ----------------------------------------------------
-                            Text(
-                                text = if (uiState.isLoggedIn) {
-                                    if (!uiState.userName.isNullOrBlank()) "Connected as ${uiState.userName} • Cloud & mix sync active"
-                                    else "Connected to YouTube Music • Cloud & mix sync active"
-                                } else {
-                                    "Sign in for personalized mixes & cloud playlists"
-                                },
-                                style = SonzaTypography.BodyMedium.copy(
-                                    fontSize = 13.5.sp,
-                                    lineHeight = 18.sp,
-                                    fontWeight = FontWeight.Normal
-                                ),
-                                color = Color(0xFF94A3B8),
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
-
-                            Spacer(modifier = Modifier.height(26.dp))
-
-                            // ----------------------------------------------------
-                            // 5. YouTube Music Sign-in / Sign-out Button
-                            // ----------------------------------------------------
-                            val actionButtonShape = RoundedCornerShape(22.dp)
-                            val actionGradient = if (uiState.isLoggedIn) {
-                                Brush.horizontalGradient(
-                                    listOf(
-                                        Color(0xFFDC2626),
-                                        Color(0xFFB91C1C),
-                                        Color(0xFF991B1B)
-                                    )
-                                )
-                            } else {
-                                Brush.horizontalGradient(
-                                    listOf(
-                                        dynamicColors.dynamicPrimary,
-                                        dynamicColors.dynamicAccent,
-                                        dynamicColors.dynamicSecondary
-                                    )
-                                )
-                            }
-
+                            // Single clean edit badge overlapping lower-right edge
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 4.dp)
-                                    .shadow(
-                                        elevation = 16.dp,
-                                        shape = actionButtonShape,
-                                        spotColor = if (uiState.isLoggedIn) Color(0xFFDC2626).copy(alpha = 0.5f) else dynamicColors.dynamicAccent.copy(alpha = 0.55f),
-                                        ambientColor = dynamicColors.dynamicSecondary.copy(alpha = 0.35f)
-                                    )
-                                    .clip(actionButtonShape)
-                                    .background(actionGradient)
-                                    .border(
-                                        1.dp,
-                                        Brush.horizontalGradient(
-                                            listOf(
-                                                Color.White.copy(alpha = 0.45f),
-                                                dynamicColors.dynamicAccent.copy(alpha = 0.60f)
-                                            )
-                                        ),
-                                        actionButtonShape
-                                    )
-                                    .bounceClick(scaleDown = 0.96f) {
-                                        if (uiState.isLoggedIn) {
-                                            showSignOutDialog = true
-                                        } else {
-                                            onLoginClick()
-                                        }
-                                    }
-                                    .padding(horizontal = 18.dp, vertical = 15.dp)
+                                    .align(Alignment.BottomEnd)
+                                    .offset(x = (-4).dp, y = (-4).dp)
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(accentColor),
+                                contentAlignment = Alignment.Center
                             ) {
-                                // Top specular sheen
-                                Box(
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .clip(actionButtonShape)
-                                        .background(
-                                            Brush.verticalGradient(
-                                                0.0f to Color.White.copy(alpha = 0.22f),
-                                                0.45f to Color.Transparent
-                                            )
-                                        )
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Edit Avatar",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
                                 )
+                            }
+                        }
 
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    // Left: YouTube-style play icon in translucent circular badge
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = Color.White.copy(alpha = 0.20f),
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Icon(
-                                                imageVector = playVector,
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    }
+                        Spacer(modifier = Modifier.height(20.dp))
 
-                                    Spacer(modifier = Modifier.width(12.dp))
+                        // 2. Title
+                        val displayName = if (uiState.isLoggedIn && !uiState.userName.isNullOrBlank()) {
+                            uiState.userName!!
+                        } else {
+                            "Sonza Listener"
+                        }
+                        Text(
+                            text = displayName,
+                            style = SonzaTypography.Headline.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 24.sp,
+                                letterSpacing = (-0.3).sp
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center
+                        )
 
-                                    // Center Text
-                                    Text(
-                                        text = if (uiState.isLoggedIn) "Sign out from YouTube Music" else "Sign in to YouTube Music",
-                                        style = SonzaTypography.TitleMedium.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 15.sp,
-                                            letterSpacing = (-0.2).sp
-                                        ),
-                                        color = Color.White,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.weight(1f)
-                                    )
+                        Spacer(modifier = Modifier.height(6.dp))
 
-                                    Spacer(modifier = Modifier.width(12.dp))
+                        // 3. Subtitle
+                        Text(
+                            text = if (uiState.isLoggedIn) {
+                                "Connected to YouTube Music • Cloud & mix sync active"
+                            } else {
+                                "Sign in for personalized mixes & cloud playlists"
+                            },
+                            style = SonzaTypography.BodyMedium.copy(
+                                fontSize = 13.5.sp,
+                                lineHeight = 18.sp
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        )
 
-                                    // Right: Arrow
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = null,
-                                        tint = Color.White.copy(alpha = 0.90f),
-                                        modifier = Modifier.size(19.dp)
-                                    )
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // 4. Primary CTA Button
+                        Button(
+                            onClick = {
+                                if (uiState.isLoggedIn) {
+                                    showSignOutDialog = true
+                                } else {
+                                    onLoginClick()
                                 }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (uiState.isLoggedIn) {
+                                    MaterialTheme.colorScheme.errorContainer
+                                } else {
+                                    accentColor
+                                },
+                                contentColor = if (uiState.isLoggedIn) {
+                                    MaterialTheme.colorScheme.onErrorContainer
+                                } else {
+                                    Color.White
+                                }
+                            )
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (uiState.isLoggedIn) Icons.Default.Close else Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = if (uiState.isLoggedIn) "Sign out of YouTube" else "Sign in to YouTube",
+                                    style = SonzaTypography.BodyLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    )
+                                )
                             }
                         }
                     }
@@ -690,15 +434,14 @@ fun UserProfileScreen(
             }
 
             // ========================================================
-            // PRESERVED SETTINGS & INSIGHTS (Requirement 8)
-            // Rendered in sleek matching translucent dark glass cards
+            // PRESERVED SETTINGS & INSIGHTS (Solid Surface Cards)
             // ========================================================
 
             // Activity & Insights Section
             item {
                 ProfileSectionTitle(title = "Activity & Insights")
 
-                FuturisticGlassCard {
+                SolidSectionCard {
                     ProfileOptionRow(
                         icon = Icons.Default.QueryStats,
                         title = "Listening Stats",
@@ -706,7 +449,7 @@ fun UserProfileScreen(
                         accentColor = accentColor,
                         onClick = onStatsClick
                     )
-                    FuturisticDivider()
+                    SolidSectionDivider()
                     ProfileOptionRow(
                         icon = Icons.Default.History,
                         title = "History & Recents",
@@ -714,7 +457,7 @@ fun UserProfileScreen(
                         accentColor = accentColor,
                         onClick = onHistoryClick
                     )
-                    FuturisticDivider()
+                    SolidSectionDivider()
                     ProfileOptionRow(
                         icon = Icons.Default.Download,
                         title = "Offline Downloads",
@@ -729,7 +472,7 @@ fun UserProfileScreen(
             item {
                 ProfileSectionTitle(title = "Support & Feedback")
 
-                FuturisticGlassCard {
+                SolidSectionCard {
                     ProfileOptionRow(
                         icon = Icons.Default.BugReport,
                         title = "Report a Bug",
@@ -737,7 +480,7 @@ fun UserProfileScreen(
                         accentColor = accentColor,
                         onClick = { uriHandler.openUri("https://github.com/princekjha-dev/Sonza/issues") }
                     )
-                    FuturisticDivider()
+                    SolidSectionDivider()
                     ProfileOptionRow(
                         icon = Icons.Default.Feedback,
                         title = "Send Feedback",
@@ -752,7 +495,7 @@ fun UserProfileScreen(
             item {
                 ProfileSectionTitle(title = "Privacy & Legal")
 
-                FuturisticGlassCard {
+                SolidSectionCard {
                     ProfileOptionRow(
                         icon = Icons.Default.Security,
                         title = "Privacy Policy",
@@ -760,7 +503,7 @@ fun UserProfileScreen(
                         accentColor = accentColor,
                         onClick = onPrivacyPolicyClick
                     )
-                    FuturisticDivider()
+                    SolidSectionDivider()
                     ProfileOptionRow(
                         icon = Icons.Default.Gavel,
                         title = "Terms of Service",
@@ -768,7 +511,7 @@ fun UserProfileScreen(
                         accentColor = accentColor,
                         onClick = onTermsOfServiceClick
                     )
-                    FuturisticDivider()
+                    SolidSectionDivider()
                     ProfileOptionRow(
                         icon = Icons.AutoMirrored.Filled.MenuBook,
                         title = "Open Source Licenses",
@@ -783,7 +526,7 @@ fun UserProfileScreen(
             item {
                 ProfileSectionTitle(title = "About")
 
-                FuturisticGlassCard {
+                SolidSectionCard {
                     ProfileOptionRow(
                         icon = Icons.Default.Info,
                         title = "About Sonza",
@@ -791,7 +534,7 @@ fun UserProfileScreen(
                         accentColor = accentColor,
                         onClick = onAboutSonzaClick
                     )
-                    FuturisticDivider()
+                    SolidSectionDivider()
                     ProfileOptionRow(
                         icon = Icons.Default.Code,
                         title = "About the Developer",
@@ -806,14 +549,14 @@ fun UserProfileScreen(
             item {
                 ProfileSectionTitle(title = "App Information")
 
-                FuturisticGlassCard {
+                SolidSectionCard {
                     ProfileVersionRow(
                         icon = Icons.Default.Layers,
                         title = "Sonza Version",
                         versionName = "v${BuildConfig.VERSION_NAME}",
                         accentColor = accentColor
                     )
-                    FuturisticDivider()
+                    SolidSectionDivider()
                     ProfileOptionRow(
                         icon = Icons.Default.SystemUpdate,
                         title = "Check for Updates",
@@ -892,38 +635,34 @@ private fun ProfileSectionTitle(title: String) {
 }
 
 /**
- * Matching dark futuristic glass card for options
+ * Solid surface card for profile options
  */
 @Composable
-private fun FuturisticGlassCard(
+private fun SolidSectionCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val dynamicColors = LocalSonzaDynamicColors.current
-    val cardShape = RoundedCornerShape(24.dp)
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(cardShape)
-            .background(dynamicColors.dynamicSurface.copy(alpha = 0.65f))
-            .border(
-                1.dp,
-                Brush.verticalGradient(
-                    0.0f to Color.White.copy(alpha = 0.12f),
-                    1.0f to dynamicColors.dynamicAccent.copy(alpha = 0.12f)
-                ),
-                cardShape
-            )
-            .padding(vertical = 4.dp),
-        content = content
-    )
+    val cardShape = RoundedCornerShape(18.dp)
+    Surface(
+        shape = cardShape,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            content = content
+        )
+    }
 }
 
 @Composable
-private fun FuturisticDivider() {
+private fun SolidSectionDivider() {
     HorizontalDivider(
-        color = Color.White.copy(alpha = 0.06f),
-        modifier = Modifier.padding(horizontal = 20.dp)
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+        modifier = Modifier.padding(horizontal = 18.dp)
     )
 }
 

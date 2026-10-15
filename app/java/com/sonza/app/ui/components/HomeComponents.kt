@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircleFilled
 import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.TrendingUp
 import androidx.compose.material3.*
@@ -126,10 +127,11 @@ fun HomeTopHeader(
                             .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onOrbitClick),
                         contentAlignment = Alignment.Center
                     ) {
-                        com.sonza.app.ai.orbit.OrbitAvatar(
-                            state = com.sonza.app.ai.orbit.OrbitState.IDLE,
-                            size = com.sonza.app.ai.orbit.OrbitAvatarSize.Mini,
-                            onClick = onOrbitClick
+                        Icon(
+                            imageVector = Icons.Rounded.Mic,
+                            contentDescription = "Voice Assistant",
+                            tint = dynamicColors.accent,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }

@@ -21,13 +21,13 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import com.sonza.app.ui.components.sonza.SonzaDesignTokens
-import kotlin.math.cos
+import com.sonza.app.ui.components.LocalSonzaDynamicColors
+import com.sonza.app.ui.theme.SonzaBrandAccent
 import kotlin.math.roundToInt
-import kotlin.math.sin
 
 /**
  * Size variants for Orbit Avatar.
@@ -40,15 +40,25 @@ enum class OrbitAvatarSize(val orbSize: Dp, val haloPadding: Dp) {
 }
 
 /**
- * Orbit Avatar — The visual face of Sonza's assistant inspired by fluid digital characters.
- * Renders an animated glowing orb with expressive pill eyes, orbital rings, and dynamic reactive states.
+ * Orbit Avatar — The single visual face of Sonza's assistant.
+ *
+ * Implements:
+ * - Dynamic live color palette derived from active song artwork (yellow/orange, blue, purple, red, green, etc.).
+ * - Subtle state-based animation:
+ *   * IDLE: very subtle breathing/floating pulse.
+ *   * WAKE_DETECTED / ACTIVATING: quick soft glow expansion.
+ *   * LISTENING: slow animated glow/ring reacting to live mic audio amplitude.
+ *   * PROCESSING / THINKING: fluid orbital rotation.
+ *   * SPEAKING: gentle responsive pulse synchronized with speech waveform.
+ *   * ENDING: soft settling fade.
  */
 @Composable
 fun OrbitAvatar(
     state: OrbitState,
     modifier: Modifier = Modifier,
     size: OrbitAvatarSize = OrbitAvatarSize.Compact,
-    audioLevel: Float = 0f, // 0.0 to 1.0 (live mic amplitude during LISTENING)
+    audioLevel: Float = 0f, // 0.0 to 1.0 (live mic amplitude during LISTENING or TTS waveform)
+    accentColor: Color? = null,
     onClick: (() -> Unit)? = null
 ) {
     val totalSize = size.orbSize + (size.haloPadding * 2)
@@ -67,8 +77,8 @@ fun OrbitAvatar(
     )
 
     val breathingScale by infiniteTransition.animateFloat(
-        initialValue = 0.97f,
-        targetValue = 1.03f,
+        initialValue = 0.98f,
+        targetValue = 1.02f,
         animationSpec = infiniteRepeatable(
             animation = tween(1900, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -103,52 +113,62 @@ fun OrbitAvatar(
         label = "blinkProgress"
     )
 
-    // Dynamic state colors
+    // Dynamic Live Color Extraction from active player artwork
+    val dynamicColors = LocalSonzaDynamicColors.current
+    val baseAccent = accentColor?.takeIf { it != Color.Unspecified }
+        ?: dynamicColors.accent.takeIf { it != Color.Unspecified }
+        ?: SonzaBrandAccent
+
+    // State-reactive Glow Color derived from active music artwork accent
+    val targetGlowColor = when (state) {
+        OrbitState.IDLE -> baseAccent.copy(alpha = 0.70f)
+        OrbitState.WAKE_DETECTED, OrbitState.ACTIVATING -> Color.White.copy(alpha = 0.95f)
+        OrbitState.LISTENING -> baseAccent
+        OrbitState.PROCESSING, OrbitState.THINKING, OrbitState.WORKING -> baseAccent
+        OrbitState.SPEAKING -> baseAccent
+        OrbitState.ENDING -> baseAccent.copy(alpha = 0.40f)
+        OrbitState.SUCCESS -> Color(0xFF00E676)
+        OrbitState.ERROR -> Color(0xFFFF5252)
+    }
+
+    // 3D Sphere base gradients derived live from current artwork accent
+    val targetGradientStart = when (state) {
+        OrbitState.ERROR -> Color(0xFFFFEBEE)
+        OrbitState.SUCCESS -> Color(0xFFE8F5E9)
+        OrbitState.WAKE_DETECTED, OrbitState.ACTIVATING -> Color.White
+        else -> lerp(Color.White, baseAccent, 0.28f)
+    }
+    val targetGradientEnd = when (state) {
+        OrbitState.ERROR -> Color(0xFFE57373)
+        OrbitState.SUCCESS -> Color(0xFF81C784)
+        else -> lerp(baseAccent, Color.Black, 0.18f)
+    }
+
     val glowColor by animateColorAsState(
-        targetValue = when (state) {
-            OrbitState.IDLE -> SonzaDesignTokens.Colors.OrbitIdle
-            OrbitState.LISTENING -> SonzaDesignTokens.Colors.OrbitListening
-            OrbitState.THINKING -> SonzaDesignTokens.Colors.OrbitThinking
-            OrbitState.WORKING -> SonzaDesignTokens.Colors.OrbitWorking
-            OrbitState.SPEAKING -> SonzaDesignTokens.Colors.OrbitSpeaking
-            OrbitState.SUCCESS -> SonzaDesignTokens.Colors.OrbitSuccess
-            OrbitState.ERROR -> SonzaDesignTokens.Colors.OrbitError
-        },
-        animationSpec = tween(350),
+        targetValue = targetGlowColor,
+        animationSpec = tween(400, easing = FastOutSlowInEasing),
         label = "orbitGlowColor"
     )
 
     val orbBaseGradientStart by animateColorAsState(
-        targetValue = when (state) {
-            OrbitState.IDLE -> Color(0xFFE3EAFE)
-            OrbitState.LISTENING -> Color(0xFFE0F7FA)
-            OrbitState.THINKING -> Color(0xFFEDE7F6)
-            OrbitState.WORKING -> Color(0xFFFFF3E0)
-            OrbitState.SPEAKING -> Color(0xFFE8F5E9)
-            OrbitState.SUCCESS -> Color(0xFFE8F5E9)
-            OrbitState.ERROR -> Color(0xFFFFEBEE)
-        },
-        animationSpec = tween(300),
+        targetValue = targetGradientStart,
+        animationSpec = tween(400, easing = FastOutSlowInEasing),
         label = "orbGradientStart"
     )
 
     val orbBaseGradientEnd by animateColorAsState(
-        targetValue = when (state) {
-            OrbitState.IDLE -> Color(0xFF7FA2FF)
-            OrbitState.LISTENING -> Color(0xFF4DD0E1)
-            OrbitState.THINKING -> Color(0xFFBA68C8)
-            OrbitState.WORKING -> Color(0xFFFFB74D)
-            OrbitState.SPEAKING -> Color(0xFF81C784)
-            OrbitState.SUCCESS -> Color(0xFF81C784)
-            OrbitState.ERROR -> Color(0xFFE57373)
-        },
-        animationSpec = tween(300),
+        targetValue = targetGradientEnd,
+        animationSpec = tween(400, easing = FastOutSlowInEasing),
         label = "orbGradientEnd"
     )
 
+    // State scale transitions
     val currentScale = when (state) {
-        OrbitState.LISTENING -> 1.08f + (audioLevel * 0.12f)
+        OrbitState.WAKE_DETECTED, OrbitState.ACTIVATING -> 1.10f
+        OrbitState.LISTENING -> 1.06f + (audioLevel * 0.12f)
+        OrbitState.SPEAKING -> 1.04f + (audioLevel * 0.08f)
         OrbitState.SUCCESS -> 1.12f
+        OrbitState.ENDING -> 0.96f
         else -> breathingScale
     }
 
@@ -176,7 +196,7 @@ fun OrbitAvatar(
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        glowColor.copy(alpha = if (state == OrbitState.LISTENING) 0.55f else 0.32f),
+                        glowColor.copy(alpha = if (state.isListening) 0.58f else 0.32f),
                         glowColor.copy(alpha = 0.12f),
                         Color.Transparent
                     ),
@@ -189,6 +209,15 @@ fun OrbitAvatar(
 
             // 2. State-specific outer effects (Audio Waveform rings, Orbital particles, Ripple waves)
             when (state) {
+                OrbitState.WAKE_DETECTED, OrbitState.ACTIVATING -> {
+                    // Expanding wake bloom halo
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.65f),
+                        radius = orbRadius + 6.dp.toPx(),
+                        center = center,
+                        style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
+                    )
+                }
                 OrbitState.LISTENING -> {
                     // Primary pulsing audio ring
                     val pulseRadius = orbRadius + 4.dp.toPx() + (audioLevel * 10.dp.toPx())
@@ -207,7 +236,7 @@ fun OrbitAvatar(
                         style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round)
                     )
                 }
-                OrbitState.THINKING -> {
+                OrbitState.PROCESSING, OrbitState.THINKING -> {
                     // Orbital particle ring
                     rotate(degrees = orbitalRotation, pivot = center) {
                         drawCircle(
@@ -274,7 +303,7 @@ fun OrbitAvatar(
                 else -> Unit
             }
 
-            // 3. Main Orb Body (Smooth 3D-lit sphere)
+            // 3. Main Orb Body (Smooth 3D-lit sphere with artwork dynamic tint)
             val orbGradient = Brush.radialGradient(
                 colors = listOf(
                     orbBaseGradientStart,
@@ -341,7 +370,7 @@ fun OrbitAvatar(
                         cornerRadius = CornerRadius(eyeWidth / 2f, eyeWidth / 2f)
                     )
                 }
-                OrbitState.THINKING -> {
+                OrbitState.PROCESSING, OrbitState.THINKING -> {
                     // Glance slightly upwards
                     val eyeH = baseEyeHeight * 0.8f
                     val lookUpY = -3.dp.toPx()
@@ -358,8 +387,24 @@ fun OrbitAvatar(
                         cornerRadius = CornerRadius(eyeWidth / 2f, eyeWidth / 2f)
                     )
                 }
+                OrbitState.WAKE_DETECTED, OrbitState.ACTIVATING -> {
+                    // Alert wide open eyes
+                    val eyeH = baseEyeHeight * 1.1f
+                    drawRoundRect(
+                        color = eyeColor,
+                        topLeft = Offset(leftEyeCenter.x - eyeWidth / 2f, leftEyeCenter.y - eyeH / 2f),
+                        size = Size(eyeWidth * 1.1f, eyeH),
+                        cornerRadius = CornerRadius(eyeWidth / 2f, eyeWidth / 2f)
+                    )
+                    drawRoundRect(
+                        color = eyeColor,
+                        topLeft = Offset(rightEyeCenter.x - eyeWidth / 2f, rightEyeCenter.y - eyeH / 2f),
+                        size = Size(eyeWidth * 1.1f, eyeH),
+                        cornerRadius = CornerRadius(eyeWidth / 2f, eyeWidth / 2f)
+                    )
+                }
                 OrbitState.LISTENING -> {
-                    // Wide, alert eyes
+                    // Wide, alert eyes with audio reactivity
                     val eyeH = (baseEyeHeight * 1.15f + (audioLevel * baseEyeHeight * 0.25f)).coerceAtMost(orbRadius * 0.65f)
                     drawRoundRect(
                         color = eyeColor,
@@ -402,7 +447,7 @@ fun OrbitAvatar(
                     )
                 }
                 else -> {
-                    // IDLE: Natural blinking vertical pill eyes
+                    // IDLE & ENDING: Natural blinking vertical pill eyes
                     val eyeH = (baseEyeHeight * blinkProgress).coerceAtLeast(eyeWidth * 0.3f)
                     drawRoundRect(
                         color = eyeColor,

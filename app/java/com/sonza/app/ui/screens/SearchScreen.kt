@@ -779,38 +779,24 @@ fun SonzaSearchInputField(
     var isFocused by remember { mutableStateOf(false) }
 
     val animatedBorderColor by animateColorAsState(
-        targetValue = if (isFocused) accentColor.copy(alpha = 0.60f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
-        animationSpec = tween(durationMillis = MotionTokens.NavSelectionDuration, easing = FastOutSlowInEasing),
+        targetValue = if (isFocused) accentColor.copy(alpha = 0.85f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f),
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
         label = "searchFieldBorder"
     )
 
-    val glassConfig = com.sonza.app.ui.components.glass.rememberLiquidGlassConfig()
-    val focusScale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isFocused) 1.015f else 1f,
-        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = 400f),
-        label = "searchFieldScale"
-    )
-
-    val searchTint = if (isFocused) accentColor.copy(alpha = 0.18f) else Color.Unspecified
-
-    com.sonza.app.ui.components.glass.LiquidGlassSurface(
+    Surface(
         modifier = modifier
-            .scale(focusScale)
             .fillMaxWidth()
             .height(52.dp),
-        shape = RoundedCornerShape(26.dp),
-        style = glassConfig.style,
-        blurAmount = if (isFocused) glassConfig.blur * 1.3f else glassConfig.blur,
-        tint = searchTint,
-        isDarkTheme = glassConfig.isDarkTheme,
-        drawShadow = true,
-        drawRim = true,
-        elevationOverride = if (isFocused) 16.dp else 8.dp
+        shape = RoundedCornerShape(14.dp),
+        color = if (isFocused) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, animatedBorderColor),
+        shadowElevation = if (isFocused) 4.dp else 0.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 8.dp),
+                .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Leading Search Icon
@@ -830,7 +816,7 @@ fun SonzaSearchInputField(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(horizontal = 6.dp),
+                    .padding(horizontal = 8.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
                 BasicTextField(
@@ -856,9 +842,9 @@ fun SonzaSearchInputField(
                     decorationBox = { innerTextField ->
                         if (query.isEmpty()) {
                             Text(
-                                text = "Artists, Songs, Lyrics, and more...",
+                                text = "Artists, Songs, Lyrics...",
                                 style = SonzaTypography.BodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -1459,16 +1445,16 @@ private fun ActiveSearchHistoryRow(
                 Surface(
                     modifier = Modifier.size(50.dp),
                     shape = artworkShape,
-                    color = SonzaSurfaceVariant
+                    color = MaterialTheme.colorScheme.surfaceContainer
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.History,
+                            imageVector = Icons.Outlined.Search,
                             contentDescription = null,
-                            tint = SonzaOnSurfaceVariant,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(22.dp)
                         )
                     }

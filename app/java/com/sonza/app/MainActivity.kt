@@ -881,8 +881,10 @@ fun SonzaApp(
             val uriStr = uri?.toString()
             if (uriStr != null && uriStr.startsWith("sonza://")) {
                 when {
-                    uriStr == "sonza://orbit_listen" -> {
-                        orbitViewModel.onOrbitTapped()
+                    uriStr == "sonza://orbit_listen" || uriStr.startsWith("sonza://orbit_listen?") -> {
+                        val cmd = uri.getQueryParameter("command")
+                        orbitViewModel.onWakeWordDetected(cmd)
+                        intent.data = null
                     }
                     uriStr.startsWith("sonza://quick_action") -> {
                         val type = uri.getQueryParameter("type") ?: ""

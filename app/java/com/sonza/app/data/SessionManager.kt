@@ -2975,6 +2975,22 @@ class SessionManager @Inject constructor(
         context.dataStore.edit { it.remove(RECENTLY_PLAYED_KEY) }
     }
 
+    suspend fun removeFromRecentlyPlayed(songId: String) = withContext(Dispatchers.IO) {
+        val existing = parseRecentlyPlayed(encryptedPrefs.getString("recently_played", null)).toMutableList()
+        val removed = existing.removeAll { it.song.id == songId }
+        if (removed) {
+            encryptedPrefs.edit().putString("recently_played", serializeRecentlyPlayed(existing)).apply()
+        }
+    }
+
+    suspend fun removeSongsFromRecentlyPlayed(songIds: Set<String>) = withContext(Dispatchers.IO) {
+        val existing = parseRecentlyPlayed(encryptedPrefs.getString("recently_played", null)).toMutableList()
+        val removed = existing.removeAll { it.song.id in songIds }
+        if (removed) {
+            encryptedPrefs.edit().putString("recently_played", serializeRecentlyPlayed(existing)).apply()
+        }
+    }
+
     suspend fun clearRecentlyPlayed() {
         withContext(Dispatchers.IO) {
             encryptedPrefs.edit().remove("recently_played").apply()

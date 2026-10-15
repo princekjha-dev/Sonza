@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -216,12 +217,24 @@ fun LibraryScreen(
                     }
                 }
 
-                // 2. Main Categories Navigation Rows
+                // 2. "Your Library" Section
+                item(key = "your_library_header") {
+                    Text(
+                        text = "Your Library",
+                        style = SonzaTypography.TitleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        ),
+                        color = SonzaColors.OnBackground,
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 8.dp)
+                    )
+                }
+
                 item(key = "categories_navigation") {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 4.dp, bottom = 12.dp)
+                            .padding(bottom = 12.dp)
                     ) {
                         LibraryCategoryRow(
                             title = "Playlists",
@@ -248,6 +261,26 @@ fun LibraryScreen(
                         HorizontalDivider(color = SonzaColors.Outline.copy(alpha = 0.15f), thickness = 0.5.dp, modifier = Modifier.padding(start = 56.dp, end = 20.dp))
 
                         LibraryCategoryRow(
+                            title = "Songs",
+                            icon = Icons.Default.MusicNote,
+                            accentColor = accentColor,
+                            onClick = {
+                                viewModel.loadLikedSongs()
+                                onPlaylistClick(
+                                    PlaylistDisplayItem(
+                                        id = "LM",
+                                        name = "Liked Songs",
+                                        url = "",
+                                        uploaderName = "",
+                                        thumbnailUrl = null,
+                                        songCount = uiState.likedSongsCount
+                                    )
+                                )
+                            }
+                        )
+                        HorizontalDivider(color = SonzaColors.Outline.copy(alpha = 0.15f), thickness = 0.5.dp, modifier = Modifier.padding(start = 56.dp, end = 20.dp))
+
+                        LibraryCategoryRow(
                             title = "Genres",
                             icon = Icons.Default.Category,
                             accentColor = accentColor,
@@ -256,7 +289,7 @@ fun LibraryScreen(
                         HorizontalDivider(color = SonzaColors.Outline.copy(alpha = 0.15f), thickness = 0.5.dp, modifier = Modifier.padding(start = 56.dp, end = 20.dp))
 
                         LibraryCategoryRow(
-                            title = "Downloaded Music",
+                            title = "Downloaded",
                             icon = Icons.Default.DownloadDone,
                             accentColor = accentColor,
                             onClick = onDownloadsClick
@@ -274,7 +307,7 @@ fun LibraryScreen(
                     }
                 }
 
-                // 3. Recently Added Section
+                // 3. Recently Added Section (2-Column Grid)
                 item(key = "recently_added_header") {
                     Text(
                         text = "Recently Added",
@@ -293,33 +326,34 @@ fun LibraryScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(160.dp),
+                                .height(140.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            SonzaLoadingIndicator(modifier = Modifier.size(56.dp))
+                            SonzaLoadingIndicator(modifier = Modifier.size(48.dp))
                         }
                     }
                 } else if (recentItems.isEmpty()) {
                     item(key = "recently_added_empty") {
-                        Box(
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainer,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 20.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(SonzaColors.SurfaceVariant.copy(alpha = 0.5f))
-                                .padding(24.dp),
-                            contentAlignment = Alignment.Center
+                                .padding(horizontal = 20.dp, vertical = 8.dp)
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Column(
+                                modifier = Modifier.padding(20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
                                 Icon(
                                     imageVector = Icons.Default.MusicNote,
                                     contentDescription = null,
                                     tint = SonzaColors.OnSurfaceVariant.copy(alpha = 0.5f),
-                                    modifier = Modifier.size(40.dp)
+                                    modifier = Modifier.size(32.dp)
                                 )
-                                Spacer(modifier = Modifier.height(10.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "Your recently added music will appear here",
+                                    text = "Recently added playlists, albums, and tracks will appear here",
                                     style = SonzaTypography.BodyMedium,
                                     color = SonzaColors.OnSurfaceVariant
                                 )
@@ -365,7 +399,40 @@ fun LibraryScreen(
                     }
                 }
 
-                // 4. Sonza Collections Section
+                // 4. Recently Played Section
+                if (uiState.recentlyPlayed.isNotEmpty()) {
+                    item(key = "recently_played_header") {
+                        Text(
+                            text = "Recently Played",
+                            style = SonzaTypography.TitleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp
+                            ),
+                            color = SonzaColors.OnBackground,
+                            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 12.dp)
+                        )
+                    }
+
+                    item(key = "recently_played_list") {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            uiState.recentlyPlayed.take(5).forEachIndexed { idx, song ->
+                                RecentlyPlayedRow(
+                                    song = song,
+                                    onClick = {
+                                        onSongClick(uiState.recentlyPlayed, idx)
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 5. Sonza Collections Section
                 item(key = "collections_header") {
                     Text(
                         text = "Collections",
@@ -390,7 +457,7 @@ fun LibraryScreen(
                             title = "Liked",
                             countText = "${uiState.likedSongsCount} songs",
                             icon = Icons.Default.Favorite,
-                            iconTint = Color(0xFFE83D84),
+                            iconTint = accentColor,
                             onClick = {
                                 if (uiState.likedSongsCount == 0) {
                                     viewModel.syncLikedSongs()
@@ -414,7 +481,7 @@ fun LibraryScreen(
                             title = "Downloaded",
                             countText = "${uiState.downloadedSongs.size} songs",
                             icon = Icons.Default.CheckCircle,
-                            iconTint = Color(0xFF4ADE80),
+                            iconTint = accentColor,
                             onClick = onDownloadsClick
                         )
 
@@ -423,7 +490,7 @@ fun LibraryScreen(
                             title = "Device Files",
                             countText = "${uiState.localSongs.size} songs",
                             icon = Icons.Default.Folder,
-                            iconTint = Color(0xFFFBBF24),
+                            iconTint = accentColor,
                             onClick = {
                                 onPlaylistClick(
                                     PlaylistDisplayItem(
@@ -443,7 +510,7 @@ fun LibraryScreen(
                             title = "Cached",
                             countText = "${uiState.cachedSongCount} songs",
                             icon = Icons.Default.Cached,
-                            iconTint = Color(0xFF60A5FA),
+                            iconTint = accentColor,
                             onClick = {
                                 onPlaylistClick(
                                     PlaylistDisplayItem(
@@ -463,7 +530,7 @@ fun LibraryScreen(
                             title = "My Top 50",
                             countText = "${uiState.top50SongCount} songs",
                             icon = Icons.AutoMirrored.Filled.TrendingUp,
-                            iconTint = Color(0xFFA855F7),
+                            iconTint = accentColor,
                             onClick = {
                                 onPlaylistClick(
                                     PlaylistDisplayItem(
@@ -676,6 +743,81 @@ fun CollectionCard(
                 contentDescription = null,
                 tint = SonzaColors.OnSurfaceVariant.copy(alpha = 0.35f),
                 modifier = Modifier.size(14.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun RecentlyPlayedRow(
+    song: Song,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = SonzaColors.SurfaceVariant.copy(alpha = 0.5f),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(58.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(SonzaColors.SurfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!song.thumbnailUrl.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = song.thumbnailUrl,
+                        contentDescription = song.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = SonzaColors.OnSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = song.title,
+                    style = SonzaTypography.BodyMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp
+                    ),
+                    color = SonzaColors.OnBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = song.artist.ifEmpty { "Unknown Artist" },
+                    style = SonzaTypography.BodySmall.copy(fontSize = 12.sp),
+                    color = SonzaColors.OnSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = "Play",
+                tint = SonzaColors.OnSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.size(22.dp)
             )
         }
     }

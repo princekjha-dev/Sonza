@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Lyrics
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -306,10 +307,11 @@ fun SecondaryPlayerControls(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                com.sonza.app.ai.orbit.OrbitAvatar(
-                    state = com.sonza.app.ai.orbit.OrbitState.IDLE,
-                    size = com.sonza.app.ai.orbit.OrbitAvatarSize.Mini,
-                    onClick = onOrbitClick
+                Icon(
+                    imageVector = Icons.Default.Mic,
+                    contentDescription = "Orbit Voice Assistant",
+                    tint = dominantColors.accent,
+                    modifier = Modifier.size(buttonSize * 0.55f)
                 )
             }
         }

@@ -259,6 +259,8 @@ class DynamicIslandOverlayService : Service(), LifecycleOwner, ViewModelStoreOwn
             isAppForeground.value = foreground
         }
 
+        fun isAppInForeground(): Boolean = isAppForeground.value
+
         fun start(context: Context) {
             try {
                 val intent = Intent(context, DynamicIslandOverlayService::class.java)

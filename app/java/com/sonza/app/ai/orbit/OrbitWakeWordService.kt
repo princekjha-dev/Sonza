@@ -184,10 +184,7 @@ class OrbitWakeWordService : Service() {
     private fun onWakeWordTriggered(command: String?) {
         Log.d(TAG, "🎯 Wake word triggered! command=${command ?: "(none)"}")
 
-        // Play distinct Orbit wake word chime
-        OrbitSoundManager.playWakeWordDetected()
-
-        // Broadcast to in-app receiver
+        // Broadcast to in-app receiver (the ViewModel handles the sound & state machine)
         val broadcastIntent = Intent(ACTION_WAKE_WORD_DETECTED).apply {
             setPackage(packageName)
             if (!command.isNullOrBlank()) {
@@ -196,19 +193,27 @@ class OrbitWakeWordService : Service() {
         }
         sendBroadcast(broadcastIntent)
 
-        // Launch / bring MainActivity to front with deep link
-        val targetUri = if (!command.isNullOrBlank()) {
-            Uri.parse("sonza://orbit_listen?command=" + Uri.encode(command))
-        } else {
-            Uri.parse("sonza://orbit_listen")
+        // Only bring MainActivity to front with deep link if app is in background
+        val isAppForeground = try {
+            com.sonza.app.service.DynamicIslandOverlayService.isAppInForeground()
+        } catch (_: Exception) {
+            false
         }
 
-        val launchIntent = Intent(this, MainActivity::class.java).apply {
-            action = Intent.ACTION_VIEW
-            data = targetUri
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        if (!isAppForeground) {
+            val targetUri = if (!command.isNullOrBlank()) {
+                Uri.parse("sonza://orbit_listen?command=" + Uri.encode(command))
+            } else {
+                Uri.parse("sonza://orbit_listen")
+            }
+
+            val launchIntent = Intent(this, MainActivity::class.java).apply {
+                action = Intent.ACTION_VIEW
+                data = targetUri
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+            startActivity(launchIntent)
         }
-        startActivity(launchIntent)
     }
 
     private fun createNotificationChannel() {

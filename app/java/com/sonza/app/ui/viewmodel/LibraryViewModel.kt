@@ -45,9 +45,9 @@ sealed class RecentlyAddedItem {
         is AlbumItem -> album.title
     }
     val subtitle: String get() = when (this) {
-        is SongItem -> song.artist
+        is SongItem -> song.artist.takeIf { it.isNotBlank() && it != "<unknown>" } ?: "Song"
         is PlaylistItem -> "${playlist.songCount} songs"
-        is AlbumItem -> album.artist
+        is AlbumItem -> album.artist.takeIf { it.isNotBlank() && it != "<unknown>" } ?: "Album"
     }
     val thumbnailUrl: String? get() = when (this) {
         is SongItem -> song.thumbnailUrl
@@ -70,6 +70,7 @@ data class LibraryUiState(
     val localAlbums: List<Album> = emptyList(),
     val localFolders: Map<String, List<Song>> = emptyMap(),
     val recentlyAdded: List<RecentlyAddedItem> = emptyList(),
+    val recentlyPlayed: List<Song> = emptyList(),
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val importState: ImportState = ImportState.Idle,
@@ -146,8 +147,32 @@ class LibraryViewModel @Inject constructor(
         observeLibraryPlaylists()
         observeImportService()
         observeLikedSongs()
+        observeRecentlyPlayed()
         observeSettings() // Renamed for broader scope
         schedulePeriodicSync()
+    }
+
+    private fun observeRecentlyPlayed() {
+        viewModelScope.launch {
+            try {
+                listeningHistoryDao.getRecentlyPlayed(10).collect { historyList ->
+                    val songs = historyList.map { h ->
+                        Song(
+                            id = h.songId,
+                            title = h.songTitle.takeIf { it.isNotBlank() } ?: "Unknown Track",
+                            artist = h.artist.takeIf { it.isNotBlank() && it != "<unknown>" } ?: "Various Artists",
+                            album = h.album,
+                            duration = h.duration,
+                            thumbnailUrl = h.thumbnailUrl,
+                            source = try { com.sonza.app.core.model.SongSource.valueOf(h.source) } catch (_: Exception) { com.sonza.app.core.model.SongSource.YOUTUBE },
+                            localUri = h.localUri,
+                            artistId = h.artistId
+                        )
+                    }
+                    _uiState.update { it.copy(recentlyPlayed = songs) }
+                }
+            } catch (_: Exception) {}
+        }
     }
 
     private fun observeSettings() {

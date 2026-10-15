@@ -111,8 +111,10 @@ class OrbitAssistantViewModel(
         OrbitWakeWordService.getDetector()?.resumeListening()
     }
 
+    private var lastWakeTimeMs = 0L
+
     /**
-     * Primary Interaction: TAP ORBIT = IMMEDIATELY LISTEN (or interrupt speech)
+     * Primary Interaction: TAP ORBIT = TOGGLE / LISTEN / DISMISS
      */
     fun onOrbitTapped() {
         autoDismissJob?.cancel()
@@ -125,39 +127,57 @@ class OrbitAssistantViewModel(
             return
         }
 
-        // 2. If currently listening, cancel and close
-        if (_orbitState.value == OrbitState.LISTENING) {
+        // 2. If currently active (listening or activating), cancel and close
+        if (_orbitState.value.isActive) {
             dismissAssistant()
             return
         }
 
-        // 3. Otherwise, play activation sound, open assistant and immediately listen
-        OrbitSoundManager.playActivation()
-        _isAssistantVisible.value = true
-        pauseWakeWordDetector()
-        startListening()
+        // 3. Otherwise, trigger wake sequence
+        triggerWakeSequence(null)
     }
 
     /**
      * Triggered when "Hey Orbit" is spoken by the user.
-     * If user said "Hey Orbit, play some romantic songs" in one breath,
-     * the command is already present and executed directly.
+     * Sequences: WAKE_DETECTED → intro sound → ACTIVATING → LISTENING
      */
     fun onWakeWordDetected(command: String? = null) {
+        val now = System.currentTimeMillis()
+        if (now - lastWakeTimeMs < 1200L || _orbitState.value == OrbitState.WAKE_DETECTED || _orbitState.value == OrbitState.ACTIVATING) {
+            Log.d(TAG, "onWakeWordDetected ignored due to debounce or active state")
+            return
+        }
+        lastWakeTimeMs = now
         Log.d(TAG, "onWakeWordDetected: command=${command ?: "(none)"}")
+        triggerWakeSequence(command)
+    }
+
+    private fun triggerWakeSequence(command: String?) {
         autoDismissJob?.cancel()
         continuousListeningJob?.cancel()
         pauseWakeWordDetector()
         voiceSynthesizer.stopSpeaking()
 
-        OrbitSoundManager.playWakeWordDetected()
+        // 1. Enter WAKE_DETECTED and show ambient layer
+        _orbitState.value = OrbitState.WAKE_DETECTED
         _isAssistantVisible.value = true
 
-        if (!command.isNullOrBlank()) {
-            _assistantMessage.value = "\u201C$command\u201D"
-            processUtterance(command)
-        } else {
-            startListening()
+        // 2. Play distinct Orbit activation sound immediately
+        OrbitSoundManager.playActivation()
+
+        viewModelScope.launch {
+            // Soft expansion / bloom
+            delay(120L)
+            _orbitState.value = OrbitState.ACTIVATING
+            // Wait for activation sound to settle before opening mic (~450ms total)
+            delay(380L)
+
+            if (!command.isNullOrBlank()) {
+                _assistantMessage.value = "“$command”"
+                processUtterance(command)
+            } else {
+                startListening()
+            }
         }
     }
 
@@ -174,16 +194,16 @@ class OrbitAssistantViewModel(
             _assistantMessage.value = "Orbit needs microphone access to hear 'Hey Orbit' and your voice commands."
             _orbitState.value = OrbitState.ERROR
             OrbitSoundManager.playError()
+            scheduleAutoDismiss(3000)
             return
         }
 
         Log.d(TAG, "▶ Command recognition STARTED")
 
-        // Temporarily duck music so microphone can hear speech clearly
+        // Temporarily duck music so microphone can hear speech clearly without music bleed
         musicPlayer.duckVolume(0.15f)
 
         _orbitState.value = OrbitState.LISTENING
-        OrbitSoundManager.playListening()
         _assistantMessage.value = when (_dialogueContext.value) {
             is OrbitDialogueContext.AwaitingCommand -> "I'm listening…"
             is OrbitDialogueContext.AwaitingDisambiguation -> "Listening for choice…"
@@ -204,17 +224,11 @@ class OrbitAssistantViewModel(
             },
             onError = { errorMsg ->
                 Log.w(TAG, "Command recognition error: $errorMsg")
-                // Restore volume if error occurs
                 musicPlayer.restoreVolume()
 
-                // Don't treat silence timeouts as hard failures during continuous dialogue
                 if (errorMsg.contains("timed out", ignoreCase = true) || errorMsg.contains("No speech", ignoreCase = true)) {
-                    if (_dialogueContext.value != OrbitDialogueContext.Idle) {
-                        _orbitState.value = OrbitState.IDLE
-                        scheduleAutoDismiss(2500)
-                    } else {
-                        scheduleAutoDismiss(2000)
-                    }
+                    // Silence or no speech -> close cleanly with ending sound
+                    finishAssistantSession()
                 } else {
                     _orbitState.value = OrbitState.ERROR
                     OrbitSoundManager.playError()
@@ -223,7 +237,7 @@ class OrbitAssistantViewModel(
                     } else {
                         errorMsg
                     }
-                    scheduleAutoDismiss(3500)
+                    scheduleAutoDismiss(3000)
                 }
             }
         )
@@ -232,9 +246,10 @@ class OrbitAssistantViewModel(
     fun processUtterance(rawInput: String) {
         autoDismissJob?.cancel()
         voiceManager.stopListening()
-        OrbitSoundManager.playCommandReceived()
-        _orbitState.value = OrbitState.THINKING
-        _assistantMessage.value = "Thinking…"
+        musicPlayer.restoreVolume()
+
+        _orbitState.value = OrbitState.PROCESSING
+        _assistantMessage.value = "Processing…"
 
         viewModelScope.launch {
             val currentSong = musicPlayer.playerState.value.currentSong
@@ -258,26 +273,14 @@ class OrbitAssistantViewModel(
             // Special check: Cancellation
             if (intent is OrbitIntent.CancelIntent) {
                 _dialogueContext.value = OrbitDialogueContext.Idle
-                _assistantMessage.value = "Alright"
-                _orbitState.value = OrbitState.IDLE
-                voiceSynthesizer.speak("Alright", onDone = {
-                    dismissAssistant()
-                })
+                finishAssistantSession()
                 return@launch
             }
 
-            _orbitState.value = OrbitState.WORKING
             val result = executor.execute(intent, currentSong, _dialogueContext.value)
-
-            if (result.success) {
-                OrbitSoundManager.playSuccess()
-            } else {
-                OrbitSoundManager.playError()
-            }
 
             _assistantMessage.value = result.message
             _actionIndicator.value = result.actionIndicator
-            _orbitState.value = result.resultingState
             _dialogueContext.value = result.updatedContext ?: OrbitDialogueContext.Idle
 
             if (result.navigationTarget != null) {
@@ -286,32 +289,33 @@ class OrbitAssistantViewModel(
 
             // Speak Orbit's response with its assistant voice
             val speechText = result.spokenResponse.ifBlank { result.message }
-            _orbitState.value = OrbitState.SPEAKING
-            Log.d(TAG, "🗣 Orbit speaking: \"$speechText\"")
+            if (speechText.isNotBlank()) {
+                _orbitState.value = OrbitState.SPEAKING
+                Log.d(TAG, "🗣 Orbit speaking: \"$speechText\"")
 
-            voiceSynthesizer.speak(
-                text = speechText,
-                onStart = {
-                    _orbitState.value = OrbitState.SPEAKING
-                },
-                onDone = {
-                    Log.d(TAG, "🗣 Orbit finished speaking")
-                    // Two-way conversational continuation
-                    if (result.expectsFollowUpVoiceInput) {
-                        startListening()
-                    } else {
-                        _orbitState.value = result.resultingState
-                        // Auto-dismiss smoothly after response
-                        continuousListeningJob = viewModelScope.launch {
-                            delay(4500L)
-                            _orbitState.value = OrbitState.IDLE
-                            _isAssistantVisible.value = false
-                            Log.d(TAG, "▶ Auto-dismiss → resuming wake-word listener")
-                            resumeWakeWordDetector()
+                voiceSynthesizer.speak(
+                    text = speechText,
+                    onStart = {
+                        _orbitState.value = OrbitState.SPEAKING
+                    },
+                    onDone = {
+                        Log.d(TAG, "🗣 Orbit finished speaking")
+                        if (result.expectsFollowUpVoiceInput) {
+                            startListening()
+                        } else {
+                            continuousListeningJob = viewModelScope.launch {
+                                delay(1200L)
+                                finishAssistantSession()
+                            }
                         }
                     }
+                )
+            } else {
+                continuousListeningJob = viewModelScope.launch {
+                    delay(800L)
+                    finishAssistantSession()
                 }
-            )
+            }
         }
     }
 
@@ -324,31 +328,44 @@ class OrbitAssistantViewModel(
             _assistantMessage.value = "Orbit needs microphone access to hear 'Hey Orbit' and your voice commands."
             _orbitState.value = OrbitState.ERROR
             OrbitSoundManager.playError()
-            scheduleAutoDismiss(3500)
+            scheduleAutoDismiss(3000)
         }
     }
 
-    fun dismissAssistant() {
-        Log.d(TAG, "Assistant DISMISSED")
+    /**
+     * Finishes the assistant session with proper ENDING state transition and ending sound.
+     * Sequence: Listening/Speaking → finished → ending sound → IDLE
+     */
+    fun finishAssistantSession() {
+        if (_orbitState.value == OrbitState.IDLE || _orbitState.value == OrbitState.ENDING) return
+
+        Log.d(TAG, "Finishing Assistant Session")
         autoDismissJob?.cancel()
         continuousListeningJob?.cancel()
         voiceManager.stopListening()
         voiceSynthesizer.stopSpeaking()
         musicPlayer.restoreVolume()
-        OrbitSoundManager.playClosed()
-        _dialogueContext.value = OrbitDialogueContext.Idle
-        _orbitState.value = OrbitState.IDLE
-        _isAssistantVisible.value = false
-        resumeWakeWordDetector()
+
+        viewModelScope.launch {
+            _orbitState.value = OrbitState.ENDING
+            OrbitSoundManager.playClosed()
+            delay(350L) // Allow ending sound and avatar fade pulse
+            _orbitState.value = OrbitState.IDLE
+            _isAssistantVisible.value = false
+            _dialogueContext.value = OrbitDialogueContext.Idle
+            resumeWakeWordDetector()
+        }
+    }
+
+    fun dismissAssistant() {
+        finishAssistantSession()
     }
 
     private fun scheduleAutoDismiss(delayMs: Long) {
         autoDismissJob?.cancel()
         autoDismissJob = viewModelScope.launch {
             delay(delayMs)
-            _orbitState.value = OrbitState.IDLE
-            _isAssistantVisible.value = false
-            resumeWakeWordDetector()
+            finishAssistantSession()
         }
     }
 

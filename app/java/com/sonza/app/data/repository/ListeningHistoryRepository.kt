@@ -93,6 +93,84 @@ class ListeningHistoryRepository @Inject constructor(
         
         listeningHistoryDao.upsert(updated)
     }
+
+    /**
+     * Immediately record that a song has started playing so it shows up in
+     * History and Recently Played immediately without waiting for track transition.
+     */
+    suspend fun recordSongStarted(song: Song) {
+        if (sessionManager.isIncognitoModeEnabled()) return
+
+        val existing = listeningHistoryDao.getHistoryForSong(song.id)
+        val now = System.currentTimeMillis()
+        val updated = if (existing != null) {
+            existing.copy(
+                playCount = existing.playCount + 1,
+                lastPlayed = now,
+                songTitle = song.title,
+                artist = song.artist,
+                thumbnailUrl = song.thumbnailUrl,
+                album = song.album,
+                duration = song.duration,
+                localUri = song.localUri,
+                releaseDate = song.releaseDate
+            )
+        } else {
+            ListeningHistory(
+                songId = song.id,
+                songTitle = song.title,
+                artist = song.artist,
+                thumbnailUrl = song.thumbnailUrl,
+                playCount = 1,
+                totalDurationMs = 0L,
+                lastPlayed = now,
+                firstPlayed = now,
+                skipCount = 0,
+                completionRate = 0f,
+                isLiked = false,
+                artistId = song.artistId,
+                source = when (song.source) {
+                    com.sonza.app.core.model.SongSource.YOUTUBE -> "YOUTUBE"
+                    com.sonza.app.core.model.SongSource.YOUTUBE_MUSIC -> "YOUTUBE"
+                    com.sonza.app.core.model.SongSource.REMOTE -> "REMOTE"
+                    com.sonza.app.core.model.SongSource.LOCAL -> "LOCAL"
+                    com.sonza.app.core.model.SongSource.DOWNLOADED -> "DOWNLOADED"
+                },
+                album = song.album,
+                duration = song.duration,
+                localUri = song.localUri,
+                releaseDate = song.releaseDate
+            )
+        }
+        listeningHistoryDao.upsert(updated)
+    }
+
+    /**
+     * Updates duration listened and skip status for a song without incrementing playCount again.
+     */
+    suspend fun updateSongCompletion(
+        songId: String,
+        durationListenedMs: Long,
+        wasSkipped: Boolean
+    ) {
+        if (sessionManager.isIncognitoModeEnabled()) return
+        val existing = listeningHistoryDao.getHistoryForSong(songId) ?: return
+        val newTotalDuration = existing.totalDurationMs + durationListenedMs
+        val newSkipCount = if (wasSkipped) existing.skipCount + 1 else existing.skipCount
+        val completionPercentage = if (existing.duration > 0) {
+            (durationListenedMs.toFloat() / existing.duration.toFloat()) * 100f
+        } else 0f
+        val newCompletionRate = if (existing.playCount > 0) {
+            (existing.completionRate * (existing.playCount - 1) + completionPercentage) / existing.playCount
+        } else completionPercentage
+
+        val updated = existing.copy(
+            totalDurationMs = newTotalDuration,
+            skipCount = newSkipCount,
+            completionRate = newCompletionRate
+        )
+        listeningHistoryDao.upsert(updated)
+    }
     
     /**
      * Mark a song as liked. No-op if the song has no history entry yet —
@@ -208,6 +286,7 @@ class ListeningHistoryRepository @Inject constructor(
      */
     suspend fun clearHistory() {
         listeningHistoryDao.clearAll()
+        sessionManager.clearRecentlyPlayed()
     }
 
     /**
@@ -215,6 +294,7 @@ class ListeningHistoryRepository @Inject constructor(
      */
     suspend fun removeFromHistory(songId: String) {
         listeningHistoryDao.deleteSong(songId)
+        sessionManager.removeFromRecentlyPlayed(songId)
     }
 
     /**
@@ -223,6 +303,7 @@ class ListeningHistoryRepository @Inject constructor(
     suspend fun removeSongsFromHistory(songIds: List<String>) {
         if (songIds.isNotEmpty()) {
             listeningHistoryDao.deleteSongs(songIds)
+            sessionManager.removeSongsFromRecentlyPlayed(songIds.toSet())
         }
     }
     

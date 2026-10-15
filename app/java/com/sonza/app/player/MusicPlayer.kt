@@ -1140,6 +1140,8 @@ class MusicPlayer @Inject constructor(
                             _playerState.update { it.copy(isLiked = isLiked) }
                         }
                         sessionManager.addToRecentlyPlayed(song)
+                        // Record current song immediately so it appears in History & Recently Played right away
+                        listeningHistoryRepository.recordSongStarted(song)
 
                         // Dynamically extract artwork dominant color for widgets, mini-player, and UI surfaces
                         try {
@@ -1166,11 +1168,11 @@ class MusicPlayer @Inject constructor(
                             }
                         }
                         
-                        // Track previous song if it was playing
+                        // Finalize completion stats for previous song if it was playing
                         if (previousSong != null && currentSongStartTime > 0) {
                             val listenDuration = System.currentTimeMillis() - currentSongStartTime
                             val wasSkipped = listenDuration < (previousSong.duration * 0.5) // Skipped if < 50% listened
-                            listeningHistoryRepository.recordPlay(previousSong, listenDuration, wasSkipped)
+                            listeningHistoryRepository.updateSongCompletion(previousSong.id, listenDuration, wasSkipped)
                         }
                         
                         // Start tracking new song
