@@ -67,6 +67,7 @@ private val hiltBridgedModule: Module = module {
     single { bridge(androidContext()).musicPlayer() }
     single { bridge(androidContext()).lyricsRepository() }
     single { bridge(androidContext()).workManager() }
+    single { bridge(androidContext()).ttsManager() }
 
     // app/di CacheModule equivalents
     single { bridge(androidContext()).cache() }
@@ -130,11 +131,19 @@ private val hiltBridgedModule: Module = module {
     single { com.sonza.app.data.repository.FeedbackRepository(get()) }
     single { com.sonza.app.ai.orbit.OrbitVoiceManager(androidContext()) }
     single {
+        com.sonza.app.ai.orbit.OrbitVoiceSynthesizer(
+            ttsManager = get(),
+            musicPlayer = get(),
+            context = androidContext()
+        )
+    }
+    single {
         com.sonza.app.ai.orbit.OrbitExecutor(
             musicPlayer = get(),
             youTubeRepository = get(),
             libraryRepository = get(),
             downloadRepository = get(),
+            lyricsRepository = get(),
             sleepTimerManager = get(),
             context = androidContext()
         )

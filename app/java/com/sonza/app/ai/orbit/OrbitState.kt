@@ -1,7 +1,7 @@
 package com.sonza.app.ai.orbit
 
 /**
- * Dynamic states of the Orbit AI Assistant.
+ * Dynamic states of the Orbit Assistant.
  */
 enum class OrbitState {
     IDLE,

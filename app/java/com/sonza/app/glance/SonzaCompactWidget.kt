@@ -143,11 +143,39 @@ class SonzaCompactWidget : GlanceAppWidget() {
 
                         Spacer(modifier = GlanceModifier.width(6.dp))
 
+                        // Favorite Heart
+                        Image(
+                            provider = ImageProvider(
+                                if (playerState.isLiked) R.drawable.ic_heart else R.drawable.ic_heart_outline
+                            ),
+                            contentDescription = "Favorite",
+                            colorFilter = ColorFilter.tint(
+                                ColorProvider(if (playerState.isLiked) Color(0xFFFF4081) else Color.White.copy(alpha = 0.65f))
+                            ),
+                            modifier = GlanceModifier
+                                .size(22.dp)
+                                .clickable(actionRunCallback<ToggleLikeAction>())
+                        )
+
+                        Spacer(modifier = GlanceModifier.width(6.dp))
+
+                        // Previous
+                        Image(
+                            provider = ImageProvider(R.drawable.ic_skip_previous),
+                            contentDescription = "Previous",
+                            colorFilter = ColorFilter.tint(ColorProvider(Color.White)),
+                            modifier = GlanceModifier
+                                .size(22.dp)
+                                .clickable(actionRunCallback<PreviousAction>())
+                        )
+
+                        Spacer(modifier = GlanceModifier.width(6.dp))
+
                         // Play/Pause Action Button
                         Box(
                             modifier = GlanceModifier
-                                .size(42.dp)
-                                .cornerRadius(21.dp)
+                                .size(38.dp)
+                                .cornerRadius(19.dp)
                                 .background(ColorProvider(Color.White.copy(alpha = 0.16f)))
                                 .clickable(actionRunCallback<PlayPauseAction>()),
                             contentAlignment = Alignment.Center
@@ -158,18 +186,30 @@ class SonzaCompactWidget : GlanceAppWidget() {
                                 ),
                                 contentDescription = "Play/Pause",
                                 colorFilter = ColorFilter.tint(ColorProvider(Color.White)),
-                                modifier = GlanceModifier.size(24.dp)
+                                modifier = GlanceModifier.size(22.dp)
                             )
                         }
+
+                        Spacer(modifier = GlanceModifier.width(6.dp))
+
+                        // Next
+                        Image(
+                            provider = ImageProvider(R.drawable.ic_skip_next),
+                            contentDescription = "Next",
+                            colorFilter = ColorFilter.tint(ColorProvider(Color.White)),
+                            modifier = GlanceModifier
+                                .size(22.dp)
+                                .clickable(actionRunCallback<NextAction>())
+                        )
 
                         Spacer(modifier = GlanceModifier.width(6.dp))
 
                         // Orbit Button (deep link into voice listening)
                         Box(
                             modifier = GlanceModifier
-                                .size(36.dp)
-                                .cornerRadius(18.dp)
-                                .background(ColorProvider(Color(0xFF4F86F7).copy(alpha = 0.25f)))
+                                .size(34.dp)
+                                .cornerRadius(17.dp)
+                                .background(ColorProvider(Color(0xFF38BDF8).copy(alpha = 0.25f)))
                                 .clickable(
                                     actionRunCallback<OpenDeepLinkAction>(
                                         actionParametersOf(DeepLinkKey to "sonza://orbit_listen")
@@ -180,8 +220,8 @@ class SonzaCompactWidget : GlanceAppWidget() {
                             Image(
                                 provider = ImageProvider(R.drawable.ic_mic),
                                 contentDescription = "Orbit Voice",
-                                colorFilter = ColorFilter.tint(ColorProvider(Color(0xFF4F86F7))),
-                                modifier = GlanceModifier.size(20.dp)
+                                colorFilter = ColorFilter.tint(ColorProvider(Color(0xFF38BDF8))),
+                                modifier = GlanceModifier.size(18.dp)
                             )
                         }
                     }

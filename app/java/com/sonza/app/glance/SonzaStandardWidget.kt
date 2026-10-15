@@ -195,7 +195,7 @@ class SonzaStandardWidget : GlanceAppWidget() {
                             ) {
                                 Image(
                                     provider = ImageProvider(R.drawable.ic_mic),
-                                    contentDescription = "Orbit AI",
+                                    contentDescription = "Orbit",
                                     colorFilter = ColorFilter.tint(ColorProvider(Color(0xFF4F86F7))),
                                     modifier = GlanceModifier.size(18.dp)
                                 )

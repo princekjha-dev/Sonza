@@ -83,6 +83,7 @@ interface HiltKoinBridgeEntryPoint {
     fun musicPlayer(): MusicPlayer
     fun lyricsRepository(): LyricsRepository
     fun workManager(): WorkManager
+    fun ttsManager(): com.sonza.app.util.TTSManager
 
     // app/di — CacheModule
     fun cache(): Cache

@@ -421,7 +421,15 @@ class MusicPlayer @Inject constructor(
             _playerState.collect { state ->
                 // Check if important state changed compared to last update
                 // (We use a simple local variable to track the "significant" part of the state)
-                val currentSignificantState = state.currentSong?.id to state.isPlaying to state.shuffleEnabled to state.repeatMode
+                val currentSignificantState = listOf(
+                    state.currentSong?.id,
+                    state.currentSong?.title,
+                    state.isPlaying,
+                    state.isLiked,
+                    state.shuffleEnabled,
+                    state.repeatMode,
+                    state.currentPosition / 5000L
+                )
                 if (lastSignificantState != currentSignificantState) {
                     lastSignificantState = currentSignificantState
                     try {
@@ -435,6 +443,30 @@ class MusicPlayer @Inject constructor(
                 }
             }
         }
+    }
+
+    private var preDuckVolume: Float = 1.0f
+    private var isDucked: Boolean = false
+
+    fun duckVolume(duckFactor: Float = 0.15f) {
+        try {
+            val controller = mediaController ?: return
+            if (!isDucked) {
+                preDuckVolume = controller.volume
+                isDucked = true
+            }
+            controller.volume = (preDuckVolume * duckFactor).coerceIn(0.05f, 1.0f)
+        } catch (_: Exception) {}
+    }
+
+    fun restoreVolume() {
+        try {
+            val controller = mediaController ?: return
+            if (isDucked) {
+                controller.volume = preDuckVolume
+                isDucked = false
+            }
+        } catch (_: Exception) {}
     }
 
     private var lastSignificantState: Any? = null

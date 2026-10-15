@@ -111,7 +111,7 @@ fun HomeTopHeader(
                 )
             }
 
-            // Orbit AI Avatar + Account Avatar
+            // Orbit Avatar + Account Avatar
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceSm)

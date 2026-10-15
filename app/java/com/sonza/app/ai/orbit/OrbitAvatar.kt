@@ -40,7 +40,7 @@ enum class OrbitAvatarSize(val orbSize: Dp, val haloPadding: Dp) {
 }
 
 /**
- * Orbit AI Avatar — The visual face of Sonza's assistant inspired by fluid digital characters.
+ * Orbit Avatar — The visual face of Sonza's assistant inspired by fluid digital characters.
  * Renders an animated glowing orb with expressive pill eyes, orbital rings, and dynamic reactive states.
  */
 @Composable
@@ -234,6 +234,16 @@ fun OrbitAvatar(
                         )
                     }
                 }
+                OrbitState.SPEAKING -> {
+                    // Dynamic speech soundwave ripples
+                    val speakRadius = orbRadius + 3.dp.toPx() + (audioLevel * 6.dp.toPx())
+                    drawCircle(
+                        color = glowColor.copy(alpha = 0.35f + (audioLevel * 0.4f)),
+                        radius = speakRadius,
+                        center = center,
+                        style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
+                    )
+                }
                 else -> Unit
             }
 
@@ -337,8 +347,35 @@ fun OrbitAvatar(
                         cornerRadius = CornerRadius(eyeWidth / 2f, eyeWidth / 2f)
                     )
                 }
+                OrbitState.SPEAKING -> {
+                    // Alert eyes
+                    val eyeH = baseEyeHeight * 0.95f
+                    drawRoundRect(
+                        color = eyeColor,
+                        topLeft = Offset(leftEyeCenter.x - eyeWidth / 2f, leftEyeCenter.y - eyeH / 2f),
+                        size = Size(eyeWidth, eyeH),
+                        cornerRadius = CornerRadius(eyeWidth / 2f, eyeWidth / 2f)
+                    )
+                    drawRoundRect(
+                        color = eyeColor,
+                        topLeft = Offset(rightEyeCenter.x - eyeWidth / 2f, rightEyeCenter.y - eyeH / 2f),
+                        size = Size(eyeWidth, eyeH),
+                        cornerRadius = CornerRadius(eyeWidth / 2f, eyeWidth / 2f)
+                    )
+
+                    // Animated mouth reacting to Orbit's speech level
+                    val mouthY = center.y + orbRadius * 0.32f
+                    val mouthWidth = orbRadius * (0.28f + (audioLevel * 0.16f))
+                    val mouthHeight = (orbRadius * 0.08f + (audioLevel * orbRadius * 0.18f)).coerceAtLeast(2.dp.toPx())
+                    drawRoundRect(
+                        color = eyeColor,
+                        topLeft = Offset(center.x - mouthWidth / 2f, mouthY - mouthHeight / 2f),
+                        size = Size(mouthWidth, mouthHeight),
+                        cornerRadius = CornerRadius(mouthHeight / 2f, mouthHeight / 2f)
+                    )
+                }
                 else -> {
-                    // IDLE / SPEAKING: Natural blinking vertical pill eyes
+                    // IDLE: Natural blinking vertical pill eyes
                     val eyeH = (baseEyeHeight * blinkProgress).coerceAtLeast(eyeWidth * 0.3f)
                     drawRoundRect(
                         color = eyeColor,

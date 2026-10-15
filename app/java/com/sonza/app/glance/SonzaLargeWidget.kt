@@ -115,7 +115,7 @@ class SonzaLargeWidget : GlanceAppWidget() {
                             ) {
                                 Image(
                                     provider = ImageProvider(R.drawable.ic_mic),
-                                    contentDescription = "Orbit AI",
+                                    contentDescription = "Orbit",
                                     colorFilter = ColorFilter.tint(ColorProvider(Color(0xFF4F86F7))),
                                     modifier = GlanceModifier.size(16.dp)
                                 )
@@ -125,7 +125,7 @@ class SonzaLargeWidget : GlanceAppWidget() {
 
                             Column(modifier = GlanceModifier.defaultWeight()) {
                                 Text(
-                                    text = "ORBIT AI",
+                                    text = "ORBIT",
                                     style = TextStyle(
                                         color = ColorProvider(Color(0xFF4F86F7)),
                                         fontSize = 11.sp,

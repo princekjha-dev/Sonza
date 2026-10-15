@@ -42,6 +42,8 @@ class TTSManager @Inject constructor(
         val id: String,
         val text: String,
         val volume: Float,
+        val pitch: Float = 1.0f,
+        val speechRate: Float = 1.0f,
         val onStart: (() -> Unit)?,
         val onDone: (() -> Unit)?,
         val onError: (() -> Unit)?,
@@ -145,6 +147,8 @@ class TTSManager @Inject constructor(
     fun speak(
         text: String,
         volume: Float = 1.0f,
+        pitch: Float = 1.0f,
+        speechRate: Float = 1.0f,
         onStart: (() -> Unit)? = null,
         onDone: (() -> Unit)? = null,
         onError: (() -> Unit)? = null,
@@ -158,6 +162,8 @@ class TTSManager @Inject constructor(
             id = "TTS_${UUID.randomUUID()}",
             text = text,
             volume = volume.coerceIn(0f, 1f),
+            pitch = pitch.coerceIn(0.5f, 2.0f),
+            speechRate = speechRate.coerceIn(0.5f, 2.0f),
             onStart = onStart,
             onDone = onDone,
             onError = onError,
@@ -182,6 +188,11 @@ class TTSManager @Inject constructor(
             return
         }
         callbacks[req.id] = req
+
+        try {
+            engine.setPitch(req.pitch)
+            engine.setSpeechRate(req.speechRate)
+        } catch (_: Exception) {}
 
         requestFocus()
 

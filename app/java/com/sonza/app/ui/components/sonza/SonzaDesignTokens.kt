@@ -45,7 +45,7 @@ object SonzaDesignTokens {
         val Warning = Color(0xFFFFB84D)
         val Error = Color(0xFFFF5252)
 
-        // Orbit AI Glow Palette
+        // Orbit Glow Palette
         val OrbitIdle = Color(0xFF5A87FF)
         val OrbitListening = Color(0xFF00E5FF)
         val OrbitThinking = Color(0xFFB388FF)

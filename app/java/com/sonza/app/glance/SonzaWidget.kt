@@ -14,6 +14,7 @@ import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.action.ActionParameters
+import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.action.ActionCallback
@@ -188,6 +189,43 @@ class SonzaWidget : GlanceAppWidget() {
                                         fontWeight = FontWeight.Normal
                                     ),
                                     maxLines = 1
+                                )
+                            }
+
+                            Spacer(modifier = GlanceModifier.width(8.dp))
+
+                            // Like Button
+                            Image(
+                                provider = ImageProvider(
+                                    if (playerState.isLiked) R.drawable.ic_heart else R.drawable.ic_heart_outline
+                                ),
+                                contentDescription = "Favorite",
+                                colorFilter = ColorFilter.tint(
+                                    ColorProvider(if (playerState.isLiked) Color(0xFFFF4081) else secondaryColor)
+                                ),
+                                modifier = GlanceModifier
+                                    .size(24.dp)
+                                    .clickable(actionRunCallback<ToggleLikeAction>())
+                            )
+
+                            Spacer(modifier = GlanceModifier.width(8.dp))
+
+                            // Orbit Voice Assistant Button
+                            Box(
+                                modifier = GlanceModifier
+                                    .size(32.dp)
+                                    .background(ColorProvider(Color(0xFF38BDF8).copy(alpha = 0.2f)))
+                                    .cornerRadius(16.dp)
+                                    .clickable(actionRunCallback<OpenDeepLinkAction>(
+                                        actionParametersOf(DeepLinkKey to "sonza://orbit_listen")
+                                    )),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    provider = ImageProvider(R.drawable.ic_mic),
+                                    contentDescription = "Orbit Voice Assistant",
+                                    colorFilter = ColorFilter.tint(ColorProvider(Color(0xFF38BDF8))),
+                                    modifier = GlanceModifier.size(18.dp)
                                 )
                             }
                         }

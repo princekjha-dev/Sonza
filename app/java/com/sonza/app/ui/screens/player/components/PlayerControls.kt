@@ -293,7 +293,7 @@ fun SecondaryPlayerControls(
             )
         }
 
-        // Orbit AI Assistant Button
+        // Orbit Assistant Button
         if (onOrbitClick != null) {
             Box(
                 modifier = Modifier

@@ -45,6 +45,7 @@ fun OrbitFloatingAssistant(
     state: OrbitState,
     message: String,
     audioLevel: Float,
+    actionIndicator: String? = null,
     onAvatarClick: () -> Unit,
     onDismiss: () -> Unit,
     onSubmitText: (String) -> Unit,
@@ -108,7 +109,7 @@ fun OrbitFloatingAssistant(
                                     )
                             )
                             Text(
-                                text = "ORBIT AI",
+                                text = "ORBIT",
                                 style = SonzaTypography.Kicker.copy(
                                     fontSize = 11.sp,
                                     letterSpacing = 1.sp,
@@ -140,8 +141,9 @@ fun OrbitFloatingAssistant(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     // Speech transcription / Status response
+                    val displayText = if (!actionIndicator.isNullOrBlank()) "$actionIndicator $message" else message
                     Text(
-                        text = message,
+                        text = displayText,
                         style = SonzaTypography.BodyMedium.copy(
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 15.sp

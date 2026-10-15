@@ -149,6 +149,9 @@ class MainActivity : ComponentActivity() {
     // Flow to emit volume key events to the UI
     private val _volumeKeyEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     
+    // Observable activity intent flow for deep-links, widgets, and voice assistant activations
+    private val _activityIntent = kotlinx.coroutines.flow.MutableStateFlow<Intent?>(null)
+    
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -191,6 +194,7 @@ class MainActivity : ComponentActivity() {
 
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        _activityIntent.value = intent
         
         // Keep splash screen on until ViewModel reports isReady = true
         splashScreen.setKeepOnScreenCondition {
@@ -306,11 +310,13 @@ class MainActivity : ComponentActivity() {
                     foldingFeature = foldingFeature
                 )
 
+                val currentIntent by _activityIntent.collectAsStateWithLifecycle()
+
                 CompositionLocalProvider(
                     LocalDeviceFormFactor provides formFactor
                 ) {
                     SonzaApp(
-                        intent = intent,
+                        intent = currentIntent,
                         networkMonitor = networkMonitor,
                         audioManager = audioManager,
                         volumeKeyEvents = _volumeKeyEvents,
@@ -376,6 +382,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        _activityIntent.value = intent
     }
     
     private fun requestPermissions() {
@@ -520,6 +527,7 @@ fun SonzaApp(
     val isOrbitVisible by orbitViewModel.isAssistantVisible.collectAsStateWithLifecycle()
     val orbitAssistantMessage by orbitViewModel.assistantMessage.collectAsStateWithLifecycle()
     val orbitAudioLevel by orbitViewModel.audioLevel.collectAsStateWithLifecycle()
+    val orbitActionIndicator by orbitViewModel.actionIndicator.collectAsStateWithLifecycle()
 
     val audioPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -537,7 +545,14 @@ fun SonzaApp(
                     com.sonza.app.util.SnackbarUtil.showMessage(event.message)
                 }
                 is com.sonza.app.ai.orbit.OrbitUiEvent.NavigateTo -> {
-                    // Navigation targets if requested
+                    when (event.target) {
+                        "lyrics", "queue" -> playerViewModel.expandPlayer()
+                        "search" -> navController.navigate(com.sonza.app.navigation.Destination.Search)
+                        "library" -> navController.navigate(com.sonza.app.navigation.Destination.Library)
+                        "downloads" -> navController.navigate(com.sonza.app.navigation.Destination.Downloads)
+                        "home" -> navController.navigate(com.sonza.app.navigation.Destination.Home)
+                        "settings" -> navController.navigate(com.sonza.app.navigation.Destination.PlaybackSettings)
+                    }
                 }
             }
         }
@@ -635,10 +650,24 @@ fun SonzaApp(
     // Handle intent changes
     LaunchedEffect(intent) {
         if (intent != null) {
-            if (intent.action == Intent.ACTION_VIEW && intent.type?.startsWith("audio/") == true) {
-                mainViewModel.handleAudioIntent(intent.data)
-            } else {
-                mainViewModel.handleDeepLink(intent.data)
+            when {
+                intent.action == Intent.ACTION_VOICE_COMMAND ||
+                intent.action == "android.media.action.MEDIA_PLAY_FROM_SEARCH" ||
+                intent.action == Intent.ACTION_ASSIST -> {
+                    val query = intent.getStringExtra(android.app.SearchManager.QUERY)
+                        ?: intent.getStringExtra("query")
+                    if (!query.isNullOrBlank()) {
+                        orbitViewModel.processUtterance(query)
+                    } else {
+                        orbitViewModel.onOrbitTapped()
+                    }
+                }
+                intent.action == Intent.ACTION_VIEW && intent.type?.startsWith("audio/") == true -> {
+                    mainViewModel.handleAudioIntent(intent.data)
+                }
+                else -> {
+                    mainViewModel.handleDeepLink(intent.data)
+                }
             }
         }
     }
@@ -1440,6 +1469,7 @@ fun SonzaApp(
             state = orbitState,
             message = orbitAssistantMessage,
             audioLevel = orbitAudioLevel,
+            actionIndicator = orbitActionIndicator,
             onAvatarClick = { orbitViewModel.onOrbitTapped() },
             onDismiss = { orbitViewModel.dismissAssistant() },
             onSubmitText = { orbitViewModel.processUtterance(it) },

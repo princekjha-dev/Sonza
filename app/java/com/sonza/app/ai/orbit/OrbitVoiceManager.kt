@@ -17,7 +17,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Speech Recognition Manager for Orbit AI.
+ * Speech Recognition Manager for Orbit.
  * Implements TAP ORBIT = IMMEDIATELY LISTEN with live RMS audio reactivity for avatar animation.
  */
 class OrbitVoiceManager(
