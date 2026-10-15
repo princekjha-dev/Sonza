@@ -516,9 +516,8 @@ fun SonzaApp(
     val playlistManagementViewModel: com.sonza.app.ui.viewmodel.PlaylistManagementViewModel = koinViewModel()
     val orbitViewModel: com.sonza.app.ai.orbit.OrbitAssistantViewModel = koinViewModel()
     
-    val orbitState by orbitViewModel.state.collectAsStateWithLifecycle()
+    val orbitState by orbitViewModel.orbitState.collectAsStateWithLifecycle()
     val isOrbitVisible by orbitViewModel.isAssistantVisible.collectAsStateWithLifecycle()
-    val orbitTranscript by orbitViewModel.userTranscript.collectAsStateWithLifecycle()
     val orbitAssistantMessage by orbitViewModel.assistantMessage.collectAsStateWithLifecycle()
     val orbitAudioLevel by orbitViewModel.audioLevel.collectAsStateWithLifecycle()
 
@@ -529,13 +528,16 @@ fun SonzaApp(
     }
 
     LaunchedEffect(Unit) {
-        orbitViewModel.uiEvent.collect { event ->
+        orbitViewModel.events.collect { event ->
             when (event) {
                 is com.sonza.app.ai.orbit.OrbitUiEvent.RequestRecordAudioPermission -> {
                     audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                 }
-                is com.sonza.app.ai.orbit.OrbitUiEvent.ShowMessage -> {
+                is com.sonza.app.ai.orbit.OrbitUiEvent.ShowToast -> {
                     com.sonza.app.util.SnackbarUtil.showMessage(event.message)
+                }
+                is com.sonza.app.ai.orbit.OrbitUiEvent.NavigateTo -> {
+                    // Navigation targets if requested
                 }
             }
         }
@@ -1435,13 +1437,12 @@ fun SonzaApp(
         // Orbit Floating Assistant Overlay
         com.sonza.app.ai.orbit.OrbitFloatingAssistant(
             isVisible = isOrbitVisible,
-            orbitState = orbitState,
-            assistantMessage = orbitAssistantMessage,
-            userTranscript = orbitTranscript,
+            state = orbitState,
+            message = orbitAssistantMessage,
             audioLevel = orbitAudioLevel,
-            onOrbitClick = { orbitViewModel.onOrbitTapped() },
+            onAvatarClick = { orbitViewModel.onOrbitTapped() },
             onDismiss = { orbitViewModel.dismissAssistant() },
-            onQuerySubmit = { orbitViewModel.processQuery(it) },
+            onSubmitText = { orbitViewModel.processUtterance(it) },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .zIndex(150f)

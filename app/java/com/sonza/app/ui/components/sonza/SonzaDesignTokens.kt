@@ -60,27 +60,27 @@ object SonzaDesignTokens {
         val Sm: Dp = RadiusTokens.Sm      // 8.dp
         val Md: Dp = RadiusTokens.Md      // 12.dp
         val Lg: Dp = RadiusTokens.Lg      // 16.dp
-        val Xl: Dp = RadiusTokens.Xl      // 20.dp
-        val Xxl: Dp = RadiusTokens.Xxl    // 24.dp
+        val Xl: Dp = 20.dp
+        val Xxl: Dp = 24.dp
         val Pill: Dp = RadiusTokens.Pill  // 999.dp
 
-        val CardShape = RoundedCornerShape(Xxl)
-        val GlassCardShape = RoundedCornerShape(22.dp)
-        val MiniPlayerShape = RoundedCornerShape(26.dp)
-        val ButtonShape = RoundedCornerShape(Md)
-        val PillShape = RoundedCornerShape(Pill)
-        val CircleShape = CircleShape
+        val CardShape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(24.dp)
+        val GlassCardShape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(22.dp)
+        val MiniPlayerShape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(26.dp)
+        val ButtonShape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(RadiusTokens.Md)
+        val PillShape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(RadiusTokens.Pill)
+        val CircleShape: androidx.compose.ui.graphics.Shape = androidx.compose.foundation.shape.CircleShape
     }
 
     object Spacing {
-        val Space2Xs = SpacingTokens.Space2Xs // 2.dp
-        val SpaceXs = SpacingTokens.SpaceXs   // 4.dp
-        val SpaceSm = SpacingTokens.SpaceSm   // 8.dp
-        val SpaceMd = SpacingTokens.SpaceMd   // 12.dp
-        val SpaceLg = SpacingTokens.SpaceLg   // 16.dp
-        val SpaceXl = SpacingTokens.SpaceXl   // 24.dp
-        val Space2Xl = SpacingTokens.Space2Xl // 32.dp
-        val Space3Xl = SpacingTokens.Space3Xl // 40.dp
+        val Space2Xs: Dp = SpacingTokens.Xxs // 2.dp
+        val SpaceXs: Dp = SpacingTokens.SpaceXs   // 4.dp
+        val SpaceSm: Dp = SpacingTokens.SpaceSm   // 8.dp
+        val SpaceMd: Dp = SpacingTokens.SpaceMd   // 12.dp
+        val SpaceLg: Dp = SpacingTokens.SpaceLg   // 16.dp
+        val SpaceXl: Dp = SpacingTokens.SpaceXl   // 24.dp
+        val Space2Xl: Dp = SpacingTokens.Space2Xl // 32.dp
+        val Space3Xl: Dp = SpacingTokens.Xxxl     // 48.dp
     }
 
     object Elevation {

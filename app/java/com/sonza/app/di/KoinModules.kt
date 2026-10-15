@@ -31,6 +31,7 @@ import com.sonza.app.ui.viewmodel.SearchViewModel
 import com.sonza.app.ui.viewmodel.SettingsViewModel
 import com.sonza.app.ui.viewmodel.SongInfoViewModel
 import com.sonza.app.updater.UpdateViewModel
+import com.sonza.app.ai.orbit.OrbitAssistantViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -213,7 +214,7 @@ private val viewModelsModule: Module = module {
     viewModelOf(::UpdateViewModel)
     viewModelOf(::PlaylistMigrationViewModel)
     viewModelOf(::PodcastsViewModel)
-    viewModelOf(com.sonza.app.ai.orbit.OrbitAssistantViewModel::class)
+    viewModelOf(::OrbitAssistantViewModel)
 }
 
 /**

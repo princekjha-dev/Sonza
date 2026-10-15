@@ -169,7 +169,7 @@ fun OrbitAvatar(
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.size(totalSize)) {
-            val center = Offset(size.width / 2f, size.height / 2f)
+            val center = Offset(this.size.width / 2f, this.size.height / 2f)
             val orbRadius = (this.size.width - (size.haloPadding.toPx() * 2f)) / 2f
 
             // 1. Outer Ambient Glow

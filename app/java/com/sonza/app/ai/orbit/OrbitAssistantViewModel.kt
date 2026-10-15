@@ -22,8 +22,7 @@ sealed interface OrbitUiEvent {
     data class ShowToast(val message: String) : OrbitUiEvent
 }
 
-@HiltViewModel
-class OrbitAssistantViewModel @Inject constructor(
+class OrbitAssistantViewModel(
     private val voiceManager: OrbitVoiceManager,
     private val executor: OrbitExecutor,
     private val musicPlayer: MusicPlayer
@@ -111,6 +110,16 @@ class OrbitAssistantViewModel @Inject constructor(
 
             // Keep confirmation visible briefly, then return to IDLE
             scheduleAutoDismiss(3500)
+        }
+    }
+
+    fun onPermissionResult(isGranted: Boolean) {
+        if (isGranted) {
+            startListening()
+        } else {
+            _assistantMessage.value = "Microphone access is needed for Orbit"
+            _orbitState.value = OrbitState.ERROR
+            scheduleAutoDismiss(3000)
         }
     }
 

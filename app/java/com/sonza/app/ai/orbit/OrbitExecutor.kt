@@ -32,8 +32,7 @@ data class OrbitExecutionResult(
  * Executes Orbit Intents by operating directly on REAL Sonza systems.
  * NEVER creates duplicate playback or database instances.
  */
-@Singleton
-class OrbitExecutor @Inject constructor(
+class OrbitExecutor(
     private val musicPlayer: MusicPlayer,
     private val youTubeRepository: YouTubeRepository,
     private val libraryRepository: LibraryRepository,
@@ -270,10 +269,10 @@ class OrbitExecutor @Inject constructor(
                     val song = currentSong ?: musicPlayer.playerState.value.currentSong
                     if (song != null) {
                         if (intent.playNext) {
-                            musicPlayer.playNext(song)
+                            musicPlayer.playNext(listOf(song))
                             OrbitExecutionResult(true, "Will play ${song.title} next", "Playing next")
                         } else {
-                            musicPlayer.addToQueue(song)
+                            musicPlayer.addToQueue(listOf(song))
                             OrbitExecutionResult(true, "Added ${song.title} to queue", "Added to queue")
                         }
                     } else {

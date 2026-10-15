@@ -73,13 +73,13 @@ fun SonzaButton(
             .defaultMinSize(minHeight = 48.dp, minWidth = 88.dp)
             .clip(shape)
             .then(bgModifier)
-            .bounceClick(
-                scaleDown = 0.94f,
-                enabled = enabled,
-                onClick = {
-                    haptics.tick()
-                    onClick()
-                }
+            .then(
+                if (enabled) {
+                    Modifier.bounceClick(scaleDown = 0.94f) {
+                        haptics.tick()
+                        onClick()
+                    }
+                } else Modifier
             )
             .padding(horizontal = 20.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center
@@ -133,13 +133,13 @@ fun SonzaIconButton(
             .clip(CircleShape)
             .background(backgroundColor)
             .border(1.dp, borderColor, CircleShape)
-            .bounceClick(
-                scaleDown = 0.92f,
-                enabled = enabled,
-                onClick = {
-                    haptics.tick()
-                    onClick()
-                }
+            .then(
+                if (enabled) {
+                    Modifier.bounceClick(scaleDown = 0.92f) {
+                        haptics.tick()
+                        onClick()
+                    }
+                } else Modifier
             ),
         contentAlignment = Alignment.Center
     ) {

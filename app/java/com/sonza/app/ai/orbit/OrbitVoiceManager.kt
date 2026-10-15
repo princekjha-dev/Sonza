@@ -20,8 +20,7 @@ import javax.inject.Singleton
  * Speech Recognition Manager for Orbit AI.
  * Implements TAP ORBIT = IMMEDIATELY LISTEN with live RMS audio reactivity for avatar animation.
  */
-@Singleton
-class OrbitVoiceManager @Inject constructor(
+class OrbitVoiceManager(
     private val context: Context
 ) {
     private var speechRecognizer: SpeechRecognizer? = null

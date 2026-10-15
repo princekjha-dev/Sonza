@@ -170,7 +170,7 @@ class SonzaStandardWidget : GlanceAppWidget() {
                                 .height(3.dp)
                                 .background(ColorProvider(Color.White.copy(alpha = 0.18f)))
                                 .cornerRadius(1.5.dp)
-                        )
+                        ) {}
 
                         Spacer(modifier = GlanceModifier.height(10.dp))
 

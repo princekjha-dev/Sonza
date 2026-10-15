@@ -71,10 +71,10 @@ fun SonzaPill(
             .clip(SonzaDesignTokens.Radii.PillShape)
             .background(backgroundColor)
             .border(1.dp, borderColor, SonzaDesignTokens.Radii.PillShape)
-            .bounceClick(
-                scaleDown = 0.95f,
-                enabled = enabled,
-                onClick = onClick
+            .then(
+                if (enabled) {
+                    Modifier.bounceClick(scaleDown = 0.95f, onClick = onClick)
+                } else Modifier
             )
             .padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
