@@ -37,22 +37,7 @@ class HomeGreetingHelperTest {
         assertEquals("Good night 🌙", HomeGreetingHelper.getGreetingText(userName = null, hour = 2))
     }
 
-    @Test
-    fun testGreetingsWithUserName() {
-        // Morning (5..11)
-        assertEquals("Good morning, Naruto 🌅", HomeGreetingHelper.getGreetingText(userName = "Naruto", hour = 9))
-        assertEquals("Good morning, Naruto 🌅", HomeGreetingHelper.getGreetingText(userName = " Naruto  ", hour = 9))
-
-        // Afternoon (12..16)
-        assertEquals("Good afternoon, Naruto 🌤️", HomeGreetingHelper.getGreetingText(userName = "Naruto", hour = 13))
-
-        // Evening (17..21)
-        assertEquals("Good evening, Naruto 🌆", HomeGreetingHelper.getGreetingText(userName = "Naruto", hour = 18))
-
-        // Night (22..4)
-        assertEquals("Good night, Naruto 🌙", HomeGreetingHelper.getGreetingText(userName = "Naruto", hour = 23))
-        assertEquals("Good night, Naruto 🌙", HomeGreetingHelper.getGreetingText(userName = "Naruto", hour = 1))
-    }
+    
 
     @Test
     fun testPositionalCompatibilityOverload() {

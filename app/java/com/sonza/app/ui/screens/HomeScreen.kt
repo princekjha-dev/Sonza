@@ -97,6 +97,7 @@ fun HomeScreen(
     currentSong: Song? = null,
     isPlaying: Boolean = false,
     onPlayPause: () -> Unit = {},
+    onOrbitClick: () -> Unit = {},
     viewModel: HomeViewModel = koinViewModel(),
     playlistViewModel: PlaylistManagementViewModel = koinViewModel()
 ) {
@@ -334,6 +335,7 @@ fun HomeScreen(
                                     currentSong = currentSong,
                                     recentlyPlayed = uiState.recentlyPlayed,
                                     onProfileClick = onProfileClick,
+                                    onOrbitClick = onOrbitClick,
                                     modifier = Modifier.animateEnter(index = 0)
                                 )
                             }

@@ -514,6 +514,32 @@ fun SonzaApp(
     val playerViewModel: PlayerViewModel = koinViewModel()
     val mainViewModel: MainViewModel = koinViewModel()
     val playlistManagementViewModel: com.sonza.app.ui.viewmodel.PlaylistManagementViewModel = koinViewModel()
+    val orbitViewModel: com.sonza.app.ai.orbit.OrbitAssistantViewModel = koinViewModel()
+    
+    val orbitState by orbitViewModel.state.collectAsStateWithLifecycle()
+    val isOrbitVisible by orbitViewModel.isAssistantVisible.collectAsStateWithLifecycle()
+    val orbitTranscript by orbitViewModel.userTranscript.collectAsStateWithLifecycle()
+    val orbitAssistantMessage by orbitViewModel.assistantMessage.collectAsStateWithLifecycle()
+    val orbitAudioLevel by orbitViewModel.audioLevel.collectAsStateWithLifecycle()
+
+    val audioPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        orbitViewModel.onPermissionResult(isGranted)
+    }
+
+    LaunchedEffect(Unit) {
+        orbitViewModel.uiEvent.collect { event ->
+            when (event) {
+                is com.sonza.app.ai.orbit.OrbitUiEvent.RequestRecordAudioPermission -> {
+                    audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                }
+                is com.sonza.app.ai.orbit.OrbitUiEvent.ShowMessage -> {
+                    com.sonza.app.util.SnackbarUtil.showMessage(event.message)
+                }
+            }
+        }
+    }
     
     val mainUiState by mainViewModel.uiState.collectAsStateWithLifecycle()
     val playlistManagementUiState by playlistManagementViewModel.uiState.collectAsStateWithLifecycle()
@@ -651,6 +677,24 @@ fun SonzaApp(
                 is com.sonza.app.ui.viewmodel.MainEvent.NavigateToSearch -> {
                     navController.navigate(com.sonza.app.navigation.Destination.Search)
                     // TODO: pre-fill search with event.query once Search screen exposes a seed param.
+                }
+                is com.sonza.app.ui.viewmodel.MainEvent.ExpandPlayer -> {
+                    playerViewModel.expandPlayer()
+                }
+                is com.sonza.app.ui.viewmodel.MainEvent.OpenLyrics -> {
+                    playerViewModel.expandPlayer()
+                }
+                is com.sonza.app.ui.viewmodel.MainEvent.OpenQueue -> {
+                    playerViewModel.expandPlayer()
+                }
+                is com.sonza.app.ui.viewmodel.MainEvent.TriggerOrbitListening -> {
+                    orbitViewModel.onOrbitTapped()
+                }
+                is com.sonza.app.ui.viewmodel.MainEvent.NavigateToLibrary -> {
+                    navController.navigate(com.sonza.app.navigation.Destination.Library)
+                }
+                is com.sonza.app.ui.viewmodel.MainEvent.OpenEqualizer -> {
+                    navController.navigate(com.sonza.app.navigation.Destination.AIEqualizer)
                 }
                 is com.sonza.app.ui.viewmodel.MainEvent.ShowToast -> {
                     com.sonza.app.util.SnackbarUtil.showMessage(event.message)
@@ -1068,7 +1112,8 @@ fun SonzaApp(
                             // Removed sharedTransitionScope
                             dominantColors = currentDominantColors,
                             snackbarHostState = snackbarHostState,
-                            pagerState = mainPagerState
+                            pagerState = mainPagerState,
+                            onOrbitClick = { orbitViewModel.onOrbitTapped() }
                         )
                     }
 
@@ -1274,7 +1319,8 @@ fun SonzaApp(
                                 restoreState = true
                             }
                         }
-                    }
+                    },
+                    onOrbitClick = { orbitViewModel.onOrbitTapped() }
                 )
 
                 com.sonza.app.ui.screens.player.PlayerScreen(
@@ -1385,6 +1431,21 @@ fun SonzaApp(
                     .zIndex(90f)
             )
         }
+
+        // Orbit Floating Assistant Overlay
+        com.sonza.app.ai.orbit.OrbitFloatingAssistant(
+            isVisible = isOrbitVisible,
+            orbitState = orbitState,
+            assistantMessage = orbitAssistantMessage,
+            userTranscript = orbitTranscript,
+            audioLevel = orbitAudioLevel,
+            onOrbitClick = { orbitViewModel.onOrbitTapped() },
+            onDismiss = { orbitViewModel.dismissAssistant() },
+            onQuerySubmit = { orbitViewModel.processQuery(it) },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .zIndex(150f)
+        )
 
         // Global Snackbar Host - Always on top
         SnackbarHost(

@@ -29,6 +29,12 @@ sealed class MainEvent {
     data class NavigateToPlaylist(val playlistId: String) : MainEvent()
     data class NavigateToArtist(val channelId: String) : MainEvent()
     data class NavigateToSearch(val query: String) : MainEvent()
+    object ExpandPlayer : MainEvent()
+    object OpenLyrics : MainEvent()
+    object OpenQueue : MainEvent()
+    object TriggerOrbitListening : MainEvent()
+    object NavigateToLibrary : MainEvent()
+    object OpenEqualizer : MainEvent()
 }
 
 data class MainUiState(
@@ -119,6 +125,18 @@ class MainViewModel @Inject constructor(
                             _events.emit(MainEvent.NavigateToArtist(target.id))
                         is com.sonza.app.deeplink.DeepLinkTarget.Search ->
                             _events.emit(MainEvent.NavigateToSearch(target.query))
+                        is com.sonza.app.deeplink.DeepLinkTarget.Player ->
+                            _events.emit(MainEvent.ExpandPlayer)
+                        is com.sonza.app.deeplink.DeepLinkTarget.Lyrics ->
+                            _events.emit(MainEvent.OpenLyrics)
+                        is com.sonza.app.deeplink.DeepLinkTarget.Queue ->
+                            _events.emit(MainEvent.OpenQueue)
+                        is com.sonza.app.deeplink.DeepLinkTarget.OrbitListen ->
+                            _events.emit(MainEvent.TriggerOrbitListening)
+                        is com.sonza.app.deeplink.DeepLinkTarget.Library ->
+                            _events.emit(MainEvent.NavigateToLibrary)
+                        is com.sonza.app.deeplink.DeepLinkTarget.Equalizer ->
+                            _events.emit(MainEvent.OpenEqualizer)
                         null -> Unit // unknown sonza:// URI — ignore
                     }
                 }

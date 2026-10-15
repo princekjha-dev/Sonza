@@ -107,7 +107,8 @@ fun NavGraph(
     startDestination: Any = Destination.Home,
     dominantColors: com.sonza.app.ui.components.DominantColors? = null,
     snackbarHostState: androidx.compose.material3.SnackbarHostState? = null,
-    pagerState: androidx.compose.foundation.pager.PagerState? = null
+    pagerState: androidx.compose.foundation.pager.PagerState? = null,
+    onOrbitClick: (() -> Unit)? = null
 ) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val formFactor = LocalDeviceFormFactor.current
@@ -220,7 +221,8 @@ fun NavGraph(
                 navController = navController,
                 playbackInfo = playbackInfo,
                 onPlaySong = onPlaySong,
-                onPlayPause = onPlayPause
+                onPlayPause = onPlayPause,
+                onOrbitClick = onOrbitClick
             )
         }
 

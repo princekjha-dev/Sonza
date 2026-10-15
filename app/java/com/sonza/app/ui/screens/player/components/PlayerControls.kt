@@ -199,7 +199,8 @@ fun SecondaryPlayerControls(
     dominantColors: DominantColors,
     modifier: Modifier = Modifier,
     onShowDevices: (() -> Unit)? = null,
-    onShowEqualizer: (() -> Unit)? = null
+    onShowEqualizer: (() -> Unit)? = null,
+    onOrbitClick: (() -> Unit)? = null
 ) {
     val haptics = com.sonza.app.ui.utils.rememberHaptics()
     val buttonSize = 44.dp
@@ -292,6 +293,27 @@ fun SecondaryPlayerControls(
             )
         }
 
+        // Orbit AI Assistant Button
+        if (onOrbitClick != null) {
+            Box(
+                modifier = Modifier
+                    .size(buttonSize)
+                    .clip(CircleShape)
+                    .background(dominantColors.accent.copy(alpha = 0.14f))
+                    .bounceClick(scaleDown = MotionTokens.CardTapScale) {
+                        haptics.tick()
+                        onOrbitClick()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                com.sonza.app.ai.orbit.OrbitAvatar(
+                    state = com.sonza.app.ai.orbit.OrbitState.IDLE,
+                    size = com.sonza.app.ai.orbit.OrbitAvatarSize.Mini,
+                    onClick = onOrbitClick
+                )
+            }
+        }
+
         // Devices (Audio output) Button
         if (onShowDevices != null) {
             Box(
@@ -299,20 +321,20 @@ fun SecondaryPlayerControls(
                     .size(buttonSize)
                     .clip(CircleShape)
                     .background(dominantColors.onBackground.copy(alpha = 0.08f))
-                    .bounceClick(scaleDown = MotionTokens.CardTapScale) {
-                        haptics.tick()
-                        onShowDevices()
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Devices,
-                    contentDescription = "Audio output devices",
-                    tint = dominantColors.onBackground.copy(alpha = 0.85f),
-                    modifier = Modifier.size(iconSize)
-                )
-            }
+                .bounceClick(scaleDown = MotionTokens.CardTapScale) {
+                    haptics.tick()
+                    onShowDevices()
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Devices,
+                contentDescription = "Audio output devices",
+                tint = dominantColors.onBackground.copy(alpha = 0.85f),
+                modifier = Modifier.size(iconSize)
+            )
         }
+    }
 
         // Queue Button
         Box(

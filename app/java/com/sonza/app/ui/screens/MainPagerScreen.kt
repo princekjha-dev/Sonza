@@ -49,6 +49,7 @@ fun MainPagerScreen(
     playbackInfo: PlayerState,
     onPlaySong: (List<Song>, Int) -> Unit,
     onPlayPause: () -> Unit,
+    onOrbitClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     homeViewModel: HomeViewModel = koinViewModel(),
     searchViewModel: SearchViewModel = koinViewModel(),
@@ -146,6 +147,7 @@ fun MainPagerScreen(
                     else -> {
                         HomeScreen(
                             onSongClick = { songs, index -> onPlaySong(songs, index) },
+                            onOrbitClick = { onOrbitClick?.invoke() },
                             onPlaylistClick = { playlist: PlaylistDisplayItem ->
                                 navController.navigate(
                                     Destination.Playlist(

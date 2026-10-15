@@ -49,6 +49,14 @@ object DeepLinkHandler {
                 ?.takeIf { it.isNotBlank() }
                 ?.let { DeepLinkTarget.Search(it) }
 
+            "player" -> DeepLinkTarget.Player
+            "lyrics" -> DeepLinkTarget.Lyrics
+            "queue" -> DeepLinkTarget.Queue
+            "orbit_listen" -> DeepLinkTarget.OrbitListen
+            "ai" -> DeepLinkTarget.OrbitListen
+            "library" -> DeepLinkTarget.Library
+            "eq" -> DeepLinkTarget.Equalizer
+
             else -> null
         }
     }
@@ -59,6 +67,12 @@ object DeepLinkHandler {
         is DeepLinkTarget.Playlist -> Uri.parse("$SCHEME://playlist/${target.id}")
         is DeepLinkTarget.Artist -> Uri.parse("$SCHEME://artist/${target.id}")
         is DeepLinkTarget.Search -> Uri.parse("$SCHEME://search?q=${Uri.encode(target.query)}")
+        is DeepLinkTarget.Player -> Uri.parse("$SCHEME://player")
+        is DeepLinkTarget.Lyrics -> Uri.parse("$SCHEME://lyrics")
+        is DeepLinkTarget.Queue -> Uri.parse("$SCHEME://queue")
+        is DeepLinkTarget.OrbitListen -> Uri.parse("$SCHEME://orbit_listen")
+        is DeepLinkTarget.Library -> Uri.parse("$SCHEME://library")
+        is DeepLinkTarget.Equalizer -> Uri.parse("$SCHEME://eq")
     }
 }
 
@@ -68,4 +82,10 @@ sealed class DeepLinkTarget {
     data class Playlist(val id: String) : DeepLinkTarget()
     data class Artist(val id: String) : DeepLinkTarget()
     data class Search(val query: String) : DeepLinkTarget()
+    object Player : DeepLinkTarget()
+    object Lyrics : DeepLinkTarget()
+    object Queue : DeepLinkTarget()
+    object OrbitListen : DeepLinkTarget()
+    object Library : DeepLinkTarget()
+    object Equalizer : DeepLinkTarget()
 }

@@ -64,6 +64,7 @@ fun HomeTopHeader(
     currentSong: com.sonza.app.core.model.Song? = null,
     recentlyPlayed: List<com.sonza.app.core.model.RecentlyPlayed> = emptyList(),
     onProfileClick: () -> Unit = {},
+    onOrbitClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val dynamicColors = LocalSonzaDynamicColors.current
@@ -110,32 +111,55 @@ fun HomeTopHeader(
                 )
             }
 
-            // Account Avatar
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(SonzaSurfaceVariant)
-                    .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onProfileClick),
-                contentAlignment = Alignment.Center
+            // Orbit AI Avatar + Account Avatar
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceSm)
             ) {
-                if (!avatarUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(avatarUrl)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = "Account",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Account",
-                        tint = SonzaOnSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
+                if (onOrbitClick != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(dynamicColors.accent.copy(alpha = 0.16f))
+                            .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onOrbitClick),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        com.sonza.app.ai.orbit.OrbitAvatar(
+                            state = com.sonza.app.ai.orbit.OrbitState.IDLE,
+                            size = com.sonza.app.ai.orbit.OrbitAvatarSize.Mini,
+                            onClick = onOrbitClick
+                        )
+                    }
+                }
+
+                // Account Avatar
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(SonzaSurfaceVariant)
+                        .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onProfileClick),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (!avatarUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(avatarUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Account",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Account",
+                            tint = SonzaOnSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }

@@ -127,6 +127,17 @@ private val hiltBridgedModule: Module = module {
     single { bridge(androidContext()).youTubeMusicProvider() }
     single { bridge(androidContext()).fileExportProvider() }
     single { com.sonza.app.data.repository.FeedbackRepository(get()) }
+    single { com.sonza.app.ai.orbit.OrbitVoiceManager(androidContext()) }
+    single {
+        com.sonza.app.ai.orbit.OrbitExecutor(
+            musicPlayer = get(),
+            youTubeRepository = get(),
+            libraryRepository = get(),
+            downloadRepository = get(),
+            sleepTimerManager = get(),
+            context = androidContext()
+        )
+    }
 
     // MainViewModel uses a deferred Cache accessor (was dagger.Lazy<Cache>) to
     // avoid forcing SimpleCache initialization on app start. Provided as a
@@ -202,6 +213,7 @@ private val viewModelsModule: Module = module {
     viewModelOf(::UpdateViewModel)
     viewModelOf(::PlaylistMigrationViewModel)
     viewModelOf(::PodcastsViewModel)
+    viewModelOf(com.sonza.app.ai.orbit.OrbitAssistantViewModel::class)
 }
 
 /**

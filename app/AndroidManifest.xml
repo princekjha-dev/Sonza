@@ -28,6 +28,9 @@
     
     <!-- Vibration permission for Music Haptics -->
     <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Microphone permission for Orbit Voice AI Assistant -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     
     <!-- System Alert Window for External Dynamic Island Floating Player -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
@@ -59,6 +62,10 @@
         <intent>
             <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
         </intent>
+        <!-- For Orbit AI Speech Recognition -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
     </queries>
 
     <application
@@ -89,6 +96,58 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/sonza_widget_info" />
+        </receiver>
+
+        <!-- Compact Music Widget -->
+        <receiver
+            android:name=".glance.SonzaCompactWidgetReceiver"
+            android:exported="true"
+            android:label="Sonza Compact">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/sonza_widget_compact_info" />
+        </receiver>
+
+        <!-- Standard Now Playing Widget -->
+        <receiver
+            android:name=".glance.SonzaStandardWidgetReceiver"
+            android:exported="true"
+            android:label="Sonza Now Playing">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/sonza_widget_standard_info" />
+        </receiver>
+
+        <!-- Large Orbit Music Widget -->
+        <receiver
+            android:name=".glance.SonzaLargeWidgetReceiver"
+            android:exported="true"
+            android:label="Sonza Large + Orbit">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/sonza_widget_large_info" />
+        </receiver>
+
+        <!-- AI Quick Access Widget -->
+        <receiver
+            android:name=".glance.SonzaQuickAccessWidgetReceiver"
+            android:exported="true"
+            android:label="Sonza AI Quick Access">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/sonza_widget_quick_access_info" />
         </receiver>
 
         <activity
@@ -155,6 +214,13 @@
                 <data android:scheme="sonza" android:host="playlist" />
                 <data android:scheme="sonza" android:host="artist" />
                 <data android:scheme="sonza" android:host="search" />
+                <data android:scheme="sonza" android:host="player" />
+                <data android:scheme="sonza" android:host="lyrics" />
+                <data android:scheme="sonza" android:host="queue" />
+                <data android:scheme="sonza" android:host="orbit_listen" />
+                <data android:scheme="sonza" android:host="ai" />
+                <data android:scheme="sonza" android:host="library" />
+                <data android:scheme="sonza" android:host="eq" />
             </intent-filter>
 
             <!-- Last.fm Authentication Callback (sonza://lastfm-auth) -->

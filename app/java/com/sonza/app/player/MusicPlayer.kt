@@ -425,7 +425,7 @@ class MusicPlayer @Inject constructor(
                 if (lastSignificantState != currentSignificantState) {
                     lastSignificantState = currentSignificantState
                     try {
-                        com.sonza.app.glance.SonzaWidget().updateAll(context)
+                        com.sonza.app.glance.SonzaWidgetManager.updateAllWidgets(context)
                     } catch (e: Exception) {
                         // Glance widget update can fail when no widget is bound,
                         // when the host process is busy, or on rare runtime errors.

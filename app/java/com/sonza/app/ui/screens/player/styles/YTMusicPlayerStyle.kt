@@ -364,7 +364,8 @@ private fun YTMusicPortraitContent(
                 onShowQueue = onShowQueue,
                 onShowLyrics = onShowLyrics,
                 onShowDevices = onShowDevices,
-                dominantColors = dominantColors
+                dominantColors = dominantColors,
+                onOrbitClick = actions.onOrbitClick
             )
 
             Spacer(modifier = Modifier.height(if (isVeryShort) 8.dp else 16.dp))
@@ -600,7 +601,8 @@ private fun YTMusicLandscapeContent(
                 onShowQueue = onShowQueue,
                 onShowLyrics = onShowLyrics,
                 onShowDevices = onShowDevices,
-                dominantColors = dominantColors
+                dominantColors = dominantColors,
+                onOrbitClick = actions.onOrbitClick
             )
         }
     }

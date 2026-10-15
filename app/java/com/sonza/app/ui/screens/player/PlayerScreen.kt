@@ -153,7 +153,8 @@ data class PlayerScreenActions(
     val onAddRelatedToPlaylist: (List<com.sonza.app.core.model.Song>) -> Unit,
     val onPlayRelated: (com.sonza.app.core.model.Song) -> Unit,
     val onClearQueue: () -> Unit = {},
-    val onSwitchAudioSource: () -> Unit = {}
+    val onSwitchAudioSource: () -> Unit = {},
+    val onOrbitClick: (() -> Unit)? = null
 )
 
 /**
