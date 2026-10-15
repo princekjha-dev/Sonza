@@ -32,6 +32,7 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Feedback
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.History
@@ -123,6 +124,7 @@ fun UserProfileScreen(
     val accentColor = dynamicColors.accent.takeIf { it != Color.Unspecified } ?: SonzaBrandAccent
     val uriHandler = LocalUriHandler.current
     var showSignOutDialog by remember { mutableStateOf(false) }
+    var showAvatarPicker by remember { mutableStateOf(false) }
 
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val bottomSystemHeight = ExpressiveBottomNavTokens.getBottomSafePadding(currentSong != null)
@@ -186,28 +188,42 @@ fun UserProfileScreen(
                             .padding(SpacingTokens.SpaceLg),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Avatar Container
-                        Box(
-                            modifier = Modifier
-                                .size(84.dp)
-                                .clip(CircleShape)
-                                .background(accentColor.copy(alpha = 0.15f))
-                                .border(2.dp, accentColor.copy(alpha = 0.35f), CircleShape),
-                            contentAlignment = Alignment.Center
+                        // Avatar Container with user's selected 3D Memoji avatar
+                        com.sonza.app.ui.components.avatar.AvatarView(
+                            avatarId = uiState.selectedAvatarId,
+                            size = 92.dp,
+                            showBorder = true,
+                            borderColor = accentColor,
+                            onClick = { showAvatarPicker = true }
+                        )
+
+                        Spacer(modifier = Modifier.height(SpacingTokens.SpaceSm))
+
+                        // Change Avatar interactive pill
+                        Surface(
+                            onClick = { showAvatarPicker = true },
+                            shape = RoundedCornerShape(16.dp),
+                            color = accentColor.copy(alpha = 0.12f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, accentColor.copy(alpha = 0.28f))
                         ) {
-                            if (!uiState.userAvatarUrl.isNullOrBlank()) {
-                                AsyncImage(
-                                    model = uiState.userAvatarUrl,
-                                    contentDescription = "User Avatar",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Icon(
-                                    imageVector = Icons.Default.Person,
+                                    imageVector = Icons.Default.Edit,
                                     contentDescription = null,
                                     tint = accentColor,
-                                    modifier = Modifier.size(44.dp)
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Text(
+                                    text = "Change Avatar",
+                                    style = SonzaTypography.LabelMedium.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 12.sp
+                                    ),
+                                    color = accentColor
                                 )
                             }
                         }
@@ -522,6 +538,16 @@ fun UserProfileScreen(
             shape = RoundedCornerShape(RadiusTokens.Lg)
         )
     }
+
+    // Avatar Selection Sheet
+    com.sonza.app.ui.components.avatar.AvatarSelectionSheet(
+        isOpen = showAvatarPicker,
+        selectedAvatarId = uiState.selectedAvatarId,
+        onAvatarSelected = { avatarId ->
+            viewModel.setSelectedAvatarId(avatarId)
+        },
+        onDismiss = { showAvatarPicker = false }
+    )
 }
 
 @Composable

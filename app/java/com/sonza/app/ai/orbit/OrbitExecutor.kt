@@ -16,6 +16,7 @@ import com.sonza.app.service.DownloadService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
 
 /**
@@ -234,17 +235,18 @@ class OrbitExecutor(
                             OrbitExecutionResult(false, "Couldn't find $mood songs for $artist", "I couldn't find $mood songs by $artist.")
                         }
                     } else {
-                        // Ambiguous query: Ask the user which song or what mood!
-                        val topSongs = youTubeRepository.search("$artist popular songs", YouTubeRepository.FILTER_SONGS).take(3)
+                        // Ambiguous query: Ask the user which song or show options!
+                        val topSongs = youTubeRepository.search("$artist popular songs", YouTubeRepository.FILTER_SONGS).take(4)
                         val sampleTitles = topSongs.map { it.title }
-                        val spokenPrompt = if (sampleTitles.isNotEmpty()) {
-                            "Sure. Which $artist song would you like? For example: ${sampleTitles.joinToString(", ")}, or choose a mood like romantic, sad, or energetic?"
+                        val spokenPrompt = "Sure. Which $artist song would you like?"
+                        val messageText = if (sampleTitles.isNotEmpty()) {
+                            "$artist\n" + sampleTitles.joinToString("\n") { "• $it" }
                         } else {
-                            "Sure. What mood do you want for $artist — romantic, sad, relaxing, or energetic?"
+                            "Which $artist song would you like?"
                         }
                         OrbitExecutionResult(
                             success = true,
-                            message = "Which $artist song or mood would you like?",
+                            message = messageText,
                             spokenResponse = spokenPrompt,
                             resultingState = OrbitState.SPEAKING,
                             expectsFollowUpVoiceInput = true,
@@ -254,6 +256,27 @@ class OrbitExecutor(
                                 originalQuery = artist
                             )
                         )
+                    }
+                }
+
+                is OrbitIntent.ModifyCurrentMixIntent -> {
+                    val current = currentSong ?: musicPlayer.playerState.value.currentSong
+                    val currentTitle = current?.title ?: "music"
+                    val query = "$currentTitle ${intent.modifier} songs"
+                    val results = youTubeRepository.search(query, YouTubeRepository.FILTER_SONGS)
+                    if (results.isNotEmpty()) {
+                        val firstMatch = results.first()
+                        withContext(Dispatchers.Main) {
+                            musicPlayer.playSong(firstMatch, results, 0)
+                        }
+                        OrbitExecutionResult(
+                            success = true,
+                            message = "Switching to a more ${intent.modifier} mix",
+                            spokenResponse = "Sure. Switching to a more ${intent.modifier} mix.",
+                            actionIndicator = "✨"
+                        )
+                    } else {
+                        OrbitExecutionResult(false, "Couldn't find ${intent.modifier} mix", "I couldn't find a more ${intent.modifier} mix.")
                     }
                 }
 
@@ -704,9 +727,11 @@ class OrbitExecutor(
             )
         }
 
-        // Rank the results: exact title match gets highest priority
+        // Exact song resolution
         val exactMatch = results.find {
             it.title.equals(trackQuery, ignoreCase = true) ||
+            (artistName != null && it.title.contains(trackQuery, ignoreCase = true) && it.artist.contains(artistName, ignoreCase = true))
+        } ?: results.find {
             it.title.contains(trackQuery, ignoreCase = true)
         } ?: results.first()
 
@@ -714,11 +739,32 @@ class OrbitExecutor(
             musicPlayer.playSong(exactMatch, results, results.indexOf(exactMatch).coerceAtLeast(0))
         }
 
-        return OrbitExecutionResult(
-            success = true,
-            message = "Playing ${exactMatch.title}",
-            spokenResponse = "Playing ${exactMatch.title}.",
-            actionIndicator = "🎵"
-        )
+        // Wait for playback state confirmation (up to 3 seconds)
+        val playbackConfirmed = try {
+            withTimeoutOrNull(3000L) {
+                musicPlayer.playerState.first { state ->
+                    (state.currentSong?.id == exactMatch.id || state.currentSong?.title.equals(exactMatch.title, ignoreCase = true)) &&
+                    (state.isPlaying || state.isLoading)
+                }
+            } != null
+        } catch (_: Exception) {
+            false
+        }
+
+        return if (playbackConfirmed) {
+            OrbitExecutionResult(
+                success = true,
+                message = "Playing ${exactMatch.title}",
+                spokenResponse = "Playing ${exactMatch.title}.",
+                actionIndicator = "🎵"
+            )
+        } else {
+            OrbitExecutionResult(
+                success = false,
+                message = "Playback failed for ${exactMatch.title}",
+                spokenResponse = "I found ${exactMatch.title}, but I couldn't start playback.",
+                actionIndicator = "⚠️"
+            )
+        }
     }
 }

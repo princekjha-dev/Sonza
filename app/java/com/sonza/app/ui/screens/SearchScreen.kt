@@ -55,7 +55,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Search
@@ -202,18 +201,7 @@ fun SearchScreen(
         }
     }
 
-    val voiceSearchLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == android.app.Activity.RESULT_OK) {
-            val spokenText = result.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.getOrNull(0)
-            if (!spokenText.isNullOrBlank()) {
-                viewModel.onQueryChange(spokenText)
-                viewModel.search()
-                isSearchActive = false
-            }
-        }
-    }
+
 
     Box(
         modifier = Modifier
@@ -283,23 +271,6 @@ fun SearchScreen(
                     viewModel.onQueryChange("")
                     isSearchActive = false
                     focusManager.clearFocus()
-                },
-                onVoiceSearchClick = {
-                    val intent = android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                        putExtra(
-                            android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                            android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-                        )
-                        putExtra(
-                            android.speech.RecognizerIntent.EXTRA_PROMPT,
-                            "Speak to search"
-                        )
-                    }
-                    try {
-                        voiceSearchLauncher.launch(intent)
-                    } catch (e: Exception) {
-                        com.sonza.app.util.SnackbarUtil.showWarning("Voice search not supported")
-                    }
                 },
                 accentColor = accentColor,
                 modifier = Modifier
@@ -801,7 +772,6 @@ fun SonzaSearchInputField(
     onSearch: () -> Unit,
     onFocusChanged: (Boolean) -> Unit,
     onClearQuery: () -> Unit,
-    onVoiceSearchClick: () -> Unit,
     accentColor: Color,
     modifier: Modifier = Modifier
 ) {
@@ -888,7 +858,7 @@ fun SonzaSearchInputField(
                 )
             }
 
-            // Trailing Icons: Clear 'X' and Voice Search Mic
+            // Trailing Icons: Clear 'X'
             if (query.isNotEmpty()) {
                 IconButton(
                     onClick = onClearQuery,
@@ -901,18 +871,6 @@ fun SonzaSearchInputField(
                         modifier = Modifier.size(18.dp)
                     )
                 }
-            }
-
-            IconButton(
-                onClick = onVoiceSearchClick,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Mic,
-                    contentDescription = "Voice search",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
             }
         }
     }

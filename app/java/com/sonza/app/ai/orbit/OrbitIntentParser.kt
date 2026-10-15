@@ -284,6 +284,12 @@ object OrbitIntentParser {
         }
 
         // --- 13. Moods & Discovery ---
+        val modifyPattern = Pattern.compile("(?:make it|something)?\\s*more\\s+([a-zA-Z\\-]+)").matcher(q)
+        if (modifyPattern.find() || q.contains("old-school") || q.contains("more classic") || q.contains("more upbeat")) {
+            val mod = if (q.contains("old-school")) "old-school" else modifyPattern.group(1) ?: "classic"
+            return OrbitIntent.ModifyCurrentMixIntent(mod)
+        }
+
         if (q.contains("play something similar") || q.contains("play more like this") || q.contains("similar songs") || q.contains("songs like this")) {
             return OrbitIntent.SimilarMusicIntent
         }
@@ -339,6 +345,22 @@ object OrbitIntentParser {
         }
 
         // --- 15. Play Artist / Track / General Search ---
+        val giveMeArtistMatch = Pattern.compile("(?:give me some|give me|play some)\\s+(.+?)\\s+songs?").matcher(q)
+        if (giveMeArtistMatch.find()) {
+            val potentialArtist = giveMeArtistMatch.group(1)?.trim().orEmpty()
+            if (potentialArtist.isNotBlank() && !moodKeywords.contains(potentialArtist) && !languages.contains(potentialArtist)) {
+                return OrbitIntent.PlayArtistIntent(potentialArtist)
+            }
+        }
+
+        val artistSongsMatch = Pattern.compile("play\\s+(.+?)\\s+songs?").matcher(q)
+        if (artistSongsMatch.find()) {
+            val potential = artistSongsMatch.group(1)?.trim().orEmpty()
+            if (potential.isNotBlank() && !moodKeywords.contains(potential) && !languages.contains(potential)) {
+                return OrbitIntent.PlayArtistIntent(potential)
+            }
+        }
+
         // Check for "Play [Artist] [mood] songs" (e.g. "Play Arijit Singh romantic songs")
         for (mood in moodKeywords) {
             val artistMoodPattern = Pattern.compile("(?:play|give me)\\s+(.+?)\\s+$mood\\s+(?:songs?|music)").matcher(q)

@@ -647,30 +647,30 @@ fun SonzaApp(
         onVolumeSliderEnabledChanged(volumeSliderEnabled)
     }
 
-    // Handle intent changes
-    LaunchedEffect(intent) {
-        if (intent != null) {
-            when {
-                intent.action == Intent.ACTION_VOICE_COMMAND ||
-                intent.action == "android.media.action.MEDIA_PLAY_FROM_SEARCH" ||
-                intent.action == Intent.ACTION_ASSIST -> {
-                    val query = intent.getStringExtra(android.app.SearchManager.QUERY)
-                        ?: intent.getStringExtra("query")
-                    if (!query.isNullOrBlank()) {
-                        orbitViewModel.processUtterance(query)
-                    } else {
-                        orbitViewModel.onOrbitTapped()
-                    }
-                }
-                intent.action == Intent.ACTION_VIEW && intent.type?.startsWith("audio/") == true -> {
-                    mainViewModel.handleAudioIntent(intent.data)
-                }
-                else -> {
-                    mainViewModel.handleDeepLink(intent.data)
+    // Register wake word broadcast receiver for seamless in-app activation
+    androidx.compose.runtime.DisposableEffect(context) {
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: Context?, i: Intent?) {
+                if (i?.action == com.sonza.app.ai.orbit.OrbitWakeWordService.ACTION_WAKE_WORD_DETECTED) {
+                    orbitViewModel.onWakeWordDetected()
                 }
             }
         }
+        val filter = android.content.IntentFilter(com.sonza.app.ai.orbit.OrbitWakeWordService.ACTION_WAKE_WORD_DETECTED)
+        androidx.core.content.ContextCompat.registerReceiver(
+            context,
+            receiver,
+            filter,
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        onDispose {
+            try {
+                context.unregisterReceiver(receiver)
+            } catch (_: Exception) {}
+        }
     }
+
+
 
     // Handle MainEvents (Navigation, Toasts)
     // Collect under repeatOnLifecycle so deep-link playback/navigation events
@@ -817,6 +817,73 @@ fun SonzaApp(
         if (!restoreAttempted && intent?.data == null) {
             restoreAttempted = true
             playerViewModel.restoreLastPlayback()
+        }
+    }
+
+    // Handle intent changes and deep links
+    LaunchedEffect(intent) {
+        if (intent != null) {
+            val uri = intent.data
+            val uriStr = uri?.toString()
+            if (uriStr != null && uriStr.startsWith("sonza://")) {
+                when {
+                    uriStr == "sonza://orbit_listen" -> {
+                        orbitViewModel.onOrbitTapped()
+                    }
+                    uriStr.startsWith("sonza://quick_action") -> {
+                        val type = uri.getQueryParameter("type")
+                        when (type) {
+                            "liked" -> orbitViewModel.processUtterance("play my liked songs")
+                            "romantic" -> orbitViewModel.processUtterance("play romantic songs")
+                            "workout" -> orbitViewModel.processUtterance("play workout music")
+                            "discover" -> orbitViewModel.processUtterance("play trending songs")
+                            "recent" -> orbitViewModel.processUtterance("play something similar")
+                        }
+                    }
+                    uriStr == "sonza://queue" -> {
+                        playerViewModel.expandPlayer()
+                    }
+                    uriStr == "sonza://lyrics" -> {
+                        playerViewModel.expandPlayer()
+                    }
+                    uriStr == "sonza://player" -> {
+                        playerViewModel.expandPlayer()
+                    }
+                    uriStr == "sonza://search" -> {
+                        if (destination?.hasRoute<Destination.Home>() != true) {
+                            navController.popBackStack<Destination.Home>(inclusive = false)
+                        }
+                        mainPagerState.animateScrollToPage(1)
+                    }
+                    uriStr == "sonza://profile" -> {
+                        if (destination?.hasRoute<Destination.Home>() != true) {
+                            navController.popBackStack<Destination.Home>(inclusive = false)
+                        }
+                        mainPagerState.animateScrollToPage(3)
+                    }
+                }
+                return@LaunchedEffect
+            }
+
+            when {
+                intent.action == Intent.ACTION_VOICE_COMMAND ||
+                intent.action == "android.media.action.MEDIA_PLAY_FROM_SEARCH" ||
+                intent.action == Intent.ACTION_ASSIST -> {
+                    val query = intent.getStringExtra(android.app.SearchManager.QUERY)
+                        ?: intent.getStringExtra("query")
+                    if (!query.isNullOrBlank()) {
+                        orbitViewModel.processUtterance(query)
+                    } else {
+                        orbitViewModel.onOrbitTapped()
+                    }
+                }
+                intent.action == Intent.ACTION_VIEW && intent.type?.startsWith("audio/") == true -> {
+                    mainViewModel.handleAudioIntent(intent.data)
+                }
+                else -> {
+                    mainViewModel.handleDeepLink(intent.data)
+                }
+            }
         }
     }
     

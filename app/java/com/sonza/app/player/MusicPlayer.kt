@@ -428,6 +428,8 @@ class MusicPlayer @Inject constructor(
                     state.isLiked,
                     state.shuffleEnabled,
                     state.repeatMode,
+                    state.queue.size,
+                    state.currentIndex,
                     state.currentPosition / 5000L
                 )
                 if (lastSignificantState != currentSignificantState) {

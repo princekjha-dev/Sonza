@@ -79,6 +79,7 @@ class SessionManager @Inject constructor(
         private val COOKIES_KEY = stringPreferencesKey("cookies")
         private val USER_NAME_KEY = stringPreferencesKey("user_name")
         private val USER_AVATAR_KEY = stringPreferencesKey("user_avatar")
+        private val USER_SELECTED_AVATAR_ID_KEY = stringPreferencesKey("user_selected_avatar_id")
         private val AUDIO_QUALITY_KEY = stringPreferencesKey("audio_quality")
         private val WIFI_AUDIO_QUALITY_KEY = stringPreferencesKey("wifi_audio_quality")
         private val MOBILE_AUDIO_QUALITY_KEY = stringPreferencesKey("mobile_audio_quality")
@@ -2105,6 +2106,37 @@ class SessionManager @Inject constructor(
 
     val userAvatarFlow: Flow<String?> = context.dataStore.data.map { preferences ->
         preferences[USER_AVATAR_KEY]
+    }
+
+    val selectedAvatarIdFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[USER_SELECTED_AVATAR_ID_KEY] ?: getCachedSelectedAvatarId()
+    }
+
+    fun getCachedSelectedAvatarId(): String {
+        return try {
+            val prefs = context.getSharedPreferences("sonza_user_avatar", Context.MODE_PRIVATE)
+            prefs.getString("selected_avatar_id", "avatar_1") ?: "avatar_1"
+        } catch (_: Exception) {
+            "avatar_1"
+        }
+    }
+
+    suspend fun getSelectedAvatarId(): String =
+        context.dataStore.data.first()[USER_SELECTED_AVATAR_ID_KEY] ?: getCachedSelectedAvatarId()
+
+    suspend fun setSelectedAvatarId(avatarId: String) {
+        context.dataStore.edit { preferences ->
+            preferences[USER_SELECTED_AVATAR_ID_KEY] = avatarId
+        }
+        try {
+            val prefs = context.getSharedPreferences("sonza_user_avatar", Context.MODE_PRIVATE)
+            prefs.edit().putString("selected_avatar_id", avatarId).apply()
+        } catch (_: Exception) {}
+
+        // Automatically update all home-screen widgets so Profile and Widgets stay in sync
+        try {
+            com.sonza.app.glance.SonzaWidgetManager.updateAllWidgets(context)
+        } catch (_: Exception) {}
     }
 
     suspend fun getUserName(): String? =

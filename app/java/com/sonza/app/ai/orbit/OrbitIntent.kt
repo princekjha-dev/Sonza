@@ -90,6 +90,7 @@ sealed interface OrbitIntent {
     object SimilarMusicIntent : OrbitIntent
     object TrendingIntent : OrbitIntent
     object NewReleasesIntent : OrbitIntent
+    data class ModifyCurrentMixIntent(val modifier: String) : OrbitIntent
 
     // 2. Playback Controls
     object PauseIntent : OrbitIntent

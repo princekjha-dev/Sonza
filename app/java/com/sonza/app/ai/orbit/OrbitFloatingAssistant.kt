@@ -108,8 +108,17 @@ fun OrbitFloatingAssistant(
                                         }
                                     )
                             )
+                            val stateTitle = when (state) {
+                                OrbitState.LISTENING -> "Listening…"
+                                OrbitState.THINKING -> "Thinking…"
+                                OrbitState.SPEAKING -> "Speaking…"
+                                OrbitState.WORKING -> "Executing…"
+                                OrbitState.SUCCESS -> "Done"
+                                OrbitState.ERROR -> "Error"
+                                else -> "ORBIT"
+                            }
                             Text(
-                                text = "ORBIT",
+                                text = stateTitle.uppercase(),
                                 style = SonzaTypography.Kicker.copy(
                                     fontSize = 11.sp,
                                     letterSpacing = 1.sp,
@@ -140,17 +149,18 @@ fun OrbitFloatingAssistant(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Speech transcription / Status response
+                    // Speech transcription / Status response / Disambiguation choices
                     val displayText = if (!actionIndicator.isNullOrBlank()) "$actionIndicator $message" else message
                     Text(
                         text = displayText,
                         style = SonzaTypography.BodyMedium.copy(
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp
+                            fontSize = 15.sp,
+                            lineHeight = 22.sp
                         ),
                         color = SonzaDesignTokens.Colors.TextPrimary,
                         textAlign = TextAlign.Center,
-                        maxLines = 2,
+                        maxLines = 6,
                         modifier = Modifier.padding(horizontal = 8.dp)
                     )
 

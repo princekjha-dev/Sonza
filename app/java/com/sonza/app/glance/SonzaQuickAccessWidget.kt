@@ -1,12 +1,16 @@
 package com.sonza.app.glance
 
 import android.content.Context
-import android.graphics.Bitmap
-import androidx.compose.runtime.*
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.glance.*
+import androidx.glance.ColorFilter
+import androidx.glance.GlanceId
+import androidx.glance.GlanceModifier
+import androidx.glance.GlanceTheme
+import androidx.glance.Image
+import androidx.glance.ImageProvider
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -14,76 +18,48 @@ import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
-import androidx.glance.layout.*
+import androidx.glance.background
+import androidx.glance.layout.Alignment
+import androidx.glance.layout.Box
+import androidx.glance.layout.Column
+import androidx.glance.layout.Row
+import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxHeight
+import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.fillMaxWidth
+import androidx.glance.layout.height
+import androidx.glance.layout.padding
+import androidx.glance.layout.size
+import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
-import coil3.imageLoader
-import coil3.request.ImageRequest
-import coil3.request.SuccessResult
-import coil3.request.allowHardware
-import coil3.toBitmap
 import com.sonza.app.R
-import dagger.hilt.android.EntryPointAccessors
 
 class SonzaQuickAccessWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = SonzaQuickAccessWidget()
 }
 
 /**
- * Widget D — AI Quick Access + Now Playing Widget
- * Directly deep-links to existing Sonza features: Orbit Voice AI, Equalizer, Lyrics, and Search,
- * while staying synchronized with the single authoritative playback state.
+ * Widget 4 — Quick Actions Widget.
+ * Provides 5 real quick playback actions:
+ * 1. Play Liked Songs
+ * 2. Romantic Mix
+ * 3. Workout
+ * 4. Discover
+ * 5. Recently Played
+ * Each action directly executes playback in Sonza via deep link routing.
  */
 class SonzaQuickAccessWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val entryPoint = EntryPointAccessors.fromApplication(context.applicationContext, SharedWidgetEntryPoint::class.java)
-        val musicPlayer = entryPoint.getMusicPlayer()
-
         provideContent {
             GlanceTheme {
-                val playerState by musicPlayer.playerState.collectAsState()
-                val currentSong = playerState.currentSong
-
-                var artworkBitmap by remember(currentSong?.id) { mutableStateOf<Bitmap?>(null) }
-
-                DisposableEffect(currentSong?.id) {
-                    onDispose {
-                        artworkBitmap?.let { bmp -> if (!bmp.isRecycled) bmp.recycle() }
-                        artworkBitmap = null
-                    }
-                }
-
-                LaunchedEffect(currentSong?.id) {
-                    if (currentSong?.thumbnailUrl != null) {
-                        try {
-                            val request = ImageRequest.Builder(context)
-                                .data(currentSong.thumbnailUrl)
-                                .size(160, 160)
-                                .allowHardware(false)
-                                .build()
-                            val result = context.imageLoader.execute(request)
-                            if (result is SuccessResult) {
-                                val shared = result.image.toBitmap()
-                                artworkBitmap = shared.copy(Bitmap.Config.ARGB_8888, false)
-                            }
-                        } catch (_: Exception) {}
-                    }
-                }
-
-                val domColor = playerState.dominantColor
-                val backgroundColor = if (domColor != -16777216 && domColor != 0) {
-                    Color(domColor).copy(alpha = 0.94f)
-                } else {
-                    Color(0xFF14151F).copy(alpha = 0.96f)
-                }
-
                 Box(
                     modifier = GlanceModifier
                         .fillMaxSize()
-                        .background(ColorProvider(backgroundColor))
+                        .background(ColorProvider(Color(0xFF141520)))
                         .cornerRadius(24.dp)
                         .padding(12.dp),
                     contentAlignment = Alignment.Center
@@ -92,218 +68,112 @@ class SonzaQuickAccessWidget : GlanceAppWidget() {
                         modifier = GlanceModifier.fillMaxSize(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Top Section: Now Playing Banner (if active) or Orbit Header
-                        if (currentSong != null) {
-                            Row(
-                                modifier = GlanceModifier
-                                    .fillMaxWidth()
-                                    .cornerRadius(14.dp)
-                                    .background(ColorProvider(Color.White.copy(alpha = 0.1f)))
-                                    .padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Mini Artwork
-                                Box(
-                                    modifier = GlanceModifier
-                                        .size(36.dp)
-                                        .cornerRadius(8.dp)
-                                        .background(ColorProvider(Color.White.copy(alpha = 0.1f)))
-                                        .clickable(
-                                            actionRunCallback<OpenDeepLinkAction>(
-                                                actionParametersOf(DeepLinkKey to "sonza://player")
-                                            )
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (artworkBitmap != null) {
-                                        Image(
-                                            provider = ImageProvider(artworkBitmap!!),
-                                            contentDescription = "Artwork",
-                                            contentScale = ContentScale.Crop,
-                                            modifier = GlanceModifier.fillMaxSize().cornerRadius(8.dp)
-                                        )
-                                    } else {
-                                        Image(
-                                            provider = ImageProvider(R.drawable.ic_music_note),
-                                            contentDescription = "Artwork",
-                                            colorFilter = ColorFilter.tint(ColorProvider(Color.White.copy(alpha = 0.6f))),
-                                            modifier = GlanceModifier.size(18.dp)
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = GlanceModifier.width(8.dp))
-
-                                // Song Info
-                                Column(
-                                    modifier = GlanceModifier
-                                        .defaultWeight()
-                                        .clickable(
-                                            actionRunCallback<OpenDeepLinkAction>(
-                                                actionParametersOf(DeepLinkKey to "sonza://player")
-                                            )
-                                        )
-                                ) {
-                                    Text(
-                                        text = currentSong.title,
-                                        style = TextStyle(
-                                            color = ColorProvider(Color.White),
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Bold
-                                        ),
-                                        maxLines = 1
-                                    )
-                                    Text(
-                                        text = currentSong.artist,
-                                        style = TextStyle(
-                                            color = ColorProvider(Color.White.copy(alpha = 0.7f)),
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Normal
-                                        ),
-                                        maxLines = 1
-                                    )
-                                }
-
-                                Spacer(modifier = GlanceModifier.width(6.dp))
-
-                                // Favorite Heart
-                                Image(
-                                    provider = ImageProvider(
-                                        if (playerState.isLiked) R.drawable.ic_heart else R.drawable.ic_heart_outline
-                                    ),
-                                    contentDescription = "Favorite",
-                                    colorFilter = ColorFilter.tint(
-                                        ColorProvider(if (playerState.isLiked) Color(0xFFFF4081) else Color.White.copy(alpha = 0.7f))
-                                    ),
-                                    modifier = GlanceModifier
-                                        .size(20.dp)
-                                        .clickable(actionRunCallback<ToggleLikeAction>())
-                                )
-
-                                Spacer(modifier = GlanceModifier.width(8.dp))
-
-                                // Play/Pause
-                                Box(
-                                    modifier = GlanceModifier
-                                        .size(32.dp)
-                                        .cornerRadius(16.dp)
-                                        .background(ColorProvider(Color.White.copy(alpha = 0.16f)))
-                                        .clickable(actionRunCallback<PlayPauseAction>()),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Image(
-                                        provider = ImageProvider(
-                                            if (playerState.isPlaying) R.drawable.ic_pause else R.drawable.ic_play
-                                        ),
-                                        contentDescription = "Play/Pause",
-                                        colorFilter = ColorFilter.tint(ColorProvider(Color.White)),
-                                        modifier = GlanceModifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        } else {
-                            // Header when idle
-                            Row(
-                                modifier = GlanceModifier
-                                    .fillMaxWidth()
-                                    .clickable(
-                                        actionRunCallback<OpenDeepLinkAction>(
-                                            actionParametersOf(DeepLinkKey to "sonza://orbit_listen")
-                                        )
-                                    ),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = GlanceModifier
-                                        .size(32.dp)
-                                        .cornerRadius(16.dp)
-                                        .background(ColorProvider(Color(0xFF38BDF8).copy(alpha = 0.3f))),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Image(
-                                        provider = ImageProvider(R.drawable.ic_mic),
-                                        contentDescription = "Orbit",
-                                        colorFilter = ColorFilter.tint(ColorProvider(Color(0xFF38BDF8))),
-                                        modifier = GlanceModifier.size(18.dp)
-                                    )
-                                }
-
-                                Spacer(modifier = GlanceModifier.width(10.dp))
-
-                                Column(modifier = GlanceModifier.defaultWeight()) {
-                                    Text(
-                                        text = "SONZA ORBIT",
-                                        style = TextStyle(
-                                            color = ColorProvider(Color(0xFF38BDF8)),
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    )
-                                    Text(
-                                        text = "Ask Orbit to play anything",
-                                        style = TextStyle(
-                                            color = ColorProvider(Color.White.copy(alpha = 0.8f)),
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Normal
-                                        )
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = GlanceModifier.height(10.dp))
-
-                        // 4 Quick Action Tiles: [Orbit] [EQ] [Lyrics] [Search]
+                        // Header
                         Row(
-                            modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = GlanceModifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // 1. Orbit Voice AI Tile
-                            QuickActionTile(
-                                label = "Orbit",
-                                iconRes = R.drawable.ic_mic,
-                                tintColor = Color(0xFF38BDF8),
-                                deepLinkUri = "sonza://orbit_listen",
-                                modifier = GlanceModifier.defaultWeight()
+                            Text(
+                                text = "QUICK ACTIONS",
+                                style = TextStyle(
+                                    color = ColorProvider(Color(0xFF38BDF8)),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             )
+                            Spacer(modifier = GlanceModifier.defaultWeight())
 
-                            Spacer(modifier = GlanceModifier.width(8.dp))
+                            // User Profile Avatar (Synchronized with App Profile)
+                            val avatarId = remember {
+                                try {
+                                    val prefs = context.getSharedPreferences("sonza_user_avatar", Context.MODE_PRIVATE)
+                                    prefs.getString("selected_avatar_id", "avatar_1") ?: "avatar_1"
+                                } catch (_: Exception) {
+                                    "avatar_1"
+                                }
+                            }
+                            val userAvatar = com.sonza.app.ui.components.avatar.AvatarRepository.getAvatarById(avatarId)
 
-                            // 2. Equalizer Tile
-                            QuickActionTile(
-                                label = "EQ / DSP",
-                                iconRes = R.drawable.ic_equalizer,
-                                tintColor = Color(0xFF00E5FF),
-                                deepLinkUri = "sonza://eq",
-                                modifier = GlanceModifier.defaultWeight()
-                            )
+                            Box(
+                                modifier = GlanceModifier
+                                    .size(24.dp)
+                                    .cornerRadius(12.dp)
+                                    .background(ColorProvider(Color.White.copy(alpha = 0.12f)))
+                                    .clickable(
+                                        actionRunCallback<OpenDeepLinkAction>(
+                                            actionParametersOf(DeepLinkKey to "sonza://profile")
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    provider = ImageProvider(userAvatar.drawableRes),
+                                    contentDescription = userAvatar.name,
+                                    modifier = GlanceModifier.size(22.dp).cornerRadius(11.dp)
+                                )
+                            }
                         }
 
                         Spacer(modifier = GlanceModifier.height(8.dp))
 
+                        // Row 1: Play Liked Songs + Romantic Mix
                         Row(
                             modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // 3. Lyrics Tile
-                            QuickActionTile(
-                                label = "Lyrics",
-                                iconRes = R.drawable.ic_lyrics,
-                                tintColor = Color(0xFFBA68C8),
-                                deepLinkUri = "sonza://lyrics",
+                            QuickActionItem(
+                                label = "Liked Songs",
+                                iconRes = R.drawable.ic_heart,
+                                tintColor = Color(0xFFFF5252),
+                                actionType = "liked",
                                 modifier = GlanceModifier.defaultWeight()
                             )
 
                             Spacer(modifier = GlanceModifier.width(8.dp))
 
-                            // 4. Search Tile
-                            QuickActionTile(
-                                label = "Search",
+                            QuickActionItem(
+                                label = "Romantic Mix",
+                                iconRes = R.drawable.ic_music_note,
+                                tintColor = Color(0xFFFF4081),
+                                actionType = "romantic",
+                                modifier = GlanceModifier.defaultWeight()
+                            )
+                        }
+
+                        Spacer(modifier = GlanceModifier.height(6.dp))
+
+                        // Row 2: Workout + Discover + Recently Played
+                        Row(
+                            modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            QuickActionItem(
+                                label = "Workout",
+                                iconRes = R.drawable.ic_equalizer,
+                                tintColor = Color(0xFFFF9100),
+                                actionType = "workout",
+                                modifier = GlanceModifier.defaultWeight()
+                            )
+
+                            Spacer(modifier = GlanceModifier.width(6.dp))
+
+                            QuickActionItem(
+                                label = "Discover",
                                 iconRes = R.drawable.ic_search,
-                                tintColor = Color(0xFF38D39F),
-                                deepLinkUri = "sonza://search",
+                                tintColor = Color(0xFF00E5FF),
+                                actionType = "discover",
+                                modifier = GlanceModifier.defaultWeight()
+                            )
+
+                            Spacer(modifier = GlanceModifier.width(6.dp))
+
+                            QuickActionItem(
+                                label = "Recent",
+                                iconRes = R.drawable.ic_shuffle,
+                                tintColor = Color(0xFFB388FF),
+                                actionType = "recent",
                                 modifier = GlanceModifier.defaultWeight()
                             )
                         }
@@ -313,12 +183,12 @@ class SonzaQuickAccessWidget : GlanceAppWidget() {
         }
     }
 
-    @Composable
-    private fun QuickActionTile(
+    @androidx.compose.runtime.Composable
+    private fun QuickActionItem(
         label: String,
         iconRes: Int,
         tintColor: Color,
-        deepLinkUri: String,
+        actionType: String,
         modifier: GlanceModifier
     ) {
         Box(
@@ -328,10 +198,10 @@ class SonzaQuickAccessWidget : GlanceAppWidget() {
                 .background(ColorProvider(Color.White.copy(alpha = 0.08f)))
                 .clickable(
                     actionRunCallback<OpenDeepLinkAction>(
-                        actionParametersOf(DeepLinkKey to deepLinkUri)
+                        actionParametersOf(DeepLinkKey to "sonza://quick_action?type=$actionType")
                     )
                 )
-                .padding(8.dp),
+                .padding(6.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -342,7 +212,7 @@ class SonzaQuickAccessWidget : GlanceAppWidget() {
                     provider = ImageProvider(iconRes),
                     contentDescription = label,
                     colorFilter = ColorFilter.tint(ColorProvider(tintColor)),
-                    modifier = GlanceModifier.size(24.dp)
+                    modifier = GlanceModifier.size(20.dp)
                 )
                 Spacer(modifier = GlanceModifier.height(4.dp))
                 Text(

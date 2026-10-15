@@ -1,9 +1,6 @@
 package com.sonza.app.glance
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -13,11 +10,9 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
-import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
@@ -25,10 +20,8 @@ import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
-import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
-import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
@@ -39,309 +32,108 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
-import coil3.imageLoader
-import coil3.request.ImageRequest
-import coil3.request.SuccessResult
-import coil3.request.allowHardware
-import coil3.toBitmap
 import com.sonza.app.R
-import com.sonza.app.core.model.RepeatMode
-import com.sonza.app.player.MusicPlayer
-import dagger.hilt.EntryPoint
-import dagger.hilt.InstallIn
-import dagger.hilt.android.EntryPointAccessors
-import dagger.hilt.components.SingletonComponent
 
+/**
+ * Widget 3 — Dedicated Orbit AI Assistant Widget.
+ * Shows ORBIT, "Hey Orbit", with Orbit avatar.
+ * Tap activates Orbit assistant directly in Sonza (no Google voice UI).
+ */
 class SonzaWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        
-        val appContext = context.applicationContext
-        val entryPoint = EntryPointAccessors.fromApplication(
-            appContext,
-            WidgetEntryPoint::class.java
-        )
-        val musicPlayer = entryPoint.getMusicPlayer()
-        
         provideContent {
             GlanceTheme {
-                val playerState by musicPlayer.playerState.collectAsState()
-                val currentSong = playerState.currentSong
-                
-                var artworkBitmap by remember(currentSong?.id) { mutableStateOf<Bitmap?>(null) }
-
-                // Recycle the previous bitmap when the song id changes or the
-                // widget leaves composition. Each artwork is ~256KB ARGB; without
-                // explicit recycle() the native bitmap memory only freed when the
-                // GC ran and the JVM-side Bitmap was collected, which on long
-                // listening sessions across many track skips kept widget memory
-                // bloated.
-                DisposableEffect(currentSong?.id) {
-                    onDispose {
-                        artworkBitmap?.let { bmp ->
-                            if (!bmp.isRecycled) bmp.recycle()
-                        }
-                        artworkBitmap = null
-                    }
-                }
-
-                LaunchedEffect(currentSong?.id) {
-                    if (currentSong?.thumbnailUrl != null) {
-                        try {
-                            val request = ImageRequest.Builder(context)
-                                .data(currentSong.thumbnailUrl)
-                                .size(256, 256)
-                                // Software bitmap is required for RemoteViews, and lets us
-                                // own a private copy below.
-                                .allowHardware(false)
-                                .build()
-                            val result = context.imageLoader.execute(request)
-                            if (result is SuccessResult) {
-                                // IMPORTANT: execute() returns the bitmap held by the shared
-                                // memory cache. We must NOT keep/recycle that instance — the
-                                // same bitmap is reused by every AsyncImage for this URL, and
-                                // recycling it crashes Compose ("trying to use a recycled
-                                // bitmap"). Take an owned copy that this widget can recycle.
-                                val shared = result.image.toBitmap()
-                                artworkBitmap = shared.copy(Bitmap.Config.ARGB_8888, false)
-                            }
-                        } catch (e: Exception) {
-                            android.util.Log.w("SonzaWidget", "Artwork load failed: ${e.message}")
-                        }
-                    }
-                }
-
-                // Dynamic background color from PlayerState
-                val domColor = playerState.dominantColor
-                val backgroundColor = if (domColor != -16777216 && domColor != 0) {
-                     Color(domColor).copy(alpha = 0.92f)
-                } else {
-                     Color(0xFF252836).copy(alpha = 0.95f)
-                }
-                
-                val contentColor = Color.White
-                val secondaryColor = Color.White.copy(alpha = 0.7f)
-
-                // Main Container
                 Box(
                     modifier = GlanceModifier
                         .fillMaxSize()
-                        .background(ColorProvider(backgroundColor))
+                        .background(ColorProvider(Color(0xFF141520)))
                         .cornerRadius(24.dp)
-                        .clickable(actionRunCallback<OpenAppAction>())
+                        .clickable(
+                            actionRunCallback<OpenDeepLinkAction>(
+                                actionParametersOf(DeepLinkKey to "sonza://orbit_listen")
+                            )
+                        )
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Column(
-                        modifier = GlanceModifier
-                            .fillMaxSize()
-                            .padding(12.dp)
+                        modifier = GlanceModifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Top Section: Artwork + Info
+                        // Header: Status dot + ORBIT
                         Row(
-                            modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Album Art
                             Box(
                                 modifier = GlanceModifier
-                                    .size(68.dp)
-                                    .cornerRadius(12.dp)
-                                    .background(ColorProvider(Color.White.copy(alpha = 0.1f))),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (artworkBitmap != null) {
-                                    Image(
-                                        provider = ImageProvider(artworkBitmap!!),
-                                        contentDescription = "Artwork",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = GlanceModifier.fillMaxSize().cornerRadius(12.dp)
-                                    )
-                                } else {
-                                     Image(
-                                        provider = ImageProvider(R.drawable.ic_music_note),
-                                        contentDescription = "Artwork",
-                                        colorFilter = ColorFilter.tint(ColorProvider(Color.White.copy(alpha = 0.5f))),
-                                        modifier = GlanceModifier.size(32.dp)
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = GlanceModifier.width(12.dp))
-
-                            // Info
-                            Column(
-                                modifier = GlanceModifier.defaultWeight()
-                            ) {
-                                Text(
-                                    text = currentSong?.title ?: "Not Playing",
-                                    style = TextStyle(
-                                        color = ColorProvider(contentColor),
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold
-                                    ),
-                                    maxLines = 1
+                                    .size(7.dp)
+                                    .cornerRadius(3.5.dp)
+                                    .background(ColorProvider(Color(0xFF38BDF8)))
+                            ) {}
+                            Spacer(modifier = GlanceModifier.width(6.dp))
+                            Text(
+                                text = "ORBIT",
+                                style = TextStyle(
+                                    color = ColorProvider(Color(0xFF38BDF8)),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
                                 )
-                                Spacer(modifier = GlanceModifier.height(2.dp))
-                                Text(
-                                    text = currentSong?.artist ?: "Sonza Player",
-                                    style = TextStyle(
-                                        color = ColorProvider(secondaryColor),
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Normal
-                                    ),
-                                    maxLines = 1
-                                )
-                            }
-
-                            Spacer(modifier = GlanceModifier.width(8.dp))
-
-                            // Like Button
-                            Image(
-                                provider = ImageProvider(
-                                    if (playerState.isLiked) R.drawable.ic_heart else R.drawable.ic_heart_outline
-                                ),
-                                contentDescription = "Favorite",
-                                colorFilter = ColorFilter.tint(
-                                    ColorProvider(if (playerState.isLiked) Color(0xFFFF4081) else secondaryColor)
-                                ),
-                                modifier = GlanceModifier
-                                    .size(24.dp)
-                                    .clickable(actionRunCallback<ToggleLikeAction>())
                             )
+                        }
 
-                            Spacer(modifier = GlanceModifier.width(8.dp))
+                        Spacer(modifier = GlanceModifier.height(10.dp))
 
-                            // Orbit Voice Assistant Button
+                        // Orbit Avatar Glowing Emblem
+                        Box(
+                            modifier = GlanceModifier
+                                .size(56.dp)
+                                .cornerRadius(28.dp)
+                                .background(ColorProvider(Color(0xFF38BDF8).copy(alpha = 0.18f))),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Box(
                                 modifier = GlanceModifier
-                                    .size(32.dp)
-                                    .background(ColorProvider(Color(0xFF38BDF8).copy(alpha = 0.2f)))
-                                    .cornerRadius(16.dp)
-                                    .clickable(actionRunCallback<OpenDeepLinkAction>(
-                                        actionParametersOf(DeepLinkKey to "sonza://orbit_listen")
-                                    )),
+                                    .size(42.dp)
+                                    .cornerRadius(21.dp)
+                                    .background(ColorProvider(Color(0xFF38BDF8).copy(alpha = 0.35f))),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Image(
                                     provider = ImageProvider(R.drawable.ic_mic),
-                                    contentDescription = "Orbit Voice Assistant",
-                                    colorFilter = ColorFilter.tint(ColorProvider(Color(0xFF38BDF8))),
-                                    modifier = GlanceModifier.size(18.dp)
+                                    contentDescription = "Orbit Avatar",
+                                    colorFilter = ColorFilter.tint(ColorProvider(Color.White)),
+                                    modifier = GlanceModifier.size(24.dp)
                                 )
-                            }
-                        }
-
-                        // Progress Line (Simplified to fixed height Box if fractional weight is unavailable)
-                        Box(
-                            modifier = GlanceModifier
-                                .fillMaxWidth()
-                                .height(3.dp)
-                                .background(ColorProvider(Color.White.copy(alpha = 0.15f)))
-                                .cornerRadius(1.5.dp)
-                        ) {
-                            val progress = playerState.progress.coerceIn(0f, 1f)
-                            if (progress > 0.05f) { // Only show if significant progress
-                                Box(
-                                    modifier = GlanceModifier
-                                        .fillMaxWidth() // Fill container, but since it's a Box, we can't easily do fractional width without weight
-                                        .fillMaxHeight()
-                                        .background(ColorProvider(contentColor))
-                                        .cornerRadius(1.5.dp)
-                                ) {}
                             }
                         }
 
                         Spacer(modifier = GlanceModifier.height(10.dp))
 
-                        // Bottom Section: All Controls
-                        Row(
-                            modifier = GlanceModifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            // Shuffle
-                            Image(
-                                provider = ImageProvider(
-                                    if (playerState.shuffleEnabled) R.drawable.ic_shuffle_on else R.drawable.ic_shuffle
-                                ),
-                                contentDescription = "Shuffle",
-                                colorFilter = ColorFilter.tint(ColorProvider(if (playerState.shuffleEnabled) contentColor else secondaryColor)),
-                                modifier = GlanceModifier
-                                    .size(24.dp)
-                                    .clickable(actionRunCallback<ToggleShuffleAction>())
+                        // "Hey Orbit" Activation Tag
+                        Text(
+                            text = "“Hey Orbit”",
+                            style = TextStyle(
+                                color = ColorProvider(Color.White),
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
                             )
-                            
-                            Spacer(modifier = GlanceModifier.width(18.dp))
-                            
-                            // Previous
-                            Image(
-                                provider = ImageProvider(R.drawable.ic_skip_previous),
-                                contentDescription = "Previous",
-                                colorFilter = ColorFilter.tint(ColorProvider(contentColor)),
-                                modifier = GlanceModifier
-                                    .size(30.dp)
-                                    .clickable(actionRunCallback<PreviousAction>())
+                        )
+
+                        Spacer(modifier = GlanceModifier.height(2.dp))
+
+                        Text(
+                            text = "Tap to speak",
+                            style = TextStyle(
+                                color = ColorProvider(Color.White.copy(alpha = 0.7f)),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Normal
                             )
-                            
-                            Spacer(modifier = GlanceModifier.width(18.dp))
-                            
-                            // Play/Pause
-                            Box(
-                                modifier = GlanceModifier
-                                    .size(52.dp)
-                                    .background(ColorProvider(Color.White.copy(alpha = 0.15f)))
-                                    .cornerRadius(26.dp)
-                                    .clickable(actionRunCallback<PlayPauseAction>()),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Image(
-                                    provider = ImageProvider(
-                                        if (playerState.isPlaying) R.drawable.ic_pause else R.drawable.ic_play
-                                    ),
-                                    contentDescription = "Play/Pause",
-                                    colorFilter = ColorFilter.tint(ColorProvider(contentColor)),
-                                    modifier = GlanceModifier.size(30.dp)
-                                )
-                            }
-                            
-                            Spacer(modifier = GlanceModifier.width(18.dp))
-                            
-                            // Next
-                            Image(
-                                provider = ImageProvider(R.drawable.ic_skip_next),
-                                contentDescription = "Next",
-                                colorFilter = ColorFilter.tint(ColorProvider(contentColor)),
-                                modifier = GlanceModifier
-                                    .size(30.dp)
-                                    .clickable(actionRunCallback<NextAction>())
-                            )
-                            
-                            Spacer(modifier = GlanceModifier.width(18.dp))
-                            
-                            // Repeat
-                            val repeatIcon = when (playerState.repeatMode) {
-                                RepeatMode.ONE -> R.drawable.ic_repeat_one_on
-                                RepeatMode.ALL -> R.drawable.ic_repeat_all_on
-                                RepeatMode.OFF -> R.drawable.ic_repeat
-                            }
-                            Image(
-                                provider = ImageProvider(repeatIcon),
-                                contentDescription = "Repeat",
-                                colorFilter = ColorFilter.tint(ColorProvider(if (playerState.repeatMode != RepeatMode.OFF) contentColor else secondaryColor)),
-                                modifier = GlanceModifier
-                                    .size(24.dp)
-                                    .clickable(actionRunCallback<ToggleRepeatAction>())
-                            )
-                        }
+                        )
                     }
                 }
             }
         }
     }
-    
-    @EntryPoint
-    @InstallIn(SingletonComponent::class)
-    interface WidgetEntryPoint {
-        fun getMusicPlayer(): MusicPlayer
-    }
 }
-

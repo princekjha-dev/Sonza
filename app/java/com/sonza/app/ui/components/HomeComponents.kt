@@ -112,54 +112,21 @@ fun HomeTopHeader(
             }
 
             // Orbit Avatar + Account Avatar
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceSm)
-            ) {
-                if (onOrbitClick != null) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(dynamicColors.accent.copy(alpha = 0.16f))
-                            .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onOrbitClick),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        com.sonza.app.ai.orbit.OrbitAvatar(
-                            state = com.sonza.app.ai.orbit.OrbitState.IDLE,
-                            size = com.sonza.app.ai.orbit.OrbitAvatarSize.Mini,
-                            onClick = onOrbitClick
-                        )
-                    }
-                }
-
-                // Account Avatar
+            // Orbit Avatar Button
+            if (onOrbitClick != null) {
                 Box(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(CircleShape)
-                        .background(SonzaSurfaceVariant)
-                        .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onProfileClick),
+                        .background(dynamicColors.accent.copy(alpha = 0.16f))
+                        .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onOrbitClick),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (!avatarUrl.isNullOrBlank()) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(avatarUrl)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = "Account",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Account",
-                            tint = SonzaOnSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                    com.sonza.app.ai.orbit.OrbitAvatar(
+                        state = com.sonza.app.ai.orbit.OrbitState.IDLE,
+                        size = com.sonza.app.ai.orbit.OrbitAvatarSize.Mini,
+                        onClick = onOrbitClick
+                    )
                 }
             }
         }

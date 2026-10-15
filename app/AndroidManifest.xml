@@ -18,6 +18,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     
     <!-- Wake lock for continuous playback -->
@@ -269,6 +270,12 @@
             android:name=".ai.orbit.OrbitVoiceInteractionSessionService"
             android:permission="android.permission.BIND_VOICE_INTERACTION"
             android:exported="true" />
+
+        <!-- Orbit Foreground Wake-Word Assistant Service -->
+        <service
+            android:name=".ai.orbit.OrbitWakeWordService"
+            android:foregroundServiceType="microphone"
+            android:exported="false" />
 
         <!-- Quick Settings Tile for Orbit  -->
         <service

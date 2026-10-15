@@ -40,6 +40,7 @@ data class SettingsUiState(
     val isLoggedIn: Boolean = false,
     val userName: String? = null,
     val userAvatarUrl: String? = null,
+    val selectedAvatarId: String = "avatar_1",
     val storedAccounts: List<SessionManager.StoredAccount> = emptyList(),
     val availableAccounts: List<SessionManager.StoredAccount> = emptyList(),
     val audioQuality: AudioQuality = AudioQuality.HIGH,
@@ -306,6 +307,12 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             sessionManager.logoVariantFlow.collect { variant ->
                 _uiState.update { it.copy(logoVariant = variant) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.selectedAvatarIdFlow.collect { avatarId ->
+                _uiState.update { it.copy(selectedAvatarId = avatarId) }
             }
         }
 
@@ -1451,6 +1458,13 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             sessionManager.setLogoVariant(variant)
             _uiState.update { it.copy(logoVariant = variant) }
+        }
+    }
+
+    fun setSelectedAvatarId(avatarId: String) {
+        viewModelScope.launch {
+            sessionManager.setSelectedAvatarId(avatarId)
+            _uiState.update { it.copy(selectedAvatarId = avatarId) }
         }
     }
 

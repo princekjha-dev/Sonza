@@ -89,7 +89,16 @@ class OrbitAssistantViewModel(
             return
         }
 
-        // 3. Otherwise, open assistant and immediately listen
+        // 3. Otherwise, play activation sound, open assistant and immediately listen
+        OrbitSoundManager.playActivation()
+        _isAssistantVisible.value = true
+        startListening()
+    }
+
+    fun onWakeWordDetected() {
+        autoDismissJob?.cancel()
+        voiceSynthesizer.stopSpeaking()
+        OrbitSoundManager.playWakeWordDetected()
         _isAssistantVisible.value = true
         startListening()
     }
@@ -103,17 +112,19 @@ class OrbitAssistantViewModel(
             viewModelScope.launch {
                 _events.emit(OrbitUiEvent.RequestRecordAudioPermission)
             }
-            _assistantMessage.value = "Microphone permission required"
+            _assistantMessage.value = "Orbit needs microphone access to listen. You can enable it in Settings."
             _orbitState.value = OrbitState.ERROR
+            OrbitSoundManager.playError()
             return
         }
 
         _orbitState.value = OrbitState.LISTENING
+        OrbitSoundManager.playListening()
         _assistantMessage.value = when (_dialogueContext.value) {
-            is OrbitDialogueContext.AwaitingCommand -> "Listening for command..."
+            is OrbitDialogueContext.AwaitingCommand -> "I'm listening"
             is OrbitDialogueContext.AwaitingDisambiguation -> "Listening for choice..."
             is OrbitDialogueContext.AwaitingConfirmation -> "Say yes or no..."
-            else -> "Listening..."
+            else -> "I'm listening"
         }
 
         voiceManager.startListening(
@@ -131,7 +142,12 @@ class OrbitAssistantViewModel(
                     }
                 } else {
                     _orbitState.value = OrbitState.ERROR
-                    _assistantMessage.value = errorMsg
+                    OrbitSoundManager.playError()
+                    _assistantMessage.value = if (errorMsg.contains("permission", ignoreCase = true)) {
+                        "Orbit needs microphone access to listen. You can enable it in Settings."
+                    } else {
+                        errorMsg
+                    }
                     scheduleAutoDismiss(3000)
                 }
             }
@@ -141,8 +157,9 @@ class OrbitAssistantViewModel(
     fun processUtterance(rawInput: String) {
         autoDismissJob?.cancel()
         voiceManager.stopListening()
+        OrbitSoundManager.playCommandReceived()
         _orbitState.value = OrbitState.THINKING
-        _assistantMessage.value = "\"$rawInput\""
+        _assistantMessage.value = "Thinking…"
 
         viewModelScope.launch {
             val currentSong = musicPlayer.playerState.value.currentSong
@@ -151,6 +168,17 @@ class OrbitAssistantViewModel(
                 currentSong = currentSong,
                 dialogueContext = _dialogueContext.value
             )
+
+            // Special check: Standalone wake word -> prompt user
+            if (intent is OrbitIntent.WakeWordOnlyIntent) {
+                _dialogueContext.value = OrbitDialogueContext.AwaitingCommand()
+                _assistantMessage.value = "I'm listening"
+                _orbitState.value = OrbitState.SPEAKING
+                voiceSynthesizer.speak("Yes?", onDone = {
+                    startListening()
+                })
+                return@launch
+            }
 
             // Special check: Cancellation
             if (intent is OrbitIntent.CancelIntent) {
@@ -165,6 +193,12 @@ class OrbitAssistantViewModel(
 
             _orbitState.value = OrbitState.WORKING
             val result = executor.execute(intent, currentSong, _dialogueContext.value)
+
+            if (result.success) {
+                OrbitSoundManager.playSuccess()
+            } else {
+                OrbitSoundManager.playError()
+            }
 
             _assistantMessage.value = result.message
             _actionIndicator.value = result.actionIndicator

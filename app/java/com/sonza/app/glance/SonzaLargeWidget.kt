@@ -91,55 +91,94 @@ class SonzaLargeWidget : GlanceAppWidget() {
                         .padding(16.dp)
                 ) {
                     Column(modifier = GlanceModifier.fillMaxSize()) {
-                        // Top Orbit Assistant Header
+                        // Top Orbit Assistant Header + User Avatar
                         Row(
                             modifier = GlanceModifier
                                 .fillMaxWidth()
                                 .cornerRadius(16.dp)
                                 .background(ColorProvider(Color.White.copy(alpha = 0.08f)))
-                                .clickable(
-                                    actionRunCallback<OpenDeepLinkAction>(
-                                        actionParametersOf(DeepLinkKey to "sonza://orbit_listen")
-                                    )
-                                )
                                 .padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Orbit Avatar icon
+                            // Orbit Assistant Clickable Target
+                            Row(
+                                modifier = GlanceModifier
+                                    .defaultWeight()
+                                    .clickable(
+                                        actionRunCallback<OpenDeepLinkAction>(
+                                            actionParametersOf(DeepLinkKey to "sonza://orbit_listen")
+                                        )
+                                    ),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Orbit Avatar icon
+                                Box(
+                                    modifier = GlanceModifier
+                                        .size(28.dp)
+                                        .cornerRadius(14.dp)
+                                        .background(ColorProvider(Color(0xFF4F86F7).copy(alpha = 0.35f))),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Image(
+                                        provider = ImageProvider(R.drawable.ic_mic),
+                                        contentDescription = "Orbit",
+                                        colorFilter = ColorFilter.tint(ColorProvider(Color(0xFF4F86F7))),
+                                        modifier = GlanceModifier.size(16.dp)
+                                    )
+                                }
+
+                                Spacer(modifier = GlanceModifier.width(10.dp))
+
+                                Column(modifier = GlanceModifier.defaultWeight()) {
+                                    Text(
+                                        text = "ORBIT",
+                                        style = TextStyle(
+                                            color = ColorProvider(Color(0xFF4F86F7)),
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    )
+                                    Text(
+                                        text = "What would you like to listen to?",
+                                        style = TextStyle(
+                                            color = ColorProvider(Color.White.copy(alpha = 0.85f)),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Normal
+                                        ),
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = GlanceModifier.width(8.dp))
+
+                            // User Profile Avatar (Synchronized with App Profile)
+                            val avatarId = remember {
+                                try {
+                                    val prefs = context.getSharedPreferences("sonza_user_avatar", Context.MODE_PRIVATE)
+                                    prefs.getString("selected_avatar_id", "avatar_1") ?: "avatar_1"
+                                } catch (_: Exception) {
+                                    "avatar_1"
+                                }
+                            }
+                            val userAvatar = com.sonza.app.ui.components.avatar.AvatarRepository.getAvatarById(avatarId)
+
                             Box(
                                 modifier = GlanceModifier
-                                    .size(28.dp)
-                                    .cornerRadius(14.dp)
-                                    .background(ColorProvider(Color(0xFF4F86F7).copy(alpha = 0.35f))),
+                                    .size(34.dp)
+                                    .cornerRadius(17.dp)
+                                    .background(ColorProvider(Color(0xFFFF3B30).copy(alpha = 0.2f)))
+                                    .clickable(
+                                        actionRunCallback<OpenDeepLinkAction>(
+                                            actionParametersOf(DeepLinkKey to "sonza://profile")
+                                        )
+                                    ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Image(
-                                    provider = ImageProvider(R.drawable.ic_mic),
-                                    contentDescription = "Orbit",
-                                    colorFilter = ColorFilter.tint(ColorProvider(Color(0xFF4F86F7))),
-                                    modifier = GlanceModifier.size(16.dp)
-                                )
-                            }
-
-                            Spacer(modifier = GlanceModifier.width(10.dp))
-
-                            Column(modifier = GlanceModifier.defaultWeight()) {
-                                Text(
-                                    text = "ORBIT",
-                                    style = TextStyle(
-                                        color = ColorProvider(Color(0xFF4F86F7)),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                )
-                                Text(
-                                    text = "What would you like to listen to?",
-                                    style = TextStyle(
-                                        color = ColorProvider(Color.White.copy(alpha = 0.85f)),
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Normal
-                                    ),
-                                    maxLines = 1
+                                    provider = ImageProvider(userAvatar.drawableRes),
+                                    contentDescription = userAvatar.name,
+                                    modifier = GlanceModifier.size(30.dp).cornerRadius(15.dp)
                                 )
                             }
                         }
