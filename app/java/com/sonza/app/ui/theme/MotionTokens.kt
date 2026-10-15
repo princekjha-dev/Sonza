@@ -80,3 +80,8 @@ object MotionTokens {
         tween(durationMillis = BannerTransitionDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing)
 }
 
+/**
+ * CompositionLocal exposing whether the user or system has enabled "Reduce Motion" / "Remove animations".
+ */
+val LocalReduceMotion = androidx.compose.runtime.compositionLocalOf { false }
+

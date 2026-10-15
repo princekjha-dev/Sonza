@@ -80,6 +80,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sonza.app.BuildConfig
 import com.sonza.app.core.model.Song
+import com.sonza.app.ui.components.DynamicArtworkBackground
 import com.sonza.app.ui.components.ExpressiveBottomNavTokens
 import com.sonza.app.ui.components.LocalSonzaDynamicColors
 import com.sonza.app.ui.components.avatar.AvatarRepository
@@ -207,48 +208,12 @@ fun UserProfileScreen(
         }.build()
     }
 
-    // Outer screen background container with soft ambient futuristic glows
-    Box(
+    // Dynamic background container deriving atmosphere from current song or avatar fallback
+    DynamicArtworkBackground(
+        artworkModel = currentSong?.thumbnailUrl ?: currentAvatar.drawableRes,
+        colors = dynamicColors,
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF070812))
-            .drawBehind {
-                // Top-left subtle purple lighting
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            Color(0xFF7C3AED).copy(alpha = 0.24f),
-                            Color(0xFF6D28D9).copy(alpha = 0.10f),
-                            Color.Transparent
-                        ),
-                        center = Offset(size.width * 0.15f, size.height * 0.18f),
-                        radius = size.width * 0.85f
-                    )
-                )
-                // Mid-right cyan/blue subtle lighting
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            Color(0xFF06B6D4).copy(alpha = 0.20f),
-                            Color(0xFF0284C7).copy(alpha = 0.08f),
-                            Color.Transparent
-                        ),
-                        center = Offset(size.width * 0.90f, size.height * 0.52f),
-                        radius = size.width * 0.80f
-                    )
-                )
-                // Lower soft indigo wave
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            Color(0xFF4F46E5).copy(alpha = 0.12f),
-                            Color.Transparent
-                        ),
-                        center = Offset(size.width * 0.35f, size.height * 0.80f),
-                        radius = size.width * 0.70f
-                    )
-                )
-            }
             .statusBarsPadding()
     ) {
         LazyColumn(
@@ -321,15 +286,15 @@ fun UserProfileScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(cardShape)
-                            .background(Color(0xFF0F1428).copy(alpha = 0.82f))
+                            .background(dynamicColors.dynamicSurface.copy(alpha = 0.82f))
                             .border(
                                 width = 1.25.dp,
                                 brush = Brush.linearGradient(
                                     colors = listOf(
-                                        Color(0xFFA855F7).copy(alpha = 0.60f), // Purple highlight top-left
-                                        Color.White.copy(alpha = 0.35f),       // Specular white sheen
-                                        Color(0xFF38BDF8).copy(alpha = 0.55f), // Cyan highlight bottom-right
-                                        Color(0xFF1E293B).copy(alpha = 0.20f)
+                                        dynamicColors.dynamicAccent.copy(alpha = 0.60f),
+                                        Color.White.copy(alpha = 0.35f),
+                                        dynamicColors.dynamicSecondary.copy(alpha = 0.55f),
+                                        dynamicColors.dynamicBorder.copy(alpha = 0.20f)
                                     ),
                                     start = Offset(0f, 0f),
                                     end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
@@ -337,22 +302,22 @@ fun UserProfileScreen(
                                 shape = cardShape
                             )
                             .drawBehind {
-                                // Subtle purple lighting on left/top of card
+                                // Dynamic primary ambient lighting on left/top of card
                                 drawCircle(
                                     brush = Brush.radialGradient(
                                         colors = listOf(
-                                            Color(0xFF8B5CF6).copy(alpha = 0.22f),
+                                            dynamicColors.dynamicPrimary.copy(alpha = 0.22f),
                                             Color.Transparent
                                         ),
                                         center = Offset(0f, 0f),
                                         radius = size.width * 0.75f
                                     )
                                 )
-                                // Subtle cyan/blue lighting on right of card
+                                // Dynamic accent ambient lighting on right of card
                                 drawCircle(
                                     brush = Brush.radialGradient(
                                         colors = listOf(
-                                            Color(0xFF06B6D4).copy(alpha = 0.18f),
+                                            dynamicColors.dynamicAccent.copy(alpha = 0.18f),
                                             Color.Transparent
                                         ),
                                         center = Offset(size.width, size.height * 0.70f),
@@ -381,7 +346,7 @@ fun UserProfileScreen(
                                 modifier = Modifier.size(avatarSize + 30.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                // Soft outer luminous glow
+                                // Soft outer dynamic luminous glow
                                 Box(
                                     modifier = Modifier
                                         .size(avatarSize + 26.dp)
@@ -389,23 +354,23 @@ fun UserProfileScreen(
                                         .background(
                                             Brush.radialGradient(
                                                 colors = listOf(
-                                                    Color(0xFFA855F7).copy(alpha = 0.40f),
-                                                    Color(0xFFEC4899).copy(alpha = 0.25f),
-                                                    Color(0xFF06B6D4).copy(alpha = 0.18f),
+                                                    dynamicColors.dynamicAccent.copy(alpha = 0.40f),
+                                                    dynamicColors.dynamicSecondary.copy(alpha = 0.25f),
+                                                    dynamicColors.dynamicPrimary.copy(alpha = 0.18f),
                                                     Color.Transparent
                                                 )
                                             )
                                         )
                                 )
 
-                                // Purple → pink → blue glowing ring
+                                // Dynamic glowing ring
                                 val ringBrush = Brush.sweepGradient(
                                     listOf(
-                                        Color(0xFFA855F7), // Purple
-                                        Color(0xFFEC4899), // Pink
-                                        Color(0xFF6366F1), // Indigo
-                                        Color(0xFF06B6D4), // Cyan
-                                        Color(0xFFA855F7)  // Loop
+                                        dynamicColors.dynamicAccent,
+                                        dynamicColors.dynamicSecondary,
+                                        dynamicColors.dynamicTextAccent,
+                                        dynamicColors.dynamicPrimary,
+                                        dynamicColors.dynamicAccent
                                     )
                                 )
 
@@ -457,13 +422,13 @@ fun UserProfileScreen(
                                 Surface(
                                     onClick = { showAvatarPicker = true },
                                     shape = CircleShape,
-                                    color = Color(0xFF12162B).copy(alpha = 0.95f),
+                                    color = dynamicColors.dynamicSurfaceVariant.copy(alpha = 0.95f),
                                     border = androidx.compose.foundation.BorderStroke(
                                         1.5.dp,
                                         Brush.linearGradient(
                                             listOf(
-                                                Color(0xFFA855F7),
-                                                Color(0xFF38BDF8)
+                                                dynamicColors.dynamicAccent,
+                                                dynamicColors.dynamicSecondary
                                             )
                                         )
                                     ),
@@ -474,8 +439,8 @@ fun UserProfileScreen(
                                         .shadow(
                                             elevation = 12.dp,
                                             shape = CircleShape,
-                                            spotColor = Color(0xFFA855F7).copy(alpha = 0.65f),
-                                            ambientColor = Color(0xFF38BDF8).copy(alpha = 0.40f)
+                                            spotColor = dynamicColors.dynamicAccent.copy(alpha = 0.65f),
+                                            ambientColor = dynamicColors.dynamicSecondary.copy(alpha = 0.40f)
                                         )
                                         .bounceClick(scaleDown = 0.88f) {
                                             showAvatarPicker = true
@@ -503,13 +468,13 @@ fun UserProfileScreen(
                             Surface(
                                 onClick = { showAvatarPicker = true },
                                 shape = CircleShape,
-                                color = Color(0xFF1D243E).copy(alpha = 0.72f),
+                                color = dynamicColors.dynamicSurface.copy(alpha = 0.72f),
                                 border = androidx.compose.foundation.BorderStroke(
                                     1.dp,
                                     Brush.horizontalGradient(
                                         listOf(
                                             Color.White.copy(alpha = 0.30f),
-                                            Color(0xFF60A5FA).copy(alpha = 0.45f),
+                                            dynamicColors.dynamicSecondary.copy(alpha = 0.45f),
                                             Color.White.copy(alpha = 0.20f)
                                         )
                                     )
@@ -518,7 +483,7 @@ fun UserProfileScreen(
                                     .shadow(
                                         elevation = 8.dp,
                                         shape = CircleShape,
-                                        spotColor = Color(0xFF38BDF8).copy(alpha = 0.30f)
+                                        spotColor = dynamicColors.dynamicAccent.copy(alpha = 0.30f)
                                     )
                                     .bounceClick(scaleDown = 0.93f) {
                                         showAvatarPicker = true
@@ -573,9 +538,9 @@ fun UserProfileScreen(
                                         letterSpacing = (-0.5).sp,
                                         brush = Brush.horizontalGradient(
                                             listOf(
-                                                Color(0xFFC084FC), // Light purple
-                                                Color(0xFF818CF8), // Indigo
-                                                Color(0xFF38BDF8)  // Cyan
+                                                dynamicColors.dynamicTextAccent,
+                                                dynamicColors.dynamicAccent,
+                                                dynamicColors.dynamicSecondary
                                             )
                                         )
                                     )
@@ -621,10 +586,9 @@ fun UserProfileScreen(
                             } else {
                                 Brush.horizontalGradient(
                                     listOf(
-                                        Color(0xFF9333EA), // Purple
-                                        Color(0xFF4F46E5), // Indigo
-                                        Color(0xFF0284C7), // Blue
-                                        Color(0xFF06B6D4)  // Cyan
+                                        dynamicColors.dynamicPrimary,
+                                        dynamicColors.dynamicAccent,
+                                        dynamicColors.dynamicSecondary
                                     )
                                 )
                             }
@@ -636,8 +600,8 @@ fun UserProfileScreen(
                                     .shadow(
                                         elevation = 16.dp,
                                         shape = actionButtonShape,
-                                        spotColor = if (uiState.isLoggedIn) Color(0xFFDC2626).copy(alpha = 0.5f) else Color(0xFF8B5CF6).copy(alpha = 0.55f),
-                                        ambientColor = Color(0xFF3B82F6).copy(alpha = 0.35f)
+                                        spotColor = if (uiState.isLoggedIn) Color(0xFFDC2626).copy(alpha = 0.5f) else dynamicColors.dynamicAccent.copy(alpha = 0.55f),
+                                        ambientColor = dynamicColors.dynamicSecondary.copy(alpha = 0.35f)
                                     )
                                     .clip(actionButtonShape)
                                     .background(actionGradient)
@@ -646,7 +610,7 @@ fun UserProfileScreen(
                                         Brush.horizontalGradient(
                                             listOf(
                                                 Color.White.copy(alpha = 0.45f),
-                                                Color(0xFF38BDF8).copy(alpha = 0.60f)
+                                                dynamicColors.dynamicAccent.copy(alpha = 0.60f)
                                             )
                                         ),
                                         actionButtonShape
@@ -935,17 +899,18 @@ private fun FuturisticGlassCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val dynamicColors = LocalSonzaDynamicColors.current
     val cardShape = RoundedCornerShape(24.dp)
     Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(cardShape)
-            .background(Color(0xFF0E1326).copy(alpha = 0.65f))
+            .background(dynamicColors.dynamicSurface.copy(alpha = 0.65f))
             .border(
                 1.dp,
                 Brush.verticalGradient(
                     0.0f to Color.White.copy(alpha = 0.12f),
-                    1.0f to Color(0xFF38BDF8).copy(alpha = 0.08f)
+                    1.0f to dynamicColors.dynamicAccent.copy(alpha = 0.12f)
                 ),
                 cardShape
             )

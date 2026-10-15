@@ -660,8 +660,8 @@ private fun SeekbarSection(
             progressProvider = progressProvider, isPlaying = isPlaying,
             onSeek = { actions.onSeekTo((it * duration).toLong()) },
             modifier = Modifier.fillMaxWidth(),
-            activeColor = Color.White.copy(alpha = 0.88f),
-            inactiveColor = Color.White.copy(alpha = 0.20f),
+            activeColor = dominantColors.accent,
+            inactiveColor = dominantColors.accentMuted,
             initialStyle = currentSeekbarStyle, onStyleChange = onSeekbarStyleChange,
             duration = duration, sponsorSegments = sponsorSegments
         )

@@ -57,6 +57,7 @@ import com.sonza.app.util.MusicHapticsManager
 import com.sonza.app.util.TTSManager
 import androidx.glance.appwidget.updateAll
 import com.sonza.app.glance.SonzaWidget
+import androidx.compose.ui.graphics.toArgb
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -1139,6 +1140,18 @@ class MusicPlayer @Inject constructor(
                             _playerState.update { it.copy(isLiked = isLiked) }
                         }
                         sessionManager.addToRecentlyPlayed(song)
+
+                        // Dynamically extract artwork dominant color for widgets, mini-player, and UI surfaces
+                        try {
+                            val bitmap = com.sonza.app.glance.SonzaWidgetArtworkHelper.loadArtwork(context, song.thumbnailUrl, 128)
+                            if (bitmap != null) {
+                                val palette = com.sonza.app.ui.components.extractDynamicPaletteFromBitmap(bitmap)
+                                val colorArgb = palette.accent.toArgb()
+                                if (colorArgb != 0 && _playerState.value.currentSong?.id == song.id) {
+                                    _playerState.update { it.copy(dominantColor = colorArgb) }
+                                }
+                            }
+                        } catch (_: Exception) {}
 
                         // Speak Song Details (TTS) — announce the new track via the
                         // active audio output. Volume + ducking + Bluetooth-only
@@ -2766,6 +2779,20 @@ class MusicPlayer @Inject constructor(
                     currentSong = song,
                     isLoading = true
                 )
+            }
+
+            // Proactively extract dominant color from active artwork
+            launch(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    val bitmap = com.sonza.app.glance.SonzaWidgetArtworkHelper.loadArtwork(context, song.thumbnailUrl, 128)
+                    if (bitmap != null) {
+                        val palette = com.sonza.app.ui.components.extractDynamicPaletteFromBitmap(bitmap)
+                        val colorArgb = palette.accent.toArgb()
+                        if (colorArgb != 0 && _playerState.value.currentSong?.id == song.id) {
+                            _playerState.update { it.copy(dominantColor = colorArgb) }
+                        }
+                    }
+                } catch (_: Exception) {}
             }
 
             try {

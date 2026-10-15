@@ -315,7 +315,7 @@ fun MainPagerScreen(
                 UserProfileScreen(
                     onBackClick = {
                         coroutineScope.launch {
-                            pagerState.animateScrollToPage(2)
+                            pagerState.animateScrollToPage(0)
                         }
                     },
                     onNavigateToHome = {

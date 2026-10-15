@@ -158,29 +158,30 @@ private fun createColorSchemeFromDominantColors(
 ): ColorScheme {
     val primary = colors.accent
     val onPrimary = colors.onAccent
+    val dyn = colors.toSonzaDynamicColors()
     
     return if (darkTheme) {
         darkColorScheme(
             primary = primary,
             onPrimary = onPrimary,
-            primaryContainer = SonzaSurfaceVariant,
+            primaryContainer = dyn.surfaceVariant,
             onPrimaryContainer = SonzaOnBackground,
-            secondary = Cyan70,
-            onSecondary = Cyan10,
-            secondaryContainer = Cyan30,
-            onSecondaryContainer = Cyan90,
-            tertiary = Magenta70,
-            onTertiary = Magenta10,
-            tertiaryContainer = Magenta30,
-            onTertiaryContainer = Magenta90,
-            background = SonzaBackground,
+            secondary = colors.secondary,
+            onSecondary = colors.onAccent,
+            secondaryContainer = colors.secondary.copy(alpha = 0.25f),
+            onSecondaryContainer = SonzaOnBackground,
+            tertiary = colors.primary,
+            onTertiary = colors.onAccent,
+            tertiaryContainer = colors.primary.copy(alpha = 0.25f),
+            onTertiaryContainer = SonzaOnBackground,
+            background = dyn.background,
             onBackground = SonzaOnBackground,
-            surface = SonzaSurface,
+            surface = dyn.surface,
             onSurface = SonzaOnSurface,
-            surfaceVariant = SonzaSurfaceVariant,
+            surfaceVariant = dyn.surfaceVariant,
             onSurfaceVariant = SonzaOnSurfaceVariant,
-            outline = SonzaOutline,
-            outlineVariant = SonzaOutline,
+            outline = dyn.outline,
+            outlineVariant = dyn.surface,
             scrim = SonzaScrim
         )
     } else {
@@ -195,11 +196,11 @@ private fun createColorSchemeFromDominantColors(
             onSecondaryContainer = colors.onBackground,
             tertiary = colors.accent,
             onTertiary = onPrimary,
-            background = colors.primary,
+            background = dyn.background,
             onBackground = colors.onBackground,
-            surface = colors.primary,
+            surface = dyn.surface,
             onSurface = colors.onBackground,
-            surfaceVariant = colors.secondary,
+            surfaceVariant = dyn.surfaceVariant,
             onSurfaceVariant = colors.onBackground,
             outline = colors.secondary,
             outlineVariant = colors.primary,
@@ -215,43 +216,96 @@ fun SonzaTheme(
     pureBlack: Boolean = false,
     appTheme: AppTheme = AppTheme.DEFAULT,
     albumArtColors: DominantColors? = null,
+    nowPlaying: com.sonza.app.ui.components.NowPlaying? = null,
     content: @Composable () -> Unit
 ) {
-    // 400ms FastOutSlow color cross-fade animation for song-based color changes
-    val animatedColors = if (albumArtColors != null) {
+    val effectiveColors = albumArtColors ?: nowPlaying?.dynamicColors?.let { dyn ->
+        DominantColors(
+            primary = dyn.primary,
+            secondary = dyn.secondary,
+            accent = dyn.accent,
+            onBackground = dyn.onBackground,
+            accentMuted = dyn.accentMuted,
+            onAccent = dyn.onAccent,
+            glow = dyn.glow,
+            border = dyn.border,
+            textAccent = dyn.textAccent,
+            background = dyn.background,
+            surface = dyn.surface,
+            isIdle = dyn.isIdle
+        )
+    }
+
+    // 400-800ms FastOutSlow color cross-fade animation for song-based color changes (Requirement 6)
+    val animatedColors = if (effectiveColors != null) {
         val animatedPrimary by animateColorAsState(
-            targetValue = albumArtColors.primary,
-            animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
+            targetValue = effectiveColors.primary,
+            animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
             label = "theme_primary"
         )
         val animatedSecondary by animateColorAsState(
-            targetValue = albumArtColors.secondary,
-            animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
+            targetValue = effectiveColors.secondary,
+            animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
             label = "theme_secondary"
         )
         val animatedAccent by animateColorAsState(
-            targetValue = albumArtColors.accent,
+            targetValue = effectiveColors.accent,
             animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
             label = "theme_accent"
         )
         val animatedOnBg by animateColorAsState(
-            targetValue = albumArtColors.onBackground,
+            targetValue = effectiveColors.onBackground,
             animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
             label = "theme_onBg"
         )
         val animatedOnAccent by animateColorAsState(
-            targetValue = albumArtColors.onAccent,
+            targetValue = effectiveColors.onAccent,
             animationSpec = tween(durationMillis = MotionTokens.AccentCrossfadeDuration, easing = FastOutSlowInEasing),
             label = "theme_onAccent"
         )
-        remember(animatedPrimary, animatedSecondary, animatedAccent, animatedOnBg, animatedOnAccent) {
+        val animatedBg by animateColorAsState(
+            targetValue = effectiveColors.background,
+            animationSpec = tween(durationMillis = 750, easing = FastOutSlowInEasing),
+            label = "theme_bg"
+        )
+        val animatedSurface by animateColorAsState(
+            targetValue = effectiveColors.surface,
+            animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
+            label = "theme_surface"
+        )
+        val animatedGlow by animateColorAsState(
+            targetValue = effectiveColors.glow,
+            animationSpec = tween(durationMillis = 750, easing = FastOutSlowInEasing),
+            label = "theme_glow"
+        )
+        val animatedBorder by animateColorAsState(
+            targetValue = effectiveColors.border,
+            animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
+            label = "theme_border"
+        )
+        val animatedTextAccent by animateColorAsState(
+            targetValue = effectiveColors.textAccent,
+            animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
+            label = "theme_text_accent"
+        )
+
+        remember(
+            animatedPrimary, animatedSecondary, animatedAccent, animatedOnBg, animatedOnAccent,
+            animatedBg, animatedSurface, animatedGlow, animatedBorder, animatedTextAccent
+        ) {
             DominantColors(
                 primary = animatedPrimary,
                 secondary = animatedSecondary,
                 accent = animatedAccent,
                 onBackground = animatedOnBg,
                 accentMuted = animatedAccent.copy(alpha = 0.25f),
-                onAccent = animatedOnAccent
+                onAccent = animatedOnAccent,
+                glow = animatedGlow,
+                border = animatedBorder,
+                textAccent = animatedTextAccent,
+                background = animatedBg,
+                surface = animatedSurface,
+                isIdle = effectiveColors.isIdle
             )
         }
     } else null
@@ -313,6 +367,8 @@ fun SonzaTheme(
             animatedColors.toSonzaDynamicColors().copy(
                 accent = animatedAccent,
                 onAccent = animatedOnAccent,
+                background = if (darkTheme && pureBlack) Color.Black else animatedColors.background,
+                surface = if (darkTheme && pureBlack) Color.Black else animatedColors.surface,
                 accentMuted = animatedAccent.copy(alpha = 0.25f),
                 isIdle = false
             )
@@ -333,6 +389,12 @@ fun SonzaTheme(
             )
         }
     }
+
+    val resolvedNowPlaying = remember(nowPlaying, currentDynamicTokens) {
+        nowPlaying?.copy(dynamicColors = currentDynamicTokens) ?: com.sonza.app.ui.components.NowPlaying(
+            dynamicColors = currentDynamicTokens
+        )
+    }
     
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -348,7 +410,8 @@ fun SonzaTheme(
     }
     
     androidx.compose.runtime.CompositionLocalProvider(
-        com.sonza.app.ui.components.LocalSonzaDynamicColors provides currentDynamicTokens
+        com.sonza.app.ui.components.LocalSonzaDynamicColors provides currentDynamicTokens,
+        com.sonza.app.ui.components.LocalNowPlaying provides resolvedNowPlaying
     ) {
         MaterialExpressiveTheme(
             colorScheme = colorScheme,

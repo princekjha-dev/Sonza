@@ -39,6 +39,10 @@ class SonzaLargeWidget : GlanceAppWidget() {
         val musicPlayer = entryPoint.getMusicPlayer()
         val currentSongInitial = musicPlayer.playerState.value.currentSong
 
+        val prefs = context.getSharedPreferences("sonza_user_avatar", Context.MODE_PRIVATE)
+        val avatarId = prefs.getString("selected_avatar_id", "avatar_1") ?: "avatar_1"
+        val userAvatar = com.sonza.app.ui.components.avatar.AvatarRepository.getAvatarById(avatarId)
+
         // Preload high-res artwork before RemoteViews composition
         val initialArtwork = SonzaWidgetArtworkHelper.loadArtwork(context, currentSongInitial?.thumbnailUrl, 320)
 
@@ -108,10 +112,9 @@ class SonzaLargeWidget : GlanceAppWidget() {
                                     )
                                 } else {
                                     Image(
-                                        provider = ImageProvider(R.drawable.ic_music_note),
-                                        contentDescription = "Default Music Artwork",
-                                        colorFilter = ColorFilter.tint(ColorProvider(Color.White.copy(alpha = 0.6f))),
-                                        modifier = GlanceModifier.size(44.dp)
+                                        provider = ImageProvider(userAvatar.drawableRes),
+                                        contentDescription = "User Avatar: ${userAvatar.name}",
+                                        modifier = GlanceModifier.fillMaxSize().cornerRadius(18.dp)
                                     )
                                 }
                             }
@@ -124,7 +127,7 @@ class SonzaLargeWidget : GlanceAppWidget() {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = currentSong?.title ?: "Nothing Playing",
+                                    text = currentSong?.title ?: "Ready to Play",
                                     style = TextStyle(
                                         color = ColorProvider(SonzaWidgetTheme.TextPrimary),
                                         fontSize = 16.sp,
@@ -134,7 +137,7 @@ class SonzaLargeWidget : GlanceAppWidget() {
                                 )
                                 Spacer(modifier = GlanceModifier.height(3.dp))
                                 Text(
-                                    text = currentSong?.artist ?: "Sonza Music",
+                                    text = currentSong?.artist ?: "Sonza • ${userAvatar.name}",
                                     style = TextStyle(
                                         color = ColorProvider(SonzaWidgetTheme.TextSecondary),
                                         fontSize = 13.sp,

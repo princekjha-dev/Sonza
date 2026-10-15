@@ -44,6 +44,7 @@ import com.sonza.app.core.model.PlayerState
 import com.sonza.app.providers.lyrics.Lyrics
 import com.sonza.app.providers.lyrics.LyricsProviderType
 import com.sonza.app.ui.components.DominantColors
+import com.sonza.app.ui.components.LocalSonzaDynamicColors
 import com.sonza.app.ui.screens.LyricsScreen
 import com.sonza.app.ui.components.AddToPlaylistSheet
 import com.sonza.app.core.model.ArtworkShape
@@ -251,13 +252,23 @@ fun PlayerScreen(
     val view = LocalView.current
     val coroutineScope = rememberCoroutineScope()
     
-    val finalColors = rememberDominantColors(song?.thumbnailUrl, isAppInDarkTheme)
-    val animatedPrimary by animateColorAsState(targetValue = finalColors.primary, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow), label = "primary")
-    val animatedSecondary by animateColorAsState(targetValue = finalColors.secondary, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow), label = "secondary")
-    val animatedAccent by animateColorAsState(targetValue = finalColors.accent, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow), label = "accent")
-    val animatedOnBg by animateColorAsState(targetValue = finalColors.onBackground, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow), label = "onBg")
-    
-    val dominantColors = DominantColors(primary = animatedPrimary, secondary = animatedSecondary, accent = animatedAccent, onBackground = animatedOnBg)
+    val dynamicTokens = LocalSonzaDynamicColors.current
+    val dominantColors = remember(dynamicTokens) {
+        DominantColors(
+            primary = dynamicTokens.primary,
+            secondary = dynamicTokens.secondary,
+            accent = dynamicTokens.accent,
+            onBackground = dynamicTokens.onBackground,
+            accentMuted = dynamicTokens.accentMuted,
+            onAccent = dynamicTokens.onAccent,
+            glow = dynamicTokens.glow,
+            border = dynamicTokens.border,
+            textAccent = dynamicTokens.textAccent,
+            background = dynamicTokens.background,
+            surface = dynamicTokens.surface,
+            isIdle = dynamicTokens.isIdle
+        )
+    }
     
     // Background loading pulse
     val bgLoadingAlpha by animateFloatAsState(
@@ -278,8 +289,8 @@ fun PlayerScreen(
         onDispose { insetsController.isAppearanceLightStatusBars = previousLightStatusBars }
     }
     
-    LaunchedEffect(dominantColors) {
-        val colorArgb = dominantColors.primary.toArgb()
+    LaunchedEffect(dominantColors.accent) {
+        val colorArgb = dominantColors.accent.toArgb()
         if (colorArgb != 0) playerViewModel.updateDominantColor(colorArgb)
     }
 

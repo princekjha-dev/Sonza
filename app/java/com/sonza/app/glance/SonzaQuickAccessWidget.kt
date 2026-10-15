@@ -36,6 +36,10 @@ class SonzaQuickAccessWidgetReceiver : GlanceAppWidgetReceiver() {
 class SonzaQuickAccessWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val prefs = context.getSharedPreferences("sonza_user_avatar", Context.MODE_PRIVATE)
+        val avatarId = prefs.getString("selected_avatar_id", "avatar_1") ?: "avatar_1"
+        val userAvatar = com.sonza.app.ui.components.avatar.AvatarRepository.getAvatarById(avatarId)
+
         provideContent {
             GlanceTheme {
                 Box(
@@ -50,11 +54,19 @@ class SonzaQuickAccessWidget : GlanceAppWidget() {
                         modifier = GlanceModifier.fillMaxSize(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Header
+                        // Header with User Avatar
                         Row(
                             modifier = GlanceModifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Image(
+                                provider = ImageProvider(userAvatar.drawableRes),
+                                contentDescription = "User Avatar: ${userAvatar.name}",
+                                modifier = GlanceModifier
+                                    .size(20.dp)
+                                    .cornerRadius(10.dp)
+                            )
+                            Spacer(modifier = GlanceModifier.width(6.dp))
                             Text(
                                 text = "QUICK ACTIONS",
                                 style = TextStyle(

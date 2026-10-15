@@ -52,6 +52,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import com.sonza.app.R
 import com.sonza.app.ui.components.sonza.SonzaDesignTokens
 import com.sonza.app.ui.components.sonza.SonzaIconButton
@@ -143,18 +148,29 @@ fun AvatarView(
             )
             .then(
                 if (onClick != null) {
-                    Modifier.clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = onClick
-                    )
-                } else Modifier
+                    Modifier
+                        .semantics {
+                            this.contentDescription = "User profile: ${avatar.name}"
+                            this.role = Role.Button
+                        }
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            role = Role.Button,
+                            onClickLabel = "Change profile avatar",
+                            onClick = onClick
+                        )
+                } else {
+                    Modifier.semantics {
+                        this.contentDescription = "User avatar: ${avatar.name}"
+                    }
+                }
             ),
         contentAlignment = Alignment.Center
     ) {
         Image(
             painter = painterResource(id = avatar.drawableRes),
-            contentDescription = avatar.name,
+            contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxSize()
@@ -275,7 +291,15 @@ fun AvatarSelectionSheet(
                                 color = if (isSelected) SonzaBrandAccent else Color.White.copy(alpha = 0.10f),
                                 shape = RoundedCornerShape(20.dp)
                             )
-                            .clickable {
+                            .semantics {
+                                this.role = Role.RadioButton
+                                this.selected = isSelected
+                                this.contentDescription = "${avatar.name}, ${if (isSelected) "selected" else "available"}"
+                            }
+                            .clickable(
+                                role = Role.RadioButton,
+                                onClickLabel = "Select ${avatar.name}"
+                            ) {
                                 onAvatarSelected(avatar.id)
                                 onDismiss()
                             }

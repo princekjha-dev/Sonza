@@ -99,9 +99,9 @@ fun MainPlaybackControls(
 
         Spacer(modifier = Modifier.size(buttonSpacing))
 
-        // Hero Play/Pause Button - Visually Dominant
-        val playCircleColor = dominantColors.onBackground
-        val playIconTint = if (playCircleColor.luminance() > 0.5f) Color.Black else Color.White
+        // Hero Play/Pause Button - Visually Dominant with Artwork Dynamic Accent
+        val playCircleColor = dominantColors.accent
+        val playIconTint = dominantColors.onAccent
         Box(
             modifier = Modifier
                 .size(playSize)

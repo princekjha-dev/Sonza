@@ -41,6 +41,10 @@ class SonzaStandardWidget : GlanceAppWidget() {
         val musicPlayer = entryPoint.getMusicPlayer()
         val currentSongInitial = musicPlayer.playerState.value.currentSong
 
+        val prefs = context.getSharedPreferences("sonza_user_avatar", Context.MODE_PRIVATE)
+        val avatarId = prefs.getString("selected_avatar_id", "avatar_1") ?: "avatar_1"
+        val userAvatar = com.sonza.app.ui.components.avatar.AvatarRepository.getAvatarById(avatarId)
+
         // Preload artwork before RemoteViews composition
         val initialArtwork = SonzaWidgetArtworkHelper.loadArtwork(context, currentSongInitial?.thumbnailUrl, 200)
 
@@ -107,10 +111,9 @@ class SonzaStandardWidget : GlanceAppWidget() {
                                     )
                                 } else {
                                     Image(
-                                        provider = ImageProvider(R.drawable.ic_music_note),
-                                        contentDescription = "Default Music Artwork",
-                                        colorFilter = ColorFilter.tint(ColorProvider(Color.White.copy(alpha = 0.6f))),
-                                        modifier = GlanceModifier.size(24.dp)
+                                        provider = ImageProvider(userAvatar.drawableRes),
+                                        contentDescription = "User Avatar: ${userAvatar.name}",
+                                        modifier = GlanceModifier.fillMaxSize().cornerRadius(12.dp)
                                     )
                                 }
                             }

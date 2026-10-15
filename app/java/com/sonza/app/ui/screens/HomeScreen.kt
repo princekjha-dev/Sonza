@@ -153,37 +153,62 @@ fun HomeScreen(
         }
     }
 
-    // Dynamic accent & dominant colors: extract from active playing track or use current Dynamic Theme
+    // Dynamic music color system: single source of truth from LocalSonzaDynamicColors
     val dynamicTokens = LocalSonzaDynamicColors.current
-    val actualDominantColors = rememberDominantColors(
-        imageUrl = currentSong?.thumbnailUrl
-    )
-
-    val dominantColors = if (isAlbumArtDynamicColorsEnabled && currentSong != null) {
-        actualDominantColors
-    } else {
-        DominantColors(
-            primary = dynamicTokens.surface,
-            secondary = dynamicTokens.surfaceVariant,
-            accent = dynamicTokens.accent,
-            onBackground = dynamicTokens.onBackground,
-            accentMuted = dynamicTokens.accentMuted,
-            onAccent = dynamicTokens.onAccent,
-            isIdle = true
-        )
+    val dominantColors = remember(dynamicTokens, isAlbumArtDynamicColorsEnabled, currentSong) {
+        if (isAlbumArtDynamicColorsEnabled && currentSong != null && !dynamicTokens.isIdle) {
+            DominantColors(
+                primary = dynamicTokens.primary,
+                secondary = dynamicTokens.secondary,
+                accent = dynamicTokens.accent,
+                onBackground = dynamicTokens.onBackground,
+                accentMuted = dynamicTokens.accentMuted,
+                onAccent = dynamicTokens.onAccent,
+                glow = dynamicTokens.glow,
+                border = dynamicTokens.border,
+                textAccent = dynamicTokens.textAccent,
+                background = dynamicTokens.background,
+                surface = dynamicTokens.surface,
+                isIdle = false
+            )
+        } else {
+            DominantColors(
+                primary = dynamicTokens.surface,
+                secondary = dynamicTokens.surfaceVariant,
+                accent = dynamicTokens.accent,
+                onBackground = dynamicTokens.onBackground,
+                accentMuted = dynamicTokens.accentMuted,
+                onAccent = dynamicTokens.onAccent,
+                glow = dynamicTokens.glow,
+                border = dynamicTokens.border,
+                textAccent = dynamicTokens.textAccent,
+                background = dynamicTokens.background,
+                surface = dynamicTokens.surface,
+                isIdle = true
+            )
+        }
     }
 
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Fluid background
+        // Dynamic music background atmosphere
+        val ambientBgColor = if (isAlbumArtDynamicColorsEnabled && currentSong != null && !dynamicTokens.isIdle) {
+            dynamicTokens.background
+        } else {
+            SonzaBackground
+        }
+
         if (animatedBackgroundEnabled) {
-            MeshGradientBackground(dominantColors = dominantColors)
+            MeshGradientBackground(
+                dominantColors = dominantColors,
+                backgroundColor = ambientBgColor
+            )
         } else {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(SonzaBackground)
+                    .background(ambientBgColor)
             )
         }
 

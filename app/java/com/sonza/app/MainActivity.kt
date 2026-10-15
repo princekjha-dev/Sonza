@@ -57,6 +57,7 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.ui.graphics.toArgb
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
@@ -247,14 +248,15 @@ class MainActivity : ComponentActivity() {
             val appTheme by sessionManager.appThemeFlow.collectAsStateWithLifecycle(initialValue = AppTheme.DEFAULT)
             val pureBlackEnabled by sessionManager.pureBlackEnabledFlow.collectAsStateWithLifecycle(initialValue = false)
             val albumArtDynamicColorsEnabled by sessionManager.albumArtDynamicColorsEnabledFlow.collectAsStateWithLifecycle(initialValue = true)
-            // Only the current song's thumbnail URL is needed here (to drive the album-art
-            // theme colors). Collecting the whole PlayerState would recompose this top-level
-            // theme scope — and therefore the entire app — on every ~400ms playback tick.
-            val currentThumbnailUrl by remember {
+            val currentSong by remember {
                 musicPlayer.playerState
-                    .map { it.currentSong?.thumbnailUrl }
+                    .map { it.currentSong }
                     .distinctUntilChanged()
-            }.collectAsStateWithLifecycle(initialValue = musicPlayer.playerState.value.currentSong?.thumbnailUrl)
+            }.collectAsStateWithLifecycle(initialValue = musicPlayer.playerState.value.currentSong)
+            val selectedAvatarId by sessionManager.selectedAvatarIdFlow.collectAsStateWithLifecycle(initialValue = "avatar_1")
+            val fallbackAvatarRes = remember(selectedAvatarId) {
+                com.sonza.app.ui.components.avatar.AvatarRepository.getAvatarById(selectedAvatarId).drawableRes
+            }
             val forceMaxRefreshRate by sessionManager.forceMaxRefreshRateFlow.collectAsStateWithLifecycle(initialValue = true)
             val systemDarkTheme = isSystemInDarkTheme()
             LaunchedEffect(forceMaxRefreshRate) {
@@ -284,17 +286,61 @@ class MainActivity : ComponentActivity() {
                 }
             }
             
-            val albumArtColors = rememberDominantColors(
-                imageUrl = currentThumbnailUrl,
-                isDarkTheme = darkTheme
+            // NowPlaying is the global source of truth for playback artwork & dynamic palette (Requirement 1 & 4)
+            val nowPlayingState = com.sonza.app.ui.components.rememberNowPlayingState(
+                song = currentSong,
+                fallbackArtwork = fallbackAvatarRes
             )
+
+            // Dynamic music color system: synchronize active artwork color to musicPlayer
+            // so background tasks, widgets, and player state immediately reflect the palette.
+            LaunchedEffect(nowPlayingState.dynamicColors.accent) {
+                val colorArgb = nowPlayingState.dynamicColors.accent.toArgb()
+                if (colorArgb != 0) {
+                    musicPlayer.updateDominantColor(colorArgb)
+                }
+            }
+
+            // Respect system Reduce Motion / Remove Animations accessibility setting
+            val context = LocalContext.current
+            val isReduceMotion = remember(context) {
+                try {
+                    android.provider.Settings.Global.getFloat(
+                        context.contentResolver,
+                        android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+                        1f
+                    ) == 0f || android.provider.Settings.Global.getFloat(
+                        context.contentResolver,
+                        android.provider.Settings.Global.TRANSITION_ANIMATION_SCALE,
+                        1f
+                    ) == 0f
+                } catch (_: Exception) {
+                    false
+                }
+            }
 
             SonzaTheme(
                 darkTheme = darkTheme,
                 dynamicColor = dynamicColor,
                 appTheme = appTheme,
                 pureBlack = pureBlackEnabled,
-                albumArtColors = if (albumArtDynamicColorsEnabled && currentThumbnailUrl != null) albumArtColors else null
+                albumArtColors = if (albumArtDynamicColorsEnabled) nowPlayingState.dynamicColors.let { dyn ->
+                    DominantColors(
+                        primary = dyn.primary,
+                        secondary = dyn.secondary,
+                        accent = dyn.accent,
+                        onBackground = dyn.onBackground,
+                        accentMuted = dyn.accentMuted,
+                        onAccent = dyn.onAccent,
+                        glow = dyn.glow,
+                        border = dyn.border,
+                        textAccent = dyn.textAccent,
+                        background = dyn.background,
+                        surface = dyn.surface,
+                        isIdle = dyn.isIdle
+                    )
+                } else null,
+                nowPlaying = nowPlayingState
             ) {
                 val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
                 val foldingFeature by produceState<FoldingFeature?>(null) {
@@ -315,7 +361,8 @@ class MainActivity : ComponentActivity() {
                 val currentIntent by _activityIntent.collectAsStateWithLifecycle()
 
                 CompositionLocalProvider(
-                    LocalDeviceFormFactor provides formFactor
+                    LocalDeviceFormFactor provides formFactor,
+                    com.sonza.app.ui.theme.LocalReduceMotion provides isReduceMotion
                 ) {
                     SonzaApp(
                         intent = currentIntent,
@@ -964,16 +1011,21 @@ fun SonzaApp(
     // Use MaterialTheme colors as current dominant colors for components.
     // Remembered against the actual color inputs so we don't allocate a fresh
     // DominantColors (and re-trigger downstream recomposition) on every tick.
-    val bg = androidx.compose.material3.MaterialTheme.colorScheme.background
-    val surfaceVariant = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
-    val primaryColor = androidx.compose.material3.MaterialTheme.colorScheme.primary
-    val onBg = androidx.compose.material3.MaterialTheme.colorScheme.onBackground
-    val currentDominantColors = remember(bg, surfaceVariant, primaryColor, onBg) {
+    val dynamicTokens = com.sonza.app.ui.components.LocalSonzaDynamicColors.current
+    val currentDominantColors = remember(dynamicTokens) {
         DominantColors(
-            primary = bg,
-            secondary = surfaceVariant,
-            accent = primaryColor,
-            onBackground = onBg
+            primary = dynamicTokens.primary,
+            secondary = dynamicTokens.secondary,
+            accent = dynamicTokens.accent,
+            onBackground = dynamicTokens.onBackground,
+            accentMuted = dynamicTokens.accentMuted,
+            onAccent = dynamicTokens.onAccent,
+            glow = dynamicTokens.glow,
+            border = dynamicTokens.border,
+            textAccent = dynamicTokens.textAccent,
+            background = dynamicTokens.background,
+            surface = dynamicTokens.surface,
+            isIdle = dynamicTokens.isIdle
         )
     }
     
