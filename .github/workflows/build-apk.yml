@@ -45,7 +45,7 @@ jobs:
           mkdir -p build-apks
           VERSION_TAG="${{ github.ref_name }}"
           if [ -z "$VERSION_TAG" ] || [ "$VERSION_TAG" = "main" ]; then
-            VERSION_TAG="v2.6.5.0"
+            VERSION_TAG="v2.6.5.1"
           fi
           APK_FILE=$(find app/build/outputs/apk -type f -name "*.apk" | head -n 1)
           if [ -n "$APK_FILE" ] && [ -f "$APK_FILE" ]; then
@@ -60,7 +60,7 @@ jobs:
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SONZA-v2.6.5.0
+          name: SONZA-APK
           path: build-apks/*.apk
 
       - name: Create Release and Upload APK
