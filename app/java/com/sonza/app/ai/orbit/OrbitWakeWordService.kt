@@ -13,6 +13,7 @@ import android.content.pm.ServiceInfo
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.sonza.app.MainActivity
@@ -20,22 +21,39 @@ import com.sonza.app.R
 
 /**
  * Foreground Wake-Word Service for "Hey Orbit".
- * Runs battery-conscious background listening with Android privacy compliance,
- * low-power VAD, and seamless transition into Sonza's Orbit assistant.
+ *
+ * This service serves TWO purposes:
+ * 1. Provides the foreground service + notification required by Android to keep
+ *    the app alive and hold FOREGROUND_SERVICE_MICROPHONE type.
+ * 2. Hosts the single authoritative [OrbitWakeWordDetector] instance that listens
+ *    for "Hey Orbit" and broadcasts the detection event.
+ *
+ * The in-app [OrbitAssistantViewModel] does NOT create its own detector — it communicates
+ * with the single detector hosted here via broadcasts and a static accessor.
  */
 class OrbitWakeWordService : Service() {
 
     private var wakeWordDetector: OrbitWakeWordDetector? = null
 
     companion object {
+        private const val TAG = "OrbitWakeService"
         const val CHANNEL_ID = "orbit_wake_word_channel"
         const val NOTIFICATION_ID = 2001
         const val ACTION_STOP_LISTENING = "com.sonza.app.orbit.ACTION_STOP_LISTENING"
         const val ACTION_WAKE_WORD_DETECTED = "com.sonza.app.ORBIT_WAKE_WORD_DETECTED"
+        const val ACTION_PAUSE_DETECTOR = "com.sonza.app.orbit.ACTION_PAUSE_DETECTOR"
+        const val ACTION_RESUME_DETECTOR = "com.sonza.app.orbit.ACTION_RESUME_DETECTOR"
         const val EXTRA_COMMAND = "extra_orbit_command"
+
+        // Static accessor for the ViewModel to pause/resume the single detector
+        @Volatile
+        private var instance: OrbitWakeWordService? = null
+
+        fun getDetector(): OrbitWakeWordDetector? = instance?.wakeWordDetector
 
         fun start(context: Context) {
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                Log.w(TAG, "start: no RECORD_AUDIO permission")
                 return
             }
             val intent = Intent(context, OrbitWakeWordService::class.java)
@@ -50,17 +68,46 @@ class OrbitWakeWordService : Service() {
             val intent = Intent(context, OrbitWakeWordService::class.java)
             context.stopService(intent)
         }
+
+        fun pauseDetector(context: Context) {
+            val intent = Intent(context, OrbitWakeWordService::class.java).apply {
+                action = ACTION_PAUSE_DETECTOR
+            }
+            context.startService(intent)
+        }
+
+        fun resumeDetector(context: Context) {
+            val intent = Intent(context, OrbitWakeWordService::class.java).apply {
+                action = ACTION_RESUME_DETECTOR
+            }
+            try { context.startService(intent) } catch (_: Exception) {}
+        }
     }
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         createNotificationChannel()
+        Log.d(TAG, "Service CREATED")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP_LISTENING) {
-            stopSelf()
-            return START_NOT_STICKY
+        when (intent?.action) {
+            ACTION_STOP_LISTENING -> {
+                Log.d(TAG, "Received ACTION_STOP_LISTENING")
+                stopSelf()
+                return START_NOT_STICKY
+            }
+            ACTION_PAUSE_DETECTOR -> {
+                Log.d(TAG, "Received ACTION_PAUSE_DETECTOR")
+                wakeWordDetector?.pauseListening()
+                return START_STICKY
+            }
+            ACTION_RESUME_DETECTOR -> {
+                Log.d(TAG, "Received ACTION_RESUME_DETECTOR")
+                wakeWordDetector?.resumeListening()
+                return START_STICKY
+            }
         }
 
         startAsForeground()
@@ -118,18 +165,25 @@ class OrbitWakeWordService : Service() {
     }
 
     private fun initializeDetector() {
-        if (wakeWordDetector == null) {
-            wakeWordDetector = OrbitWakeWordDetector(
-                context = this,
-                onWakeWordDetected = { command ->
-                    onWakeWordTriggered(command)
-                }
-            )
+        if (wakeWordDetector != null) {
+            Log.d(TAG, "Detector already initialized, ensuring it's listening")
+            wakeWordDetector?.startListening()
+            return
         }
+
+        Log.d(TAG, "Creating new OrbitWakeWordDetector")
+        wakeWordDetector = OrbitWakeWordDetector(
+            context = this,
+            onWakeWordDetected = { command ->
+                onWakeWordTriggered(command)
+            }
+        )
         wakeWordDetector?.startListening()
     }
 
     private fun onWakeWordTriggered(command: String?) {
+        Log.d(TAG, "🎯 Wake word triggered! command=${command ?: "(none)"}")
+
         // Play distinct Orbit wake word chime
         OrbitSoundManager.playWakeWordDetected()
 
@@ -174,8 +228,10 @@ class OrbitWakeWordService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        Log.d(TAG, "Service DESTROYED")
         wakeWordDetector?.stopListening()
         wakeWordDetector = null
+        instance = null
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

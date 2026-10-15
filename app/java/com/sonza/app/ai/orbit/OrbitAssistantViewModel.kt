@@ -1,6 +1,7 @@
 package com.sonza.app.ai.orbit
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sonza.app.core.model.Song
@@ -30,6 +31,13 @@ sealed interface OrbitUiEvent {
  * Orchestrates the full two-way conversational dialogue loop:
  * Standby Wake-Word ("Hey Orbit") → Activation Chime → Listening with live transcription →
  * Intent Processing → Execution on authoritative playback engine → Assistant TTS speech → Standby.
+ *
+ * MICROPHONE OWNERSHIP:
+ * The wake-word detector is owned exclusively by [OrbitWakeWordService].
+ * This ViewModel communicates with it via [OrbitWakeWordService.getDetector()] and
+ * [OrbitWakeWordService.pauseDetector] / [OrbitWakeWordService.resumeDetector].
+ * The [OrbitVoiceManager] (for command listening) and the wake-word detector NEVER
+ * hold the microphone simultaneously.
  */
 class OrbitAssistantViewModel(
     private val voiceManager: OrbitVoiceManager,
@@ -38,6 +46,10 @@ class OrbitAssistantViewModel(
     private val musicPlayer: MusicPlayer,
     private val context: Context
 ) : ViewModel() {
+
+    companion object {
+        private const val TAG = "OrbitVM"
+    }
 
     private val _orbitState = MutableStateFlow(OrbitState.IDLE)
     val orbitState: StateFlow<OrbitState> = _orbitState.asStateFlow()
@@ -73,20 +85,30 @@ class OrbitAssistantViewModel(
     private var autoDismissJob: Job? = null
     private var continuousListeningJob: Job? = null
 
-    // In-app real continuous wake-word detector for "Hey Orbit"
-    private val inAppWakeWordDetector = OrbitWakeWordDetector(
-        context = context,
-        onWakeWordDetected = { command ->
-            viewModelScope.launch(Dispatchers.Main) {
-                onWakeWordDetected(command)
-            }
-        }
-    )
-
     init {
+        // Start the wake-word foreground service which owns the detector
         if (voiceManager.hasRecordAudioPermission()) {
-            inAppWakeWordDetector.startListening()
+            Log.d(TAG, "init: starting OrbitWakeWordService")
+            OrbitWakeWordService.start(context)
         }
+    }
+
+    /**
+     * Pauses the wake-word detector (owned by the service).
+     * Call before acquiring the mic for command listening or TTS.
+     */
+    private fun pauseWakeWordDetector() {
+        Log.d(TAG, "Pausing wake-word detector")
+        OrbitWakeWordService.getDetector()?.pauseListening()
+    }
+
+    /**
+     * Resumes the wake-word detector (owned by the service).
+     * Call after releasing the mic from command listening / TTS.
+     */
+    private fun resumeWakeWordDetector() {
+        Log.d(TAG, "Resuming wake-word detector")
+        OrbitWakeWordService.getDetector()?.resumeListening()
     }
 
     /**
@@ -112,7 +134,7 @@ class OrbitAssistantViewModel(
         // 3. Otherwise, play activation sound, open assistant and immediately listen
         OrbitSoundManager.playActivation()
         _isAssistantVisible.value = true
-        inAppWakeWordDetector.pauseListening()
+        pauseWakeWordDetector()
         startListening()
     }
 
@@ -122,16 +144,17 @@ class OrbitAssistantViewModel(
      * the command is already present and executed directly.
      */
     fun onWakeWordDetected(command: String? = null) {
+        Log.d(TAG, "onWakeWordDetected: command=${command ?: "(none)"}")
         autoDismissJob?.cancel()
         continuousListeningJob?.cancel()
-        inAppWakeWordDetector.pauseListening()
+        pauseWakeWordDetector()
         voiceSynthesizer.stopSpeaking()
 
         OrbitSoundManager.playWakeWordDetected()
         _isAssistantVisible.value = true
 
         if (!command.isNullOrBlank()) {
-            _assistantMessage.value = "“$command”"
+            _assistantMessage.value = "\u201C$command\u201D"
             processUtterance(command)
         } else {
             startListening()
@@ -142,7 +165,7 @@ class OrbitAssistantViewModel(
         autoDismissJob?.cancel()
         continuousListeningJob?.cancel()
         voiceSynthesizer.stopSpeaking()
-        inAppWakeWordDetector.pauseListening()
+        pauseWakeWordDetector()
 
         if (!voiceManager.hasRecordAudioPermission()) {
             viewModelScope.launch {
@@ -153,6 +176,8 @@ class OrbitAssistantViewModel(
             OrbitSoundManager.playError()
             return
         }
+
+        Log.d(TAG, "▶ Command recognition STARTED")
 
         // Temporarily duck music so microphone can hear speech clearly
         musicPlayer.duckVolume(0.15f)
@@ -173,10 +198,12 @@ class OrbitAssistantViewModel(
                 }
             },
             onResult = { text ->
+                Log.d(TAG, "🎯 Command recognized: \"$text\"")
                 _assistantMessage.value = text
                 processUtterance(text)
             },
             onError = { errorMsg ->
+                Log.w(TAG, "Command recognition error: $errorMsg")
                 // Restore volume if error occurs
                 musicPlayer.restoreVolume()
 
@@ -260,6 +287,7 @@ class OrbitAssistantViewModel(
             // Speak Orbit's response with its assistant voice
             val speechText = result.spokenResponse.ifBlank { result.message }
             _orbitState.value = OrbitState.SPEAKING
+            Log.d(TAG, "🗣 Orbit speaking: \"$speechText\"")
 
             voiceSynthesizer.speak(
                 text = speechText,
@@ -267,6 +295,7 @@ class OrbitAssistantViewModel(
                     _orbitState.value = OrbitState.SPEAKING
                 },
                 onDone = {
+                    Log.d(TAG, "🗣 Orbit finished speaking")
                     // Two-way conversational continuation
                     if (result.expectsFollowUpVoiceInput) {
                         startListening()
@@ -277,7 +306,8 @@ class OrbitAssistantViewModel(
                             delay(4500L)
                             _orbitState.value = OrbitState.IDLE
                             _isAssistantVisible.value = false
-                            inAppWakeWordDetector.resumeListening()
+                            Log.d(TAG, "▶ Auto-dismiss → resuming wake-word listener")
+                            resumeWakeWordDetector()
                         }
                     }
                 }
@@ -287,7 +317,8 @@ class OrbitAssistantViewModel(
 
     fun onPermissionResult(isGranted: Boolean) {
         if (isGranted) {
-            inAppWakeWordDetector.startListening()
+            Log.d(TAG, "Microphone permission GRANTED")
+            OrbitWakeWordService.start(context)
             startListening()
         } else {
             _assistantMessage.value = "Orbit needs microphone access to hear 'Hey Orbit' and your voice commands."
@@ -298,6 +329,7 @@ class OrbitAssistantViewModel(
     }
 
     fun dismissAssistant() {
+        Log.d(TAG, "Assistant DISMISSED")
         autoDismissJob?.cancel()
         continuousListeningJob?.cancel()
         voiceManager.stopListening()
@@ -307,7 +339,7 @@ class OrbitAssistantViewModel(
         _dialogueContext.value = OrbitDialogueContext.Idle
         _orbitState.value = OrbitState.IDLE
         _isAssistantVisible.value = false
-        inAppWakeWordDetector.resumeListening()
+        resumeWakeWordDetector()
     }
 
     private fun scheduleAutoDismiss(delayMs: Long) {
@@ -316,14 +348,15 @@ class OrbitAssistantViewModel(
             delay(delayMs)
             _orbitState.value = OrbitState.IDLE
             _isAssistantVisible.value = false
-            inAppWakeWordDetector.resumeListening()
+            resumeWakeWordDetector()
         }
     }
 
     override fun onCleared() {
         super.onCleared()
-        inAppWakeWordDetector.stopListening()
+        Log.d(TAG, "ViewModel CLEARED")
         voiceManager.stopListening()
         voiceSynthesizer.stopSpeaking()
+        // Don't stop the service — it should keep running in the background
     }
 }

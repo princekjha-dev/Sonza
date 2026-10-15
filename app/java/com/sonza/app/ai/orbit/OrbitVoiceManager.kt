@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import android.util.Log
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,10 +20,19 @@ import java.util.Locale
  * Speech Recognition Manager for Orbit Assistant.
  * Implements real-time streaming speech recognition with live RMS audio reactivity for the animated orb,
  * live partial speech transcription, and comprehensive error resilience.
+ *
+ * MICROPHONE CONTRACT: This class acquires the microphone via SpeechRecognizer when
+ * [startListening] is called and releases it when [stopListening] is called or
+ * recognition completes/errors. The caller (ViewModel) must ensure the wake-word
+ * detector has released the mic BEFORE calling [startListening].
  */
 class OrbitVoiceManager(
     private val context: Context
 ) {
+    companion object {
+        private const val TAG = "OrbitVoiceMgr"
+    }
+
     private var speechRecognizer: SpeechRecognizer? = null
 
     private val _isListening = MutableStateFlow(false)
@@ -51,11 +61,13 @@ class OrbitVoiceManager(
         onError: (String) -> Unit
     ) {
         if (!hasRecordAudioPermission()) {
+            Log.w(TAG, "startListening: no permission")
             onError("Microphone permission required")
             return
         }
 
         if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+            Log.w(TAG, "startListening: recognition not available")
             onError("Speech recognition not available on device")
             return
         }
@@ -69,6 +81,7 @@ class OrbitVoiceManager(
         _audioLevel.value = 0f
 
         try {
+            Log.d(TAG, "▶ Creating SpeechRecognizer for command listening")
             speechRecognizer = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) {
                 SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
             } else {
@@ -76,10 +89,12 @@ class OrbitVoiceManager(
             }.apply {
                 setRecognitionListener(object : RecognitionListener {
                     override fun onReadyForSpeech(params: Bundle?) {
+                        Log.d(TAG, "SpeechRecognizer: ready for speech")
                         _isListening.value = true
                     }
 
                     override fun onBeginningOfSpeech() {
+                        Log.d(TAG, "SpeechRecognizer: beginning of speech")
                         _transcription.value = "Listening..."
                     }
 
@@ -92,6 +107,7 @@ class OrbitVoiceManager(
                     override fun onBufferReceived(buffer: ByteArray?) {}
 
                     override fun onEndOfSpeech() {
+                        Log.d(TAG, "SpeechRecognizer: end of speech")
                         _isListening.value = false
                         _audioLevel.value = 0f
                     }
@@ -108,6 +124,7 @@ class OrbitVoiceManager(
                             SpeechRecognizer.ERROR_CLIENT -> "Speech recognizer busy"
                             else -> "Recognition failed ($error)"
                         }
+                        Log.w(TAG, "SpeechRecognizer error: $msg (code=$error)")
                         onErrorCallback?.invoke(msg)
                     }
 
@@ -117,9 +134,11 @@ class OrbitVoiceManager(
                         val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         val text = matches?.firstOrNull()?.trim()
                         if (!text.isNullOrBlank()) {
+                            Log.d(TAG, "SpeechRecognizer result: \"$text\"")
                             _transcription.value = text
                             onResultCallback?.invoke(text)
                         } else {
+                            Log.d(TAG, "SpeechRecognizer: empty result")
                             onErrorCallback?.invoke("Couldn't hear clearly")
                         }
                     }
@@ -148,8 +167,10 @@ class OrbitVoiceManager(
 
             speechRecognizer?.startListening(intent)
             _isListening.value = true
+            Log.d(TAG, "▶ SpeechRecognizer.startListening() called")
         } catch (e: Exception) {
             _isListening.value = false
+            Log.e(TAG, "startListening exception: ${e.message}")
             onErrorCallback?.invoke("Could not start speech recognition: ${e.message}")
         }
     }
@@ -165,6 +186,7 @@ class OrbitVoiceManager(
             speechRecognizer = null
             _isListening.value = false
             _audioLevel.value = 0f
+            Log.d(TAG, "⏹ Command listening STOPPED")
         }
     }
 }

@@ -95,7 +95,7 @@ class HomeViewModel @Inject constructor(
                 !SeasonalSectionHelper.isSeasonalSectionTitle(s.title)
             },
             recommendations = initialQuickPicks,
-            userAvatarUrl = sessionManager.getCachedUserAvatar(),
+            userAvatarUrl = sessionManager.getCachedSelectedAvatarId(),
             userName = sessionManager.getCachedUserName(),
             isLoggedIn = sessionManager.isLoggedIn(),
             isLoading = initialHomeSections.isEmpty() && initialQuickPicks.isEmpty()
@@ -190,13 +190,13 @@ class HomeViewModel @Inject constructor(
     private fun observeSession() {
         viewModelScope.launch {
             kotlinx.coroutines.flow.combine(
-                sessionManager.userAvatarFlow,
+                sessionManager.selectedAvatarIdFlow,
                 sessionManager.userNameFlow,
                 sessionManager.isLoggedInFlow
-            ) { avatarUrl, name, isLoggedIn ->
-                Triple(avatarUrl, name, isLoggedIn)
-            }.collect { (avatarUrl, name, isLoggedIn) ->
-                val resolvedAvatar = avatarUrl ?: sessionManager.getCachedUserAvatar()
+            ) { avatarId, name, isLoggedIn ->
+                Triple(avatarId, name, isLoggedIn)
+            }.collect { (avatarId, name, isLoggedIn) ->
+                val resolvedAvatar = avatarId.ifBlank { sessionManager.getCachedSelectedAvatarId() }
                 val resolvedName = name ?: sessionManager.getCachedUserName()
                 _uiState.update { it.copy(
                     userAvatarUrl = resolvedAvatar,
@@ -204,8 +204,8 @@ class HomeViewModel @Inject constructor(
                     isLoggedIn = isLoggedIn
                 ) }
 
-                // Proactively backfill account details if logged in but name or avatar is missing
-                if (isLoggedIn && (resolvedName.isNullOrBlank() || resolvedAvatar.isNullOrBlank())) {
+                // Proactively backfill account details if logged in but name is missing
+                if (isLoggedIn && resolvedName.isNullOrBlank()) {
                     refreshAccountProfile()
                 }
             }
@@ -230,7 +230,6 @@ class HomeViewModel @Inject constructor(
                     }
                     _uiState.update { it.copy(
                         userName = account.name,
-                        userAvatarUrl = account.avatarUrl.takeIf { url -> url.isNotBlank() } ?: it.userAvatarUrl,
                         isLoggedIn = true
                     ) }
                 }
