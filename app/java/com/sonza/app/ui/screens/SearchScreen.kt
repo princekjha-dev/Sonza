@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -783,19 +784,28 @@ fun SonzaSearchInputField(
         label = "searchFieldBorder"
     )
 
-    Surface(
+    val glassConfig = com.sonza.app.ui.components.glass.rememberLiquidGlassConfig()
+    val focusScale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isFocused) 1.015f else 1f,
+        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = 400f),
+        label = "searchFieldScale"
+    )
+
+    val searchTint = if (isFocused) accentColor.copy(alpha = 0.18f) else Color.Unspecified
+
+    com.sonza.app.ui.components.glass.LiquidGlassSurface(
         modifier = modifier
+            .scale(focusScale)
             .fillMaxWidth()
-            .height(52.dp)
-            .shadow(
-                elevation = if (isFocused) 6.dp else 2.dp,
-                shape = RoundedCornerShape(26.dp),
-                ambientColor = Color.Black.copy(alpha = 0.35f),
-                spotColor = Color.Black.copy(alpha = 0.25f)
-            ),
+            .height(52.dp),
         shape = RoundedCornerShape(26.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, animatedBorderColor)
+        style = glassConfig.style,
+        blurAmount = if (isFocused) glassConfig.blur * 1.3f else glassConfig.blur,
+        tint = searchTint,
+        isDarkTheme = glassConfig.isDarkTheme,
+        drawShadow = true,
+        drawRim = true,
+        elevationOverride = if (isFocused) 16.dp else 8.dp
     ) {
         Row(
             modifier = Modifier

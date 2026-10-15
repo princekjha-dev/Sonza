@@ -187,36 +187,56 @@ fun OrbitAvatar(
                 center = center
             )
 
-            // 2. State-specific outer effects (Audio Waveform ring or Orbital particles)
+            // 2. State-specific outer effects (Audio Waveform rings, Orbital particles, Ripple waves)
             when (state) {
                 OrbitState.LISTENING -> {
-                    // Pulsing audio ring
-                    val pulseRadius = orbRadius + 4.dp.toPx() + (audioLevel * 8.dp.toPx())
+                    // Primary pulsing audio ring
+                    val pulseRadius = orbRadius + 4.dp.toPx() + (audioLevel * 10.dp.toPx())
                     drawCircle(
-                        color = glowColor.copy(alpha = 0.45f + (audioLevel * 0.45f)),
+                        color = glowColor.copy(alpha = 0.50f + (audioLevel * 0.45f)),
                         radius = pulseRadius,
                         center = center,
-                        style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
+                        style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round)
+                    )
+                    // Secondary outer echo soundwave ring
+                    val secondaryRadius = orbRadius + 10.dp.toPx() + (audioLevel * 16.dp.toPx())
+                    drawCircle(
+                        color = glowColor.copy(alpha = (audioLevel * 0.35f)),
+                        radius = secondaryRadius,
+                        center = center,
+                        style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round)
                     )
                 }
                 OrbitState.THINKING -> {
                     // Orbital particle ring
                     rotate(degrees = orbitalRotation, pivot = center) {
                         drawCircle(
-                            color = glowColor.copy(alpha = 0.25f),
-                            radius = orbRadius + 5.dp.toPx(),
+                            color = glowColor.copy(alpha = 0.28f),
+                            radius = orbRadius + 6.dp.toPx(),
                             center = center,
-                            style = Stroke(width = 1.5.dp.toPx())
+                            style = Stroke(width = 1.8.dp.toPx())
                         )
                         // Particle dot
                         val pOffset = Offset(
-                            x = center.x + (orbRadius + 5.dp.toPx()),
+                            x = center.x + (orbRadius + 6.dp.toPx()),
                             y = center.y
                         )
                         drawCircle(
                             color = glowColor,
-                            radius = 3.dp.toPx(),
+                            radius = 3.5.dp.toPx(),
                             center = pOffset
+                        )
+                    }
+                    // Counter-rotating secondary arc
+                    rotate(degrees = -orbitalRotation * 0.8f, pivot = center) {
+                        drawArc(
+                            color = glowColor.copy(alpha = 0.5f),
+                            startAngle = 180f,
+                            sweepAngle = 90f,
+                            useCenter = false,
+                            topLeft = Offset(center.x - orbRadius - 10.dp.toPx(), center.y - orbRadius - 10.dp.toPx()),
+                            size = Size((orbRadius + 10.dp.toPx()) * 2, (orbRadius + 10.dp.toPx()) * 2),
+                            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
                         )
                     }
                 }
@@ -236,12 +256,19 @@ fun OrbitAvatar(
                 }
                 OrbitState.SPEAKING -> {
                     // Dynamic speech soundwave ripples
-                    val speakRadius = orbRadius + 3.dp.toPx() + (audioLevel * 6.dp.toPx())
+                    val speakRadius = orbRadius + 4.dp.toPx() + (audioLevel * 8.dp.toPx())
                     drawCircle(
-                        color = glowColor.copy(alpha = 0.35f + (audioLevel * 0.4f)),
+                        color = glowColor.copy(alpha = 0.40f + (audioLevel * 0.45f)),
                         radius = speakRadius,
                         center = center,
-                        style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
+                        style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round)
+                    )
+                    val outerSpeakRadius = orbRadius + 11.dp.toPx() + (audioLevel * 14.dp.toPx())
+                    drawCircle(
+                        color = glowColor.copy(alpha = (audioLevel * 0.28f)),
+                        radius = outerSpeakRadius,
+                        center = center,
+                        style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round)
                     )
                 }
                 else -> Unit

@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -13,12 +14,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.Locale
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
- * Speech Recognition Manager for Orbit.
- * Implements TAP ORBIT = IMMEDIATELY LISTEN with live RMS audio reactivity for avatar animation.
+ * Speech Recognition Manager for Orbit Assistant.
+ * Implements real-time streaming speech recognition with live RMS audio reactivity for the animated orb,
+ * live partial speech transcription, and comprehensive error resilience.
  */
 class OrbitVoiceManager(
     private val context: Context
@@ -34,6 +34,7 @@ class OrbitVoiceManager(
     private val _transcription = MutableStateFlow("")
     val transcription: StateFlow<String> = _transcription.asStateFlow()
 
+    private var onPartialResultCallback: ((String) -> Unit)? = null
     private var onResultCallback: ((String) -> Unit)? = null
     private var onErrorCallback: ((String) -> Unit)? = null
 
@@ -45,6 +46,7 @@ class OrbitVoiceManager(
     }
 
     fun startListening(
+        onPartialResult: ((String) -> Unit)? = null,
         onResult: (String) -> Unit,
         onError: (String) -> Unit
     ) {
@@ -60,13 +62,18 @@ class OrbitVoiceManager(
 
         stopListening()
 
+        onPartialResultCallback = onPartialResult
         onResultCallback = onResult
         onErrorCallback = onError
         _transcription.value = "Listening..."
         _audioLevel.value = 0f
 
         try {
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
+            speechRecognizer = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) {
+                SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
+            } else {
+                SpeechRecognizer.createSpeechRecognizer(context)
+            }.apply {
                 setRecognitionListener(object : RecognitionListener {
                     override fun onReadyForSpeech(params: Bundle?) {
                         _isListening.value = true
@@ -87,7 +94,6 @@ class OrbitVoiceManager(
                     override fun onEndOfSpeech() {
                         _isListening.value = false
                         _audioLevel.value = 0f
-                        _transcription.value = "Understanding..."
                     }
 
                     override fun onError(error: Int) {
@@ -98,6 +104,8 @@ class OrbitVoiceManager(
                             SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Listening timed out"
                             SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
                             SpeechRecognizer.ERROR_NETWORK -> "Network required for speech"
+                            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Microphone permission required"
+                            SpeechRecognizer.ERROR_CLIENT -> "Speech recognizer busy"
                             else -> "Recognition failed ($error)"
                         }
                         onErrorCallback?.invoke(msg)
@@ -107,7 +115,7 @@ class OrbitVoiceManager(
                         _isListening.value = false
                         _audioLevel.value = 0f
                         val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                        val text = matches?.firstOrNull()
+                        val text = matches?.firstOrNull()?.trim()
                         if (!text.isNullOrBlank()) {
                             _transcription.value = text
                             onResultCallback?.invoke(text)
@@ -118,9 +126,10 @@ class OrbitVoiceManager(
 
                     override fun onPartialResults(partialResults: Bundle?) {
                         val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                        val text = matches?.firstOrNull()
+                        val text = matches?.firstOrNull()?.trim()
                         if (!text.isNullOrBlank()) {
                             _transcription.value = text
+                            onPartialResultCallback?.invoke(text)
                         }
                     }
 
@@ -133,6 +142,8 @@ class OrbitVoiceManager(
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
                 putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
                 putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1800L)
+                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1200L)
             }
 
             speechRecognizer?.startListening(intent)
@@ -148,7 +159,7 @@ class OrbitVoiceManager(
             speechRecognizer?.stopListening()
             speechRecognizer?.cancel()
             speechRecognizer?.destroy()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Ignore clean up errors
         } finally {
             speechRecognizer = null

@@ -4,30 +4,14 @@ import android.content.Context
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.glance.ColorFilter
-import androidx.glance.GlanceId
-import androidx.glance.GlanceModifier
-import androidx.glance.GlanceTheme
-import androidx.glance.Image
-import androidx.glance.ImageProvider
+import androidx.glance.*
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
-import androidx.glance.background
-import androidx.glance.layout.Alignment
-import androidx.glance.layout.Box
-import androidx.glance.layout.Column
-import androidx.glance.layout.Row
-import androidx.glance.layout.Spacer
-import androidx.glance.layout.fillMaxSize
-import androidx.glance.layout.fillMaxWidth
-import androidx.glance.layout.height
-import androidx.glance.layout.padding
-import androidx.glance.layout.size
-import androidx.glance.layout.width
+import androidx.glance.layout.*
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -36,8 +20,9 @@ import com.sonza.app.R
 
 /**
  * Widget 3 — Dedicated Orbit AI Assistant Widget.
- * Shows ORBIT, "Hey Orbit", with Orbit avatar.
- * Tap activates Orbit assistant directly in Sonza (no Google voice UI).
+ * Clean, independent AI assistant widget.
+ * Features the signature glowing Orbit emblem, "Hey Orbit" prompt, and tap-to-activate voice interaction.
+ * Strictly separates assistant interactions from standard music widgets.
  */
 class SonzaWidget : GlanceAppWidget() {
 
@@ -47,14 +32,14 @@ class SonzaWidget : GlanceAppWidget() {
                 Box(
                     modifier = GlanceModifier
                         .fillMaxSize()
-                        .background(ColorProvider(Color(0xFF141520)))
+                        .background(ColorProvider(Color(0xFF0D0E16)))
                         .cornerRadius(24.dp)
                         .clickable(
                             actionRunCallback<OpenDeepLinkAction>(
                                 actionParametersOf(DeepLinkKey to "sonza://orbit_listen")
                             )
                         )
-                        .padding(16.dp),
+                        .padding(14.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -62,7 +47,7 @@ class SonzaWidget : GlanceAppWidget() {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Header: Status dot + ORBIT
+                        // Header: Glowing indicator dot + "ORBIT" branding
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -70,13 +55,13 @@ class SonzaWidget : GlanceAppWidget() {
                                 modifier = GlanceModifier
                                     .size(7.dp)
                                     .cornerRadius(3.5.dp)
-                                    .background(ColorProvider(Color(0xFF38BDF8)))
+                                    .background(ColorProvider(SonzaWidgetTheme.AccentCyan))
                             ) {}
                             Spacer(modifier = GlanceModifier.width(6.dp))
                             Text(
-                                text = "ORBIT",
+                                text = "ORBIT AI",
                                 style = TextStyle(
-                                    color = ColorProvider(Color(0xFF38BDF8)),
+                                    color = ColorProvider(SonzaWidgetTheme.AccentCyan),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -85,37 +70,45 @@ class SonzaWidget : GlanceAppWidget() {
 
                         Spacer(modifier = GlanceModifier.height(10.dp))
 
-                        // Orbit Avatar Glowing Emblem
+                        // Glowing Orbit Avatar Emblem (layered concentric rings)
                         Box(
                             modifier = GlanceModifier
-                                .size(56.dp)
-                                .cornerRadius(28.dp)
-                                .background(ColorProvider(Color(0xFF38BDF8).copy(alpha = 0.18f))),
+                                .size(62.dp)
+                                .cornerRadius(31.dp)
+                                .background(ColorProvider(SonzaWidgetTheme.AccentCyan.copy(alpha = 0.14f))),
                             contentAlignment = Alignment.Center
                         ) {
                             Box(
                                 modifier = GlanceModifier
-                                    .size(42.dp)
-                                    .cornerRadius(21.dp)
-                                    .background(ColorProvider(Color(0xFF38BDF8).copy(alpha = 0.35f))),
+                                    .size(48.dp)
+                                    .cornerRadius(24.dp)
+                                    .background(ColorProvider(SonzaWidgetTheme.AccentCyan.copy(alpha = 0.30f))),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Image(
-                                    provider = ImageProvider(R.drawable.ic_mic),
-                                    contentDescription = "Orbit Avatar",
-                                    colorFilter = ColorFilter.tint(ColorProvider(Color.White)),
-                                    modifier = GlanceModifier.size(24.dp)
-                                )
+                                Box(
+                                    modifier = GlanceModifier
+                                        .size(36.dp)
+                                        .cornerRadius(18.dp)
+                                        .background(ColorProvider(SonzaWidgetTheme.AccentCyan.copy(alpha = 0.55f))),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Image(
+                                        provider = ImageProvider(R.drawable.ic_mic),
+                                        contentDescription = "Activate Orbit Assistant",
+                                        colorFilter = ColorFilter.tint(ColorProvider(Color.White)),
+                                        modifier = GlanceModifier.size(20.dp)
+                                    )
+                                }
                             }
                         }
 
                         Spacer(modifier = GlanceModifier.height(10.dp))
 
-                        // "Hey Orbit" Activation Tag
+                        // Wake Phrase Prompt
                         Text(
                             text = "“Hey Orbit”",
                             style = TextStyle(
-                                color = ColorProvider(Color.White),
+                                color = ColorProvider(SonzaWidgetTheme.TextPrimary),
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -123,11 +116,12 @@ class SonzaWidget : GlanceAppWidget() {
 
                         Spacer(modifier = GlanceModifier.height(2.dp))
 
+                        // Subtitle
                         Text(
                             text = "Tap to speak",
                             style = TextStyle(
-                                color = ColorProvider(Color.White.copy(alpha = 0.7f)),
-                                fontSize = 12.sp,
+                                color = ColorProvider(SonzaWidgetTheme.TextSecondary),
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Normal
                             )
                         )

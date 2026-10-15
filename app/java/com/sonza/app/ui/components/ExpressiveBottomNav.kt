@@ -3,6 +3,7 @@ package com.sonza.app.ui.components
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -14,6 +15,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -62,6 +65,8 @@ import androidx.compose.ui.unit.sp
 import com.sonza.app.R
 import com.sonza.app.core.model.Song
 import com.sonza.app.navigation.Destination
+import com.sonza.app.ui.components.glass.LiquidGlassNavigation
+import com.sonza.app.ui.components.glass.LiquidGlassTokens
 import com.sonza.app.ui.components.player.miniplayer.CompactFloatingMiniPlayer
 import com.sonza.app.ui.theme.MotionTokens
 import com.sonza.app.ui.theme.SonzaBrandAccent
@@ -254,14 +259,6 @@ private fun CompactFloating4TabsNav(
     modifier: Modifier = Modifier
 ) {
     val pillShape = RoundedCornerShape(28.dp)
-    val effectiveAlpha = (0.88f * userAlpha).coerceIn(0.70f, 0.98f)
-    val surfaceColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = effectiveAlpha)
-
-    val specularBrush = Brush.verticalGradient(
-        0.0f to Color.White.copy(alpha = 0.08f),
-        0.5f to Color.Transparent,
-        1.0f to Color.Black.copy(alpha = 0.12f)
-    )
 
     val navItems = remember {
         listOf(
@@ -292,51 +289,40 @@ private fun CompactFloating4TabsNav(
         )
     }
 
-    Surface(
+    LiquidGlassNavigation(
         modifier = modifier
             .fillMaxWidth()
-            .height(ExpressiveBottomNavTokens.IdleNavBarHeight)
-            .shadow(
-                elevation = 8.dp,
-                shape = pillShape,
-                ambientColor = Color.Black.copy(alpha = 0.35f),
-                spotColor = Color.Black.copy(alpha = 0.25f)
-            ),
+            .height(ExpressiveBottomNavTokens.IdleNavBarHeight),
         shape = pillShape,
-        color = surfaceColor,
-        border = BorderStroke(0.75.dp, Color.White.copy(alpha = 0.12f))
+        elevation = 8.dp,
+        ambientTint = MaterialTheme.colorScheme.surfaceContainer,
+        blurRadius = 24.dp
     ) {
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxSize()
-                .background(specularBrush)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                navItems.forEach { item ->
-                    val isSelected = currentDestination == item.destination
-                    val label = stringResource(item.labelRes)
+            navItems.forEach { item ->
+                val isSelected = currentDestination == item.destination
+                val label = stringResource(item.labelRes)
 
-                    CompactNavItemView(
-                        item = item,
-                        label = label,
-                        isSelected = isSelected,
-                        accentColor = accentColor,
-                        onClick = {
-                            if (isSelected) {
-                                onReClick(item.destination)
-                            } else {
-                                onDestinationChange(item.destination)
-                            }
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                CompactNavItemView(
+                    item = item,
+                    label = label,
+                    isSelected = isSelected,
+                    accentColor = accentColor,
+                    onClick = {
+                        if (isSelected) {
+                            onReClick(item.destination)
+                        } else {
+                            onDestinationChange(item.destination)
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }
@@ -344,7 +330,8 @@ private fun CompactFloating4TabsNav(
 
 /**
  * Individual destination tab in the compact 4-tab floating navigation pill.
- * Features subtle rounded indicator when active with dynamic accent color.
+ * Features subtle rounded indicator when active with dynamic accent color
+ * and responsive spring micro-interaction on press.
  */
 @Composable
 private fun CompactNavItemView(
@@ -356,6 +343,13 @@ private fun CompactNavItemView(
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.92f else 1f,
+        animationSpec = LiquidGlassTokens.Springs.Interactive,
+        label = "navItemPressScale"
+    )
+
     val unselectedColor = SonzaOnSurfaceVariant.copy(alpha = 0.75f)
 
     val contentColor by animateColorAsState(
@@ -381,6 +375,7 @@ private fun CompactNavItemView(
     Box(
         modifier = modifier
             .fillMaxHeight()
+            .scale(pressScale)
             .clip(RoundedCornerShape(20.dp))
             .background(indicatorBgColor)
             .selectable(

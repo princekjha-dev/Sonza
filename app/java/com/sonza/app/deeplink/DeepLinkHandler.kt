@@ -52,8 +52,10 @@ object DeepLinkHandler {
             "player" -> DeepLinkTarget.Player
             "lyrics" -> DeepLinkTarget.Lyrics
             "queue" -> DeepLinkTarget.Queue
-            "orbit_listen" -> DeepLinkTarget.OrbitListen
-            "ai" -> DeepLinkTarget.OrbitListen
+            "orbit_listen", "ai" -> {
+                val cmd = uri.getQueryParameter("command")
+                DeepLinkTarget.OrbitListen(cmd)
+            }
             "library" -> DeepLinkTarget.Library
             "eq" -> DeepLinkTarget.Equalizer
 
@@ -70,7 +72,13 @@ object DeepLinkHandler {
         is DeepLinkTarget.Player -> Uri.parse("$SCHEME://player")
         is DeepLinkTarget.Lyrics -> Uri.parse("$SCHEME://lyrics")
         is DeepLinkTarget.Queue -> Uri.parse("$SCHEME://queue")
-        is DeepLinkTarget.OrbitListen -> Uri.parse("$SCHEME://orbit_listen")
+        is DeepLinkTarget.OrbitListen -> {
+            if (!target.command.isNullOrBlank()) {
+                Uri.parse("$SCHEME://orbit_listen?command=${Uri.encode(target.command)}")
+            } else {
+                Uri.parse("$SCHEME://orbit_listen")
+            }
+        }
         is DeepLinkTarget.Library -> Uri.parse("$SCHEME://library")
         is DeepLinkTarget.Equalizer -> Uri.parse("$SCHEME://eq")
     }
@@ -85,7 +93,7 @@ sealed class DeepLinkTarget {
     object Player : DeepLinkTarget()
     object Lyrics : DeepLinkTarget()
     object Queue : DeepLinkTarget()
-    object OrbitListen : DeepLinkTarget()
+    data class OrbitListen(val command: String? = null) : DeepLinkTarget()
     object Library : DeepLinkTarget()
     object Equalizer : DeepLinkTarget()
 }

@@ -98,6 +98,8 @@ object OrbitIntentParser {
         // Strip common courtesies
         s = s.removePrefix("please").removePrefix("can you").removePrefix("could you")
             .removePrefix("would you").removePrefix("tell me").removePrefix("i want to").trim()
+        // Strip punctuation marks for seamless voice command matching
+        s = s.replace(Regex("[?,!.]"), "").trim()
         return s
     }
 
@@ -290,7 +292,13 @@ object OrbitIntentParser {
             return OrbitIntent.ModifyCurrentMixIntent(mod)
         }
 
+        if (q in listOf("play something", "play some music", "play music", "play anything", "surprise me", "play random music")) {
+            return OrbitIntent.SurpriseMeIntent
+        }
         if (q.contains("play something similar") || q.contains("play more like this") || q.contains("similar songs") || q.contains("songs like this")) {
+            return OrbitIntent.SimilarMusicIntent
+        }
+        if (q.contains("yesterday") || q.contains("history") || q.contains("recently") || q.contains("last song")) {
             return OrbitIntent.SimilarMusicIntent
         }
         if (q.contains("play trending") || q.contains("trending songs") || q.contains("what is trending")) {
@@ -299,17 +307,22 @@ object OrbitIntentParser {
         if (q.contains("play new releases") || q.contains("new songs") || q.contains("latest releases")) {
             return OrbitIntent.NewReleasesIntent
         }
-        if (q.contains("surprise me") || q.contains("play anything") || q.contains("play random music")) {
+        if (q.contains("surprise me")) {
             return OrbitIntent.SurpriseMeIntent
         }
 
         val moodKeywords = listOf(
             "romantic", "sad", "relaxing", "workout", "gym", "energetic",
-            "chill", "study", "focus", "party", "sleep", "happy", "driving", "road trip", "old bollywood"
+            "chill", "study", "studying", "focus", "party", "sleep", "sleeping", "happy", "driving", "road trip", "old bollywood"
         )
         for (mood in moodKeywords) {
             if (q.contains(mood)) {
-                return OrbitIntent.PlayGenreOrMoodIntent(mood)
+                val canonicalMood = when (mood) {
+                    "sleeping" -> "sleep"
+                    "studying" -> "study"
+                    else -> mood
+                }
+                return OrbitIntent.PlayGenreOrMoodIntent(canonicalMood)
             }
         }
 

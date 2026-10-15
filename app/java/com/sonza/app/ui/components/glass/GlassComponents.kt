@@ -22,49 +22,56 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.sonza.app.core.model.GlassStyle
 import com.sonza.app.data.SessionManager
 import org.koin.compose.koinInject
 
 /**
- * App-wide Liquid Glass configuration. Resolved once via [rememberLiquidGlassConfig] and read by
- * the glass wrappers ([GlassCard], [GlassModalBottomSheet]) so any surface can opt into the
- * frosted look by swapping its container — no flags threaded through call sites.
+ * App-wide Liquid Glass configuration.
  */
 data class LiquidGlassConfig(
-    val enabled: Boolean = false,
-    val blur: Float = 60f,
+    val enabled: Boolean = true,
+    val style: GlassStyle = GlassStyle.NATURAL,
+    val blur: Float = 55f,
     val intensity: Float = 1f,
     val isDarkTheme: Boolean = true
 )
 
 /**
- * Reads the global "iOS Liquid Glass" toggle and the user's blur slider, and derives dark/light
- * from the active theme. The blur reuses the existing "iOS NavBar Blur" setting so the one slider
- * the user already tunes governs every glass surface consistently.
+ * Resolves the active global Liquid Glass configuration from SessionManager and Theme.
  */
 @Composable
 fun rememberLiquidGlassConfig(): LiquidGlassConfig {
     val sessionManager: SessionManager = koinInject()
-    val enabled by sessionManager.iosLiquidGlassEnabledFlow.collectAsStateWithLifecycle(initialValue = false)
-    val blur by sessionManager.navBarBlurFlow.collectAsStateWithLifecycle(initialValue = 60f)
+    val enabled by sessionManager.iosLiquidGlassEnabledFlow.collectAsStateWithLifecycle(initialValue = true)
+    val style by sessionManager.glassStyleFlow.collectAsStateWithLifecycle(initialValue = GlassStyle.NATURAL)
+    val blur by sessionManager.navBarBlurFlow.collectAsStateWithLifecycle(initialValue = 55f)
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    return LiquidGlassConfig(enabled = enabled, blur = blur, intensity = 1f, isDarkTheme = isDark)
+
+    return LiquidGlassConfig(
+        enabled = enabled,
+        style = style,
+        blur = blur,
+        intensity = 1f,
+        isDarkTheme = isDark
+    )
 }
 
 /**
- * A container that renders a frosted [LiquidGlassSurface] when Liquid Glass is enabled, and falls
- * back to a normal [Surface] otherwise. Drop-in replacement for a card/surface: swap the wrapper
- * and the surface follows the user's glass preference automatically.
+ * A container that renders a frosted [LiquidGlassSurface] when Liquid Glass is active,
+ * falling back to a normal [Surface] otherwise.
  */
 @Composable
 fun GlassCard(
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(20.dp),
+    shape: Shape = RoundedCornerShape(LiquidGlassTokens.RadiusCard),
     tint: Color = Color.Unspecified,
     drawShadow: Boolean = true,
     drawRim: Boolean = true,
+    elevation: Dp? = null,
     fallbackColor: Color = MaterialTheme.colorScheme.surfaceContainer,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     content: @Composable BoxScope.() -> Unit
@@ -74,12 +81,14 @@ fun GlassCard(
         LiquidGlassSurface(
             modifier = modifier,
             shape = shape,
+            style = glass.style,
             blurAmount = glass.blur,
             intensity = glass.intensity,
             tint = tint,
             isDarkTheme = glass.isDarkTheme,
             drawShadow = drawShadow,
             drawRim = drawRim,
+            elevationOverride = elevation,
             content = content
         )
     } else {
@@ -95,9 +104,7 @@ fun GlassCard(
 }
 
 /**
- * A [ModalBottomSheet] that frosts into glass when Liquid Glass is enabled (transparent container
- * with a [LiquidGlassSurface] plate behind the content), and is a plain sheet otherwise. The drag
- * handle is rendered inside the glass plate so there's no transparent gap above the sheet.
+ * A [ModalBottomSheet] that frosts into glass when Liquid Glass is enabled.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,7 +112,7 @@ fun GlassModalBottomSheet(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     sheetState: SheetState = rememberModalBottomSheetState(),
-    shape: Shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+    shape: Shape = RoundedCornerShape(topStart = LiquidGlassTokens.RadiusSheet, topEnd = LiquidGlassTokens.RadiusSheet),
     fallbackContainerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     content: @Composable ColumnScope.() -> Unit
@@ -132,11 +139,11 @@ fun GlassModalBottomSheet(
         containerColor = Color.Transparent,
         dragHandle = null
     ) {
-        // The Column sizes the Box; the glass plate fills it via matchParentSize().
         Box(modifier = Modifier.fillMaxWidth()) {
             LiquidGlassSurface(
                 modifier = Modifier.matchParentSize(),
                 shape = shape,
+                style = glass.style,
                 blurAmount = glass.blur,
                 intensity = glass.intensity,
                 isDarkTheme = glass.isDarkTheme,

@@ -32,7 +32,7 @@ sealed class MainEvent {
     object ExpandPlayer : MainEvent()
     object OpenLyrics : MainEvent()
     object OpenQueue : MainEvent()
-    object TriggerOrbitListening : MainEvent()
+    data class TriggerOrbitListening(val command: String? = null) : MainEvent()
     object NavigateToLibrary : MainEvent()
     object OpenEqualizer : MainEvent()
 }
@@ -132,7 +132,7 @@ class MainViewModel @Inject constructor(
                         is com.sonza.app.deeplink.DeepLinkTarget.Queue ->
                             _events.emit(MainEvent.OpenQueue)
                         is com.sonza.app.deeplink.DeepLinkTarget.OrbitListen ->
-                            _events.emit(MainEvent.TriggerOrbitListening)
+                            _events.emit(MainEvent.TriggerOrbitListening(target.command))
                         is com.sonza.app.deeplink.DeepLinkTarget.Library ->
                             _events.emit(MainEvent.NavigateToLibrary)
                         is com.sonza.app.deeplink.DeepLinkTarget.Equalizer ->

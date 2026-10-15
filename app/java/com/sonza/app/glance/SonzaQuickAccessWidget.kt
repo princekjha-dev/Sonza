@@ -1,16 +1,10 @@
 package com.sonza.app.glance
 
 import android.content.Context
-import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.glance.ColorFilter
-import androidx.glance.GlanceId
-import androidx.glance.GlanceModifier
-import androidx.glance.GlanceTheme
-import androidx.glance.Image
-import androidx.glance.ImageProvider
+import androidx.glance.*
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -18,19 +12,7 @@ import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
-import androidx.glance.background
-import androidx.glance.layout.Alignment
-import androidx.glance.layout.Box
-import androidx.glance.layout.Column
-import androidx.glance.layout.Row
-import androidx.glance.layout.Spacer
-import androidx.glance.layout.fillMaxHeight
-import androidx.glance.layout.fillMaxSize
-import androidx.glance.layout.fillMaxWidth
-import androidx.glance.layout.height
-import androidx.glance.layout.padding
-import androidx.glance.layout.size
-import androidx.glance.layout.width
+import androidx.glance.layout.*
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -42,14 +24,14 @@ class SonzaQuickAccessWidgetReceiver : GlanceAppWidgetReceiver() {
 }
 
 /**
- * Widget 4 — Quick Actions Widget.
- * Provides 5 real quick playback actions:
- * 1. Play Liked Songs
- * 2. Romantic Mix
- * 3. Workout
- * 4. Discover
- * 5. Recently Played
- * Each action directly executes playback in Sonza via deep link routing.
+ * Widget 4 — Music Quick Actions.
+ * Direct one-tap music access for 5 curated music streams:
+ * - Liked Songs
+ * - Romantic Mix
+ * - Workout
+ * - Discover
+ * - Recently Played
+ * All actions execute directly on the real music player.
  */
 class SonzaQuickAccessWidget : GlanceAppWidget() {
 
@@ -59,7 +41,7 @@ class SonzaQuickAccessWidget : GlanceAppWidget() {
                 Box(
                     modifier = GlanceModifier
                         .fillMaxSize()
-                        .background(ColorProvider(Color(0xFF141520)))
+                        .background(ColorProvider(SonzaWidgetTheme.CardBackground))
                         .cornerRadius(24.dp)
                         .padding(12.dp),
                     contentAlignment = Alignment.Center
@@ -76,103 +58,79 @@ class SonzaQuickAccessWidget : GlanceAppWidget() {
                             Text(
                                 text = "QUICK ACTIONS",
                                 style = TextStyle(
-                                    color = ColorProvider(Color(0xFF38BDF8)),
+                                    color = ColorProvider(SonzaWidgetTheme.AccentCyan),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             )
                             Spacer(modifier = GlanceModifier.defaultWeight())
-
-                            // User Profile Avatar (Synchronized with App Profile)
-                            val avatarId = remember {
-                                try {
-                                    val prefs = context.getSharedPreferences("sonza_user_avatar", Context.MODE_PRIVATE)
-                                    prefs.getString("selected_avatar_id", "avatar_1") ?: "avatar_1"
-                                } catch (_: Exception) {
-                                    "avatar_1"
-                                }
-                            }
-                            val userAvatar = com.sonza.app.ui.components.avatar.AvatarRepository.getAvatarById(avatarId)
-
-                            Box(
-                                modifier = GlanceModifier
-                                    .size(24.dp)
-                                    .cornerRadius(12.dp)
-                                    .background(ColorProvider(Color.White.copy(alpha = 0.12f)))
-                                    .clickable(
-                                        actionRunCallback<OpenDeepLinkAction>(
-                                            actionParametersOf(DeepLinkKey to "sonza://profile")
-                                        )
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Image(
-                                    provider = ImageProvider(userAvatar.drawableRes),
-                                    contentDescription = userAvatar.name,
-                                    modifier = GlanceModifier.size(22.dp).cornerRadius(11.dp)
-                                )
-                            }
+                            Image(
+                                provider = ImageProvider(R.drawable.ic_music_note),
+                                contentDescription = "Sonza Music",
+                                colorFilter = ColorFilter.tint(ColorProvider(SonzaWidgetTheme.TextMuted)),
+                                modifier = GlanceModifier.size(16.dp)
+                            )
                         }
 
                         Spacer(modifier = GlanceModifier.height(8.dp))
 
-                        // Row 1: Play Liked Songs + Romantic Mix
+                        // Row 1: Liked Songs + Romantic Mix (Wide Action Cards)
                         Row(
                             modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            QuickActionItem(
-                                label = "Liked Songs",
+                            QuickCardHero(
+                                title = "Liked Songs",
+                                subtitle = "Your favorites",
                                 iconRes = R.drawable.ic_heart,
-                                tintColor = Color(0xFFFF5252),
+                                tint = SonzaWidgetTheme.AccentRed,
                                 actionType = "liked",
                                 modifier = GlanceModifier.defaultWeight()
                             )
 
                             Spacer(modifier = GlanceModifier.width(8.dp))
 
-                            QuickActionItem(
-                                label = "Romantic Mix",
+                            QuickCardHero(
+                                title = "Romantic Mix",
+                                subtitle = "Love & Chill",
                                 iconRes = R.drawable.ic_music_note,
-                                tintColor = Color(0xFFFF4081),
+                                tint = SonzaWidgetTheme.AccentPink,
                                 actionType = "romantic",
                                 modifier = GlanceModifier.defaultWeight()
                             )
                         }
 
-                        Spacer(modifier = GlanceModifier.height(6.dp))
+                        Spacer(modifier = GlanceModifier.height(8.dp))
 
                         // Row 2: Workout + Discover + Recently Played
                         Row(
                             modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            QuickActionItem(
-                                label = "Workout",
+                            QuickCardCompact(
+                                title = "Workout",
                                 iconRes = R.drawable.ic_equalizer,
-                                tintColor = Color(0xFFFF9100),
+                                tint = SonzaWidgetTheme.AccentOrange,
                                 actionType = "workout",
                                 modifier = GlanceModifier.defaultWeight()
                             )
 
                             Spacer(modifier = GlanceModifier.width(6.dp))
 
-                            QuickActionItem(
-                                label = "Discover",
+                            QuickCardCompact(
+                                title = "Discover",
                                 iconRes = R.drawable.ic_search,
-                                tintColor = Color(0xFF00E5FF),
+                                tint = SonzaWidgetTheme.AccentCyan,
                                 actionType = "discover",
                                 modifier = GlanceModifier.defaultWeight()
                             )
 
                             Spacer(modifier = GlanceModifier.width(6.dp))
 
-                            QuickActionItem(
-                                label = "Recent",
+                            QuickCardCompact(
+                                title = "Recent",
                                 iconRes = R.drawable.ic_shuffle,
-                                tintColor = Color(0xFFB388FF),
+                                tint = SonzaWidgetTheme.AccentPurple,
                                 actionType = "recent",
                                 modifier = GlanceModifier.defaultWeight()
                             )
@@ -184,10 +142,11 @@ class SonzaQuickAccessWidget : GlanceAppWidget() {
     }
 
     @androidx.compose.runtime.Composable
-    private fun QuickActionItem(
-        label: String,
+    private fun QuickCardHero(
+        title: String,
+        subtitle: String,
         iconRes: Int,
-        tintColor: Color,
+        tint: Color,
         actionType: String,
         modifier: GlanceModifier
     ) {
@@ -195,10 +154,79 @@ class SonzaQuickAccessWidget : GlanceAppWidget() {
             modifier = modifier
                 .fillMaxHeight()
                 .cornerRadius(14.dp)
-                .background(ColorProvider(Color.White.copy(alpha = 0.08f)))
+                .background(ColorProvider(SonzaWidgetTheme.ControlPill))
                 .clickable(
-                    actionRunCallback<OpenDeepLinkAction>(
-                        actionParametersOf(DeepLinkKey to "sonza://quick_action?type=$actionType")
+                    actionRunCallback<QuickActionCallback>(
+                        actionParametersOf(QuickActionTypeKey to actionType)
+                    )
+                )
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Row(
+                modifier = GlanceModifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = GlanceModifier
+                        .size(32.dp)
+                        .cornerRadius(10.dp)
+                        .background(ColorProvider(tint.copy(alpha = 0.20f))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        provider = ImageProvider(iconRes),
+                        contentDescription = title,
+                        colorFilter = ColorFilter.tint(ColorProvider(tint)),
+                        modifier = GlanceModifier.size(18.dp)
+                    )
+                }
+
+                Spacer(modifier = GlanceModifier.width(8.dp))
+
+                Column(
+                    modifier = GlanceModifier.defaultWeight(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = title,
+                        style = TextStyle(
+                            color = ColorProvider(SonzaWidgetTheme.TextPrimary),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        maxLines = 1
+                    )
+                    Text(
+                        text = subtitle,
+                        style = TextStyle(
+                            color = ColorProvider(SonzaWidgetTheme.TextMuted),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Normal
+                        ),
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+    }
+
+    @androidx.compose.runtime.Composable
+    private fun QuickCardCompact(
+        title: String,
+        iconRes: Int,
+        tint: Color,
+        actionType: String,
+        modifier: GlanceModifier
+    ) {
+        Box(
+            modifier = modifier
+                .fillMaxHeight()
+                .cornerRadius(12.dp)
+                .background(ColorProvider(SonzaWidgetTheme.ControlPill))
+                .clickable(
+                    actionRunCallback<QuickActionCallback>(
+                        actionParametersOf(QuickActionTypeKey to actionType)
                     )
                 )
                 .padding(6.dp),
@@ -208,17 +236,27 @@ class SonzaQuickAccessWidget : GlanceAppWidget() {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Image(
-                    provider = ImageProvider(iconRes),
-                    contentDescription = label,
-                    colorFilter = ColorFilter.tint(ColorProvider(tintColor)),
-                    modifier = GlanceModifier.size(20.dp)
-                )
+                Box(
+                    modifier = GlanceModifier
+                        .size(28.dp)
+                        .cornerRadius(8.dp)
+                        .background(ColorProvider(tint.copy(alpha = 0.18f))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        provider = ImageProvider(iconRes),
+                        contentDescription = title,
+                        colorFilter = ColorFilter.tint(ColorProvider(tint)),
+                        modifier = GlanceModifier.size(16.dp)
+                    )
+                }
+
                 Spacer(modifier = GlanceModifier.height(4.dp))
+
                 Text(
-                    text = label,
+                    text = title,
                     style = TextStyle(
-                        color = ColorProvider(Color.White),
+                        color = ColorProvider(SonzaWidgetTheme.TextSecondary),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
                     ),

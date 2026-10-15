@@ -19,11 +19,6 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
-import coil3.imageLoader
-import coil3.request.ImageRequest
-import coil3.request.SuccessResult
-import coil3.request.allowHardware
-import coil3.toBitmap
 import com.sonza.app.R
 import dagger.hilt.android.EntryPointAccessors
 
@@ -32,84 +27,77 @@ class SonzaCompactWidgetReceiver : GlanceAppWidgetReceiver() {
 }
 
 /**
- * Widget A — Compact Music Widget
+ * Widget 1 — Compact Music Player Controller.
+ * Minimal, glanceable music widget showing album artwork, song title, artist,
+ * favorite state, and instant playback controls (Previous, Play/Pause, Next).
  */
 class SonzaCompactWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val entryPoint = EntryPointAccessors.fromApplication(context.applicationContext, SharedWidgetEntryPoint::class.java)
         val musicPlayer = entryPoint.getMusicPlayer()
+        val currentSongInitial = musicPlayer.playerState.value.currentSong
+
+        // Preload artwork before first RemoteViews layout to prevent placeholder flashing
+        val initialArtwork = SonzaWidgetArtworkHelper.loadArtwork(context, currentSongInitial?.thumbnailUrl, 160)
 
         provideContent {
             GlanceTheme {
                 val playerState by musicPlayer.playerState.collectAsState()
                 val currentSong = playerState.currentSong
 
-                var artworkBitmap by remember(currentSong?.id) { mutableStateOf<Bitmap?>(null) }
+                var artworkBitmap by remember(currentSong?.id) {
+                    mutableStateOf(
+                        SonzaWidgetArtworkHelper.getCachedArtwork(currentSong?.thumbnailUrl, 160) ?: initialArtwork
+                    )
+                }
 
-                DisposableEffect(currentSong?.id) {
-                    onDispose {
-                        artworkBitmap?.let { bmp -> if (!bmp.isRecycled) bmp.recycle() }
-                        artworkBitmap = null
+                LaunchedEffect(currentSong?.id, currentSong?.thumbnailUrl) {
+                    val loaded = SonzaWidgetArtworkHelper.loadArtwork(context, currentSong?.thumbnailUrl, 160)
+                    if (loaded != null) {
+                        artworkBitmap = loaded
                     }
                 }
 
-                LaunchedEffect(currentSong?.id) {
-                    if (currentSong?.thumbnailUrl != null) {
-                        try {
-                            val request = ImageRequest.Builder(context)
-                                .data(currentSong.thumbnailUrl)
-                                .size(160, 160)
-                                .allowHardware(false)
-                                .build()
-                            val result = context.imageLoader.execute(request)
-                            if (result is SuccessResult) {
-                                val shared = result.image.toBitmap()
-                                artworkBitmap = shared.copy(Bitmap.Config.ARGB_8888, false)
-                            }
-                        } catch (_: Exception) {}
-                    }
-                }
-
-                val domColor = playerState.dominantColor
-                val backgroundColor = if (domColor != -16777216 && domColor != 0) {
-                    Color(domColor).copy(alpha = 0.92f)
-                } else {
-                    Color(0xFF161720).copy(alpha = 0.96f)
-                }
+                val backgroundColor = SonzaWidgetTheme.computeCardBackground(playerState.dominantColor)
 
                 Box(
                     modifier = GlanceModifier
                         .fillMaxSize()
                         .background(ColorProvider(backgroundColor))
-                        .cornerRadius(20.dp)
-                        .clickable(actionRunCallback<OpenAppAction>())
-                        .padding(10.dp),
+                        .cornerRadius(22.dp)
+                        .clickable(
+                            actionRunCallback<OpenDeepLinkAction>(
+                                actionParametersOf(DeepLinkKey to "sonza://player")
+                            )
+                        )
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(
                         modifier = GlanceModifier.fillMaxSize(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Artwork thumbnail
+                        // Album Artwork Thumbnail
                         Box(
                             modifier = GlanceModifier
                                 .size(46.dp)
                                 .cornerRadius(12.dp)
-                                .background(ColorProvider(Color.White.copy(alpha = 0.1f))),
+                                .background(ColorProvider(Color.White.copy(alpha = 0.12f))),
                             contentAlignment = Alignment.Center
                         ) {
-                            if (artworkBitmap != null) {
+                            val bmp = artworkBitmap
+                            if (bmp != null && !bmp.isRecycled) {
                                 Image(
-                                    provider = ImageProvider(artworkBitmap!!),
-                                    contentDescription = "Artwork",
+                                    provider = ImageProvider(bmp),
+                                    contentDescription = currentSong?.title?.let { "Artwork for $it" } ?: "Album Artwork",
                                     contentScale = ContentScale.Crop,
                                     modifier = GlanceModifier.fillMaxSize().cornerRadius(12.dp)
                                 )
                             } else {
                                 Image(
                                     provider = ImageProvider(R.drawable.ic_music_note),
-                                    contentDescription = "Artwork",
+                                    contentDescription = "Default Music Artwork",
                                     colorFilter = ColorFilter.tint(ColorProvider(Color.White.copy(alpha = 0.6f))),
                                     modifier = GlanceModifier.size(24.dp)
                                 )
@@ -118,49 +106,80 @@ class SonzaCompactWidget : GlanceAppWidget() {
 
                         Spacer(modifier = GlanceModifier.width(10.dp))
 
-                        // Song Info
-                        Column(modifier = GlanceModifier.defaultWeight()) {
+                        // Track Metadata
+                        Column(
+                            modifier = GlanceModifier.defaultWeight(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
-                                text = currentSong?.title ?: "Sonza Music",
+                                text = currentSong?.title ?: "Nothing Playing",
                                 style = TextStyle(
-                                    color = ColorProvider(Color.White),
-                                    fontSize = 14.sp,
+                                    color = ColorProvider(SonzaWidgetTheme.TextPrimary),
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold
                                 ),
                                 maxLines = 1
                             )
                             Spacer(modifier = GlanceModifier.height(2.dp))
                             Text(
-                                text = currentSong?.artist ?: "Tap to play",
+                                text = currentSong?.artist ?: "Sonza Music",
                                 style = TextStyle(
-                                    color = ColorProvider(Color.White.copy(alpha = 0.7f)),
-                                    fontSize = 12.sp,
+                                    color = ColorProvider(SonzaWidgetTheme.TextSecondary),
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Normal
                                 ),
                                 maxLines = 1
                             )
                         }
 
-                        Spacer(modifier = GlanceModifier.width(8.dp))
+                        Spacer(modifier = GlanceModifier.width(6.dp))
 
-                        // Previous
-                        Image(
-                            provider = ImageProvider(R.drawable.ic_skip_previous),
-                            contentDescription = "Previous",
-                            colorFilter = ColorFilter.tint(ColorProvider(Color.White)),
-                            modifier = GlanceModifier
-                                .size(24.dp)
-                                .clickable(actionRunCallback<PreviousAction>())
-                        )
-
-                        Spacer(modifier = GlanceModifier.width(8.dp))
-
-                        // Play/Pause Action Button
+                        // Favorite Action
                         Box(
                             modifier = GlanceModifier
-                                .size(40.dp)
-                                .cornerRadius(20.dp)
-                                .background(ColorProvider(Color.White.copy(alpha = 0.16f)))
+                                .size(36.dp)
+                                .cornerRadius(18.dp)
+                                .clickable(actionRunCallback<ToggleLikeAction>()),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                provider = ImageProvider(
+                                    if (playerState.isLiked) R.drawable.ic_heart else R.drawable.ic_heart_outline
+                                ),
+                                contentDescription = if (playerState.isLiked) "Unlike song" else "Like song",
+                                colorFilter = ColorFilter.tint(
+                                    ColorProvider(if (playerState.isLiked) SonzaWidgetTheme.AccentRed else Color.White.copy(alpha = 0.70f))
+                                ),
+                                modifier = GlanceModifier.size(20.dp)
+                            )
+                        }
+
+                        Spacer(modifier = GlanceModifier.width(2.dp))
+
+                        // Previous Action
+                        Box(
+                            modifier = GlanceModifier
+                                .size(36.dp)
+                                .cornerRadius(18.dp)
+                                .clickable(actionRunCallback<PreviousAction>()),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                provider = ImageProvider(R.drawable.ic_skip_previous),
+                                contentDescription = "Previous song",
+                                colorFilter = ColorFilter.tint(ColorProvider(SonzaWidgetTheme.TextPrimary)),
+                                modifier = GlanceModifier.size(22.dp)
+                            )
+                        }
+
+                        Spacer(modifier = GlanceModifier.width(4.dp))
+
+                        // Primary Play / Pause Action Button
+                        Box(
+                            modifier = GlanceModifier
+                                .size(42.dp)
+                                .cornerRadius(21.dp)
+                                .background(ColorProvider(SonzaWidgetTheme.PrimaryButtonFill))
                                 .clickable(actionRunCallback<PlayPauseAction>()),
                             contentAlignment = Alignment.Center
                         ) {
@@ -168,23 +187,29 @@ class SonzaCompactWidget : GlanceAppWidget() {
                                 provider = ImageProvider(
                                     if (playerState.isPlaying) R.drawable.ic_pause else R.drawable.ic_play
                                 ),
-                                contentDescription = "Play/Pause",
-                                colorFilter = ColorFilter.tint(ColorProvider(Color.White)),
-                                modifier = GlanceModifier.size(24.dp)
+                                contentDescription = if (playerState.isPlaying) "Pause playback" else "Resume playback",
+                                colorFilter = ColorFilter.tint(ColorProvider(SonzaWidgetTheme.PrimaryButtonIcon)),
+                                modifier = GlanceModifier.size(22.dp)
                             )
                         }
 
-                        Spacer(modifier = GlanceModifier.width(8.dp))
+                        Spacer(modifier = GlanceModifier.width(4.dp))
 
-                        // Next
-                        Image(
-                            provider = ImageProvider(R.drawable.ic_skip_next),
-                            contentDescription = "Next",
-                            colorFilter = ColorFilter.tint(ColorProvider(Color.White)),
+                        // Next Action
+                        Box(
                             modifier = GlanceModifier
-                                .size(24.dp)
-                                .clickable(actionRunCallback<NextAction>())
-                        )
+                                .size(36.dp)
+                                .cornerRadius(18.dp)
+                                .clickable(actionRunCallback<NextAction>()),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                provider = ImageProvider(R.drawable.ic_skip_next),
+                                contentDescription = "Next song",
+                                colorFilter = ColorFilter.tint(ColorProvider(SonzaWidgetTheme.TextPrimary)),
+                                modifier = GlanceModifier.size(22.dp)
+                            )
+                        }
                     }
                 }
             }

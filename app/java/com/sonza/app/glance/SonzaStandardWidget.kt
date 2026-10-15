@@ -19,11 +19,6 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
-import coil3.imageLoader
-import coil3.request.ImageRequest
-import coil3.request.SuccessResult
-import coil3.request.allowHardware
-import coil3.toBitmap
 import com.sonza.app.R
 import dagger.hilt.android.EntryPointAccessors
 
@@ -32,20 +27,22 @@ class SonzaStandardWidgetReceiver : GlanceAppWidgetReceiver() {
 }
 
 /**
- * Widget 5 — Queue / Now Playing Widget.
- * Shows:
- * - Current song
- * - Next song
- * - Queue count
- * - Play/pause button
- * - Next track button
- * - Queue button to open queue directly
+ * Widget 5 — Queue & Now Playing Controller.
+ * Features:
+ * - Current track artwork, title, artist, and favorite state
+ * - Real queue synchronization ("Up Next: [Song]", queue track count)
+ * - Playback controls (Previous, Hero Play/Pause, Next)
+ * - Direct queue launch button opening the live player queue
  */
 class SonzaStandardWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val entryPoint = EntryPointAccessors.fromApplication(context.applicationContext, SharedWidgetEntryPoint::class.java)
         val musicPlayer = entryPoint.getMusicPlayer()
+        val currentSongInitial = musicPlayer.playerState.value.currentSong
+
+        // Preload artwork before RemoteViews composition
+        val initialArtwork = SonzaWidgetArtworkHelper.loadArtwork(context, currentSongInitial?.thumbnailUrl, 200)
 
         provideContent {
             GlanceTheme {
@@ -56,38 +53,20 @@ class SonzaStandardWidget : GlanceAppWidget() {
                 val nextSong = if (currentIndex in 0 until queue.size - 1) queue[currentIndex + 1] else null
                 val queueCount = queue.size
 
-                var artworkBitmap by remember(currentSong?.id) { mutableStateOf<Bitmap?>(null) }
+                var artworkBitmap by remember(currentSong?.id) {
+                    mutableStateOf(
+                        SonzaWidgetArtworkHelper.getCachedArtwork(currentSong?.thumbnailUrl, 200) ?: initialArtwork
+                    )
+                }
 
-                DisposableEffect(currentSong?.id) {
-                    onDispose {
-                        artworkBitmap?.let { bmp -> if (!bmp.isRecycled) bmp.recycle() }
-                        artworkBitmap = null
+                LaunchedEffect(currentSong?.id, currentSong?.thumbnailUrl) {
+                    val loaded = SonzaWidgetArtworkHelper.loadArtwork(context, currentSong?.thumbnailUrl, 200)
+                    if (loaded != null) {
+                        artworkBitmap = loaded
                     }
                 }
 
-                LaunchedEffect(currentSong?.id) {
-                    if (currentSong?.thumbnailUrl != null) {
-                        try {
-                            val request = ImageRequest.Builder(context)
-                                .data(currentSong.thumbnailUrl)
-                                .size(200, 200)
-                                .allowHardware(false)
-                                .build()
-                            val result = context.imageLoader.execute(request)
-                            if (result is SuccessResult) {
-                                val shared = result.image.toBitmap()
-                                artworkBitmap = shared.copy(Bitmap.Config.ARGB_8888, false)
-                            }
-                        } catch (_: Exception) {}
-                    }
-                }
-
-                val domColor = playerState.dominantColor
-                val backgroundColor = if (domColor != -16777216 && domColor != 0) {
-                    Color(domColor).copy(alpha = 0.94f)
-                } else {
-                    Color(0xFF161722).copy(alpha = 0.96f)
-                }
+                val backgroundColor = SonzaWidgetTheme.computeCardBackground(playerState.dominantColor)
 
                 Box(
                     modifier = GlanceModifier
@@ -105,7 +84,7 @@ class SonzaStandardWidget : GlanceAppWidget() {
                         modifier = GlanceModifier.fillMaxSize(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Top Row: Artwork + Current Song Info + Play/Pause & Next controls
+                        // Section 1: Header + Now Playing Row
                         Row(
                             modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
                             verticalAlignment = Alignment.CenterVertically
@@ -118,17 +97,18 @@ class SonzaStandardWidget : GlanceAppWidget() {
                                     .background(ColorProvider(Color.White.copy(alpha = 0.12f))),
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (artworkBitmap != null) {
+                                val bmp = artworkBitmap
+                                if (bmp != null && !bmp.isRecycled) {
                                     Image(
-                                        provider = ImageProvider(artworkBitmap!!),
-                                        contentDescription = "Artwork",
+                                        provider = ImageProvider(bmp),
+                                        contentDescription = currentSong?.title?.let { "Artwork for $it" } ?: "Album Artwork",
                                         contentScale = ContentScale.Crop,
                                         modifier = GlanceModifier.fillMaxSize().cornerRadius(12.dp)
                                     )
                                 } else {
                                     Image(
                                         provider = ImageProvider(R.drawable.ic_music_note),
-                                        contentDescription = "Artwork",
+                                        contentDescription = "Default Music Artwork",
                                         colorFilter = ColorFilter.tint(ColorProvider(Color.White.copy(alpha = 0.6f))),
                                         modifier = GlanceModifier.size(24.dp)
                                     )
@@ -138,21 +118,32 @@ class SonzaStandardWidget : GlanceAppWidget() {
                             Spacer(modifier = GlanceModifier.width(10.dp))
 
                             // Current Song Info
-                            Column(modifier = GlanceModifier.defaultWeight()) {
+                            Column(
+                                modifier = GlanceModifier.defaultWeight(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Text(
-                                    text = currentSong?.title ?: "Not Playing",
+                                    text = "NOW PLAYING",
                                     style = TextStyle(
-                                        color = ColorProvider(Color.White),
+                                        color = ColorProvider(SonzaWidgetTheme.AccentCyan),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                )
+                                Spacer(modifier = GlanceModifier.height(2.dp))
+                                Text(
+                                    text = currentSong?.title ?: "Nothing Playing",
+                                    style = TextStyle(
+                                        color = ColorProvider(SonzaWidgetTheme.TextPrimary),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold
                                     ),
                                     maxLines = 1
                                 )
-                                Spacer(modifier = GlanceModifier.height(2.dp))
                                 Text(
-                                    text = currentSong?.artist ?: "Sonza Player",
+                                    text = currentSong?.artist ?: "Sonza Music",
                                     style = TextStyle(
-                                        color = ColorProvider(Color.White.copy(alpha = 0.7f)),
+                                        color = ColorProvider(SonzaWidgetTheme.TextSecondary),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Normal
                                     ),
@@ -160,55 +151,37 @@ class SonzaStandardWidget : GlanceAppWidget() {
                                 )
                             }
 
-                            Spacer(modifier = GlanceModifier.width(8.dp))
+                            Spacer(modifier = GlanceModifier.width(6.dp))
 
-                            // Play/Pause Button
+                            // Favorite Toggle
                             Box(
                                 modifier = GlanceModifier
-                                    .size(38.dp)
-                                    .cornerRadius(19.dp)
-                                    .background(ColorProvider(Color.White.copy(alpha = 0.16f)))
-                                    .clickable(actionRunCallback<PlayPauseAction>()),
+                                    .size(36.dp)
+                                    .cornerRadius(18.dp)
+                                    .clickable(actionRunCallback<ToggleLikeAction>()),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Image(
                                     provider = ImageProvider(
-                                        if (playerState.isPlaying) R.drawable.ic_pause else R.drawable.ic_play
+                                        if (playerState.isLiked) R.drawable.ic_heart else R.drawable.ic_heart_outline
                                     ),
-                                    contentDescription = "Play/Pause",
-                                    colorFilter = ColorFilter.tint(ColorProvider(Color.White)),
-                                    modifier = GlanceModifier.size(20.dp)
-                                )
-                            }
-
-                            Spacer(modifier = GlanceModifier.width(6.dp))
-
-                            // Next Button
-                            Box(
-                                modifier = GlanceModifier
-                                    .size(34.dp)
-                                    .cornerRadius(17.dp)
-                                    .background(ColorProvider(Color.White.copy(alpha = 0.08f)))
-                                    .clickable(actionRunCallback<NextAction>()),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Image(
-                                    provider = ImageProvider(R.drawable.ic_skip_next),
-                                    contentDescription = "Next",
-                                    colorFilter = ColorFilter.tint(ColorProvider(Color.White)),
-                                    modifier = GlanceModifier.size(18.dp)
+                                    contentDescription = if (playerState.isLiked) "Unlike song" else "Like song",
+                                    colorFilter = ColorFilter.tint(
+                                        ColorProvider(if (playerState.isLiked) SonzaWidgetTheme.AccentRed else Color.White.copy(alpha = 0.70f))
+                                    ),
+                                    modifier = GlanceModifier.size(22.dp)
                                 )
                             }
                         }
 
                         Spacer(modifier = GlanceModifier.height(8.dp))
 
-                        // Bottom Row: Next Song preview + Queue Count + Queue Open Button
+                        // Section 2: Up Next & Queue Card
                         Row(
                             modifier = GlanceModifier
                                 .fillMaxWidth()
                                 .cornerRadius(12.dp)
-                                .background(ColorProvider(Color.White.copy(alpha = 0.08f)))
+                                .background(ColorProvider(SonzaWidgetTheme.ControlPill))
                                 .clickable(
                                     actionRunCallback<OpenDeepLinkAction>(
                                         actionParametersOf(DeepLinkKey to "sonza://queue")
@@ -217,20 +190,23 @@ class SonzaStandardWidget : GlanceAppWidget() {
                                 .padding(horizontal = 10.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = GlanceModifier.defaultWeight()) {
+                            Column(
+                                modifier = GlanceModifier.defaultWeight(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Text(
                                     text = if (nextSong != null) "Up Next: ${nextSong.title}" else "Up Next: End of queue",
                                     style = TextStyle(
-                                        color = ColorProvider(Color.White.copy(alpha = 0.9f)),
+                                        color = ColorProvider(SonzaWidgetTheme.TextPrimary),
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium
                                     ),
                                     maxLines = 1
                                 )
                                 Text(
-                                    text = "$queueCount songs in queue",
+                                    text = if (queueCount > 0) "$queueCount songs in queue" else "Queue is empty",
                                     style = TextStyle(
-                                        color = ColorProvider(Color(0xFF38BDF8)),
+                                        color = ColorProvider(SonzaWidgetTheme.AccentCyan),
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Normal
                                     ),
@@ -238,21 +214,90 @@ class SonzaStandardWidget : GlanceAppWidget() {
                                 )
                             }
 
-                            // Direct Queue Button
+                            // Direct Queue Deep Link Action
                             Box(
                                 modifier = GlanceModifier
                                     .cornerRadius(8.dp)
-                                    .background(ColorProvider(Color(0xFF38BDF8).copy(alpha = 0.2f)))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    .background(ColorProvider(SonzaWidgetTheme.AccentCyan.copy(alpha = 0.20f)))
+                                    .clickable(
+                                        actionRunCallback<OpenDeepLinkAction>(
+                                            actionParametersOf(DeepLinkKey to "sonza://queue")
+                                        )
+                                    )
+                                    .padding(horizontal = 10.dp, vertical = 5.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = "Queue",
                                     style = TextStyle(
-                                        color = ColorProvider(Color(0xFF38BDF8)),
+                                        color = ColorProvider(SonzaWidgetTheme.AccentCyan),
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold
                                     )
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = GlanceModifier.height(8.dp))
+
+                        // Section 3: Playback Controls
+                        Row(
+                            modifier = GlanceModifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            // Previous
+                            Box(
+                                modifier = GlanceModifier
+                                    .size(38.dp)
+                                    .cornerRadius(19.dp)
+                                    .clickable(actionRunCallback<PreviousAction>()),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    provider = ImageProvider(R.drawable.ic_skip_previous),
+                                    contentDescription = "Previous song",
+                                    colorFilter = ColorFilter.tint(ColorProvider(SonzaWidgetTheme.TextPrimary)),
+                                    modifier = GlanceModifier.size(24.dp)
+                                )
+                            }
+
+                            Spacer(modifier = GlanceModifier.width(20.dp))
+
+                            // Play / Pause Button
+                            Box(
+                                modifier = GlanceModifier
+                                    .size(44.dp)
+                                    .cornerRadius(22.dp)
+                                    .background(ColorProvider(SonzaWidgetTheme.PrimaryButtonFill))
+                                    .clickable(actionRunCallback<PlayPauseAction>()),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    provider = ImageProvider(
+                                        if (playerState.isPlaying) R.drawable.ic_pause else R.drawable.ic_play
+                                    ),
+                                    contentDescription = if (playerState.isPlaying) "Pause song" else "Play song",
+                                    colorFilter = ColorFilter.tint(ColorProvider(SonzaWidgetTheme.PrimaryButtonIcon)),
+                                    modifier = GlanceModifier.size(24.dp)
+                                )
+                            }
+
+                            Spacer(modifier = GlanceModifier.width(20.dp))
+
+                            // Next
+                            Box(
+                                modifier = GlanceModifier
+                                    .size(38.dp)
+                                    .cornerRadius(19.dp)
+                                    .clickable(actionRunCallback<NextAction>()),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    provider = ImageProvider(R.drawable.ic_skip_next),
+                                    contentDescription = "Next song",
+                                    colorFilter = ColorFilter.tint(ColorProvider(SonzaWidgetTheme.TextPrimary)),
+                                    modifier = GlanceModifier.size(24.dp)
                                 )
                             }
                         }

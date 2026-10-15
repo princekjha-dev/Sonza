@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +27,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.scale
+import com.sonza.app.ui.components.glass.LiquidGlassSurface
+import com.sonza.app.ui.components.glass.LiquidGlassTokens
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
@@ -113,16 +117,21 @@ fun CompactFloatingMiniPlayer(
         ImageUtils.getHighResThumbnailUrl(song.thumbnailUrl, size = 256)
     }
 
-    val specularBrush = Brush.verticalGradient(
-        0.0f to Color.White.copy(alpha = 0.08f),
-        0.5f to Color.Transparent,
-        1.0f to Color.Black.copy(alpha = 0.15f)
+    val containerInteractionSource = remember { MutableInteractionSource() }
+    val isContainerPressed by containerInteractionSource.collectIsPressedAsState()
+    val containerScale by animateFloatAsState(
+        targetValue = if (isContainerPressed) 0.985f else 1f,
+        animationSpec = LiquidGlassTokens.Springs.Interactive,
+        label = "miniPlayerContainerScale"
     )
 
-    Surface(
+    val ambientTint = dominantColors.primary.takeIf { it != Color.Unspecified } ?: MaterialTheme.colorScheme.surfaceContainer
+
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .height(52.dp)
+            .scale(containerScale)
             .offset { IntOffset(x = 0, y = animatedDragOffset.roundToInt()) }
             .draggable(
                 state = rememberDraggableState { delta ->
@@ -138,31 +147,28 @@ fun CompactFloatingMiniPlayer(
                     dragOffsetY = 0f
                 }
             )
-            .shadow(
-                elevation = 8.dp,
-                shape = pillShape,
-                ambientColor = Color.Black.copy(alpha = 0.40f),
-                spotColor = Color.Black.copy(alpha = 0.30f)
-            ),
-        shape = pillShape,
-        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = (0.90f - userAlpha).coerceIn(0.70f, 0.98f)),
-        border = BorderStroke(0.75.dp, Color.White.copy(alpha = 0.12f))
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(specularBrush)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onTap
-                )
+        LiquidGlassSurface(
+            modifier = Modifier.fillMaxSize(),
+            shape = pillShape,
+            elevation = 8.dp,
+            ambientTint = ambientTint,
+            blurRadius = 24.dp
         ) {
-            // Subtle playback progress line along the bottom of the pill
-            Canvas(
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(2.5.dp)
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = containerInteractionSource,
+                        indication = null,
+                        onClick = onTap
+                    )
+            ) {
+                // Subtle playback progress line along the bottom of the pill
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.5.dp)
                     .align(Alignment.BottomCenter)
             ) {
                 val progress = progressProvider().coerceIn(0f, 1f)
@@ -242,10 +248,21 @@ fun CompactFloatingMiniPlayer(
 
                 Spacer(modifier = Modifier.width(4.dp))
 
+                val playButtonInteractionSource = remember { MutableInteractionSource() }
+                val isPlayPressed by playButtonInteractionSource.collectIsPressedAsState()
+                val playButtonScale by animateFloatAsState(
+                    targetValue = if (isPlayPressed) 0.88f else 1f,
+                    animationSpec = LiquidGlassTokens.Springs.Interactive,
+                    label = "compactMiniPlayBtnScale"
+                )
+
                 // Compact Play/Pause button with single loader
                 IconButton(
                     onClick = onPlayPause,
-                    modifier = Modifier.size(38.dp)
+                    interactionSource = playButtonInteractionSource,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .scale(playButtonScale)
                 ) {
                     if (isLoading) {
                         AsyncImage(
@@ -278,5 +295,6 @@ fun CompactFloatingMiniPlayer(
             }
         }
     }
+}
 }
 

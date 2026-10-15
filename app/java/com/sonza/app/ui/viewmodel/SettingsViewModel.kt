@@ -160,7 +160,8 @@ data class SettingsUiState(
     val forceMaxRefreshRateEnabled: Boolean = true,
     val navBarAlpha: Float = 1.0f,
     val navBarBlur: Float = 60.0f,
-    val iosLiquidGlassEnabled: Boolean = false,
+    val iosLiquidGlassEnabled: Boolean = true,
+    val glassStyle: com.sonza.app.core.model.GlassStyle = com.sonza.app.core.model.GlassStyle.NATURAL,
     val miniPlayerAlpha: Float = 0f,
     val miniPlayerStyle: com.sonza.app.core.model.MiniPlayerStyle = com.sonza.app.core.model.MiniPlayerStyle.YT_MUSIC,
     val playerStyle: com.sonza.app.core.model.PlayerStyle = com.sonza.app.core.model.PlayerStyle.YT_MUSIC,
@@ -684,6 +685,12 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             sessionManager.iosLiquidGlassEnabledFlow.collect { enabled ->
                 _uiState.update { it.copy(iosLiquidGlassEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            sessionManager.glassStyleFlow.collect { style ->
+                _uiState.update { it.copy(glassStyle = style) }
             }
         }
 
@@ -1720,6 +1727,13 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             sessionManager.setIosLiquidGlassEnabled(enabled)
             _uiState.update { it.copy(iosLiquidGlassEnabled = enabled) }
+        }
+    }
+
+    fun setGlassStyle(style: com.sonza.app.core.model.GlassStyle) {
+        viewModelScope.launch {
+            sessionManager.setGlassStyle(style)
+            _uiState.update { it.copy(glassStyle = style) }
         }
     }
 

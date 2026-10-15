@@ -3,6 +3,7 @@ package com.sonza.app.ui.components
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import com.sonza.app.ui.components.glass.LiquidGlassTokens
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -112,22 +113,34 @@ fun HomeTopHeader(
             }
 
             // Orbit Avatar + Account Avatar
-            // Orbit Avatar Button
-            if (onOrbitClick != null) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(dynamicColors.accent.copy(alpha = 0.16f))
-                        .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onOrbitClick),
-                    contentAlignment = Alignment.Center
-                ) {
-                    com.sonza.app.ai.orbit.OrbitAvatar(
-                        state = com.sonza.app.ai.orbit.OrbitState.IDLE,
-                        size = com.sonza.app.ai.orbit.OrbitAvatarSize.Mini,
-                        onClick = onOrbitClick
-                    )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceSm)
+            ) {
+                if (onOrbitClick != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(dynamicColors.accent.copy(alpha = 0.16f))
+                            .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onOrbitClick),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        com.sonza.app.ai.orbit.OrbitAvatar(
+                            state = com.sonza.app.ai.orbit.OrbitState.IDLE,
+                            size = com.sonza.app.ai.orbit.OrbitAvatarSize.Mini,
+                            onClick = onOrbitClick
+                        )
+                    }
                 }
+
+                // Profile Avatar with liquid glass framing
+                com.sonza.app.ui.components.avatar.AvatarView(
+                    avatarId = avatarUrl,
+                    size = 36.dp,
+                    borderColor = dynamicColors.accent,
+                    onClick = onProfileClick
+                )
             }
         }
 
@@ -903,10 +916,7 @@ fun Modifier.bounceClick(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) scaleDown else 1f,
-        animationSpec = tween(
-            durationMillis = MotionTokens.CardTapDuration,
-            easing = FastOutSlowInEasing
-        ),
+        animationSpec = LiquidGlassTokens.Springs.Interactive,
         label = "bounce"
     )
 

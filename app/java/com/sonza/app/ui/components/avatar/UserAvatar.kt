@@ -32,6 +32,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.runtime.remember
+import com.sonza.app.ui.components.glass.LiquidGlassTokens
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -94,7 +98,8 @@ object AvatarRepository {
 }
 
 /**
- * Reusable Avatar component for rendering user avatar in consistent sizes across all surfaces.
+ * Reusable Avatar component for rendering user avatar in consistent sizes across all surfaces
+ * with physical Liquid Glass framing, specular highlight, and spring press micro-interaction.
  */
 @Composable
 fun AvatarView(
@@ -107,20 +112,42 @@ fun AvatarView(
     onClick: (() -> Unit)? = null
 ) {
     val avatar = AvatarRepository.getAvatarById(avatarId)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (isPressed && onClick != null) 0.92f else 1f,
+        animationSpec = LiquidGlassTokens.Springs.Interactive,
+        label = "avatarPressScale"
+    )
+
+    val rimBrush = Brush.sweepGradient(
+        listOf(
+            Color.White.copy(alpha = 0.50f),
+            borderColor.copy(alpha = 0.70f),
+            Color.White.copy(alpha = 0.15f),
+            borderColor.copy(alpha = 0.70f),
+            Color.White.copy(alpha = 0.50f)
+        )
+    )
 
     Box(
         modifier = modifier
             .size(size)
+            .scale(pressScale)
             .clip(CircleShape)
             .background(backgroundColor)
             .then(
                 if (showBorder) {
-                    Modifier.border(2.5.dp, borderColor.copy(alpha = 0.6f), CircleShape)
+                    Modifier.border(2.dp, rimBrush, CircleShape)
                 } else Modifier
             )
             .then(
                 if (onClick != null) {
-                    Modifier.clickable(onClick = onClick)
+                    Modifier.clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClick = onClick
+                    )
                 } else Modifier
             ),
         contentAlignment = Alignment.Center
@@ -132,6 +159,19 @@ fun AvatarView(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(4.dp)
+        )
+
+        // Subtle specular highlight on upper quadrant of glass lens
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(CircleShape)
+                .background(
+                    Brush.verticalGradient(
+                        0.0f to Color.White.copy(alpha = 0.14f),
+                        0.45f to Color.Transparent
+                    )
+                )
         )
     }
 }

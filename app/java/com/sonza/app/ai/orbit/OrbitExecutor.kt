@@ -235,27 +235,20 @@ class OrbitExecutor(
                             OrbitExecutionResult(false, "Couldn't find $mood songs for $artist", "I couldn't find $mood songs by $artist.")
                         }
                     } else {
-                        // Ambiguous query: Ask the user which song or show options!
-                        val topSongs = youTubeRepository.search("$artist popular songs", YouTubeRepository.FILTER_SONGS).take(4)
-                        val sampleTitles = topSongs.map { it.title }
-                        val spokenPrompt = "Sure. Which $artist song would you like?"
-                        val messageText = if (sampleTitles.isNotEmpty()) {
-                            "$artist\n" + sampleTitles.joinToString("\n") { "• $it" }
-                        } else {
-                            "Which $artist song would you like?"
-                        }
-                        OrbitExecutionResult(
-                            success = true,
-                            message = messageText,
-                            spokenResponse = spokenPrompt,
-                            resultingState = OrbitState.SPEAKING,
-                            expectsFollowUpVoiceInput = true,
-                            updatedContext = OrbitDialogueContext.AwaitingDisambiguation(
-                                artist = artist,
-                                options = sampleTitles,
-                                originalQuery = artist
+                        val topSongs = youTubeRepository.search("$artist popular songs", YouTubeRepository.FILTER_SONGS)
+                        if (topSongs.isNotEmpty()) {
+                            withContext(Dispatchers.Main) {
+                                musicPlayer.playSong(topSongs.first(), topSongs, 0)
+                            }
+                            OrbitExecutionResult(
+                                success = true,
+                                message = "Playing songs by $artist",
+                                spokenResponse = "Sure. Playing songs by $artist.",
+                                actionIndicator = "🎵"
                             )
-                        )
+                        } else {
+                            resolveAndPlayTrack(artist)
+                        }
                     }
                 }
 
@@ -615,11 +608,11 @@ class OrbitExecutor(
                     if (song != null) {
                         val resp = when (intent.queryType) {
                             SongInfoType.ARTIST -> "${song.artist} sings this song."
-                            SongInfoType.TITLE -> "This is ${song.title} by ${song.artist}."
+                            SongInfoType.TITLE -> "You're listening to ${song.title} by ${song.artist}."
                             SongInfoType.ALBUM -> if (song.album.isNotBlank()) "This is from the album ${song.album}." else "Album info is unavailable for this song."
                             SongInfoType.DURATION -> "This track is ${song.duration / 60} minutes and ${song.duration % 60} seconds long."
                             SongInfoType.YEAR -> if (!song.releaseDate.isNullOrBlank()) "Released in ${song.releaseDate}." else "Release date is not specified."
-                            else -> "${song.title} by ${song.artist}."
+                            else -> "You're listening to ${song.title} by ${song.artist}."
                         }
                         OrbitExecutionResult(true, resp, resp, OrbitState.SPEAKING, actionIndicator = "ℹ️")
                     } else {

@@ -147,6 +147,7 @@ object SonzaTypography {
         lineHeight = 15.sp,
         letterSpacing = 0.2.sp
     )
+    val Caption = Metadata
 }
 
 val Typography = Typography(

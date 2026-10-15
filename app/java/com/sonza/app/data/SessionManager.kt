@@ -248,6 +248,7 @@ class SessionManager @Inject constructor(
 
         private val FORCE_MAX_REFRESH_RATE_KEY = booleanPreferencesKey("force_max_refresh_rate")
         private val IOS_LIQUID_GLASS_ENABLED_KEY = booleanPreferencesKey("ios_liquid_glass_enabled")
+        private val GLASS_STYLE_KEY = stringPreferencesKey("glass_style")
         private val PLAYER_GLASS_BLUR_KEY = floatPreferencesKey("player_glass_blur")
         private val PLAYER_GLASS_INTENSITY_KEY = floatPreferencesKey("player_glass_intensity")
         private val MINI_PLAYER_GLASS_BLUR_KEY = floatPreferencesKey("mini_player_glass_blur")
@@ -1615,16 +1616,41 @@ class SessionManager @Inject constructor(
         }
     }
 
-    // iOS Liquid Glass has been retired from Appearance. The frosted-glass nav
-    // bar / sheets effect is now always off regardless of any stored value, so
-    // existing users who had it enabled fall back to the standard YT Music chrome.
-    val iosLiquidGlassEnabledFlow: Flow<Boolean> = context.dataStore.data.map { false }
+    // --- Liquid Glass UI System ---
+    val iosLiquidGlassEnabledFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[IOS_LIQUID_GLASS_ENABLED_KEY] ?: true
+    }
 
-    suspend fun isIosLiquidGlassEnabled(): Boolean = false
+    suspend fun isIosLiquidGlassEnabled(): Boolean =
+        context.dataStore.data.first()[IOS_LIQUID_GLASS_ENABLED_KEY] ?: true
 
     suspend fun setIosLiquidGlassEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[IOS_LIQUID_GLASS_ENABLED_KEY] = enabled
+        }
+    }
+
+    val glassStyleFlow: Flow<com.sonza.app.core.model.GlassStyle> = context.dataStore.data.map { preferences ->
+        val raw = preferences[GLASS_STYLE_KEY]
+        try {
+            if (raw != null) com.sonza.app.core.model.GlassStyle.valueOf(raw) else com.sonza.app.core.model.GlassStyle.NATURAL
+        } catch (_: Exception) {
+            com.sonza.app.core.model.GlassStyle.NATURAL
+        }
+    }
+
+    suspend fun getGlassStyle(): com.sonza.app.core.model.GlassStyle {
+        val raw = context.dataStore.data.first()[GLASS_STYLE_KEY]
+        return try {
+            if (raw != null) com.sonza.app.core.model.GlassStyle.valueOf(raw) else com.sonza.app.core.model.GlassStyle.NATURAL
+        } catch (_: Exception) {
+            com.sonza.app.core.model.GlassStyle.NATURAL
+        }
+    }
+
+    suspend fun setGlassStyle(style: com.sonza.app.core.model.GlassStyle) {
+        context.dataStore.edit { preferences ->
+            preferences[GLASS_STYLE_KEY] = style.name
         }
     }
 

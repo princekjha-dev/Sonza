@@ -1134,6 +1134,10 @@ class MusicPlayer @Inject constructor(
                 // Add to recently played and track listening history
                 if (song != null) {
                     scope.launch {
+                        val isLiked = listeningHistoryRepository.isSongLiked(song.id)
+                        if (_playerState.value.currentSong?.id == song.id) {
+                            _playerState.update { it.copy(isLiked = isLiked) }
+                        }
                         sessionManager.addToRecentlyPlayed(song)
 
                         // Speak Song Details (TTS) — announce the new track via the

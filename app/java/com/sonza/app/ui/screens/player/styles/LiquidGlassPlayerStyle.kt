@@ -6,6 +6,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
@@ -87,6 +88,20 @@ fun LiquidGlassPlayerStyle(
     val scrimColor = if (isDarkTheme) Color.Black else Color.White
     val i = intensity.coerceIn(0.3f, 1.5f)
 
+    val glassConfig = com.sonza.app.ui.components.glass.rememberLiquidGlassConfig()
+    val styleMultiplier = when (glassConfig.style) {
+        com.sonza.app.core.model.GlassStyle.SOFT -> 1.2f
+        com.sonza.app.core.model.GlassStyle.NATURAL -> 1.8f
+        com.sonza.app.core.model.GlassStyle.REALISTIC -> 2.5f
+    }
+    val effectiveBlur = blurRadius * styleMultiplier
+
+    val animatedDominantPrimary by androidx.compose.animation.animateColorAsState(
+        targetValue = dominantColors.primary,
+        animationSpec = androidx.compose.animation.core.tween(500),
+        label = "glassPlayerDomPrimary"
+    )
+
     Box(modifier = Modifier.fillMaxSize()) {
         // Layer 1: Blurred album artwork as the entire backdrop
         if (!thumbnailUrl.isNullOrBlank() && !playerState.isVideoMode) {
@@ -97,13 +112,13 @@ fun LiquidGlassPlayerStyle(
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                             Modifier.graphicsLayer {
                                 renderEffect = android.graphics.RenderEffect.createBlurEffect(
-                                    blurRadius * 1.8f,
-                                    blurRadius * 1.8f,
+                                    effectiveBlur,
+                                    effectiveBlur,
                                     android.graphics.Shader.TileMode.CLAMP
                                 ).asComposeRenderEffect()
                             }
                         } else {
-                            Modifier.blur((blurRadius * 0.9f).dp)
+                            Modifier.blur((effectiveBlur * 0.5f).dp)
                         }
                     )
             ) {
@@ -138,14 +153,14 @@ fun LiquidGlassPlayerStyle(
                     )
             )
 
-            // Layer 3: Dominant color wash
+            // Layer 3: Dominant color wash with smooth physical interpolation
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.radialGradient(
                             colors = listOf(
-                                (if (isDarkTheme) dominantColors.primary else dominantColors.primary.copy(alpha = 0.5f)).copy(alpha = 0.18f * i),
+                                (if (isDarkTheme) animatedDominantPrimary else animatedDominantPrimary.copy(alpha = 0.5f)).copy(alpha = 0.22f * i),
                                 Color.Transparent
                             )
                         )

@@ -287,7 +287,6 @@ Defined in: `com.sonza.app.ui.components.StateComponents.kt`
   - *Privacy Policy:* Opens real URL (`https://princekjha-dev.github.io/Sonza-Website/sonza-privacy.html`).
   - *About Sonza:* Navigates to About destination (`Destination.About`).
   - *Update Channel:* Allows selection between configured channels (Stable, Beta, Nightly).
-  - *Check for Updates:* Performs real OTA check via `UpdateViewModel` with user-friendly messages ("You're up to date", "Update available", "Couldn't check for updates") with zero technical HTTP/stack trace exposure.
 - **Dynamic Bottom Insets:** Full edge-to-edge calculation ensuring "Check for Updates" is fully accessible above the Bottom Navigation Bar and Mini Player.
 
 ---
@@ -297,7 +296,57 @@ Defined in: `com.sonza.app.ui.components.StateComponents.kt`
 - **Duotone Color Tint & Scrim:** Curated vibrant theme tints (rose pink, golden amber, royal purple, crimson ruby, electric blue, cyan, etc.) blended directly over the photography with vertical protective dark scrim gradients ensuring 100% WCAG AA text contrast.
 - **Direct Typography Overlay:** High-contrast bold Manrope titles (`SonzaTypography.TitleMedium`, 15–17sp Bold `#FFFFFF`) placed directly over the artwork with subtle text shadow.
 - **Two-Column Discovery Grid:** Balanced 2-column layout with 12dp spacing (`SpacingTokens.SpaceMd`), smooth 0.97 tap bounce feedback, and dynamic bottom insets scrolling cleanly above the floating Mini Player and Bottom Navigation.
-- Defined in: `DiscoveryArtRegistry.kt`, `BrowseCategoryCard.kt`, `CategoryCard.kt`, `SearchScreen.kt`, `SearchViewModel.kt`
+- **Defined in:** `DiscoveryArtRegistry.kt`, `BrowseCategoryCard.kt`, `CategoryCard.kt`, `SearchScreen.kt`, `SearchViewModel.kt`
+
+---
+
+## Part 7 — Liquid Glass UI & Fluid Motion Design System
+
+Inspired by next-generation mobile OS interfaces, Sonza's UI is upgraded to an optical physical glass layer system with responsive spring motion and dynamic lighting.
+
+### 7.1 Three Glass Texture Modes
+Configurable in **Settings → Appearance → Glass Style**:
+- **SOFT:** Lightweight, clean translucent glass effect with low contrast, gentle blur (18dp), and minimal reflections for secondary surfaces.
+- **NATURAL (Default):** Balanced Sonza signature glass. Dynamic blur (28dp), medium depth, subtle micro-grain, and strong separation from background.
+- **REALISTIC:** Deep physical refraction, high blur (40dp), chromatic edge sheen, distinct specular gradient, top lip highlights, and dynamic ambient lighting reaction.
+
+### 7.2 Optical Layering Hierarchy
+```
+Background (Art / Wallpaper / Content)
+  ↓
+Ambient Color Layer (Smoothly interpolated from album art / accent)
+  ↓
+Blur Layer (RenderEffect on Android 12+, .blur() or frosted alpha fallback)
+  ↓
+Base Tint & Precomputed Grain (Deterministic noise texture without per-frame overhead)
+  ↓
+Specular Highlight (Vertical light gradient)
+  ↓
+Top Sheen (Soft 1.5dp horizontal luminous lip)
+  ↓
+Chromatic Rim Lighting (Subtle physical edge border)
+  ↓
+Foreground Content
+```
+
+### 7.3 Reusable Glass Component Library
+- `LiquidGlassCard`: Interactive or static translucent card with dynamic depth.
+- `LiquidGlassButton`: Spring-animated interactive glass pill.
+- `LiquidGlassNavigation`: Floating navigation container with dynamic blur and luminous edge sheen.
+- `LiquidGlassSearch`: Search input field with focus glow, specular rim, and dynamic blur increase.
+- `LiquidGlassPlayer`: Full-screen and floating player glass backdrop with ambient artwork absorption.
+- `LiquidGlassWidget`: Standardized widget glass container.
+- `LiquidGlassDialog`: Modal dialog with heavy blur backdrop and specular highlights.
+- `LiquidGlassSheet`: Fluid bottom sheet with upward spring motion.
+- `LiquidGlassControl`: Circular player playback control buttons (play/pause/skip).
+- `LiquidGlassChip`: Filter/genre chips with toggle elevation and accent glow.
+- `LiquidGlassAvatar`: Profile avatar framed with luminous glass rim.
+- `LiquidGlassOrbitPanel`: Conversational floating glass panel for Orbit AI Assistant.
+
+### 7.4 Fluid Motion & Micro-Interactions
+- **Interactive Springs:** `LiquidGlassTokens.Springs.Interactive` (`stiffness = 380f, dampingRatio = 0.72f`) for buttons and tabs.
+- **Fluid Springs:** `LiquidGlassTokens.Springs.Fluid` (`stiffness = 240f, dampingRatio = 0.82f`) for sheets and expansions.
+- **Interactive Scale:** Press scale `1.0 -> 0.94 -> 1.0` for buttons/tabs; card tap scale `1.0 -> 0.97 -> 1.0`.
 
 ---
 
@@ -317,7 +366,7 @@ Defined in: `com.sonza.app.ui.components.StateComponents.kt`
 | 2026-08-21 | Part M Completed: Search Experience Redesign (3-phase music search flow, source-agnostic search bar, recent search history persistence & deletion, TalkBack accessibility semantics, two-step back handler, animated transitions, YouTube Music default results) | `SearchScreen.kt`, `SearchViewModel.kt`, `SessionManager.kt`, `DESIGN_SYSTEM.md` |
 | 2026-08-21 | Part Q Completed: Search Results Screen Redesign & Rebuild (Compact 56dp music result rows, horizontal category pill navigation, structured All tab carousels, dynamic bottom insets for floating mini player, zero technical source strings) | `SearchScreen.kt`, `StandardMiniPlayer.kt`, `YTMusicMiniPlayer.kt`, `ExpandablePlayerSheet.kt`, `DESIGN_SYSTEM.md` |
 | 2026-08-21 | Part P Completed: Settings Screen Redesign & Data Cleanup (Reorganized sections into clear hierarchy, unified `SonzaSettingsRow` component with 0.97 bounce feedback, dynamic `BuildConfig.VERSION_NAME` 2.6.5.0, live OTA update check without technical leakage, real Support/Credits/Privacy Policy/About destinations, dynamic bottom insets) | `SettingsScreen.kt`, `SettingsViewModel.kt`, `NavGraph.kt`, `DESIGN_SYSTEM.md` |
-| 2026-08-21 | Part R Completed: Search Screen Visual Redesign (Image-driven music discovery cards with full-bleed artist photography, vibrant duotone tints, protective gradient scrims, bold typography overlays, prominent Search header, 2-column responsive layout, and DiscoveryArtRegistry) | `DiscoveryArtRegistry.kt`, `BrowseCategoryCard.kt`, `CategoryCard.kt`, `SearchScreen.kt`, `SearchViewModel.kt`, `DESIGN_SYSTEM.md` |
+| 2026-10-15 | Part S Completed: Liquid Glass UI & Fluid Motion Upgrade (Optical multi-layer rendering pipeline, 3 Glass Styles Soft/Natural/Realistic in Settings, 12-component reusable glass library, spring physics & micro-interactions, dynamic ambient lighting absorption, and glass avatar propagation) | `LiquidGlassTokens.kt`, `LiquidGlassSurface.kt`, `LiquidGlassComponents.kt`, `GlassStyle.kt`, `SessionManager.kt`, `AppearanceSettingsScreen.kt`, `SearchScreen.kt`, `LiquidGlassPlayerStyle.kt`, `OrbitFloatingAssistant.kt`, `ExpressiveBottomNav.kt`, `CompactFloatingMiniPlayer.kt`, `HomeComponents.kt`, `UserAvatar.kt`, `DESIGN_SYSTEM.md` |
 
 
 

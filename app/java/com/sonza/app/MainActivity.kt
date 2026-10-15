@@ -61,6 +61,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Lock
+import kotlinx.coroutines.flow.firstOrNull
 import com.sonza.app.data.SessionManager
 import com.sonza.app.core.model.AppTheme
 import com.sonza.app.core.model.OutputDevice
@@ -93,6 +94,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
@@ -652,7 +654,8 @@ fun SonzaApp(
         val receiver = object : android.content.BroadcastReceiver() {
             override fun onReceive(c: Context?, i: Intent?) {
                 if (i?.action == com.sonza.app.ai.orbit.OrbitWakeWordService.ACTION_WAKE_WORD_DETECTED) {
-                    orbitViewModel.onWakeWordDetected()
+                    val command = i.getStringExtra(com.sonza.app.ai.orbit.OrbitWakeWordService.EXTRA_COMMAND)
+                    orbitViewModel.onWakeWordDetected(command)
                 }
             }
         }
@@ -719,7 +722,11 @@ fun SonzaApp(
                     playerViewModel.expandPlayer()
                 }
                 is com.sonza.app.ui.viewmodel.MainEvent.TriggerOrbitListening -> {
-                    orbitViewModel.onOrbitTapped()
+                    if (!event.command.isNullOrBlank()) {
+                        orbitViewModel.onWakeWordDetected(event.command)
+                    } else {
+                        orbitViewModel.onOrbitTapped()
+                    }
                 }
                 is com.sonza.app.ui.viewmodel.MainEvent.NavigateToLibrary -> {
                     navController.navigate(com.sonza.app.navigation.Destination.Library)
@@ -831,13 +838,50 @@ fun SonzaApp(
                         orbitViewModel.onOrbitTapped()
                     }
                     uriStr.startsWith("sonza://quick_action") -> {
-                        val type = uri.getQueryParameter("type")
+                        val type = uri.getQueryParameter("type") ?: ""
+                        playerViewModel.expandPlayer()
+                        val entry = dagger.hilt.android.EntryPointAccessors.fromApplication(context.applicationContext, com.sonza.app.glance.SharedWidgetEntryPoint::class.java)
+                        val p = entry.getMusicPlayer()
                         when (type) {
-                            "liked" -> orbitViewModel.processUtterance("play my liked songs")
-                            "romantic" -> orbitViewModel.processUtterance("play romantic songs")
-                            "workout" -> orbitViewModel.processUtterance("play workout music")
-                            "discover" -> orbitViewModel.processUtterance("play trending songs")
-                            "recent" -> orbitViewModel.processUtterance("play something similar")
+                            "liked" -> {
+                                val cached = entry.getLibraryRepository().getCachedPlaylistSongs("LM")
+                                val songs = if (cached.isNotEmpty()) cached else {
+                                    try { entry.getYouTubeRepository().getLikedMusic() } catch (_: Exception) { emptyList<com.sonza.app.core.model.Song>() }
+                                }
+                                if (songs.isNotEmpty()) p.playSong(songs.first(), songs, 0)
+                            }
+                            "romantic" -> {
+                                val songs = try { entry.getYouTubeRepository().search("Romantic songs mix") } catch (_: Exception) { emptyList<com.sonza.app.core.model.Song>() }
+                                if (songs.isNotEmpty()) p.playSong(songs.first(), songs, 0)
+                            }
+                            "workout" -> {
+                                val songs = try { entry.getYouTubeRepository().search("Workout gym music mix") } catch (_: Exception) { emptyList<com.sonza.app.core.model.Song>() }
+                                if (songs.isNotEmpty()) p.playSong(songs.first(), songs, 0)
+                            }
+                            "discover" -> {
+                                val recs = try { entry.getYouTubeRepository().getRecommendations() } catch (_: Exception) { emptyList<com.sonza.app.core.model.Song>() }
+                                val songs = if (recs.isNotEmpty()) recs else {
+                                    try { entry.getYouTubeRepository().search("Top trending hits") } catch (_: Exception) { emptyList<com.sonza.app.core.model.Song>() }
+                                }
+                                if (songs.isNotEmpty()) p.playSong(songs.first(), songs, 0)
+                            }
+                            "recent" -> {
+                                val recentHistory = entry.getListeningHistoryRepository().getRecentlyPlayed(25).firstOrNull() ?: emptyList<com.sonza.app.core.data.local.entity.ListeningHistory>()
+                                val songs = recentHistory.map { h ->
+                                    com.sonza.app.core.model.Song(
+                                        id = h.songId,
+                                        title = h.songTitle,
+                                        artist = h.artist,
+                                        album = h.album,
+                                        duration = h.duration,
+                                        thumbnailUrl = h.thumbnailUrl,
+                                        source = try { com.sonza.app.core.model.SongSource.valueOf(h.source) } catch (_: Exception) { com.sonza.app.core.model.SongSource.YOUTUBE },
+                                        localUri = h.localUri,
+                                        artistId = h.artistId
+                                    )
+                                }
+                                if (songs.isNotEmpty()) p.playSong(songs.first(), songs, 0)
+                            }
                         }
                     }
                     uriStr == "sonza://queue" -> {

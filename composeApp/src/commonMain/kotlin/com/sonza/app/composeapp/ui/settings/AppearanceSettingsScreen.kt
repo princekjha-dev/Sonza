@@ -111,6 +111,7 @@ fun AppearanceSettingsScreen(
     lyricsTextPosition: LyricsTextPosition,
     lyricsAnimationType: LyricsAnimationType,
     lyricsBlur: Float,
+    glassStyle: com.sonza.app.core.model.GlassStyle = com.sonza.app.core.model.GlassStyle.NATURAL,
     onThemeModeChange: (ThemeMode) -> Unit,
     onPureBlackChange: (Boolean) -> Unit,
     onDynamicColorChange: (Boolean) -> Unit,
@@ -120,18 +121,13 @@ fun AppearanceSettingsScreen(
     onRotatingVinylAnimationChange: (Boolean) -> Unit,
     onAlbumArtColorFlashingChange: (Boolean) -> Unit,
     onPlayerStyleChange: (PlayerStyle) -> Unit,
+    onGlassStyleChange: (com.sonza.app.core.model.GlassStyle) -> Unit = {},
     onForceMaxRefreshRateChange: (Boolean) -> Unit,
     onLyricsTextPositionChange: (LyricsTextPosition) -> Unit,
     onLyricsAnimationTypeChange: (LyricsAnimationType) -> Unit,
     onLyricsBlurChange: (Float) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(bottom = 20.dp),
-    /**
-     * Slot for the host to drop a "Branding" / "App Logo" section in. The
-     * picker needs platform-specific drawable resources for the previews,
-     * so commonMain hands off rendering to the host. Pass `null` to hide
-     * the section (e.g. on platforms that don't ship the variant assets).
-     */
     brandingSection: (@Composable () -> Unit)? = null,
 ) {
     var showThemeModeSheet by remember { mutableStateOf(false) }
@@ -142,6 +138,9 @@ fun AppearanceSettingsScreen(
 
     var showPlayerStyleSheet by remember { mutableStateOf(false) }
     val playerStyleSheetState = rememberModalBottomSheetState()
+
+    var showGlassStyleSheet by remember { mutableStateOf(false) }
+    val glassStyleSheetState = rememberModalBottomSheetState()
 
     var showLyricsPositionSheet by remember { mutableStateOf(false) }
     val lyricsPositionSheetState = rememberModalBottomSheetState()
@@ -277,6 +276,20 @@ fun AppearanceSettingsScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
 
+        // --- Liquid Glass UI Section ---
+        item {
+            SectionTitle("Liquid Glass UI")
+            SettingsCard(modifier = Modifier.padding(horizontal = 16.dp)) {
+                NavRow(
+                    icon = Icons.Default.BlurOn,
+                    title = "Glass Style",
+                    subtitle = glassStyle.label,
+                    onClick = { showGlassStyleSheet = true },
+                )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+
         // --- Performance Section ---
         item {
             SectionTitle("Performance")
@@ -364,9 +377,7 @@ fun AppearanceSettingsScreen(
     if (showPlayerStyleSheet) {
         EnumPickerSheet(
             title = "Player Style",
-            // Liquid Glass (iOS) has been retired — only YT Music and Classic
-            // remain selectable; users on Liquid Glass are migrated to YT Music.
-            entries = PlayerStyle.entries.filter { it != PlayerStyle.LIQUID_GLASS },
+            entries = PlayerStyle.entries,
             selected = playerStyle,
             label = { it.label },
             onSelect = { style ->
@@ -378,6 +389,25 @@ fun AppearanceSettingsScreen(
             },
             onDismiss = { showPlayerStyleSheet = false },
             sheetState = playerStyleSheetState,
+        )
+    }
+
+    // Glass Style picker
+    if (showGlassStyleSheet) {
+        EnumPickerSheet(
+            title = "Glass Style",
+            entries = com.sonza.app.core.model.GlassStyle.entries,
+            selected = glassStyle,
+            label = { it.label },
+            onSelect = { style ->
+                onGlassStyleChange(style)
+                scope.launch {
+                    glassStyleSheetState.hide()
+                    showGlassStyleSheet = false
+                }
+            },
+            onDismiss = { showGlassStyleSheet = false },
+            sheetState = glassStyleSheetState,
         )
     }
 
