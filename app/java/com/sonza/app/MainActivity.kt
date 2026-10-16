@@ -577,6 +577,7 @@ fun SonzaApp(
     val orbitAssistantMessage by orbitViewModel.assistantMessage.collectAsStateWithLifecycle()
     val orbitAudioLevel by orbitViewModel.audioLevel.collectAsStateWithLifecycle()
     val orbitActionIndicator by orbitViewModel.actionIndicator.collectAsStateWithLifecycle()
+    val orbitMusicAudioData by orbitViewModel.musicAudioData.collectAsStateWithLifecycle()
 
     val audioPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -1632,8 +1633,10 @@ fun SonzaApp(
         com.sonza.app.ai.orbit.OrbitFloatingAssistant(
             isVisible = isOrbitVisible,
             state = orbitState,
-            message = orbitAssistantMessage,
+            isPlaying = playbackInfo.isPlaying,
             audioLevel = orbitAudioLevel,
+            musicAudioData = orbitMusicAudioData,
+            message = orbitAssistantMessage,
             actionIndicator = orbitActionIndicator,
             onAvatarClick = { orbitViewModel.onOrbitTapped() },
             onDismiss = { orbitViewModel.dismissAssistant() },

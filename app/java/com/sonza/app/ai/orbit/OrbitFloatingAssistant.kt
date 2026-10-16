@@ -51,6 +51,8 @@ fun OrbitFloatingAssistant(
     onAvatarClick: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    isPlaying: Boolean = false,
+    musicAudioData: OrbitMusicAudioData? = null,
     message: String = "",
     actionIndicator: String? = null,
     onSubmitText: ((String) -> Unit)? = null
@@ -86,11 +88,13 @@ fun OrbitFloatingAssistant(
                 modifier = Modifier.wrapContentSize(),
                 contentAlignment = Alignment.Center
             ) {
-                // 1. SINGLE ORBIT AVATAR (Hero size, audio reactive, dynamic artwork color)
+                // 1. SINGLE ORBIT AVATAR (Hero size, audio reactive, dynamic artwork color, headphones in music mode)
                 OrbitAvatar(
                     state = state,
                     size = OrbitAvatarSize.Hero,
+                    isPlaying = isPlaying,
                     audioLevel = audioLevel,
+                    musicAudioData = musicAudioData,
                     accentColor = accentColor,
                     onClick = onAvatarClick
                 )

@@ -79,6 +79,11 @@ class OrbitAssistantViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, 0f)
 
+    private val audioAnalyzer = OrbitMusicAudioAnalyzer(scope = viewModelScope)
+    val musicAudioData: StateFlow<OrbitMusicAudioData> = audioAnalyzer.audioData
+
+    private var wasMusicPlayingBeforeVoice = false
+
     private val _events = MutableSharedFlow<OrbitUiEvent>()
     val events: SharedFlow<OrbitUiEvent> = _events.asSharedFlow()
 
@@ -90,6 +95,20 @@ class OrbitAssistantViewModel(
         if (voiceManager.hasRecordAudioPermission()) {
             Log.d(TAG, "init: starting OrbitWakeWordService")
             OrbitWakeWordService.start(context)
+        }
+
+        // Orchestrate Orbit Music Mode and Idle Orbiting based on music playback state
+        viewModelScope.launch {
+            musicPlayer.playerState.collect { playerState ->
+                audioAnalyzer.setPlaying(playerState.isPlaying)
+                if (!_orbitState.value.isVoiceActive) {
+                    if (playerState.isPlaying) {
+                        _orbitState.value = OrbitState.MUSIC_REACTIVE
+                    } else {
+                        _orbitState.value = OrbitState.IDLE
+                    }
+                }
+            }
         }
     }
 
@@ -157,6 +176,7 @@ class OrbitAssistantViewModel(
         continuousListeningJob?.cancel()
         pauseWakeWordDetector()
         voiceSynthesizer.stopSpeaking()
+        wasMusicPlayingBeforeVoice = musicPlayer.playerState.value.isPlaying
 
         // 1. Enter WAKE_DETECTED and show ambient layer
         _orbitState.value = OrbitState.WAKE_DETECTED
@@ -350,15 +370,37 @@ class OrbitAssistantViewModel(
             _orbitState.value = OrbitState.ENDING
             OrbitSoundManager.playClosed()
             delay(350L) // Allow ending sound and avatar fade pulse
-            _orbitState.value = OrbitState.IDLE
-            _isAssistantVisible.value = false
+
+            // Requirement 10: Return to previous state
+            // If music was playing before voice interaction (or is currently playing), return to Music Orbit!
+            val isNowPlaying = musicPlayer.playerState.value.isPlaying || wasMusicPlayingBeforeVoice
+            if (isNowPlaying) {
+                _orbitState.value = OrbitState.MUSIC_REACTIVE
+            } else {
+                _orbitState.value = OrbitState.IDLE
+            }
             _dialogueContext.value = OrbitDialogueContext.Idle
             resumeWakeWordDetector()
         }
     }
 
     fun dismissAssistant() {
-        finishAssistantSession()
+        autoDismissJob?.cancel()
+        continuousListeningJob?.cancel()
+        voiceManager.stopListening()
+        voiceSynthesizer.stopSpeaking()
+        musicPlayer.restoreVolume()
+
+        viewModelScope.launch {
+            _orbitState.value = OrbitState.ENDING
+            OrbitSoundManager.playClosed()
+            delay(350L)
+            val isNowPlaying = musicPlayer.playerState.value.isPlaying
+            _orbitState.value = if (isNowPlaying) OrbitState.MUSIC_REACTIVE else OrbitState.IDLE
+            _isAssistantVisible.value = false
+            _dialogueContext.value = OrbitDialogueContext.Idle
+            resumeWakeWordDetector()
+        }
     }
 
     private fun scheduleAutoDismiss(delayMs: Long) {

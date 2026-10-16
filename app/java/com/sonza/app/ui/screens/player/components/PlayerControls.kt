@@ -199,6 +199,7 @@ fun SecondaryPlayerControls(
     onShowLyrics: () -> Unit,
     dominantColors: DominantColors,
     modifier: Modifier = Modifier,
+    isPlaying: Boolean = false,
     onShowDevices: (() -> Unit)? = null,
     onShowEqualizer: (() -> Unit)? = null,
     onOrbitClick: (() -> Unit)? = null
@@ -294,7 +295,7 @@ fun SecondaryPlayerControls(
             )
         }
 
-        // Orbit Assistant Button
+        // Orbit Assistant Avatar Button (Character avatar with dynamic headphones in Music Mode)
         if (onOrbitClick != null) {
             Box(
                 modifier = Modifier
@@ -307,11 +308,12 @@ fun SecondaryPlayerControls(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Mic,
-                    contentDescription = "Orbit Voice Assistant",
-                    tint = dominantColors.accent,
-                    modifier = Modifier.size(buttonSize * 0.55f)
+                com.sonza.app.ai.orbit.OrbitAvatar(
+                    state = if (isPlaying) com.sonza.app.ai.orbit.OrbitState.MUSIC_REACTIVE else com.sonza.app.ai.orbit.OrbitState.IDLE,
+                    size = com.sonza.app.ai.orbit.OrbitAvatarSize.Mini,
+                    isPlaying = isPlaying,
+                    accentColor = dominantColors.accent,
+                    onClick = onOrbitClick
                 )
             }
         }

@@ -113,7 +113,7 @@ fun HomeTopHeader(
                 )
             }
 
-            // Orbit Avatar + Account Avatar
+            // Header Right: Voice Input [Mic] Button + User Avatar
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceSm)

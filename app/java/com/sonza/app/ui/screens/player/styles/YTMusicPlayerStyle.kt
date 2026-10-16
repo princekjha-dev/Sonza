@@ -365,6 +365,7 @@ private fun YTMusicPortraitContent(
                 onShowLyrics = onShowLyrics,
                 onShowDevices = onShowDevices,
                 dominantColors = dominantColors,
+                isPlaying = playerState.isPlaying,
                 onOrbitClick = actions.onOrbitClick
             )
 
@@ -602,6 +603,7 @@ private fun YTMusicLandscapeContent(
                 onShowLyrics = onShowLyrics,
                 onShowDevices = onShowDevices,
                 dominantColors = dominantColors,
+                isPlaying = playerState.isPlaying,
                 onOrbitClick = actions.onOrbitClick
             )
         }
