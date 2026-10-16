@@ -788,7 +788,7 @@ private fun OrbitVoiceAssistantSection(
                         value = proxyUrl,
                         onValueChange = onProxyUrlChange,
                         label = { Text("Orbit Proxy Base URL") },
-                        placeholder = { Text("https://sonza-orbit-proxy.workers.dev") },
+                        placeholder = { Text(com.sonza.app.ai.orbit.OrbitConstants.ORBIT_PROXY_URL) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)

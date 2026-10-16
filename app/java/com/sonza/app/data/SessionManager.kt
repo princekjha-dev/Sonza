@@ -950,14 +950,20 @@ class SessionManager @Inject constructor(
     val chatProxyModelFlow: Flow<String> = context.dataStore.data.map { it[CHAT_PROXY_MODEL_KEY] ?: "gpt-5" }
     val selectedAiProviderFlow: Flow<String> = context.dataStore.data.map { it[SELECTED_AI_PROVIDER_KEY] ?: "CHAT_PROXY" }
     val orbitAiProviderFlow: Flow<String> = context.dataStore.data.map { it[ORBIT_AI_PROVIDER_KEY] ?: "GROQ" }
-    val orbitProxyBaseUrlFlow: Flow<String> = context.dataStore.data.map { it[ORBIT_PROXY_BASE_URL_KEY] ?: "" }
+    val orbitProxyBaseUrlFlow: Flow<String> = context.dataStore.data.map {
+        val configured = it[ORBIT_PROXY_BASE_URL_KEY]?.trim().orEmpty()
+        configured.ifBlank { com.sonza.app.ai.orbit.OrbitConstants.ORBIT_PROXY_URL }
+    }
     val orbitProxyAuthTokenFlow: Flow<String> = context.dataStore.data.map { it[ORBIT_PROXY_AUTH_TOKEN_KEY] ?: "" }
     val orbitWakeWordEnabledFlow: Flow<Boolean> = context.dataStore.data.map { it[ORBIT_WAKE_WORD_ENABLED_KEY] ?: true }
 
     suspend fun getOrbitAiProvider(): String = context.dataStore.data.first()[ORBIT_AI_PROVIDER_KEY] ?: "GROQ"
     suspend fun setOrbitAiProvider(provider: String) = context.dataStore.edit { it[ORBIT_AI_PROVIDER_KEY] = provider }
 
-    suspend fun getOrbitProxyBaseUrl(): String = context.dataStore.data.first()[ORBIT_PROXY_BASE_URL_KEY] ?: ""
+    suspend fun getOrbitProxyBaseUrl(): String {
+        val configured = context.dataStore.data.first()[ORBIT_PROXY_BASE_URL_KEY]?.trim().orEmpty()
+        return configured.ifBlank { com.sonza.app.ai.orbit.OrbitConstants.ORBIT_PROXY_URL }
+    }
     suspend fun setOrbitProxyBaseUrl(url: String) = context.dataStore.edit { it[ORBIT_PROXY_BASE_URL_KEY] = url }
 
     suspend fun getOrbitProxyAuthToken(): String = context.dataStore.data.first()[ORBIT_PROXY_AUTH_TOKEN_KEY] ?: ""

@@ -4,40 +4,35 @@ import com.sonza.app.ai.orbit.OrbitAIResponse
 import com.sonza.app.ai.orbit.OrbitChatMessage
 import com.sonza.app.ai.orbit.OrbitMusicContext
 import com.sonza.app.ai.orbit.OrbitProviderType
-import com.sonza.app.ai.orbit.OrbitToolCall
+import com.sonza.app.ai.orbit.network.OrbitChatResult
+import com.sonza.app.ai.orbit.network.OrbitConversationMessage
+import com.sonza.app.ai.orbit.network.OrbitProxyClient
 import com.sonza.app.data.SessionManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONArray
-import org.json.JSONObject
-import java.io.IOException
-import java.net.SocketTimeoutException
-import java.net.UnknownHostException
-import java.util.concurrent.TimeUnit
 
 /**
- * OpenAI Provider via Secure Cloudflare Workers / Serverless Proxy.
+ * OpenAI Provider via Secure Cloudflare Workers Orbit Proxy.
  * Ensures zero secrets are present on the client device.
  */
 class OpenAIProxyProvider(
     private val baseHttpClient: OkHttpClient,
     private val sessionManager: SessionManager? = null,
     private val proxyUrlProvider: (suspend () -> String)? = null,
-    private val proxyTokenProvider: (suspend () -> String)? = null
+    private val proxyTokenProvider: (suspend () -> String)? = null,
+    proxyClient: OrbitProxyClient? = null
 ) : OrbitAIProvider {
 
     override val providerType: OrbitProviderType = OrbitProviderType.OPENAI
 
-    private val httpClient: OkHttpClient by lazy {
-        baseHttpClient.newBuilder()
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS)
-            .writeTimeout(15, TimeUnit.SECONDS)
-            .build()
+    private val client: OrbitProxyClient by lazy {
+        proxyClient ?: OrbitProxyClient(
+            baseHttpClient = baseHttpClient,
+            sessionManager = sessionManager,
+            baseUrlProvider = proxyUrlProvider,
+            clientTokenProvider = proxyTokenProvider
+        )
     }
 
     override suspend fun processChat(
@@ -45,127 +40,45 @@ class OpenAIProxyProvider(
         musicContext: OrbitMusicContext?,
         conversationHistory: List<OrbitChatMessage>
     ): OrbitAIResponse = withContext(Dispatchers.IO) {
-        val proxyBaseUrl = (proxyUrlProvider?.invoke() ?: sessionManager?.getOrbitProxyBaseUrl() ?: "").trim().removeSuffix("/")
-        val proxyAuthToken = (proxyTokenProvider?.invoke() ?: sessionManager?.getOrbitProxyAuthToken() ?: "").trim()
+        val conversationMessages = mutableListOf<OrbitConversationMessage>()
 
-        if (proxyBaseUrl.isBlank()) {
-            return@withContext OrbitAIResponse(
-                spokenText = "Orbit proxy is not configured. Please set your proxy URL in Settings, or switch to Local AI.",
-                providerUsed = providerType,
-                isSuccess = false,
-                errorMessage = "Proxy URL unconfigured"
+        if (musicContext != null && musicContext.hasActiveSong) {
+            conversationMessages.add(
+                OrbitConversationMessage(
+                    role = "system",
+                    content = "Current playback: ${musicContext.toSpokenDescription()}"
+                )
             )
         }
 
-        val endpoint = "$proxyBaseUrl/v1/orbit/chat"
-
-        try {
-            val jsonPayload = JSONObject().apply {
-                put("message", message)
-                put("provider", "openai")
-
-                if (musicContext != null && musicContext.hasActiveSong) {
-                    put("musicContext", JSONObject().apply {
-                        put("title", musicContext.title ?: "")
-                        put("artist", musicContext.artist ?: "")
-                        put("album", musicContext.album ?: "")
-                        put("isPlaying", musicContext.isPlaying)
-                        if (musicContext.durationMs != null) put("durationMs", musicContext.durationMs)
-                        if (musicContext.currentPositionMs != null) put("currentPositionMs", musicContext.currentPositionMs)
-                    })
-                }
-
-                if (conversationHistory.isNotEmpty()) {
-                    val historyArray = JSONArray()
-                    conversationHistory.takeLast(8).forEach { turn ->
-                        historyArray.put(JSONObject().apply {
-                            put("role", turn.role)
-                            put("content", turn.content)
-                        })
-                    }
-                    put("history", historyArray)
-                }
-            }
-
-            val requestBuilder = Request.Builder()
-                .url(endpoint)
-                .post(jsonPayload.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
-
-            if (proxyAuthToken.isNotBlank()) {
-                requestBuilder.header("Authorization", "Bearer $proxyAuthToken")
-                requestBuilder.header("X-Orbit-Client-Token", proxyAuthToken)
-            }
-
-            val response = httpClient.newCall(requestBuilder.build()).execute()
-            val responseBody = response.body?.string().orEmpty()
-
-            if (!response.isSuccessful) {
-                return@withContext OrbitAIResponse(
-                    spokenText = "The AI service is temporarily unavailable.",
-                    providerUsed = providerType,
-                    isSuccess = false,
-                    errorMessage = "HTTP ${response.code}"
+        conversationHistory.takeLast(16).forEach { turn ->
+            val role = turn.role.lowercase()
+            if (role in listOf("user", "assistant", "system")) {
+                conversationMessages.add(
+                    OrbitConversationMessage(
+                        role = role,
+                        content = turn.content
+                    )
                 )
             }
+        }
 
-            val jsonResponse = JSONObject(responseBody)
-            val spokenText = jsonResponse.optString("response", "").ifBlank {
-                jsonResponse.optString("message", "I understood your request.")
+        when (val result = client.sendChat(message = message, conversation = conversationMessages)) {
+            is OrbitChatResult.Success -> {
+                OrbitAIResponse(
+                    spokenText = result.aiResponse,
+                    providerUsed = providerType,
+                    isSuccess = true
+                )
             }
-
-            val toolCalls = mutableListOf<OrbitToolCall>()
-            val toolsJsonArray = jsonResponse.optJSONArray("toolCalls")
-            if (toolsJsonArray != null) {
-                for (i in 0 until toolsJsonArray.length()) {
-                    val toolObj = toolsJsonArray.getJSONObject(i)
-                    val toolName = toolObj.optString("tool", "")
-                    val argsObj = toolObj.optJSONObject("arguments")
-                    val argsMap = mutableMapOf<String, Any?>()
-                    if (argsObj != null) {
-                        for (key in argsObj.keys()) {
-                            argsMap[key] = argsObj.get(key)
-                        }
-                    }
-                    if (toolName.isNotBlank()) {
-                        toolCalls.add(OrbitToolCall(toolName, argsMap))
-                    }
-                }
+            is OrbitChatResult.Error -> {
+                OrbitAIResponse(
+                    spokenText = result.spokenError,
+                    providerUsed = providerType,
+                    isSuccess = false,
+                    errorMessage = result.errorCode
+                )
             }
-
-            OrbitAIResponse(
-                spokenText = spokenText,
-                toolCalls = toolCalls,
-                providerUsed = providerType,
-                isSuccess = true
-            )
-        } catch (_: SocketTimeoutException) {
-            OrbitAIResponse(
-                spokenText = "The AI service timed out. I can still handle local commands.",
-                providerUsed = providerType,
-                isSuccess = false,
-                errorMessage = "Timeout"
-            )
-        } catch (_: UnknownHostException) {
-            OrbitAIResponse(
-                spokenText = "I can't reach the AI service right now. I can still handle local commands.",
-                providerUsed = providerType,
-                isSuccess = false,
-                errorMessage = "Network unavailable"
-            )
-        } catch (_: IOException) {
-            OrbitAIResponse(
-                spokenText = "I'm having trouble connecting to the network.",
-                providerUsed = providerType,
-                isSuccess = false,
-                errorMessage = "IO Failure"
-            )
-        } catch (e: Exception) {
-            OrbitAIResponse(
-                spokenText = "Sorry, I had trouble processing that request.",
-                providerUsed = providerType,
-                isSuccess = false,
-                errorMessage = e.message
-            )
         }
     }
 }

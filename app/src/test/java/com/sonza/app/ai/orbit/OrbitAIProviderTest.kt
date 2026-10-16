@@ -123,8 +123,13 @@ class OrbitAIProviderTest {
         val resp = groqProvider.processChat("Who sang Unholy?", musicContext, emptyList())
 
         assertFalse(resp.isSuccess)
-        // Never leaks 401, stack traces, or internal tokens:
-        assertTrue(resp.spokenText.contains("Orbit cloud proxy is not configured"))
+        // Never leaks secrets, stack traces, or internal tokens:
+        assertTrue(
+            resp.spokenText.contains("reach the AI proxy", ignoreCase = true) ||
+            resp.spokenText.contains("trouble connecting", ignoreCase = true) ||
+            resp.spokenText.contains("temporarily unavailable", ignoreCase = true) ||
+            resp.spokenText.contains("not configured", ignoreCase = true)
+        )
         assertFalse(resp.spokenText.contains("gsk_"))
         assertFalse(resp.spokenText.contains("401"))
     }
