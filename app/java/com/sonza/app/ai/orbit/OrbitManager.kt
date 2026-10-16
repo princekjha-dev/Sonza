@@ -267,7 +267,7 @@ class OrbitManager(
                     returnToIdleState()
                 } else {
                     transitionToState(OrbitState.ERROR)
-                    _assistantMessage.value = "Orbit couldn't hear that. Try again."
+                    _assistantMessage.value = "I didn't catch that. Could you say that again?"
                     scheduleSafeReturn(2500L)
                 }
             }
@@ -294,8 +294,8 @@ class OrbitManager(
             return
         }
 
-        transitionToState(OrbitState.PROCESSING)
-        _assistantMessage.value = "Processing…"
+        transitionToState(OrbitState.THINKING)
+        _assistantMessage.value = "Thinking…"
 
         scope.launch {
             val currentSong = musicPlayer.playerState.value.currentSong
@@ -330,7 +330,8 @@ class OrbitManager(
             val result = executor.execute(intent, currentSong, _dialogueContext.value, contextMemory)
             OrbitLogger.result(result.success, result.message)
 
-            _assistantMessage.value = result.message
+            val cleanMessage = OrbitDialogueSanitizer.sanitize(result.message)
+            _assistantMessage.value = cleanMessage
             _actionIndicator.value = result.actionIndicator
             _dialogueContext.value = result.updatedContext ?: OrbitDialogueContext.Idle
 
@@ -347,7 +348,7 @@ class OrbitManager(
             }
 
             // Spoken natural response without generic sound effects
-            val speechText = result.spokenResponse
+            val speechText = OrbitDialogueSanitizer.sanitize(result.spokenResponse)
             // Only expect follow-up if explicitly required by intent (e.g. disambiguation or multi-turn query)
             val expectsFollowUp = result.requiresFollowUp
 

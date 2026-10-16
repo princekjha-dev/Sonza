@@ -493,7 +493,7 @@ object OrbitResponseEngine {
         return OrbitResult(
             success = false,
             action = "UNKNOWN",
-            spokenResponse = "I didn't quite catch that. Try asking me to play a song, skip, pause, search, or manage your playlist.",
+            spokenResponse = "I didn't quite catch that. Could you say that again?",
             visualFeedback = "Didn't catch that",
             actionIndicator = "❓"
         )
@@ -525,11 +525,12 @@ object OrbitResponseEngine {
     }
 
     fun error(message: String? = null): OrbitResult {
+        val cleanMsg = OrbitDialogueSanitizer.sanitize(message)
         return OrbitResult(
             success = false,
             action = "ERROR",
-            spokenResponse = message?.takeIf { it.isNotBlank() } ?: "Sorry, I couldn't complete that.",
-            visualFeedback = message ?: "Error completing command",
+            spokenResponse = cleanMsg,
+            visualFeedback = cleanMsg,
             actionIndicator = "⚠️"
         )
     }

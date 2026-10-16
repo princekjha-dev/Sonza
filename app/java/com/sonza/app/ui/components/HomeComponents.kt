@@ -117,11 +117,22 @@ fun HomeTopHeader(
                 )
             }
 
-            // Header Right: User Avatar
+            // Header Right: Persistent Orbit Avatar + User Profile Avatar
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceSm)
             ) {
+                // Persistent Compact Orbit Avatar (Non-intrusive top-right position)
+                com.sonza.app.ai.orbit.OrbitAvatar(
+                    state = orbitState,
+                    size = com.sonza.app.ai.orbit.OrbitAvatarSize.Compact,
+                    isPlaying = isPlaying,
+                    audioLevel = audioLevel,
+                    musicAudioData = musicAudioData,
+                    accentColor = dynamicColors.accent,
+                    onClick = onOrbitClick
+                )
+
                 // Profile Avatar with liquid glass framing
                 com.sonza.app.ui.components.avatar.AvatarView(
                     avatarId = avatarUrl,

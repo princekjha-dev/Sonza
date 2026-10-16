@@ -209,7 +209,15 @@ fun OrbitAvatar(
     // When music playing: audio-reactive grooving & beat bounce
     val density = androidx.compose.ui.platform.LocalDensity.current
     val orbRadiusPx = (size.orbSize.value * 1.5f) // Reference pixel scaling
-    val circularRadius = with(density) { 8.dp.toPx() } // Smooth gentle circular floating excursion
+    val circularRadius = with(density) {
+        when (size) {
+            OrbitAvatarSize.Mini -> 1.5.dp.toPx()
+            OrbitAvatarSize.Compact -> 2.5.dp.toPx()
+            OrbitAvatarSize.Floating -> 4.5.dp.toPx()
+            OrbitAvatarSize.Medium -> 6.dp.toPx()
+            OrbitAvatarSize.Hero -> 8.dp.toPx()
+        }
+    }
     val idleX = circularRadius * cos(idleOrbitPhase)
     val idleY = (circularRadius * 0.78f) * sin(idleOrbitPhase)
 

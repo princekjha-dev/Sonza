@@ -73,11 +73,18 @@ class WebSearchTool(private val baseHttpClient: OkHttpClient) {
                 val body = response.body?.string().orEmpty()
                 if (body.isNotBlank()) {
                     val json = JSONObject(body)
-                    val extract = json.optString("extract", "")
-                    if (extract.isNotBlank()) {
-                        // Take the first 2 sentences for natural speech
-                        val sentences = extract.split(Regex("(?<=[.!?])\\s+"))
-                        return@withContext sentences.take(2).joinToString(" ")
+                    val type = json.optString("type", "")
+                    if (type != "disambiguation") {
+                        val extract = json.optString("extract", "")
+                        if (extract.isNotBlank() &&
+                            !extract.contains("misspelling", ignoreCase = true) &&
+                            !extract.contains("conflation", ignoreCase = true) &&
+                            !extract.contains("may refer to", ignoreCase = true) &&
+                            !extract.startsWith("The term", ignoreCase = true)
+                        ) {
+                            val sentences = extract.split(Regex("(?<=[.!?])\\s+"))
+                            return@withContext sentences.take(2).joinToString(" ")
+                        }
                     }
                 }
             }

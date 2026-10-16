@@ -156,20 +156,13 @@ class OrbitProxyClient(
                 OrbitLogger.error("Orbit proxy HTTP $code: $errorBodyStr")
 
                 val spoken = when (code) {
-                    400 -> parsedError?.message ?: "I couldn't process that request format."
-                    401, 403 -> "Orbit proxy access was rejected. Please check your proxy settings."
-                    404 -> "Orbit proxy endpoint not found. Please verify the proxy deployment."
+                    400 -> "I'm not sure what you mean. Could you say that again?"
+                    401, 403 -> "Something went wrong. Try again?"
+                    404 -> "Something went wrong. Try again?"
                     429 -> "I'm receiving too many requests right now. Please try again in a moment."
-                    504 -> "The AI service took too long to respond. I can still handle your local commands."
-                    503 -> {
-                        if (parsedError?.code == "MISSING_CONFIGURATION") {
-                            "Orbit proxy is not configured on the server."
-                        } else {
-                            "The AI service is temporarily unavailable. I can still handle your music and device commands."
-                        }
-                    }
-                    500, 502 -> "The AI service is temporarily unavailable. I can still handle your music and device commands."
-                    else -> "The AI service is temporarily unavailable."
+                    504 -> "The AI service took too long to respond. I can still handle local commands."
+                    500, 502, 503 -> "Something went wrong. Try again?"
+                    else -> "Something went wrong. Try again?"
                 }
 
                 OrbitChatResult.Error(
@@ -198,7 +191,7 @@ class OrbitProxyClient(
             OrbitLogger.http("POST", endpointUrl, exception = e)
             OrbitLogger.error("OrbitProxyClient connection failed: ${e.message}")
             OrbitChatResult.Error(
-                spokenError = "Unable to connect to Orbit proxy. I can still handle local commands.",
+                spokenError = "I'm having trouble connecting to the network right now.",
                 errorCode = "CONNECT_ERROR",
                 rawMessage = "ConnectException: ${e.message}"
             )
@@ -206,7 +199,7 @@ class OrbitProxyClient(
             OrbitLogger.http("POST", endpointUrl, exception = e)
             OrbitLogger.error("OrbitProxyClient IO failure: ${e.message}", e)
             OrbitChatResult.Error(
-                spokenError = "I'm having trouble connecting to the network.",
+                spokenError = "I'm having trouble connecting to the network right now.",
                 errorCode = "IO_ERROR",
                 rawMessage = "IOException: ${e.message}"
             )
@@ -214,7 +207,7 @@ class OrbitProxyClient(
             OrbitLogger.http("POST", endpointUrl, exception = e)
             OrbitLogger.error("OrbitProxyClient unexpected exception: ${e.message}", e)
             OrbitChatResult.Error(
-                spokenError = "Sorry, I had trouble processing that request.",
+                spokenError = "Something went wrong. Try again?",
                 errorCode = "UNEXPECTED_ERROR",
                 rawMessage = e.message
             )
