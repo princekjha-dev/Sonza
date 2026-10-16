@@ -72,6 +72,13 @@ jobs:
           body: |
             ## 🎧 SONZA — Hear Music Differently.
             
+            ### ✨ What's New in v2.6.5.1:
+            - **Orbit Voice Assistant Integration:** Seamless Cloudflare Worker AI proxy integration (`POST /v1/chat`) with multi-turn conversational intelligence.
+            - **Siri-like Voice Interaction Surface:** Compact, temporary floating glass card with dynamic waveforms, thinking dots, and auto-dismissal.
+            - **Dynamic Music-Reactive Colors:** Live artwork palette derivation with smooth 850ms liquid color morphing across track changes.
+            - **Natural Conversational Error Handling:** Humanized dialogue replaces raw search diagnostics and technical exceptions.
+            - **Persistent Non-Intrusive Avatar:** Compact Orbit character placed permanently in the top-right header without obstructing home content.
+            
             ### High-Fidelity Audiophile Playback & Modern Experience
             - Lossless bit-perfect playback (FLAC / 24-bit / 96kHz / 192kHz)
             - 10-Band Parametric Equalizer (-12dB to +12dB) & DSP curve visualizer
