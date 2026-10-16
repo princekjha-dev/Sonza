@@ -63,10 +63,8 @@ class RecentsViewModel @Inject constructor(
         }
     }
 
-    // Fetch history for the last 30 days (1 month)
-    // The user mentioned "upto 3months... upto 1monty". 
-    // I'll stick to 30 days as the most reasonable interpretation of "upto 1monty" correction.
-    val recentSongs: StateFlow<List<RecentlyPlayed>> = repository.getHistoryForTimePeriod(30)
+    // Fetch all persistent history ordered chronologically by last played
+    val recentSongs: StateFlow<List<RecentlyPlayed>> = repository.getAllHistory()
         .map { historyList ->
             historyList.map { history ->
                 history.toRecentlyPlayed()

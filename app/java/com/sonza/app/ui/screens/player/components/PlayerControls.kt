@@ -295,7 +295,7 @@ fun SecondaryPlayerControls(
             )
         }
 
-        // Orbit Assistant Avatar Button (Character avatar with dynamic headphones in Music Mode)
+        // Voice Assistant Button (Microphone button to trigger the single Orbit assistant)
         if (onOrbitClick != null) {
             Box(
                 modifier = Modifier
@@ -308,12 +308,11 @@ fun SecondaryPlayerControls(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                com.sonza.app.ai.orbit.OrbitAvatar(
-                    state = if (isPlaying) com.sonza.app.ai.orbit.OrbitState.MUSIC_REACTIVE else com.sonza.app.ai.orbit.OrbitState.IDLE,
-                    size = com.sonza.app.ai.orbit.OrbitAvatarSize.Mini,
-                    isPlaying = isPlaying,
-                    accentColor = dominantColors.accent,
-                    onClick = onOrbitClick
+                Icon(
+                    imageVector = Icons.Default.Mic,
+                    contentDescription = "Voice Assistant",
+                    tint = dominantColors.accent,
+                    modifier = Modifier.size(iconSize)
                 )
             }
         }

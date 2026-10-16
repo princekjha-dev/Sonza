@@ -510,8 +510,18 @@ fun NavGraph(
         
         composable<Destination.Recents> {
             RecentsScreen(
+                currentSong = playbackInfo.currentSong,
+                isPlaying = playbackInfo.isPlaying,
                 onSongClick = { songs, index -> onPlaySong(songs, index) },
-                onBack = { navController.popBackStack() }
+                onPlayPause = onPlayPause,
+                onBack = {
+                    if (!navController.popBackStack()) {
+                        navController.navigate(Destination.Home) {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    }
+                }
             )
         }
         

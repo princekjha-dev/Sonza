@@ -145,6 +145,16 @@ private val hiltBridgedModule: Module = module {
             downloadRepository = get(),
             lyricsRepository = get(),
             sleepTimerManager = get(),
+            listeningHistoryRepository = get(),
+            context = androidContext()
+        )
+    }
+    single {
+        com.sonza.app.ai.orbit.OrbitManager(
+            voiceManager = get(),
+            voiceSynthesizer = get(),
+            executor = get(),
+            musicPlayer = get(),
             context = androidContext()
         )
     }

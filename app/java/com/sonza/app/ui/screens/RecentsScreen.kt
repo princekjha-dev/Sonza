@@ -93,6 +93,7 @@ import com.sonza.app.core.model.Song
 import com.sonza.app.ui.components.AddToPlaylistSheet
 import com.sonza.app.ui.components.CreatePlaylistDialog
 import com.sonza.app.ui.components.LocalSonzaDynamicColors
+import com.sonza.app.ui.components.NowPlayingAnimation
 import com.sonza.app.ui.components.SongMenuBottomSheet
 import com.sonza.app.ui.screens.viewmodel.RecentsViewModel
 import com.sonza.app.ui.theme.RadiusTokens
@@ -130,6 +131,9 @@ import java.util.Locale
 fun RecentsScreen(
     onSongClick: (List<Song>, Int) -> Unit,
     onBack: () -> Unit,
+    currentSong: Song? = null,
+    isPlaying: Boolean = false,
+    onPlayPause: () -> Unit = {},
     viewModel: RecentsViewModel = koinViewModel(),
     playerViewModel: PlayerViewModel = koinViewModel(),
     playlistViewModel: PlaylistManagementViewModel = koinViewModel()
@@ -142,7 +146,11 @@ fun RecentsScreen(
     val haptic = LocalHapticFeedback.current
 
     val dynamicColors = LocalSonzaDynamicColors.current
-    val accentColor = dynamicColors.accent.takeIf { it != Color.Unspecified } ?: SonzaBrandAccent
+    val accentColor by animateColorAsState(
+        targetValue = dynamicColors.accent.takeIf { it != Color.Unspecified } ?: SonzaBrandAccent,
+        animationSpec = tween(400, easing = FastOutSlowInEasing),
+        label = "recentsAccent"
+    )
     val destructiveRed = Color(0xFFFF3B30)
 
     var searchQuery by remember { mutableStateOf("") }
@@ -155,6 +163,11 @@ fun RecentsScreen(
     var selectedSong: Song? by remember { mutableStateOf(null) }
 
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val bottomScrollPadding = if (currentSong != null) {
+        navBarPadding + 80.dp // Accommodate floating mini-player gracefully without excess void
+    } else {
+        navBarPadding + 20.dp
+    }
 
     // Back handling: when in edit/selection mode, exit edit mode and clear selection instead of leaving screen
     BackHandler(enabled = isEditMode) {
@@ -162,12 +175,14 @@ fun RecentsScreen(
     }
 
     val filteredHistory = remember(recentlyPlayed, searchQuery) {
-        if (searchQuery.trim().isEmpty()) recentlyPlayed
-        else {
-            val query = searchQuery.trim()
-            recentlyPlayed.filter {
-                it.song.title.contains(query, ignoreCase = true) ||
-                    it.song.artist.contains(query, ignoreCase = true)
+        val q = searchQuery.trim().lowercase()
+        if (q.isEmpty()) {
+            recentlyPlayed
+        } else {
+            recentlyPlayed.filter { item ->
+                item.song.title.lowercase().contains(q) ||
+                    item.song.artist.lowercase().contains(q) ||
+                    item.song.album.lowercase().contains(q)
             }
         }
     }
@@ -475,7 +490,7 @@ fun RecentsScreen(
                     accentColor = accentColor,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(bottom = 80.dp)
+                        .padding(bottom = bottomScrollPadding)
                 )
             } else if (filteredHistory.isEmpty()) {
                 // Empty Search Result State
@@ -485,7 +500,7 @@ fun RecentsScreen(
                     accentColor = accentColor,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(bottom = 80.dp)
+                        .padding(bottom = bottomScrollPadding)
                 )
             } else {
                 // Chronologically Grouped History List
@@ -495,7 +510,7 @@ fun RecentsScreen(
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 160.dp)
+                    contentPadding = PaddingValues(bottom = bottomScrollPadding)
                 ) {
                     groupedByDate.forEach { (dateGroup, items) ->
                         stickyHeader(key = dateGroup) {
@@ -525,6 +540,7 @@ fun RecentsScreen(
                             key = { "${it.song.id}_${it.playedAt}" }
                         ) { recent ->
                             val isSelected = selectedSongIds.contains(recent.song.id)
+                            val isCurrentTrack = currentSong?.id == recent.song.id
                             val allSongsInHistory = filteredHistory.map { it.song }
                             val indexInAll = allSongsInHistory.indexOf(recent.song)
 
@@ -532,9 +548,14 @@ fun RecentsScreen(
                                 recent = recent,
                                 isSelected = isSelected,
                                 isSelectionMode = isEditMode,
+                                isCurrentTrack = isCurrentTrack,
+                                isPlaying = isPlaying,
+                                accentColor = accentColor,
                                 onClick = {
                                     if (isEditMode) {
                                         viewModel.toggleSelection(recent.song.id)
+                                    } else if (isCurrentTrack) {
+                                        onPlayPause()
                                     } else {
                                         onSongClick(allSongsInHistory, indexInAll)
                                     }
@@ -714,6 +735,9 @@ private fun HistorySongItem(
     recent: RecentlyPlayed,
     isSelected: Boolean,
     isSelectionMode: Boolean,
+    isCurrentTrack: Boolean,
+    isPlaying: Boolean,
+    accentColor: Color,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onMoreClick: () -> Unit
@@ -732,7 +756,11 @@ private fun HistorySongItem(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                if (isSelected) SonzaSurfaceVariant.copy(alpha = 0.5f) else Color.Transparent
+                when {
+                    isSelected -> SonzaSurfaceVariant.copy(alpha = 0.5f)
+                    isCurrentTrack -> accentColor.copy(alpha = 0.08f)
+                    else -> Color.Transparent
+                }
             )
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = SpacingTokens.SpaceLg, vertical = 8.dp),
@@ -813,6 +841,30 @@ private fun HistorySongItem(
                     }
                 }
             }
+
+            // Animated playing badge when this song is currently active
+            if (isCurrentTrack && !isSelectionMode) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(SquircleShape),
+                    color = Color.Black.copy(alpha = 0.55f)
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        NowPlayingAnimation(
+                            color = accentColor,
+                            isPlaying = isPlaying,
+                            barCount = 3,
+                            barWidth = 3.5.dp,
+                            maxBarHeight = 18.dp,
+                            minBarHeight = 4.dp
+                        )
+                    }
+                }
+            }
         }
 
         // Title, Artist, and Time metadata column
@@ -823,12 +875,12 @@ private fun HistorySongItem(
             Text(
                 text = displayTitle,
                 style = SonzaTypography.SongTitle.copy(
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = if (isCurrentTrack) FontWeight.Bold else FontWeight.SemiBold,
                     fontSize = 15.sp
                 ),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = SonzaOnBackground
+                color = if (isCurrentTrack) accentColor else SonzaOnBackground
             )
 
             Text(

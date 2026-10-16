@@ -1633,21 +1633,21 @@ fun SonzaApp(
             )
         }
 
-        // Orbit Floating Assistant Overlay
-        com.sonza.app.ai.orbit.OrbitFloatingAssistant(
-            isVisible = isOrbitVisible,
+        // Orbit Ambient Assistant Overlay (Single Persistent Character)
+        com.sonza.app.ai.orbit.OrbitOverlay(
             state = orbitState,
             isPlaying = playbackInfo.isPlaying,
             audioLevel = orbitAudioLevel,
             musicAudioData = orbitMusicAudioData,
+            accentColor = currentDominantColors.accent,
+            onOrbitClick = { orbitViewModel.onOrbitTapped() },
+            hasSong = hasSong,
+            isPlayerExpanded = isPlayerExpanded,
             message = orbitAssistantMessage,
             actionIndicator = orbitActionIndicator,
-            onAvatarClick = { orbitViewModel.onOrbitTapped() },
-            onDismiss = { orbitViewModel.dismissAssistant() },
-            onSubmitText = { orbitViewModel.processUtterance(it) },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .zIndex(150f)
+            isVisualUiVisible = isOrbitVisible,
+            onDismissVisual = { orbitViewModel.hideVisualUi() },
+            modifier = Modifier.zIndex(120f)
         )
 
         // Global Snackbar Host - Always on top

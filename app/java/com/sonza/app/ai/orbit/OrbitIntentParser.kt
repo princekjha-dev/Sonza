@@ -3,26 +3,24 @@ package com.sonza.app.ai.orbit
 import com.sonza.app.core.model.RepeatMode
 import com.sonza.app.core.model.Song
 import java.util.Locale
-import java.util.regex.Pattern
 
 /**
- * Robust Natural Language Intent Parser and Entity Extractor for Orbit.
- * Handles conversational turns, dialogue context, entity disambiguation, pronouns ("this", "it"),
- * and natural music commands.
+ * Natural Language Intent Parser and Entity Extractor for Sonza Orbit.
+ * Comprehensively parses all 93 intents + extra conversational intelligence,
+ * resolves pronouns ("this", "it", "him", "her"), handles multi-turn follow-ups,
+ * corrections, and disambiguation choices.
  */
 object OrbitIntentParser {
 
-    /**
-     * Parses a user utterance into an [OrbitIntent] considering dialogue context and current playback.
-     */
     fun parse(
         rawInput: String,
         currentSong: Song? = null,
-        dialogueContext: OrbitDialogueContext = OrbitDialogueContext.Idle
+        dialogueContext: OrbitDialogueContext = OrbitDialogueContext.Idle,
+        contextMemory: OrbitContextMemory? = null
     ): OrbitIntent {
         val trimmed = cleanInput(rawInput)
 
-        // 1. Check for standalone wake word
+        // 1. Standalone Wake Word
         if (isWakeWordOnly(rawInput)) {
             return OrbitIntent.WakeWordOnlyIntent
         }
@@ -31,12 +29,17 @@ object OrbitIntentParser {
             return OrbitIntent.HelpIntent
         }
 
-        // 2. Cancellation and dismissals
+        // 2. Cancellation and dismissals (note: "stop" without arguments is handled as playback stop)
         if (isCancellation(trimmed)) {
             return OrbitIntent.CancelIntent
         }
 
-        // 3. Dialogue Context Handling
+        // 3. Conversational Corrections: "No", "Not that one", "I meant the other song", etc.
+        if (isCorrection(trimmed)) {
+            return OrbitIntent.CorrectionIntent(trimmed)
+        }
+
+        // 4. Dialogue Context Handling
         when (dialogueContext) {
             is OrbitDialogueContext.AwaitingConfirmation -> {
                 if (trimmed in listOf("yes", "yeah", "yep", "sure", "confirm", "delete it", "do it", "go ahead")) {
@@ -47,59 +50,52 @@ object OrbitIntentParser {
                 }
             }
             is OrbitDialogueContext.AwaitingDisambiguation -> {
-                val artist = dialogueContext.artist
-                // Check if user selected a mood (e.g. "romantic", "sad", "chill")
-                val moodKeywords = listOf("romantic", "sad", "relaxing", "chill", "energetic", "workout", "happy", "party")
-                for (mood in moodKeywords) {
-                    if (trimmed.contains(mood)) {
-                        return if (artist != null) {
-                            OrbitIntent.PlayArtistIntent(artistName = artist, moodOrGenre = mood)
-                        } else {
-                            OrbitIntent.PlayGenreOrMoodIntent(mood)
-                        }
-                    }
-                }
-                // Check ordinal choices: "first", "second", "third", or specific song name
                 return OrbitIntent.DisambiguationChoiceIntent(choice = trimmed)
             }
             else -> Unit
         }
 
-        // 4. Check for compound commands (e.g., "pause music and set sleep timer 30 minutes")
+        // 5. Compound commands (e.g. "pause music and set sleep timer 30 minutes")
         val subCommands = splitCompoundCommand(trimmed)
         if (subCommands.size > 1) {
-            val parsedList = subCommands.map { parseSingleIntent(it, currentSong) }
+            val parsedList = subCommands.map { parseSingleIntent(it, currentSong, contextMemory) }
             val validIntents = parsedList.filter { it !is OrbitIntent.UnknownIntent }
             if (validIntents.isNotEmpty()) {
                 return if (validIntents.size == 1) validIntents.first() else OrbitIntent.CompoundIntent(validIntents)
             }
         }
 
-        return parseSingleIntent(trimmed, currentSong)
+        return parseSingleIntent(trimmed, currentSong, contextMemory)
     }
 
     private fun isWakeWordOnly(input: String): Boolean {
         val s = input.trim().lowercase(Locale.ROOT)
-        return s in listOf("hey orbit", "ok orbit", "okay orbit", "orbit", "hello orbit", "hi orbit")
+        return s in listOf("hey orbit", "ok orbit", "okay orbit", "orbit", "hello orbit", "hi orbit", "hey", "aether")
     }
 
     private fun isCancellation(input: String): Boolean {
         return input in listOf(
-            "cancel", "stop", "never mind", "nevermind", "close", "dismiss",
-            "goodbye", "bye", "that's all", "thats all", "exit", "shut down"
+            "cancel", "never mind", "nevermind", "forget it", "close", "dismiss",
+            "goodbye", "bye", "that's all", "thats all", "exit", "shut down", "cancel that"
         )
+    }
+
+    private fun isCorrection(input: String): Boolean {
+        val s = input.lowercase(Locale.ROOT)
+        return s == "no" || s == "nope" || s.startsWith("no ") || s.startsWith("actually ") ||
+                s.contains("not that one") || s.contains("not this one") || s.contains("wrong song") ||
+                s.contains("meant the other") || s.contains("meant another") ||
+                s.contains("thats not what i meant") || s.contains("that's not what i meant")
     }
 
     private fun cleanInput(input: String): String {
         var s = input.trim().lowercase(Locale.ROOT)
-        // Strip wake words
         s = s.removePrefix("hey orbit").removePrefix("ok orbit").removePrefix("okay orbit")
             .removePrefix("hello orbit").removePrefix("hi orbit").removePrefix("orbit").trim()
-        // Strip common courtesies
         s = s.removePrefix("please").removePrefix("can you").removePrefix("could you")
             .removePrefix("would you").removePrefix("tell me").removePrefix("i want to").trim()
-        // Strip punctuation marks for seamless voice command matching
-        s = s.replace(Regex("[?,!.]"), "").trim()
+        // Strip punctuation and apostrophes for uniform matching (e.g. "what's" -> "whats")
+        s = s.replace(Regex("[?,!.'\"]"), "").trim()
         return s
     }
 
@@ -108,317 +104,353 @@ object OrbitIntentParser {
         return parts.map { it.trim() }.filter { it.length > 2 }
     }
 
-    private fun parseSingleIntent(q: String, currentSong: Song?): OrbitIntent {
+    private fun parseSingleIntent(q: String, currentSong: Song?, contextMemory: OrbitContextMemory?): OrbitIntent {
         // --- 1. Playback Controls ---
-        if (q in listOf("pause", "pause music", "pause playback", "hold on", "wait", "freeze")) {
+        if (q in listOf("pause", "pause music", "pause playback", "hold on", "wait", "freeze", "stop the music", "hold it")) {
             return OrbitIntent.PauseIntent
         }
-        if (q in listOf("resume", "play", "continue", "resume music", "keep playing", "unpause")) {
+        if (q in listOf("resume", "play", "continue", "resume music", "keep playing", "unpause", "start playing")) {
             return OrbitIntent.ResumeIntent
         }
         if (q in listOf("stop", "stop music", "turn off music", "stop playback")) {
             return OrbitIntent.StopIntent
         }
-        if (q in listOf("next", "next song", "next track", "skip", "skip song", "play next")) {
+        if (q in listOf("next", "skip", "skip it", "skip this", "skip song", "next song", "play another", "move on", "change the song")) {
             return OrbitIntent.NextTrackIntent
         }
-        if (q in listOf("previous", "previous song", "previous track", "back", "go back", "last song", "play previous song", "play the previous song")) {
+        if (q in listOf("previous", "go back", "last song", "backtrack", "previous song")) {
             return OrbitIntent.PreviousTrackIntent
         }
-        if (q in listOf("replay", "replay song", "replay this", "restart", "restart song", "start over", "play again")) {
+        if (q in listOf("replay", "restart", "start over", "play from beginning", "from start")) {
             return OrbitIntent.ReplayIntent
         }
 
-        // --- 2. Seek / Skip Forward / Backward ---
-        val seekForwardMatch = Pattern.compile("(?:skip|forward|jump|fast forward)\\s*(\\d+)?\\s*(?:s|sec|seconds?)?").matcher(q)
-        if (seekForwardMatch.find() && (q.contains("skip") || q.contains("forward"))) {
-            val seconds = seekForwardMatch.group(1)?.toIntOrNull() ?: 15
-            return OrbitIntent.SeekIntent(seconds, isForward = true)
+        // Seeking
+        val seekFwdMatch = Regex("(?:fast forward|jump forward|skip forward|seek forward)\\s*(\\d+)?\\s*(?:seconds|s)?").find(q)
+        if (seekFwdMatch != null) {
+            val secs = seekFwdMatch.groupValues.getOrNull(1)?.toIntOrNull() ?: 15
+            return OrbitIntent.SeekIntent(seconds = secs, isForward = true)
         }
-        val seekBackwardMatch = Pattern.compile("(?:rewind|go back|back|skip back)\\s*(\\d+)?\\s*(?:s|sec|seconds?)?").matcher(q)
-        if (seekBackwardMatch.find() && (q.contains("rewind") || q.contains("back"))) {
-            val seconds = seekBackwardMatch.group(1)?.toIntOrNull() ?: 15
-            return OrbitIntent.SeekIntent(seconds, isForward = false)
+        val seekBackMatch = Regex("(?:rewind|jump back|skip back|seek back)\\s*(\\d+)?\\s*(?:seconds|s)?").find(q)
+        if (seekBackMatch != null) {
+            val secs = seekBackMatch.groupValues.getOrNull(1)?.toIntOrNull() ?: 15
+            return OrbitIntent.SeekIntent(seconds = secs, isForward = false)
+        }
+
+        // Speed
+        if (q.contains("speed") || q.contains("play faster") || q.contains("slow down")) {
+            val speed = when {
+                q.contains("15") || q.contains("faster") -> 1.5f
+                q.contains("125") -> 1.25f
+                q.contains("2") -> 2.0f
+                q.contains("075") || q.contains("slower") -> 0.75f
+                else -> 1.0f
+            }
+            return OrbitIntent.SetSpeedIntent(speed)
+        }
+
+        // --- 2. Volume & Audio Quality ---
+        if (q in listOf("make it louder", "turn it up", "volume up", "little louder", "louder", "increase volume")) {
+            return OrbitIntent.VolumeIntent(VolumeAction.UP)
+        }
+        if (q in listOf("make it softer", "turn it down", "volume down", "little softer", "quieter", "lower volume", "decrease volume")) {
+            return OrbitIntent.VolumeIntent(VolumeAction.DOWN)
+        }
+        val volSetMatch = Regex("(?:set volume to|volume)\\s*(\\d+)\\s*%?").find(q)
+        if (volSetMatch != null) {
+            val lvl = volSetMatch.groupValues[1].toIntOrNull()
+            if (lvl != null) {
+                return OrbitIntent.VolumeIntent(VolumeAction.SET_LEVEL, levelPercent = lvl)
+            }
+        }
+        if (q in listOf("mute", "silence", "mute volume", "turn off sound")) {
+            return OrbitIntent.MuteIntent(true)
+        }
+        if (q in listOf("unmute", "sound on", "turn on sound")) {
+            return OrbitIntent.MuteIntent(false)
         }
 
         // --- 3. Shuffle & Repeat ---
-        if (q in listOf("shuffle on", "turn on shuffle", "enable shuffle", "shuffle this", "shuffle songs", "turn shuffle on")) {
+        if (q in listOf("shuffle", "shuffle on", "shuffle playlist", "turn on shuffle", "randomize")) {
             return OrbitIntent.ShuffleIntent(enable = true)
         }
-        if (q in listOf("shuffle off", "turn off shuffle", "disable shuffle", "no shuffle", "turn shuffle off")) {
+        if (q in listOf("shuffle off", "turn off shuffle", "stop shuffle")) {
             return OrbitIntent.ShuffleIntent(enable = false)
         }
-        if (q in listOf("repeat on", "turn on repeat", "repeat playlist", "repeat all", "turn repeat on")) {
-            return OrbitIntent.RepeatIntent(RepeatMode.ALL)
-        }
-        if (q in listOf("repeat this song", "repeat current song", "repeat one", "loop this", "loop song", "repeat this")) {
+        if (q in listOf("repeat this song", "loop this song", "repeat one", "loop once")) {
             return OrbitIntent.RepeatIntent(RepeatMode.ONE)
         }
-        if (q in listOf("repeat off", "turn off repeat", "disable repeat", "no repeat", "turn repeat off")) {
+        if (q in listOf("repeat", "repeat on", "repeat all", "loop", "loop playlist")) {
+            return OrbitIntent.RepeatIntent(RepeatMode.ALL)
+        }
+        if (q in listOf("repeat off", "turn off repeat", "stop repeat", "stop looping")) {
             return OrbitIntent.RepeatIntent(RepeatMode.OFF)
         }
 
-        // --- 4. Volume & Mute ---
-        if (q in listOf("mute", "mute music", "silence music")) {
-            return OrbitIntent.MuteIntent(mute = true)
+        // --- 4. Questions & Song Metadata (Section 17) ---
+        if (q in listOf("who is singing", "who is singing this", "who sings this", "who sang this", "what artist am i listening to", "singer of this song", "who is the singer")) {
+            return OrbitIntent.SongInfoIntent(SongInfoType.SINGER)
         }
-        if (q in listOf("unmute", "unmute music")) {
-            return OrbitIntent.MuteIntent(mute = false)
+        if (q in listOf("who composed this", "who is the composer", "who is the music director", "composer of this song")) {
+            return OrbitIntent.SongInfoIntent(SongInfoType.COMPOSER)
         }
-        if (q.contains("volume up") || q.contains("louder") || q.contains("turn it up") || q.contains("increase volume")) {
-            return OrbitIntent.VolumeIntent(VolumeAction.UP)
+        if (q in listOf("who wrote this", "who is the writer", "who is the lyricist", "who wrote the lyrics", "lyricist of this song")) {
+            return OrbitIntent.SongInfoIntent(SongInfoType.WRITER)
         }
-        if (q.contains("volume down") || q.contains("quieter") || q.contains("turn it down") || q.contains("decrease volume") || q.contains("lower volume")) {
-            return OrbitIntent.VolumeIntent(VolumeAction.DOWN)
+        if (q in listOf("when was this released", "what year was this", "what year was this released", "release date", "when did this come out")) {
+            return OrbitIntent.SongInfoIntent(SongInfoType.RELEASE_DATE)
         }
-        val volumeLevelMatch = Pattern.compile("volume\\s*(?:to|at)?\\s*(\\d+)\\s*%?").matcher(q)
-        if (volumeLevelMatch.find()) {
-            val percent = volumeLevelMatch.group(1)?.toIntOrNull()
-            if (percent != null) return OrbitIntent.VolumeIntent(VolumeAction.SET_LEVEL, percent.coerceIn(0, 100))
-        }
-
-        // --- 5. Favorites & Liked Songs ---
-        if (q in listOf("play my liked songs", "play liked songs", "play favorites", "play my favorites", "play liked music")) {
-            return OrbitIntent.PlayFavoritesIntent
-        }
-        if (q.contains("add to favorites") || q.contains("add this song to my favorites") || q.contains("add this to my favorites") ||
-            q.contains("like this song") || q.contains("favorite this") || q.contains("like it") || q.contains("i love this")
-        ) {
-            return OrbitIntent.FavoriteIntent(isFavorite = true)
-        }
-        if (q.contains("remove from favorites") || q.contains("remove this song from my favorites") ||
-            q.contains("unlike this") || q.contains("unfavorite") || q.contains("dislike this")
-        ) {
-            return OrbitIntent.FavoriteIntent(isFavorite = false)
-        }
-
-        // --- 6. Sleep Timer ---
-        if (q.contains("cancel sleep timer") || q.contains("turn off sleep timer") || q.contains("stop sleep timer")) {
-            return OrbitIntent.SleepTimerIntent(minutes = null, cancel = true)
-        }
-        val sleepTimerMatch = Pattern.compile("(?:sleep timer|turn off music|stop music)(?:\\s*(?:in|for))?\\s*(\\d+)\\s*(minutes?|mins?|hours?|hrs?)").matcher(q)
-        if (sleepTimerMatch.find()) {
-            val amount = sleepTimerMatch.group(1)?.toIntOrNull() ?: 30
-            val unit = sleepTimerMatch.group(2) ?: "minutes"
-            val totalMinutes = if (unit.startsWith("hour") || unit.startsWith("hr")) amount * 60 else amount
-            return OrbitIntent.SleepTimerIntent(minutes = totalMinutes, cancel = false)
-        }
-
-        // --- 7. Lyrics ---
-        if (q.contains("show lyrics") || q.contains("open lyrics") || q.contains("lyrics for this song") || q.contains("what are the lyrics") || q == "lyrics") {
-            return OrbitIntent.LyricsIntent(show = true)
-        }
-        if (q.contains("hide lyrics") || q.contains("close lyrics")) {
-            return OrbitIntent.LyricsIntent(show = false)
-        }
-
-        // --- 8. Song Information (Contextual) ---
-        if (q.contains("who sings this song") || q.contains("who sings this") || q.contains("who is the artist") || q.contains("who is singing")) {
-            return OrbitIntent.SongInfoIntent(SongInfoType.ARTIST)
-        }
-        if (q.contains("what song is this") || q.contains("what's playing") || q.contains("what is playing") || q.contains("song name") || q.contains("what's currently playing")) {
-            return OrbitIntent.SongInfoIntent(SongInfoType.TITLE)
-        }
-        if (q.contains("what album is this from") || q.contains("what album") || q.contains("which album")) {
+        if (q in listOf("which album is this from", "what album is this", "album of this song", "which movie is this from")) {
             return OrbitIntent.SongInfoIntent(SongInfoType.ALBUM)
         }
-        if (q.contains("when was this released") || q.contains("what year") || q.contains("release date")) {
-            return OrbitIntent.SongInfoIntent(SongInfoType.YEAR)
+        if (q in listOf("whats playing", "what is playing", "what song is this", "what song is playing", "what am i listening to", "tell me about this song", "song info", "details of this song")) {
+            return OrbitIntent.SongInfoIntent(SongInfoType.DETAILS)
         }
-        if (q.contains("how long is this") || q.contains("duration")) {
-            return OrbitIntent.SongInfoIntent(SongInfoType.DURATION)
-        }
-
-        // --- 9. Queue Management ---
-        if (q.contains("what's playing next") || q.contains("what is playing next") || q.contains("what's the next song") || q.contains("what is next in queue")) {
+        if (q in listOf("whats next", "what is next", "what song is next", "whats the next song", "what is the next song", "whats coming next", "what is coming next", "next song info")) {
             return OrbitIntent.QueueNextInfoIntent
         }
-        val removeQueueMatch = Pattern.compile("(?:remove|delete)\\s+(?:the\\s+)?(\\d+|first|second|third|fourth|fifth)\\s+(?:song|track)?\\s*(?:from\\s+(?:the\\s+)?queue)?").matcher(q)
-        if (removeQueueMatch.find()) {
-            val numStr = removeQueueMatch.group(1) ?: "1"
-            val idx = when (numStr) {
-                "first", "1st" -> 1
-                "second", "2nd" -> 2
-                "third", "3rd" -> 3
-                "fourth", "4th" -> 4
-                "fifth", "5th" -> 5
-                else -> numStr.toIntOrNull() ?: 1
-            }
-            return OrbitIntent.QueueRemoveIndexIntent(idx)
-        }
-        if (q.contains("play this next") || q.contains("play next")) {
-            return OrbitIntent.QueueAddIntent(trackName = currentSong?.title, playNext = true)
-        }
-        if (q.contains("add this to the queue") || q.contains("add to queue") || q.contains("add these songs to my queue") || q.contains("add to the queue") || q.contains("queue this")) {
-            return OrbitIntent.QueueAddIntent(trackName = currentSong?.title, playNext = false)
-        }
-        if (q.contains("show queue") || q.contains("show my queue") || q.contains("open queue")) {
-            return OrbitIntent.QueueShowIntent
-        }
-        if (q.contains("clear queue") || q.contains("clear my queue") || q.contains("empty queue")) {
-            return OrbitIntent.QueueClearIntent
+        if (q in listOf("is there an acoustic version", "show versions", "other versions", "what versions exist")) {
+            return OrbitIntent.SongInfoIntent(SongInfoType.VERSIONS)
         }
 
-        // --- 10. Downloads ---
-        if (q.contains("download this song") || q.contains("download this") || q.contains("download song")) {
-            return OrbitIntent.DownloadIntent(DownloadAction.CURRENT_SONG)
+        // --- 5. Favorites & Library ---
+        if (q in listOf("like this song", "add to favorites", "add it to my favorites", "add to liked songs", "like this", "i love this song", "i like this")) {
+            return OrbitIntent.FavoriteIntent(isFavorite = true)
         }
-        if (q.contains("download album") || q.contains("download this album")) {
-            return OrbitIntent.DownloadIntent(DownloadAction.CURRENT_ALBUM)
+        if (q in listOf("dislike", "dislike this song", "i hate this", "dont like this", "never play this again", "remove this from my recommendations", "dont recommend this")) {
+            return OrbitIntent.DislikeSongIntent
         }
-        if (q.contains("show downloads") || q.contains("my downloads") || q.contains("open downloads")) {
-            return OrbitIntent.DownloadIntent(DownloadAction.SHOW_DOWNLOADS)
+        if (q in listOf("save to library", "save this song", "add to library")) {
+            return OrbitIntent.SaveToLibraryIntent
         }
-
-        // --- 11. Soundtracks / Movies ---
-        val movieMatch = Pattern.compile("play\\s+(?:songs\\s+from|soundtrack\\s+from|music\\s+from)\\s+(.+)").matcher(q)
-        if (movieMatch.find()) {
-            val movie = movieMatch.group(1)?.trim().orEmpty()
-            return OrbitIntent.PlaySoundtrackIntent(movie)
+        if (q in listOf("play my favorites", "play favorites", "play liked songs", "play my liked songs")) {
+            return OrbitIntent.PlayFavoritesIntent
         }
 
-        // --- 12. Languages ---
-        val languages = listOf("punjabi", "tamil", "telugu", "hindi", "english", "bollywood", "korean", "spanish")
-        for (lang in languages) {
-            if (q.contains("$lang songs") || q.contains("$lang music") || q == "play $lang") {
-                return OrbitIntent.PlayLanguageIntent(lang.capitalize(Locale.ROOT))
-            }
+        // Playlists
+        val createPlaylistMatch = Regex("(?:create playlist|make a playlist called|new playlist)\\s*(.+)").find(q)
+        if (createPlaylistMatch != null) {
+            val name = createPlaylistMatch.groupValues[1].trim()
+            return OrbitIntent.CreatePlaylistIntent(name = name)
         }
-
-        // --- 13. Moods & Discovery ---
-        val modifyPattern = Pattern.compile("(?:make it|something)?\\s*more\\s+([a-zA-Z\\-]+)").matcher(q)
-        if (modifyPattern.find() || q.contains("old-school") || q.contains("more classic") || q.contains("more upbeat")) {
-            val mod = if (q.contains("old-school")) "old-school" else modifyPattern.group(1) ?: "classic"
-            return OrbitIntent.ModifyCurrentMixIntent(mod)
+        val addToPlaylistMatch = Regex("(?:add to playlist|put in playlist|add to my playlist)\\s*(.+)").find(q)
+        if (addToPlaylistMatch != null) {
+            val pName = addToPlaylistMatch.groupValues[1].trim()
+            return OrbitIntent.AddToPlaylistIntent(playlistName = pName)
         }
-
-        if (q in listOf("play something", "play some music", "play music", "play anything", "surprise me", "play random music")) {
-            return OrbitIntent.SurpriseMeIntent
-        }
-        if (q.contains("play something similar") || q.contains("play more like this") || q.contains("similar songs") || q.contains("songs like this")) {
-            return OrbitIntent.SimilarMusicIntent
-        }
-        if (q.contains("yesterday") || q.contains("history") || q.contains("recently") || q.contains("last song")) {
-            return OrbitIntent.SimilarMusicIntent
-        }
-        if (q.contains("play trending") || q.contains("trending songs") || q.contains("what is trending")) {
-            return OrbitIntent.TrendingIntent
-        }
-        if (q.contains("play new releases") || q.contains("new songs") || q.contains("latest releases")) {
-            return OrbitIntent.NewReleasesIntent
-        }
-        if (q.contains("surprise me")) {
-            return OrbitIntent.SurpriseMeIntent
-        }
-
-        val moodKeywords = listOf(
-            "romantic", "sad", "relaxing", "workout", "gym", "energetic",
-            "chill", "study", "studying", "focus", "party", "sleep", "sleeping", "happy", "driving", "road trip", "old bollywood"
-        )
-        for (mood in moodKeywords) {
-            if (q.contains(mood)) {
-                val canonicalMood = when (mood) {
-                    "sleeping" -> "sleep"
-                    "studying" -> "study"
-                    else -> mood
-                }
-                return OrbitIntent.PlayGenreOrMoodIntent(canonicalMood)
-            }
-        }
-
-        // --- 14. Playlist Operations ---
-        val deletePlaylistMatch = Pattern.compile("(?:delete|remove)\\s+(?:my\\s+)?playlist\\s+(.+)").matcher(q)
-        if (deletePlaylistMatch.find()) {
-            val pName = deletePlaylistMatch.group(1)?.trim().orEmpty()
+        val deletePlaylistMatch = Regex("(?:delete playlist|remove playlist)\\s*(.+)").find(q)
+        if (deletePlaylistMatch != null) {
+            val pName = deletePlaylistMatch.groupValues[1].trim()
             return OrbitIntent.DeletePlaylistIntent(playlistName = pName)
         }
-
-        val addToPlaylistMatch = Pattern.compile("(?:add this to|add this song to|add to)\\s+(?:my\\s+)?(?:playlist\\s+)?(.+)").matcher(q)
-        if (addToPlaylistMatch.find()) {
-            val pName = addToPlaylistMatch.group(1)?.removePrefix("playlist ")?.trim().orEmpty()
-            if (pName.isNotBlank() && pName != "favorites" && pName != "queue") {
-                return OrbitIntent.AddToPlaylistIntent(playlistName = pName, trackName = currentSong?.title)
-            }
-        }
-
-        val createPlaylistMatch = Pattern.compile("create\\s+(?:a\\s+)?(?:new\\s+)?playlist\\s+(?:called\\s+|named\\s+)?(.+)").matcher(q)
-        if (createPlaylistMatch.find()) {
-            val playlistName = createPlaylistMatch.group(1)?.trim().orEmpty()
-            return OrbitIntent.CreatePlaylistIntent(name = playlistName, addCurrentTrack = q.contains("add this"))
-        }
-
-        val playPlaylistMatch = Pattern.compile("play\\s+(?:my\\s+)?playlist\\s+(.+)").matcher(q)
-        if (playPlaylistMatch.find()) {
-            val playlistName = playPlaylistMatch.group(1)?.trim().orEmpty()
-            return OrbitIntent.PlayPlaylistIntent(playlistName)
-        }
-
-        if (q.contains("show my playlists") || q.contains("my playlists") || q.contains("open playlists")) {
+        if (q in listOf("show playlists", "my playlists", "open playlists")) {
             return OrbitIntent.ShowPlaylistsIntent
         }
 
-        // --- 15. Play Artist / Track / General Search ---
-        val giveMeArtistMatch = Pattern.compile("(?:give me some|give me|play some)\\s+(.+?)\\s+songs?").matcher(q)
-        if (giveMeArtistMatch.find()) {
-            val potentialArtist = giveMeArtistMatch.group(1)?.trim().orEmpty()
-            if (potentialArtist.isNotBlank() && !moodKeywords.contains(potentialArtist) && !languages.contains(potentialArtist)) {
-                return OrbitIntent.PlayArtistIntent(potentialArtist)
-            }
+        // --- 6. Queue ---
+        if (q.startsWith("queue next") || q.startsWith("play next") || q.contains("queue this next")) {
+            val track = q.removePrefix("queue next").removePrefix("play next").removePrefix("queue this next").trim()
+            return OrbitIntent.QueueAddIntent(trackName = track.ifBlank { null }, playNext = true)
+        }
+        if (q.startsWith("add to queue") || q.startsWith("queue")) {
+            val track = q.removePrefix("add to queue").removePrefix("queue").trim()
+            return OrbitIntent.QueueAddIntent(trackName = track.ifBlank { null }, playNext = false)
+        }
+        if (q in listOf("clear the queue", "clear queue", "empty queue")) {
+            return OrbitIntent.QueueClearIntent
+        }
+        if (q in listOf("show queue", "show the queue", "view queue", "whats in the queue", "open queue")) {
+            return OrbitIntent.QueueShowIntent
         }
 
-        val artistSongsMatch = Pattern.compile("play\\s+(.+?)\\s+songs?").matcher(q)
-        if (artistSongsMatch.find()) {
-            val potential = artistSongsMatch.group(1)?.trim().orEmpty()
-            if (potential.isNotBlank() && !moodKeywords.contains(potential) && !languages.contains(potential)) {
-                return OrbitIntent.PlayArtistIntent(potential)
-            }
+        // --- 7. Lyrics ---
+        if (q in listOf("lyrics", "show lyrics", "open lyrics", "what are the lyrics", "view lyrics")) {
+            return OrbitIntent.LyricsIntent(show = true)
+        }
+        if (q in listOf("hide lyrics", "close lyrics", "dismiss lyrics")) {
+            return OrbitIntent.LyricsIntent(show = false)
         }
 
-        // Check for "Play [Artist] [mood] songs" (e.g. "Play Arijit Singh romantic songs")
+        // --- 8. Timers ---
+        val sleepTimerMatch = Regex("(?:set a sleep timer for|sleep timer|stop music after)\\s*(\\d+)\\s*(?:minutes|mins|m)?").find(q)
+        if (sleepTimerMatch != null) {
+            val mins = sleepTimerMatch.groupValues[1].toIntOrNull() ?: 30
+            return OrbitIntent.SleepTimerIntent(minutes = mins)
+        }
+        if (q.contains("stop music after this song") || q.contains("stop after this song")) {
+            return OrbitIntent.SleepTimerIntent(minutes = null, stopAfterCurrent = true)
+        }
+        if (q in listOf("cancel sleep timer", "turn off sleep timer", "cancel timer", "stop timer")) {
+            return OrbitIntent.SleepTimerIntent(minutes = null, cancel = true)
+        }
+
+        // --- 9. Extra Intelligence & Discovery (Section 15) ---
+        if (q in listOf("play something i havent heard", "discover music", "unheard songs")) {
+            return OrbitIntent.PlayUnheardIntent
+        }
+        if (q in listOf("continue what i was listening to yesterday", "resume yesterday", "continue listening")) {
+            return OrbitIntent.ContinueListeningIntent
+        }
+        if (q in listOf("play my most played songs", "most played songs", "my top songs")) {
+            return OrbitIntent.PlayMostPlayedIntent
+        }
+        if (q in listOf("play something similar to this", "songs like this", "play songs like this", "similar to this", "more like this")) {
+            return OrbitIntent.SimilarMusicIntent
+        }
+        if (q in listOf("surprise me", "play something random", "play random songs")) {
+            return OrbitIntent.SurpriseMeIntent
+        }
+        if (q in listOf("play trending songs", "whats trending", "trending music", "top charts")) {
+            return OrbitIntent.TrendingIntent
+        }
+        if (q in listOf("new releases", "latest songs", "play new music", "new music")) {
+            return OrbitIntent.NewReleasesIntent
+        }
+        if (q.contains("turn on offline mode") || q.contains("play only downloaded music") || q.contains("offline mode")) {
+            return OrbitIntent.OfflineModeIntent(enabled = true)
+        }
+        if (q in listOf("storage info", "how much music is downloaded", "download storage")) {
+            return OrbitIntent.StorageInfoIntent
+        }
+        if (q in listOf("show my listening stats", "show listening stats", "what have i listened to today", "listening stats")) {
+            return OrbitIntent.ListeningStatsIntent
+        }
+
+        // Activities & Moods
+        if (q.contains("study playlist") || q.contains("study music") || q == "study") {
+            return OrbitIntent.PlayActivityIntent("study")
+        }
+        if (q.contains("workout playlist") || q.contains("workout music") || q == "workout") {
+            return OrbitIntent.PlayActivityIntent("workout")
+        }
+        if (q.contains("road trip") || q.contains("driving music")) {
+            return OrbitIntent.PlayActivityIntent("road trip")
+        }
+        val moodKeywords = listOf("romantic", "sad", "chill", "relaxing", "energetic", "party", "happy", "calm", "lofi")
         for (mood in moodKeywords) {
-            val artistMoodPattern = Pattern.compile("(?:play|give me)\\s+(.+?)\\s+$mood\\s+(?:songs?|music)").matcher(q)
-            if (artistMoodPattern.find()) {
-                val artist = artistMoodPattern.group(1)?.trim().orEmpty()
-                if (artist.isNotBlank()) {
-                    return OrbitIntent.PlayArtistIntent(artistName = artist, moodOrGenre = mood)
+            if (q.contains(mood)) {
+                val artist = contextMemory?.currentArtist ?: currentSong?.artist
+                return if (artist != null && (q.contains("another") || q == mood || q == "something $mood" || q == "play something $mood")) {
+                    OrbitIntent.PlayArtistIntent(artistName = artist, moodOrGenre = mood)
+                } else {
+                    OrbitIntent.PlayGenreOrMoodIntent(mood)
                 }
             }
         }
 
-        val playArtistMatch = Pattern.compile("play\\s+(?:songs\\s+by|music\\s+by|artist)\\s+(.+)").matcher(q)
-        if (playArtistMatch.find()) {
-            val artist = playArtistMatch.group(1)?.trim().orEmpty()
-            return OrbitIntent.PlayArtistIntent(artist)
+        // Conversational Follow-up Pronouns ("another one", "play another one by him")
+        if (q in listOf("another one", "play another one", "one more", "play next one")) {
+            val artist = contextMemory?.currentArtist ?: currentSong?.artist
+            return if (artist != null) {
+                OrbitIntent.PlayArtistIntent(artistName = artist)
+            } else {
+                OrbitIntent.NextTrackIntent
+            }
         }
-
-        if (q.startsWith("play that ") || q.startsWith("play the song ") || q.startsWith("play song ")) {
-            val track = q.removePrefix("play that ")
-                .removePrefix("play the song ")
-                .removePrefix("play song ")
-                .removeSuffix(" song").trim()
-            return OrbitIntent.PlayTrackIntent(trackName = track)
-        }
-
-        if (q.startsWith("play ")) {
-            val target = q.removePrefix("play ").removeSuffix(" song").trim()
-            if (target.isNotBlank()) {
-                // If it looks like a known artist name query without song, e.g. "play Arijit Singh"
-                val artistKeywords = listOf("arijit singh", "arijit", "shreya ghoshal", "taylor swift", "the weeknd", "ed sheeran", "drake", "badshah", "sidhu moose wala", "diljit dosanjh", "pritam", "ar rahman", "anirudh")
-                if (artistKeywords.any { target.equals(it, ignoreCase = true) }) {
-                    return OrbitIntent.PlayArtistIntent(artistName = target)
-                }
-                return OrbitIntent.PlayTrackIntent(trackName = target)
+        if (q.contains("by him") || q.contains("by her") || q.contains("by them") || q.contains("by this artist")) {
+            val artist = contextMemory?.currentArtist ?: currentSong?.artist
+            if (artist != null) {
+                return OrbitIntent.PlayArtistIntent(artistName = artist)
             }
         }
 
-        // --- 16. Navigation ---
-        if (q.contains("open search") || q.contains("go to search")) return OrbitIntent.NavigationIntent("search")
-        if (q.contains("open library") || q.contains("go to library")) return OrbitIntent.NavigationIntent("library")
-        if (q.contains("open home") || q.contains("go to home")) return OrbitIntent.NavigationIntent("home")
-        if (q.contains("open settings")) return OrbitIntent.NavigationIntent("settings")
+        // Versions: "play the acoustic version", "play the remix", "play the live version"
+        val versionMatch = Regex("(?:play the|play)\\s*(acoustic|remix|live|instrumental|original|slowed|reverb)\\s*(?:version of)?\\s*(.*)").find(q)
+        if (versionMatch != null) {
+            val ver = versionMatch.groupValues[1]
+            var track = versionMatch.groupValues[2].trim()
+            if (track.isBlank() || track in listOf("version", "this", "it")) {
+                track = contextMemory?.currentSong?.title ?: currentSong?.title ?: ""
+            }
+            if (track.isNotBlank()) {
+                return OrbitIntent.PlayVersionIntent(trackName = track, version = ver)
+            }
+        }
 
-        // Fallback: If utterance is non-empty, treat as a track search request
-        if (q.isNotBlank()) {
+        // --- 10. Downloads ---
+        if (q in listOf("download this song", "download song", "download this")) {
+            return OrbitIntent.DownloadIntent(DownloadAction.CURRENT_SONG)
+        }
+        if (q in listOf("download this album", "download album")) {
+            return OrbitIntent.DownloadIntent(DownloadAction.CURRENT_ALBUM)
+        }
+        if (q in listOf("download this playlist", "download playlist")) {
+            return OrbitIntent.DownloadIntent(DownloadAction.CURRENT_PLAYLIST)
+        }
+
+        // --- 11. Navigation ---
+        val navScreen = when {
+            q.contains("library") -> "library"
+            q.contains("search") -> "search"
+            q.contains("download") -> "downloads"
+            q.contains("history") || q.contains("recents") -> "history"
+            q.contains("settings") -> "settings"
+            q.contains("profile") -> "profile"
+            q.contains("home") -> "home"
+            else -> null
+        }
+        if (navScreen != null && (q.startsWith("open") || q.startsWith("go to") || q.startsWith("show") || q.startsWith("navigate to"))) {
+            return OrbitIntent.NavigationIntent(navScreen)
+        }
+        if (q in listOf("show the player", "show player", "open player", "expand player")) {
+            return OrbitIntent.PlayerUiIntent(expand = true)
+        }
+        if (q in listOf("hide the player", "hide player", "close player", "minimize player")) {
+            return OrbitIntent.PlayerUiIntent(expand = false)
+        }
+
+        // --- 12. Help & Small Talk ---
+        if (q in listOf("help", "what can you do", "help me", "commands", "who are you")) {
+            return OrbitIntent.HelpIntent
+        }
+        if (q in listOf("how are you", "tell me a joke", "thank you", "thanks", "good morning", "good evening")) {
+            return OrbitIntent.SmallTalkIntent(q)
+        }
+
+        // --- 13. General Music Play Matching ---
+        val playArtistMatch = Regex("(?:play songs by|play songs of|play artist|songs by)\\s*(.+)").find(q)
+        if (playArtistMatch != null) {
+            val artist = playArtistMatch.groupValues[1].trim()
+            return OrbitIntent.PlayArtistIntent(artistName = artist)
+        }
+
+        val playAlbumMatch = Regex("(?:play album|album)\\s*(.+)").find(q)
+        if (playAlbumMatch != null) {
+            val album = playAlbumMatch.groupValues[1].trim()
+            return OrbitIntent.PlayAlbumIntent(albumName = album)
+        }
+
+        val playPlaylistMatch = Regex("(?:play playlist|playlist)\\s*(.+)").find(q)
+        if (playPlaylistMatch != null) {
+            val playlist = playPlaylistMatch.groupValues[1].trim()
+            return OrbitIntent.PlayPlaylistIntent(playlistName = playlist)
+        }
+
+        // Direct Play Track (e.g. "play Tumhein Mohabbat Hai", "play Kesariya by Arijit Singh")
+        if (q.startsWith("play")) {
+            val query = q.removePrefix("play").trim()
+            if (query.isNotBlank()) {
+                val byParts = query.split(Regex("\\bby\\b", RegexOption.IGNORE_CASE))
+                if (byParts.size == 2) {
+                    return OrbitIntent.PlayTrackIntent(trackName = byParts[0].trim(), artistName = byParts[1].trim())
+                }
+
+                // If query matches current artist or known artist context:
+                val knownArtist = contextMemory?.currentArtist ?: currentSong?.artist
+                if (knownArtist != null && query.equals(knownArtist, ignoreCase = true)) {
+                    return OrbitIntent.PlayArtistIntent(artistName = knownArtist)
+                }
+
+                return OrbitIntent.PlayTrackIntent(trackName = query)
+            }
+        }
+
+        val bySplit = q.split(Regex("\\bby\\b", RegexOption.IGNORE_CASE))
+        if (bySplit.size == 2) {
+            return OrbitIntent.PlayTrackIntent(trackName = bySplit[0].trim(), artistName = bySplit[1].trim())
+        }
+
+        if (q.length > 2) {
             return OrbitIntent.PlayTrackIntent(trackName = q)
         }
 

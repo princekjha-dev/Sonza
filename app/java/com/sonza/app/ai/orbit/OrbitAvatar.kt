@@ -40,6 +40,7 @@ private inline fun lerpFloat(start: Float, stop: Float, fraction: Float): Float 
 enum class OrbitAvatarSize(val orbSize: Dp, val haloPadding: Dp) {
     Mini(orbSize = 28.dp, haloPadding = 8.dp),
     Compact(orbSize = 36.dp, haloPadding = 12.dp),
+    Floating(orbSize = 54.dp, haloPadding = 16.dp),
     Medium(orbSize = 64.dp, haloPadding = 20.dp),
     Hero(orbSize = 104.dp, haloPadding = 34.dp)
 }
@@ -164,8 +165,8 @@ fun OrbitAvatar(
         OrbitState.MUSIC_PLAYING, OrbitState.HEADPHONES_ON, OrbitState.MUSIC_REACTIVE -> baseAccent
         OrbitState.MUSIC_PAUSED, OrbitState.HEADPHONES_OFF -> baseAccent.copy(alpha = 0.50f)
         OrbitState.WAKE_DETECTED, OrbitState.ACTIVATING -> Color.White.copy(alpha = 0.95f)
-        OrbitState.LISTENING -> baseAccent
-        OrbitState.PROCESSING, OrbitState.THINKING, OrbitState.WORKING -> baseAccent
+        OrbitState.LISTENING, OrbitState.TRANSCRIBING, OrbitState.WAITING_FOR_FOLLOWUP -> baseAccent
+        OrbitState.PROCESSING, OrbitState.THINKING, OrbitState.WORKING, OrbitState.EXECUTING -> baseAccent
         OrbitState.SPEAKING -> baseAccent
         OrbitState.ENDING -> baseAccent.copy(alpha = 0.35f)
         OrbitState.SUCCESS -> Color(0xFF00E676)
@@ -204,12 +205,13 @@ fun OrbitAvatar(
     )
 
     // Calculate motion offsets:
-    // When idle: orbital circular path (alive, futuristic, continuous)
+    // When idle: orbital circular path (alive, futuristic, continuous floating)
     // When music playing: audio-reactive grooving & beat bounce
+    val density = androidx.compose.ui.platform.LocalDensity.current
     val orbRadiusPx = (size.orbSize.value * 1.5f) // Reference pixel scaling
-    val circularRadius = orbRadiusPx * 0.08f // Small gentle circular radius
+    val circularRadius = with(density) { 8.dp.toPx() } // Smooth gentle circular floating excursion
     val idleX = circularRadius * cos(idleOrbitPhase)
-    val idleY = (circularRadius * 0.72f) * sin(idleOrbitPhase)
+    val idleY = (circularRadius * 0.78f) * sin(idleOrbitPhase)
 
     // Music mode audio-reactive movement (bass scale, mid grooving, beat bounce)
     val bass = effectiveMusicData.bass

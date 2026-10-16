@@ -240,6 +240,13 @@ class ListeningHistoryRepository @Inject constructor(
     }
     
     /**
+     * Get all listening history chronologically (most recent first).
+     */
+    fun getAllHistory(): Flow<List<ListeningHistory>> {
+        return listeningHistoryDao.getHistoryAfter(0L)
+    }
+    
+    /**
      * Get history for the last N days.
      */
     fun getHistoryForTimePeriod(days: Int): Flow<List<ListeningHistory>> {

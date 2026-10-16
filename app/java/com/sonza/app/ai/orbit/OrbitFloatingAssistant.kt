@@ -1,47 +1,192 @@
 package com.sonza.app.ai.orbit
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.*
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.sonza.app.ui.components.LocalSonzaDynamicColors
+import com.sonza.app.ui.theme.SonzaOnBackground
+import com.sonza.app.ui.theme.SonzaSurfaceVariant
+import com.sonza.app.ui.theme.SonzaTypography
+import kotlin.math.roundToInt
 
 /**
- * Ambient Orbit Assistant Floating Layer.
+ * Orbit Overlay — Persistent ambient assistant character layer.
  *
- * Implements the non-modal, ambient voice assistant design:
- * - NO giant modal listening card or full-screen translucent scrim.
- * - NO "LISTENING..." text labels, suggestion chips, or repeated icons.
- * - ONLY the single reactive Orbit Avatar with dynamic live artwork tinting.
- * - ONE small, clean X cross button to cancel / dismiss.
- * - Music UI remains 100% visible and usable underneath.
+ * Architecture:
+ * SonzaRoot
+ * │
+ * ├── Header (MicrophoneButton + UserAvatar)
+ * ├── HomeContent
+ * ├── MusicPlayer
+ * └── OrbitOverlay
+ *     └── OrbitAvatar (ONLY ONE in the entire application)
+ *
+ * Orbit is a persistent living character inside Sonza:
+ * - App opened / No music: IDLE mode with smooth circular floating animation.
+ * - Song playing: MUSIC mode with headphones and music-reactive grooving & equalizer waveforms.
+ * - Hey Orbit / Mic tapped: LISTENING mode with pulsing rings, breathing, and audio-reactive glow.
+ * - Song paused / Cancel: Transitions back smoothly without disappearing.
+ * - Dynamic Artwork Palette: Live theme inheritance from the currently playing album art.
+ * - X Button: Only dismisses the visual speech HUD without stopping Orbit or cancelling wake word.
+ */
+@Composable
+fun OrbitOverlay(
+    state: OrbitState,
+    isPlaying: Boolean,
+    audioLevel: Float,
+    musicAudioData: OrbitMusicAudioData?,
+    accentColor: Color,
+    onOrbitClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    hasSong: Boolean = false,
+    isPlayerExpanded: Boolean = false,
+    message: String = "",
+    actionIndicator: String? = null,
+    isVisualUiVisible: Boolean = false,
+    onDismissVisual: (() -> Unit)? = null
+) {
+    // Draggable offset so the user can freely reposition Orbit anywhere on screen if desired
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    var offsetY by remember { mutableFloatStateOf(0f) }
+
+    val targetBottomPadding = when {
+        isPlayerExpanded -> 120.dp
+        hasSong || isPlaying -> 156.dp
+        else -> 96.dp
+    }
+    val animatedBottomPadding by animateDpAsState(
+        targetValue = targetBottomPadding,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "orbitBottomPadding"
+    )
+
+    Box(
+        modifier = modifier.fillMaxSize()
+    ) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 18.dp, bottom = animatedBottomPadding)
+                .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) },
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Ambient spoken message bubble (visible during active voice session)
+            AnimatedVisibility(
+                visible = isVisualUiVisible && state.isVoiceActive && message.isNotBlank(),
+                enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
+                exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
+            ) {
+                Surface(
+                    color = Color(0xFF14171F).copy(alpha = 0.92f),
+                    shape = RoundedCornerShape(18.dp),
+                    border = BorderStroke(1.dp, accentColor.copy(alpha = 0.35f)),
+                    shadowElevation = 8.dp,
+                    modifier = Modifier
+                        .widthIn(max = 280.dp)
+                        .padding(bottom = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (!actionIndicator.isNullOrBlank()) {
+                            Text(
+                                text = actionIndicator,
+                                fontSize = 16.sp
+                            )
+                        }
+
+                        Text(
+                            text = message,
+                            style = SonzaTypography.BodySmall.copy(
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 13.sp,
+                                lineHeight = 18.sp
+                            ),
+                            color = SonzaOnBackground,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+
+                        // Requirement 21: X button only dismisses the visual HUD
+                        if (onDismissVisual != null) {
+                            IconButton(
+                                onClick = onDismissVisual,
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Hide visual HUD",
+                                    tint = Color.White.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Draggable container for OrbitAvatar
+            Box(
+                modifier = Modifier
+                    .pointerInput(Unit) {
+                        detectDragGestures { change, dragAmount ->
+                            change.consume()
+                            offsetX += dragAmount.x
+                            offsetY += dragAmount.y
+                        }
+                    }
+            ) {
+                // THE EXACTLY ONE PERSISTENT ORBIT AVATAR
+                OrbitAvatar(
+                    state = state,
+                    size = OrbitAvatarSize.Floating,
+                    isPlaying = isPlaying,
+                    audioLevel = audioLevel,
+                    musicAudioData = musicAudioData,
+                    accentColor = accentColor,
+                    onClick = onOrbitClick
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Backward-compatibility wrapper for any legacy invocations.
  */
 @Composable
 fun OrbitFloatingAssistant(
@@ -61,68 +206,17 @@ fun OrbitFloatingAssistant(
     val accentColor = dynamicColors.accent.takeIf { it != Color.Unspecified }
         ?: com.sonza.app.ui.theme.SonzaBrandAccent
 
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = fadeIn(animationSpec = tween(220)) + scaleIn(
-            initialScale = 0.82f,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMediumLow
-            )
-        ),
-        exit = fadeOut(animationSpec = tween(180)) + scaleOut(
-            targetScale = 0.82f,
-            animationSpec = tween(180)
-        ),
+    OrbitOverlay(
+        state = state,
+        isPlaying = isPlaying,
+        audioLevel = audioLevel,
+        musicAudioData = musicAudioData,
+        accentColor = accentColor,
+        onOrbitClick = onAvatarClick,
+        message = message,
+        actionIndicator = actionIndicator,
+        isVisualUiVisible = isVisible,
+        onDismissVisual = onDismiss,
         modifier = modifier
-            .fillMaxWidth()
-            .wrapContentHeight()
-            .padding(bottom = 120.dp) // Float gracefully above bottom navigation & mini-player
-    ) {
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
-            // Container holding Single Avatar + small close control
-            Box(
-                modifier = Modifier.wrapContentSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                // 1. SINGLE ORBIT AVATAR (Hero size, audio reactive, dynamic artwork color, headphones in music mode)
-                OrbitAvatar(
-                    state = state,
-                    size = OrbitAvatarSize.Hero,
-                    isPlaying = isPlaying,
-                    audioLevel = audioLevel,
-                    musicAudioData = musicAudioData,
-                    accentColor = accentColor,
-                    onClick = onAvatarClick
-                )
-
-                // 2. SINGLE DISCREET X / CANCEL BUTTON
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(x = 8.dp, y = (-6).dp)
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f))
-                        .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onDismiss
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Close,
-                        contentDescription = "Cancel Orbit",
-                        tint = Color.White.copy(alpha = 0.85f),
-                        modifier = Modifier.size(14.dp)
-                    )
-                }
-            }
-        }
-    }
+    )
 }

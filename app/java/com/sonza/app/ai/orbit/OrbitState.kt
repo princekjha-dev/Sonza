@@ -21,21 +21,25 @@ enum class OrbitState {
     WAKE_DETECTED,
     ACTIVATING,
     LISTENING,
+    TRANSCRIBING,
     PROCESSING,
     THINKING,
     WORKING,
+    EXECUTING,
     SPEAKING,
+    WAITING_FOR_FOLLOWUP,
     ENDING,
     SUCCESS,
     ERROR;
 
     val isListening: Boolean
-        get() = this == LISTENING || this == WAKE_DETECTED || this == ACTIVATING
+        get() = this == LISTENING || this == WAKE_DETECTED || this == ACTIVATING || this == TRANSCRIBING || this == WAITING_FOR_FOLLOWUP
 
     val isVoiceActive: Boolean
         get() = this == WAKE_DETECTED || this == ACTIVATING || this == LISTENING ||
-                this == PROCESSING || this == THINKING || this == WORKING ||
-                this == SPEAKING || this == ENDING || this == SUCCESS || this == ERROR
+                this == TRANSCRIBING || this == PROCESSING || this == THINKING ||
+                this == WORKING || this == EXECUTING || this == SPEAKING ||
+                this == WAITING_FOR_FOLLOWUP || this == ENDING || this == SUCCESS || this == ERROR
 
     val isMusicMode: Boolean
         get() = this == MUSIC_PLAYING || this == HEADPHONES_ON || this == MUSIC_REACTIVE
