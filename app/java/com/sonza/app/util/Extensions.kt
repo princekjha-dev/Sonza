@@ -20,3 +20,16 @@ fun String.decodeHtml(): String {
         .replace("&#039;", "'")
         .replace("&apos;", "'")
 }
+
+/**
+ * Safely unwrap Context to find an enclosing Activity, traversing any ContextWrappers.
+ * Returns null if the context is a Service, Application, or other non-Activity context.
+ */
+fun android.content.Context.findActivity(): android.app.Activity? {
+    var ctx: android.content.Context? = this
+    while (ctx is android.content.ContextWrapper) {
+        if (ctx is android.app.Activity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
+}

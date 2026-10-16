@@ -72,12 +72,16 @@ fun DynamicArtworkBackground(
     val radius = remember(blurRadius) { (blurRadius * 1.4f).coerceAtMost(80f) }
     val fallbackBlurDp = remember(blurRadius) { blurRadius * 0.9f }
     val blurEffect = remember(radius) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            android.graphics.RenderEffect.createBlurEffect(
-                radius,
-                radius,
-                android.graphics.Shader.TileMode.CLAMP
-            ).asComposeRenderEffect()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && radius > 0.1f) {
+            try {
+                android.graphics.RenderEffect.createBlurEffect(
+                    radius,
+                    radius,
+                    android.graphics.Shader.TileMode.CLAMP
+                ).asComposeRenderEffect()
+            } catch (_: Exception) {
+                null
+            }
         } else {
             null
         }

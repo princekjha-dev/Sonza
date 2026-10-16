@@ -240,7 +240,11 @@ fun OrbitAvatar(
     Box(
         modifier = modifier
             .size(totalSize)
-            .offset { IntOffset(combinedOffsetX.roundToInt(), combinedOffsetY.roundToInt()) }
+            .offset {
+                val x = if (combinedOffsetX.isNaN() || combinedOffsetX.isInfinite()) 0 else combinedOffsetX.roundToInt()
+                val y = if (combinedOffsetY.isNaN() || combinedOffsetY.isInfinite()) 0 else combinedOffsetY.roundToInt()
+                IntOffset(x, y)
+            }
             .scale(finalScale)
             .then(
                 if (onClick != null) {
@@ -627,15 +631,17 @@ fun OrbitAvatar(
 
                     // Headband inner padding cushion
                     val padRadius = headbandRadius - headbandStrokeW * 0.35f
-                    drawArc(
-                        color = Color(0xFF12141A).copy(alpha = hpAlpha * 0.90f),
-                        startAngle = 202f,
-                        sweepAngle = 136f,
-                        useCenter = false,
-                        topLeft = Offset(center.x - padRadius, headbandCenterY - padRadius),
-                        size = Size(padRadius * 2f, padRadius * 2f),
-                        style = Stroke(width = headbandStrokeW * 0.45f, cap = StrokeCap.Round)
-                    )
+                    if (padRadius > 0f) {
+                        drawArc(
+                            color = Color(0xFF12141A).copy(alpha = hpAlpha * 0.90f),
+                            startAngle = 202f,
+                            sweepAngle = 136f,
+                            useCenter = false,
+                            topLeft = Offset(center.x - padRadius, headbandCenterY - padRadius),
+                            size = Size(padRadius * 2f, padRadius * 2f),
+                            style = Stroke(width = headbandStrokeW * 0.45f, cap = StrokeCap.Round)
+                        )
+                    }
 
                     // Draw Ear Cups (Left & Right)
                     val cupW = orbRadius * 0.38f * hpScale

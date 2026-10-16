@@ -278,20 +278,38 @@ fun PlayerScreen(
     )
 
     DisposableEffect(isAppInDarkTheme) {
-        val window = (view.context as Activity).window
-        val insetsController = WindowCompat.getInsetsController(window, view)
-        val previousLightStatusBars = insetsController.isAppearanceLightStatusBars
-        insetsController.isAppearanceLightStatusBars = !isAppInDarkTheme
-        // Defensive: make sure the status bar is visible whenever the player screen is
-        // shown. A prior full-screen video session uses immersive mode and could leave the
-        // bars hidden if its restore was interrupted — this guarantees they come back.
-        insetsController.show(WindowInsetsCompat.Type.systemBars())
-        onDispose { insetsController.isAppearanceLightStatusBars = previousLightStatusBars }
+        val activity = run {
+            var ctx: android.content.Context? = view.context
+            while (ctx is android.content.ContextWrapper) {
+                if (ctx is Activity) return@run ctx
+                ctx = ctx.baseContext
+            }
+            null
+        }
+        val window = activity?.window
+        if (window != null) {
+            val insetsController = WindowCompat.getInsetsController(window, view)
+            val previousLightStatusBars = insetsController.isAppearanceLightStatusBars
+            insetsController.isAppearanceLightStatusBars = !isAppInDarkTheme
+            // Defensive: make sure the status bar is visible whenever the player screen is
+            // shown. A prior full-screen video session uses immersive mode and could leave the
+            // bars hidden if its restore was interrupted — this guarantees they come back.
+            insetsController.show(WindowInsetsCompat.Type.systemBars())
+            onDispose { insetsController.isAppearanceLightStatusBars = previousLightStatusBars }
+        } else {
+            onDispose { }
+        }
     }
     
     LaunchedEffect(dominantColors.accent) {
-        val colorArgb = dominantColors.accent.toArgb()
-        if (colorArgb != 0) playerViewModel.updateDominantColor(colorArgb)
+        val colorArgb = try {
+            dominantColors.accent.toArgb()
+        } catch (_: Exception) {
+            0
+        }
+        if (colorArgb != 0 && colorArgb != playerState.dominantColor) {
+            playerViewModel.updateDominantColor(colorArgb)
+        }
     }
 
     var activeOverlay by remember { mutableStateOf<PlayerOverlay>(PlayerOverlay.None) }

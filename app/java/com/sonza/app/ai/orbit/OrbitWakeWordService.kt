@@ -57,30 +57,46 @@ class OrbitWakeWordService : Service() {
                 return
             }
             val intent = Intent(context, OrbitWakeWordService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "start: failed to start OrbitWakeWordService (background restrictions)", e)
             }
         }
 
         fun stop(context: Context) {
-            val intent = Intent(context, OrbitWakeWordService::class.java)
-            context.stopService(intent)
+            try {
+                val intent = Intent(context, OrbitWakeWordService::class.java)
+                context.stopService(intent)
+            } catch (e: Exception) {
+                Log.w(TAG, "stop: failed to stop service", e)
+            }
         }
 
         fun pauseDetector(context: Context) {
-            val intent = Intent(context, OrbitWakeWordService::class.java).apply {
-                action = ACTION_PAUSE_DETECTOR
+            try {
+                val intent = Intent(context, OrbitWakeWordService::class.java).apply {
+                    action = ACTION_PAUSE_DETECTOR
+                }
+                context.startService(intent)
+            } catch (e: Exception) {
+                Log.w(TAG, "pauseDetector failed", e)
             }
-            context.startService(intent)
         }
 
         fun resumeDetector(context: Context) {
-            val intent = Intent(context, OrbitWakeWordService::class.java).apply {
-                action = ACTION_RESUME_DETECTOR
+            try {
+                val intent = Intent(context, OrbitWakeWordService::class.java).apply {
+                    action = ACTION_RESUME_DETECTOR
+                }
+                context.startService(intent)
+            } catch (e: Exception) {
+                Log.w(TAG, "resumeDetector failed", e)
             }
-            try { context.startService(intent) } catch (_: Exception) {}
         }
     }
 
@@ -92,7 +108,17 @@ class OrbitWakeWordService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
+        if (intent == null) {
+            // Service was killed and restarted by system with null intent.
+            // On Android 14+ (API 34+), starting FOREGROUND_SERVICE_TYPE_MICROPHONE
+            // from the background is strictly forbidden. Immediately stop self
+            // and return START_NOT_STICKY to avoid entering an infinite crash loop.
+            Log.w(TAG, "onStartCommand: null intent (system restart from background). Stopping to prevent crash loop.")
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        when (intent.action) {
             ACTION_STOP_LISTENING -> {
                 Log.d(TAG, "Received ACTION_STOP_LISTENING")
                 stopSelf()
@@ -101,66 +127,83 @@ class OrbitWakeWordService : Service() {
             ACTION_PAUSE_DETECTOR -> {
                 Log.d(TAG, "Received ACTION_PAUSE_DETECTOR")
                 wakeWordDetector?.pauseListening()
-                return START_STICKY
+                return START_NOT_STICKY
             }
             ACTION_RESUME_DETECTOR -> {
                 Log.d(TAG, "Received ACTION_RESUME_DETECTOR")
                 wakeWordDetector?.resumeListening()
-                return START_STICKY
+                return START_NOT_STICKY
             }
         }
 
-        startAsForeground()
-        initializeDetector()
-        return START_STICKY
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "onStartCommand: RECORD_AUDIO permission missing, stopping")
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        val started = startAsForeground()
+        if (started) {
+            initializeDetector()
+        } else {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        return START_NOT_STICKY
     }
 
-    private fun startAsForeground() {
-        val openIntent = Intent(this, MainActivity::class.java).apply {
-            action = Intent.ACTION_VIEW
-            data = Uri.parse("sonza://orbit_listen")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        }
-        val pendingOpen = PendingIntent.getActivity(
-            this,
-            0,
-            openIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+    private fun startAsForeground(): Boolean {
+        try {
+            val openIntent = Intent(this, MainActivity::class.java).apply {
+                action = Intent.ACTION_VIEW
+                data = Uri.parse("sonza://orbit_listen")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+            val pendingOpen = PendingIntent.getActivity(
+                this,
+                0,
+                openIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
 
-        val stopIntent = Intent(this, OrbitWakeWordService::class.java).apply {
-            action = ACTION_STOP_LISTENING
-        }
-        val pendingStop = PendingIntent.getService(
-            this,
-            1,
-            stopIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+            val stopIntent = Intent(this, OrbitWakeWordService::class.java).apply {
+                action = ACTION_STOP_LISTENING
+            }
+            val pendingStop = PendingIntent.getService(
+                this,
+                1,
+                stopIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
 
-        val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Orbit Voice Assistant")
-            .setContentText("Listening for \"Hey Orbit\"...")
-            .setSmallIcon(R.drawable.ic_mic)
-            .setColor(0xFF00E5FF.toInt())
-            .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setContentIntent(pendingOpen)
-            .addAction(R.drawable.ic_close, "Stop Listening", pendingStop)
-            .build()
+            val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("Orbit Voice Assistant")
+                .setContentText("Listening for \"Hey Orbit\"...")
+                .setSmallIcon(R.drawable.ic_mic)
+                .setColor(0xFF00E5FF.toInt())
+                .setOngoing(true)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setContentIntent(pendingOpen)
+                .addAction(R.drawable.ic_close, "Stop Listening", pendingStop)
+                .build()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                startForeground(
-                    NOTIFICATION_ID,
-                    notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-                )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    startForeground(
+                        NOTIFICATION_ID,
+                        notification,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                    )
+                } else {
+                    startForeground(NOTIFICATION_ID, notification)
+                }
             } else {
                 startForeground(NOTIFICATION_ID, notification)
             }
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+            return true
+        } catch (e: Exception) {
+            Log.e(TAG, "startAsForeground failed (e.g. background restriction or security exception)", e)
+            return false
         }
     }
 
@@ -237,6 +280,14 @@ class OrbitWakeWordService : Service() {
         wakeWordDetector?.stopListening()
         wakeWordDetector = null
         instance = null
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+        } catch (_: Exception) {}
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

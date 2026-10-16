@@ -215,7 +215,7 @@ fun UserProfileScreen(
 
     // Dynamic background container deriving atmosphere from current song or avatar fallback
     DynamicArtworkBackground(
-        artworkModel = currentSong?.thumbnailUrl ?: currentAvatar.drawableRes,
+        artworkModel = currentSong?.thumbnailUrl?.takeIf { it.isNotBlank() } ?: currentAvatar.drawableRes,
         colors = dynamicColors,
         modifier = Modifier
             .fillMaxSize()

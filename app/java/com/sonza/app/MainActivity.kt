@@ -295,8 +295,12 @@ class MainActivity : ComponentActivity() {
             // Dynamic music color system: synchronize active artwork color to musicPlayer
             // so background tasks, widgets, and player state immediately reflect the palette.
             LaunchedEffect(nowPlayingState.dynamicColors.accent) {
-                val colorArgb = nowPlayingState.dynamicColors.accent.toArgb()
-                if (colorArgb != 0) {
+                val colorArgb = try {
+                    nowPlayingState.dynamicColors.accent.toArgb()
+                } catch (_: Exception) {
+                    0
+                }
+                if (colorArgb != 0 && colorArgb != musicPlayer.playerState.value.dominantColor) {
                     musicPlayer.updateDominantColor(colorArgb)
                 }
             }
