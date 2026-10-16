@@ -596,7 +596,11 @@ fun SonzaApp(
                     audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                 }
                 is com.sonza.app.ai.orbit.OrbitUiEvent.ShowToast -> {
-                    com.sonza.app.util.SnackbarUtil.showMessage(event.message)
+                    if (!event.message.contains("Exception", ignoreCase = true) &&
+                        !event.message.contains("SpeechRecognizer", ignoreCase = true) &&
+                        !event.message.contains("thread", ignoreCase = true)) {
+                        com.sonza.app.util.SnackbarUtil.showMessage(event.message)
+                    }
                 }
                 is com.sonza.app.ai.orbit.OrbitUiEvent.NavigateTo -> {
                     when (event.target) {
@@ -1520,8 +1524,7 @@ fun SonzaApp(
                                 restoreState = true
                             }
                         }
-                    },
-                    onOrbitClick = { orbitViewModel.onOrbitTapped() }
+                    }
                 )
 
                 com.sonza.app.ui.screens.player.PlayerScreen(

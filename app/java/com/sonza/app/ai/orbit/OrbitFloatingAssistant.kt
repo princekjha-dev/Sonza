@@ -90,20 +90,38 @@ fun OrbitOverlay(
         label = "orbitBottomPadding"
     )
 
+    val isAssistantVisible = !isPlayerExpanded || state.isVoiceActive
+
     Box(
         modifier = modifier.fillMaxSize()
     ) {
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 18.dp, bottom = animatedBottomPadding)
-                .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) },
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        AnimatedVisibility(
+            visible = isAssistantVisible,
+            enter = fadeIn(animationSpec = androidx.compose.animation.core.tween(220)) + scaleIn(initialScale = 0.88f),
+            exit = fadeOut(animationSpec = androidx.compose.animation.core.tween(180)) + scaleOut(targetScale = 0.88f),
+            modifier = Modifier.align(Alignment.BottomEnd)
         ) {
+            Column(
+                modifier = Modifier
+                    .padding(end = 18.dp, bottom = animatedBottomPadding)
+                    .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) },
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+            val cleanMessage = remember(message) {
+                if (message.contains("Exception", ignoreCase = true) ||
+                    message.contains("SpeechRecognizer", ignoreCase = true) ||
+                    message.contains("Looper", ignoreCase = true) ||
+                    message.contains("thread", ignoreCase = true)) {
+                    "Orbit couldn't hear that. Try again."
+                } else {
+                    message
+                }
+            }
+
             // Ambient spoken message bubble (visible during active voice session)
             AnimatedVisibility(
-                visible = isVisualUiVisible && state.isVoiceActive && message.isNotBlank(),
+                visible = isVisualUiVisible && state.isVoiceActive && cleanMessage.isNotBlank(),
                 enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
                 exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
             ) {
@@ -129,7 +147,7 @@ fun OrbitOverlay(
                         }
 
                         Text(
-                            text = message,
+                            text = cleanMessage,
                             style = SonzaTypography.BodySmall.copy(
                                 fontWeight = FontWeight.Medium,
                                 fontSize = 13.sp,
@@ -183,6 +201,7 @@ fun OrbitOverlay(
             }
         }
     }
+}
 }
 
 /**

@@ -365,8 +365,7 @@ private fun YTMusicPortraitContent(
                 onShowLyrics = onShowLyrics,
                 onShowDevices = onShowDevices,
                 dominantColors = dominantColors,
-                isPlaying = playerState.isPlaying,
-                onOrbitClick = actions.onOrbitClick
+                isPlaying = playerState.isPlaying
             )
 
             Spacer(modifier = Modifier.height(if (isVeryShort) 8.dp else 16.dp))
@@ -603,8 +602,7 @@ private fun YTMusicLandscapeContent(
                 onShowLyrics = onShowLyrics,
                 onShowDevices = onShowDevices,
                 dominantColors = dominantColors,
-                isPlaying = playerState.isPlaying,
-                onOrbitClick = actions.onOrbitClick
+                isPlaying = playerState.isPlaying
             )
         }
     }

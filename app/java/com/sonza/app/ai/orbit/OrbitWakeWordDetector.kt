@@ -88,7 +88,6 @@ class OrbitWakeWordDetector(
     private fun silenceSystemSounds() {
         try {
             if (!isSystemMuted && audioManager != null) {
-                audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, android.media.AudioManager.ADJUST_MUTE, 0)
                 audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_SYSTEM, android.media.AudioManager.ADJUST_MUTE, 0)
                 isSystemMuted = true
             }
@@ -98,7 +97,6 @@ class OrbitWakeWordDetector(
     private fun restoreSystemSounds() {
         try {
             if (isSystemMuted && audioManager != null) {
-                audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, android.media.AudioManager.ADJUST_UNMUTE, 0)
                 audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_SYSTEM, android.media.AudioManager.ADJUST_UNMUTE, 0)
                 isSystemMuted = false
             }
@@ -271,7 +269,8 @@ class OrbitWakeWordDetector(
                     val isHumanVocalZcr = zeroCrossings in 15..280
 
                     val now = System.currentTimeMillis()
-                    if (rms > speechThreshold && isHumanVocalZcr && !isPaused.get() && (now - lastVerificationFailedTimeMs > 1800L)) {
+                    // Minimum 4.5s cooldown after failed verification to prevent repeated verification loops
+                    if (rms > speechThreshold && isHumanVocalZcr && !isPaused.get() && (now - lastVerificationFailedTimeMs > 4500L)) {
                         Log.d(TAG, "🗣 Voice activity DETECTED (rms=%.0f, threshold=%.0f, zcr=%d)".format(rms, speechThreshold, zeroCrossings))
                         _state.value = State.VOICE_DETECTED
 
@@ -539,12 +538,14 @@ class OrbitWakeWordDetector(
         speechRecognizer = null
         try {
             if (Looper.myLooper() == Looper.getMainLooper()) {
+                recognizer.setRecognitionListener(null)
                 recognizer.stopListening()
                 recognizer.cancel()
                 recognizer.destroy()
             } else {
                 mainHandler.post {
                     try {
+                        recognizer.setRecognitionListener(null)
                         recognizer.stopListening()
                         recognizer.cancel()
                         recognizer.destroy()

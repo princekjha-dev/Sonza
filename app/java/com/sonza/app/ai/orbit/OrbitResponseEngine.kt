@@ -123,7 +123,7 @@ object OrbitResponseEngine {
         return OrbitResult(
             success = true,
             action = "RESUME",
-            spokenResponse = "Resuming playback.",
+            spokenResponse = "Resuming.",
             visualFeedback = "Playing",
             actionIndicator = "▶️"
         )
@@ -140,30 +140,20 @@ object OrbitResponseEngine {
     }
 
     fun next(nextSong: Song? = null): OrbitResult {
-        val spoken = if (nextSong != null && nextSong.title.isNotBlank()) {
-            "Next up is ${nextSong.title} by ${nextSong.artist}."
-        } else {
-            "Skipping to the next song."
-        }
         return OrbitResult(
             success = true,
             action = "NEXT",
-            spokenResponse = spoken,
+            spokenResponse = "Next song.",
             visualFeedback = "Skipped",
             actionIndicator = "⏭️"
         )
     }
 
     fun previous(prevSong: Song? = null): OrbitResult {
-        val spoken = if (prevSong != null && prevSong.title.isNotBlank()) {
-            "Going back to ${prevSong.title}."
-        } else {
-            "Going back to the previous song."
-        }
         return OrbitResult(
             success = true,
             action = "PREVIOUS",
-            spokenResponse = spoken,
+            spokenResponse = "Previous song.",
             visualFeedback = "Previous track",
             actionIndicator = "⏮️"
         )
@@ -173,33 +163,27 @@ object OrbitResponseEngine {
         return OrbitResult(
             success = true,
             action = "REPLAY",
-            spokenResponse = "Restarting song from the beginning.",
+            spokenResponse = "Restarted.",
             visualFeedback = "Restarted",
             actionIndicator = "🔄"
         )
     }
 
     fun seek(seconds: Int, isForward: Boolean): OrbitResult {
-        val spoken = if (isForward) {
-            "Jumped forward $seconds seconds."
-        } else {
-            "Rewound $seconds seconds."
-        }
         return OrbitResult(
             success = true,
             action = "SEEK",
-            spokenResponse = spoken,
+            spokenResponse = "",
             visualFeedback = if (isForward) "+${seconds}s" else "-${seconds}s",
             actionIndicator = "⏩"
         )
     }
 
     fun volume(percent: Int, isUp: Boolean): OrbitResult {
-        val spoken = "Volume is now $percent percent."
         return OrbitResult(
             success = true,
             action = "VOLUME",
-            spokenResponse = spoken,
+            spokenResponse = "",
             visualFeedback = "Volume $percent%",
             actionIndicator = if (isUp) "🔊" else "🔉"
         )
@@ -219,7 +203,7 @@ object OrbitResponseEngine {
         return OrbitResult(
             success = true,
             action = "SHUFFLE",
-            spokenResponse = if (enabled) "Shuffle is on." else "Shuffle is off.",
+            spokenResponse = if (enabled) "Shuffle on." else "Shuffle off.",
             visualFeedback = if (enabled) "Shuffle On" else "Shuffle Off",
             actionIndicator = "🔀"
         )
@@ -227,9 +211,9 @@ object OrbitResponseEngine {
 
     fun repeat(mode: String): OrbitResult {
         val spoken = when (mode.uppercase()) {
-            "ONE" -> "Repeating this song."
-            "ALL" -> "Repeat is on."
-            else -> "Repeat is off."
+            "ONE" -> "Repeat one."
+            "ALL" -> "Repeat all."
+            else -> "Repeat off."
         }
         return OrbitResult(
             success = true,
@@ -343,13 +327,13 @@ object OrbitResponseEngine {
     }
 
     fun navigation(destination: String): OrbitResult {
-        val spoken = "Opening $destination."
+        val label = destination.replaceFirstChar { it.uppercase() }
         return OrbitResult(
             success = true,
             action = "NAVIGATE",
-            spokenResponse = spoken,
+            spokenResponse = "",
             navigationTarget = destination.lowercase(),
-            visualFeedback = spoken,
+            visualFeedback = label,
             actionIndicator = "🧭"
         )
     }

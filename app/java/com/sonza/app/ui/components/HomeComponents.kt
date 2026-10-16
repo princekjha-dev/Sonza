@@ -117,23 +117,11 @@ fun HomeTopHeader(
                 )
             }
 
-            // Header Right: Orbit Avatar (Canonical voice interaction element) + User Avatar
+            // Header Right: User Avatar
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceSm)
             ) {
-                if (onOrbitClick != null) {
-                    com.sonza.app.ai.orbit.OrbitAvatar(
-                        state = orbitState,
-                        size = com.sonza.app.ai.orbit.OrbitAvatarSize.Compact,
-                        isPlaying = isPlaying,
-                        audioLevel = audioLevel,
-                        musicAudioData = musicAudioData,
-                        accentColor = dynamicColors.accent,
-                        onClick = onOrbitClick
-                    )
-                }
-
                 // Profile Avatar with liquid glass framing
                 com.sonza.app.ui.components.avatar.AvatarView(
                     avatarId = avatarUrl,

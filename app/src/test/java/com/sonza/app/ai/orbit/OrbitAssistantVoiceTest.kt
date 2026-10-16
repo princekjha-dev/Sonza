@@ -137,16 +137,16 @@ class OrbitAssistantVoiceTest {
         assertEquals("Paused.", pauseRes.spokenResponse)
 
         val resumeRes = OrbitResponseEngine.resume()
-        assertEquals("Resuming playback.", resumeRes.spokenResponse)
+        assertEquals("Resuming.", resumeRes.spokenResponse)
 
         val nextRes = OrbitResponseEngine.next()
-        assertEquals("Skipping to the next song.", nextRes.spokenResponse)
+        assertEquals("Next song.", nextRes.spokenResponse)
 
         val prevRes = OrbitResponseEngine.previous()
-        assertEquals("Going back to the previous song.", prevRes.spokenResponse)
+        assertEquals("Previous song.", prevRes.spokenResponse)
 
         val volRes = OrbitResponseEngine.volume(70, isUp = true)
-        assertEquals("Volume is now 70 percent.", volRes.spokenResponse)
+        assertEquals("", volRes.spokenResponse)
 
         val muteRes = OrbitResponseEngine.mute(true)
         assertEquals("Muted.", muteRes.spokenResponse)

@@ -30,6 +30,7 @@ enum class OrbitState {
     WAITING_FOR_FOLLOWUP,
     ENDING,
     SUCCESS,
+    CANCELLED,
     ERROR;
 
     val isListening: Boolean

@@ -768,7 +768,8 @@ class OrbitExecutor(
                     OrbitResult(
                         success = true,
                         action = "SHOW_PLAYLISTS",
-                        spokenResponse = "Opening your playlists in library.",
+                        spokenResponse = "",
+                        visualFeedback = "Library",
                         navigationTarget = "library"
                     )
                 }
@@ -807,7 +808,8 @@ class OrbitExecutor(
                     OrbitResult(
                         success = true,
                         action = "QUEUE_SHOW",
-                        spokenResponse = "Opening the play queue.",
+                        spokenResponse = "",
+                        visualFeedback = "Queue",
                         navigationTarget = "queue"
                     )
                 }
@@ -872,7 +874,8 @@ class OrbitExecutor(
                     OrbitResult(
                         success = true,
                         action = "PLAYER_UI",
-                        spokenResponse = if (intent.expand) "Opening player." else "Minimizing player.",
+                        spokenResponse = "",
+                        visualFeedback = if (intent.expand) "Player" else "Minimized",
                         navigationTarget = if (intent.expand) "player_expand" else "player_collapse"
                     )
                 }

@@ -137,7 +137,7 @@ class OrbitManager(
             return
         }
 
-        triggerWakeSequence(null)
+        startListening()
     }
 
     /**
@@ -261,11 +261,13 @@ class OrbitManager(
             onError = { errorMsg ->
                 OrbitLogger.error("Recognition error: $errorMsg")
 
-                if (errorMsg.contains("timed out", ignoreCase = true) || errorMsg.contains("No speech", ignoreCase = true)) {
+                if (errorMsg.contains("timed out", ignoreCase = true) ||
+                    errorMsg.contains("No speech", ignoreCase = true) ||
+                    errorMsg.contains("couldn't hear", ignoreCase = true)) {
                     returnToIdleState()
                 } else {
                     transitionToState(OrbitState.ERROR)
-                    _assistantMessage.value = errorMsg
+                    _assistantMessage.value = "Orbit couldn't hear that. Try again."
                     scheduleSafeReturn(2500L)
                 }
             }
@@ -345,9 +347,19 @@ class OrbitManager(
             }
 
             // Spoken natural response without generic sound effects
-            val speechText = result.spokenResponse.ifBlank { result.message }
-            // In continuous conversation, allow follow-up by default unless command specifically failed or dialogue ended
-            speakResponse(speechText, expectsFollowUp = true)
+            val speechText = result.spokenResponse
+            // Only expect follow-up if explicitly required by intent (e.g. disambiguation or multi-turn query)
+            val expectsFollowUp = result.requiresFollowUp
+
+            if (speechText.isNotBlank()) {
+                speakResponse(speechText, expectsFollowUp = expectsFollowUp)
+            } else {
+                if (expectsFollowUp) {
+                    startContinuousListening(timeoutMs = 4000L)
+                } else {
+                    scheduleSafeReturn(1500L)
+                }
+            }
         }
     }
 
@@ -409,10 +421,13 @@ class OrbitManager(
     }
 
     fun cancelCurrentVoiceSession() {
+        autoDismissJob?.cancel()
+        followUpJob?.cancel()
         voiceSession.releaseMic()
         voiceSynthesizer.stopSpeaking()
         musicPlayer.restoreVolume()
         _dialogueContext.value = OrbitDialogueContext.Idle
+        transitionToState(OrbitState.CANCELLED)
         returnToIdleState()
     }
 

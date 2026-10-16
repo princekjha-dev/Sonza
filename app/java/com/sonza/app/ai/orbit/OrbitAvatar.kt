@@ -168,7 +168,7 @@ fun OrbitAvatar(
         OrbitState.LISTENING, OrbitState.TRANSCRIBING, OrbitState.WAITING_FOR_FOLLOWUP -> baseAccent
         OrbitState.PROCESSING, OrbitState.THINKING, OrbitState.WORKING, OrbitState.EXECUTING -> baseAccent
         OrbitState.SPEAKING -> baseAccent
-        OrbitState.ENDING -> baseAccent.copy(alpha = 0.35f)
+        OrbitState.ENDING, OrbitState.CANCELLED -> baseAccent.copy(alpha = 0.35f)
         OrbitState.SUCCESS -> Color(0xFF00E676)
         OrbitState.ERROR -> Color(0xFFFF5252)
     }

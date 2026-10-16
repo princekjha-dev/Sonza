@@ -36,9 +36,9 @@ class OrbitVoiceSynthesizer(
     private var speechLevelJob: Job? = null
     private var duckJob: Job? = null
 
-    // Orbit assistant personality audio signature
-    private val orbitPitch = 1.12f
-    private val orbitSpeechRate = 1.05f
+    // Orbit assistant personality audio signature: natural, calm, confident
+    private val orbitPitch = 1.0f
+    private val orbitSpeechRate = 1.0f
 
     /**
      * Speak Orbit's response with natural cadence, ducking music while speaking.
@@ -49,7 +49,9 @@ class OrbitVoiceSynthesizer(
         onDone: (() -> Unit)? = null
     ) {
         if (text.isBlank()) {
-            onDone?.invoke()
+            scope.launch(Dispatchers.Main) {
+                onDone?.invoke()
+            }
             return
         }
 
@@ -70,21 +72,25 @@ class OrbitVoiceSynthesizer(
                 pitch = orbitPitch,
                 speechRate = orbitSpeechRate,
                 onStart = {
-                    scope.launch {
+                    scope.launch(Dispatchers.Main) {
                         _isSpeaking.value = true
                         onStart?.invoke()
                     }
                 },
                 onDone = {
                     if (isCompleted.compareAndSet(false, true)) {
-                        finishSpeaking()
-                        onDone?.invoke()
+                        scope.launch(Dispatchers.Main) {
+                            finishSpeaking()
+                            onDone?.invoke()
+                        }
                     }
                 },
                 onError = {
                     if (isCompleted.compareAndSet(false, true)) {
-                        finishSpeaking()
-                        onDone?.invoke()
+                        scope.launch(Dispatchers.Main) {
+                            finishSpeaking()
+                            onDone?.invoke()
+                        }
                     }
                 }
             )

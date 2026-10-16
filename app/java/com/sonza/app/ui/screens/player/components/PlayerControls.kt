@@ -295,16 +295,6 @@ fun SecondaryPlayerControls(
             )
         }
 
-        // Voice Assistant Button (Orbit Avatar)
-        if (onOrbitClick != null) {
-            com.sonza.app.ai.orbit.OrbitAvatar(
-                state = if (isPlaying) com.sonza.app.ai.orbit.OrbitState.MUSIC_REACTIVE else com.sonza.app.ai.orbit.OrbitState.IDLE,
-                size = com.sonza.app.ai.orbit.OrbitAvatarSize.Compact,
-                isPlaying = isPlaying,
-                accentColor = dominantColors.accent,
-                onClick = onOrbitClick
-            )
-        }
 
         // Devices (Audio output) Button
         if (onShowDevices != null) {
