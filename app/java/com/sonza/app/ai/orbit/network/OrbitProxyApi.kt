@@ -8,7 +8,7 @@ import retrofit2.http.POST
 
 /**
  * Authoritative Retrofit API interface for Cloudflare Orbit Proxy.
- * Connects exclusively to the deployed proxy (default: https://orbit-proxy.pkiha2028.workers.dev).
+ * Connects exclusively to the deployed proxy (default: https://orbit-proxy.pkjha2028.workers.dev).
  * Zero AI provider API keys are handled or transmitted by this interface.
  */
 interface OrbitProxyApi {

@@ -95,6 +95,33 @@ class OrbitProxyIntegrationTest {
     }
 
     /**
+     * Test 1b: Live Cloudflare Worker Health & Chat Integration
+     * Tests real HTTP connection to https://orbit-proxy.pkjha2028.workers.dev
+     */
+    @Test
+    fun testLiveCloudflareProxy_HealthAndChat() = runBlocking {
+        val liveClient = OrbitProxyClient(
+            baseHttpClient = OkHttpClient(),
+            baseUrlProvider = { OrbitConstants.ORBIT_PROXY_URL }
+        )
+
+        // 1. Health check: GET /health
+        val health = liveClient.checkHealth()
+        assertNotNull("Health check response must not be null", health)
+        assertEquals("ok", health?.status)
+        assertEquals("orbit-proxy", health?.service)
+
+        // 2. Chat endpoint: POST /v1/chat
+        val result = liveClient.sendChat(
+            message = "Hello Orbit",
+            conversation = emptyList()
+        )
+        assertTrue("Live proxy must return Success, was: $result", result is OrbitChatResult.Success)
+        val reply = (result as OrbitChatResult.Success).aiResponse
+        assertTrue("Live AI response must not be blank", reply.isNotBlank())
+    }
+
+    /**
      * Test 2: Multi-turn Conversation Memory
      * "Remember that my favorite color is blue." -> "What is my favorite color?"
      */
@@ -204,7 +231,7 @@ class OrbitProxyIntegrationTest {
     fun testNetworkFailure_OfflineDoesNotCrash() = runBlocking {
         val offlineClient = OkHttpClient.Builder()
             .addInterceptor {
-                throw UnknownHostException("Unable to resolve host \"orbit-proxy.pkiha2028.workers.dev\": No address associated with hostname")
+                throw UnknownHostException("Unable to resolve host \"orbit-proxy.pkjha2028.workers.dev\": No address associated with hostname")
             }
             .build()
 

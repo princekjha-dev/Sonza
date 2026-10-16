@@ -952,7 +952,7 @@ class SessionManager @Inject constructor(
     val orbitAiProviderFlow: Flow<String> = context.dataStore.data.map { it[ORBIT_AI_PROVIDER_KEY] ?: "GROQ" }
     val orbitProxyBaseUrlFlow: Flow<String> = context.dataStore.data.map {
         val configured = it[ORBIT_PROXY_BASE_URL_KEY]?.trim().orEmpty()
-        configured.ifBlank { com.sonza.app.ai.orbit.OrbitConstants.ORBIT_PROXY_URL }
+        sanitizeOrbitProxyUrl(configured)
     }
     val orbitProxyAuthTokenFlow: Flow<String> = context.dataStore.data.map { it[ORBIT_PROXY_AUTH_TOKEN_KEY] ?: "" }
     val orbitWakeWordEnabledFlow: Flow<Boolean> = context.dataStore.data.map { it[ORBIT_WAKE_WORD_ENABLED_KEY] ?: true }
@@ -962,9 +962,17 @@ class SessionManager @Inject constructor(
 
     suspend fun getOrbitProxyBaseUrl(): String {
         val configured = context.dataStore.data.first()[ORBIT_PROXY_BASE_URL_KEY]?.trim().orEmpty()
-        return configured.ifBlank { com.sonza.app.ai.orbit.OrbitConstants.ORBIT_PROXY_URL }
+        return sanitizeOrbitProxyUrl(configured)
     }
     suspend fun setOrbitProxyBaseUrl(url: String) = context.dataStore.edit { it[ORBIT_PROXY_BASE_URL_KEY] = url }
+
+    private fun sanitizeOrbitProxyUrl(rawUrl: String): String {
+        if (rawUrl.isBlank()) return com.sonza.app.ai.orbit.OrbitConstants.ORBIT_PROXY_URL
+        if (rawUrl.contains("pkiha2028.workers.dev")) {
+            return rawUrl.replace("pkiha2028.workers.dev", "pkjha2028.workers.dev")
+        }
+        return rawUrl
+    }
 
     suspend fun getOrbitProxyAuthToken(): String = context.dataStore.data.first()[ORBIT_PROXY_AUTH_TOKEN_KEY] ?: ""
     suspend fun setOrbitProxyAuthToken(token: String) = context.dataStore.edit { it[ORBIT_PROXY_AUTH_TOKEN_KEY] = token }

@@ -12,7 +12,7 @@ object OrbitConstants {
      * Authoritative Cloudflare Orbit Proxy URL.
      * Centralized single source of truth - not scattered across the codebase.
      */
-    const val ORBIT_PROXY_URL = "https://orbit-proxy.pkiha2028.workers.dev"
+    const val ORBIT_PROXY_URL = "https://orbit-proxy.pkjha2028.workers.dev"
 
     const val TIMEOUT_CONNECT_SECONDS = 15L
     const val TIMEOUT_READ_SECONDS = 30L

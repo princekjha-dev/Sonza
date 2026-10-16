@@ -103,7 +103,7 @@ class OrbitAIProviderTest {
         val manager = OrbitAIProviderManager(
             okHttpClient = OkHttpClient(),
             providerTypeProvider = { "GROQ" },
-            proxyUrlProvider = { "" },
+            proxyUrlProvider = { "https://invalid-nonexistent-orbit-domain.workers.dev" },
             proxyTokenProvider = { "" }
         )
         val response = manager.processChat("Who sings this?", musicContext, emptyList())
@@ -117,7 +117,7 @@ class OrbitAIProviderTest {
     fun testGroqProxyProvider_SafeHandlingWhenUnconfigured() = runBlocking {
         val groqProvider = GroqProxyProvider(
             baseHttpClient = OkHttpClient(),
-            proxyUrlProvider = { "" },
+            proxyUrlProvider = { "https://invalid-nonexistent-orbit-domain.workers.dev" },
             proxyTokenProvider = { "" }
         )
         val resp = groqProvider.processChat("Who sang Unholy?", musicContext, emptyList())

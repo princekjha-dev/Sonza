@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit
  * 1. Zero AI provider secrets (Groq, OpenAI, Gemini) exist on this client.
  * 2. Communicates ONLY with the configured Cloudflare Orbit Proxy (default: [OrbitConstants.ORBIT_PROXY_URL]).
  * 3. Never crashes on timeout, offline, or malformed responses.
+ * 4. Logs complete request lifecycle (URL, method, status code, body, exceptions) without logging secrets.
  */
 class OrbitProxyClient(
     private val baseHttpClient: OkHttpClient,
@@ -51,7 +52,13 @@ class OrbitProxyClient(
             ?: ""
         val trimmed = configured.trim()
         val effective = if (trimmed.isNotBlank()) trimmed else OrbitConstants.ORBIT_PROXY_URL
-        return if (effective.endsWith("/")) effective else "$effective/"
+        // Transparently sanitize any pkiha2028 typo to pkjha2028
+        val sanitized = if (effective.contains("pkiha2028.workers.dev")) {
+            effective.replace("pkiha2028.workers.dev", "pkjha2028.workers.dev")
+        } else {
+            effective
+        }
+        return if (sanitized.endsWith("/")) sanitized else "$sanitized/"
     }
 
     private suspend fun getApi(): OrbitProxyApi {
@@ -80,9 +87,13 @@ class OrbitProxyClient(
         conversation: List<OrbitConversationMessage> = emptyList(),
         model: String? = null
     ): OrbitChatResult = withContext(Dispatchers.IO) {
+        val baseUrl = resolveBaseUrl()
+        val endpointUrl = "${baseUrl}v1/chat"
+
         val api = try {
             getApi()
         } catch (e: Exception) {
+            OrbitLogger.http("POST", endpointUrl, exception = e)
             OrbitLogger.error("Failed to initialize OrbitProxyApi: ${e.message}", e)
             return@withContext OrbitChatResult.Error(
                 spokenError = "Orbit proxy configuration is invalid.",
@@ -107,6 +118,8 @@ class OrbitProxyClient(
             model = model
         )
 
+        OrbitLogger.http("POST", endpointUrl, body = "turns=${sanitizedConversation.size}")
+
         try {
             val response = api.chat(
                 request = request,
@@ -114,16 +127,21 @@ class OrbitProxyClient(
                 clientToken = customTokenHeader
             )
 
+            val code = response.code()
+
             if (response.isSuccessful) {
                 val body = response.body()
-                if (body != null && body.success && !body.response.isNullOrBlank()) {
+                val responseText = body?.response
+                OrbitLogger.http("POST", endpointUrl, code = code, body = responseText)
+
+                if (body != null && body.success && !responseText.isNullOrBlank()) {
                     OrbitChatResult.Success(
-                        aiResponse = body.response.trim()
+                        aiResponse = responseText.trim()
                     )
                 } else {
                     val errCode = body?.error?.code ?: "UNKNOWN_RESPONSE"
                     val errMsg = body?.error?.message ?: "Received invalid response from Orbit proxy."
-                    OrbitLogger.error("Orbit proxy returned unsuccessful response: $errCode - $errMsg")
+                    OrbitLogger.error("Orbit proxy returned error: $errCode - $errMsg")
                     OrbitChatResult.Error(
                         spokenError = "Sorry, I had trouble processing that request.",
                         errorCode = errCode,
@@ -131,17 +149,26 @@ class OrbitProxyClient(
                     )
                 }
             } else {
-                val code = response.code()
                 val errorBodyStr = response.errorBody()?.string().orEmpty()
                 val parsedError = parseErrorBody(errorBodyStr)
 
+                OrbitLogger.http("POST", endpointUrl, code = code, body = errorBodyStr)
                 OrbitLogger.error("Orbit proxy HTTP $code: $errorBodyStr")
 
                 val spoken = when (code) {
+                    400 -> parsedError?.message ?: "I couldn't process that request format."
+                    401, 403 -> "Orbit proxy access was rejected. Please check your proxy settings."
+                    404 -> "Orbit proxy endpoint not found. Please verify the proxy deployment."
                     429 -> "I'm receiving too many requests right now. Please try again in a moment."
                     504 -> "The AI service took too long to respond. I can still handle your local commands."
-                    502, 503 -> "The AI service is temporarily unavailable. I can still handle your music and device commands."
-                    400 -> parsedError?.message ?: "I couldn't process that request format."
+                    503 -> {
+                        if (parsedError?.code == "MISSING_CONFIGURATION") {
+                            "Orbit proxy is not configured on the server."
+                        } else {
+                            "The AI service is temporarily unavailable. I can still handle your music and device commands."
+                        }
+                    }
+                    500, 502 -> "The AI service is temporarily unavailable. I can still handle your music and device commands."
                     else -> "The AI service is temporarily unavailable."
                 }
 
@@ -151,35 +178,40 @@ class OrbitProxyClient(
                     rawMessage = "HTTP $code: ${parsedError?.message ?: errorBodyStr}"
                 )
             }
-        } catch (_: SocketTimeoutException) {
-            OrbitLogger.error("OrbitProxyClient timeout")
-            OrbitChatResult.Error(
-                spokenError = "The AI service took too long to respond. I can still handle local commands.",
-                errorCode = "TIMEOUT",
-                rawMessage = "SocketTimeoutException"
-            )
-        } catch (_: UnknownHostException) {
-            OrbitLogger.error("OrbitProxyClient unknown host / offline")
+        } catch (e: UnknownHostException) {
+            OrbitLogger.http("POST", endpointUrl, exception = e)
+            OrbitLogger.error("OrbitProxyClient DNS resolution failure / offline: ${e.message}")
             OrbitChatResult.Error(
                 spokenError = "I can't reach the AI proxy right now. I can still handle your music and local commands.",
                 errorCode = "NETWORK_UNAVAILABLE",
-                rawMessage = "UnknownHostException"
+                rawMessage = "UnknownHostException: ${e.message}"
             )
-        } catch (_: ConnectException) {
-            OrbitLogger.error("OrbitProxyClient connection failed")
+        } catch (e: SocketTimeoutException) {
+            OrbitLogger.http("POST", endpointUrl, exception = e)
+            OrbitLogger.error("OrbitProxyClient timeout: ${e.message}")
+            OrbitChatResult.Error(
+                spokenError = "The AI service took too long to respond. I can still handle local commands.",
+                errorCode = "TIMEOUT",
+                rawMessage = "SocketTimeoutException: ${e.message}"
+            )
+        } catch (e: ConnectException) {
+            OrbitLogger.http("POST", endpointUrl, exception = e)
+            OrbitLogger.error("OrbitProxyClient connection failed: ${e.message}")
             OrbitChatResult.Error(
                 spokenError = "Unable to connect to Orbit proxy. I can still handle local commands.",
                 errorCode = "CONNECT_ERROR",
-                rawMessage = "ConnectException"
+                rawMessage = "ConnectException: ${e.message}"
             )
         } catch (e: IOException) {
+            OrbitLogger.http("POST", endpointUrl, exception = e)
             OrbitLogger.error("OrbitProxyClient IO failure: ${e.message}", e)
             OrbitChatResult.Error(
                 spokenError = "I'm having trouble connecting to the network.",
                 errorCode = "IO_ERROR",
-                rawMessage = e.message
+                rawMessage = "IOException: ${e.message}"
             )
         } catch (e: Exception) {
+            OrbitLogger.http("POST", endpointUrl, exception = e)
             OrbitLogger.error("OrbitProxyClient unexpected exception: ${e.message}", e)
             OrbitChatResult.Error(
                 spokenError = "Sorry, I had trouble processing that request.",
@@ -193,11 +225,15 @@ class OrbitProxyClient(
      * Checks proxy health via GET /health.
      */
     suspend fun checkHealth(): OrbitHealthResponse? = withContext(Dispatchers.IO) {
+        val baseUrl = resolveBaseUrl()
+        val healthUrl = "${baseUrl}health"
         try {
             val api = getApi()
             val response = api.health()
+            OrbitLogger.http("GET", healthUrl, code = response.code())
             if (response.isSuccessful) response.body() else null
         } catch (e: Exception) {
+            OrbitLogger.http("GET", healthUrl, exception = e)
             OrbitLogger.error("Orbit health check failed: ${e.message}")
             null
         }
