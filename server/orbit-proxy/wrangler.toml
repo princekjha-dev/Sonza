@@ -1,0 +1,18 @@
+name = "sonza-orbit-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-04-01"
+
+[vars]
+GROQ_MODEL = "qwen/qwen3.8-27b"
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+GROQ_TIMEOUT_MS = "15000"
+GROQ_MAX_RETRIES = "2"
+DEFAULT_PROVIDER = "groq"
+RATE_LIMIT_MAX_PER_MINUTE = "60"
+MAX_BODY_SIZE_BYTES = "16384"
+
+# IMPORTANT: NEVER commit secret keys here!
+# Add your secret keys via Cloudflare CLI or dashboard:
+#   npx wrangler secret put GROQ_API_KEY
+#   npx wrangler secret put PROXY_AUTH_TOKEN (optional)
+#   npx wrangler secret put OPENAI_API_KEY (optional)

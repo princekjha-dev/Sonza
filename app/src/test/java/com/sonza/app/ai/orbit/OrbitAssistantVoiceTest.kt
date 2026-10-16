@@ -181,4 +181,81 @@ class OrbitAssistantVoiceTest {
             assertTrue("Expected Pause/Stop intent for '$synonym'", intent is OrbitIntent.PauseIntent || intent is OrbitIntent.StopIntent)
         }
     }
+
+    @Test
+    fun testSiriAlexaStyleConversationFlow() {
+        // Step 1: User says "Hey Orbit, play Unholy."
+        val turn1Intent = OrbitIntentParser.parse("Hey Orbit, play Unholy", contextMemory = contextMemory)
+        assertTrue(turn1Intent is OrbitIntent.PlayTrackIntent)
+        assertEquals("unholy", (turn1Intent as OrbitIntent.PlayTrackIntent).trackName.lowercase())
+
+        val unholySong = Song(
+            id = "unholy_id",
+            title = "Unholy",
+            artist = "Sam Smith and Kim Petras",
+            album = "Gloria",
+            duration = 156000L,
+            thumbnailUrl = "https://example.com/unholy.jpg",
+            source = SongSource.YOUTUBE
+        )
+        contextMemory.updatePlayback(
+            song = unholySong,
+            isPlaying = true,
+            durationMs = 156000L,
+            currentPositionMs = 20000L
+        )
+        contextMemory.recordTurn(
+            userUtterance = "Hey Orbit, play Unholy",
+            intent = turn1Intent,
+            spokenResponse = "Playing Unholy by Sam Smith and Kim Petras."
+        )
+
+        // Step 2: Follow-up question: "Who sings this?"
+        val turn2Intent = OrbitIntentParser.parse("Who sings this?", unholySong, contextMemory = contextMemory)
+        assertTrue(turn2Intent is OrbitIntent.SongInfoIntent || turn2Intent is OrbitIntent.AIQueryIntent)
+
+        val localAi = com.sonza.app.ai.orbit.provider.LocalAIProvider()
+        val turn2Resp = kotlinx.coroutines.runBlocking {
+            localAi.processChat("Who sings this?", contextMemory.musicContext, contextMemory.conversationHistory)
+        }
+        assertTrue(turn2Resp.spokenText.contains("Sam Smith", ignoreCase = true))
+        contextMemory.recordTurn("Who sings this?", turn2Intent, turn2Resp.spokenText)
+
+        // Step 3: Follow-up question: "What does it mean?"
+        val turn3Intent = OrbitIntentParser.parse("What does it mean?", unholySong, contextMemory = contextMemory)
+        assertTrue(turn3Intent is OrbitIntent.AIQueryIntent)
+
+        val turn3Resp = kotlinx.coroutines.runBlocking {
+            localAi.processChat("What does it mean?", contextMemory.musicContext, contextMemory.conversationHistory)
+        }
+        assertTrue(turn3Resp.spokenText.contains("Unholy", ignoreCase = true))
+        contextMemory.recordTurn("What does it mean?", turn3Intent, turn3Resp.spokenText)
+
+        // Step 4: Follow-up: "Give me similar songs."
+        val turn4Intent = OrbitIntentParser.parse("Give me similar songs.", unholySong, contextMemory = contextMemory)
+        assertTrue(turn4Intent is OrbitIntent.SimilarMusicIntent || turn4Intent is OrbitIntent.AIQueryIntent)
+    }
+
+    @Test
+    fun testIntentRouter_ToolsVsDirectPlayback() {
+        // App tool
+        val spotifyIntent = OrbitIntentParser.parse("Open Spotify", sampleSong, contextMemory = contextMemory)
+        assertTrue(spotifyIntent is OrbitIntent.ToolExecutionIntent)
+        assertEquals("open_app", (spotifyIntent as OrbitIntent.ToolExecutionIntent).toolCall.tool)
+
+        // Phone tool
+        val phoneIntent = OrbitIntentParser.parse("Call Mom", sampleSong, contextMemory = contextMemory)
+        assertTrue(phoneIntent is OrbitIntent.ToolExecutionIntent)
+        assertEquals("call_phone", (phoneIntent as OrbitIntent.ToolExecutionIntent).toolCall.tool)
+
+        // Web search tool
+        val searchIntent = OrbitIntentParser.parse("Search the web for upcoming concert dates", sampleSong, contextMemory = contextMemory)
+        assertTrue(searchIntent is OrbitIntent.ToolExecutionIntent)
+        assertEquals("web_search", (searchIntent as OrbitIntent.ToolExecutionIntent).toolCall.tool)
+
+        // Timer tool
+        val timerIntent = OrbitIntentParser.parse("Set timer for 25 minutes", sampleSong, contextMemory = contextMemory)
+        assertTrue(timerIntent is OrbitIntent.ToolExecutionIntent)
+        assertEquals("set_timer", (timerIntent as OrbitIntent.ToolExecutionIntent).toolCall.tool)
+    }
 }

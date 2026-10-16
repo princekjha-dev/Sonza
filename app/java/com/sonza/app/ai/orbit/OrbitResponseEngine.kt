@@ -515,6 +515,31 @@ object OrbitResponseEngine {
         )
     }
 
+    fun greeting(userName: String?, rawGreeting: String): OrbitResult {
+        val nameTrimmed = userName?.trim()
+        val hasName = !nameTrimmed.isNullOrBlank()
+        val nameSuffix = if (hasName) ", $nameTrimmed" else ""
+
+        val lower = rawGreeting.lowercase(java.util.Locale.ROOT)
+        val spoken = when {
+            lower.contains("morning") -> "Good morning$nameSuffix."
+            lower.contains("afternoon") -> "Good afternoon$nameSuffix."
+            lower.contains("evening") -> "Good evening$nameSuffix."
+            lower.contains("night") -> "Good night$nameSuffix."
+            hasName -> "Hey $nameTrimmed! What would you like to hear?"
+            else -> "Hey! What would you like to hear?"
+        }
+
+        return OrbitResult(
+            success = true,
+            action = "GREETING",
+            spokenResponse = spoken,
+            visualFeedback = spoken,
+            actionIndicator = "✨",
+            requiresFollowUp = true
+        )
+    }
+
     fun error(message: String? = null): OrbitResult {
         return OrbitResult(
             success = false,

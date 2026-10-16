@@ -68,6 +68,14 @@ Unlike standard music players that compress audio or hide DSP metrics, Sonza off
 
 ## ✨ Key Highlights & Features
 
+### 🎙️ Orbit Voice Assistant (Siri/Alexa-Style AI)
+- **Conversational Voice Experience**: Natural voice interaction with "Hey Orbit" wake-word detection, multi-turn follow-ups, and graceful conversation state handling.
+- **Deep Music Awareness**: Automatically understands current playback context (title, artist, album, duration, progress, playing/paused) for questions like *"Who sings this?"*, *"What does this song mean?"*, and *"Play something similar"*.
+- **Integrated Action & Tool Router**: Executes local music playback, phone calls, sleep timers, app opening, and live web research without routing simple commands to external LLMs.
+- **Secure Multi-Provider Architecture**: Choose between **Local AI (100% on-device & offline)**, **Groq (Cloud Proxy)**, **OpenAI (Cloud Proxy)**, and **Custom Endpoints**.
+- **100% Open-Source Security Guarantee**: Zero provider secrets are ever stored inside the Android client. API keys exist strictly on your secure serverless proxy (Cloudflare Workers).
+- **Comprehensive Guide**: See [`docs/ORBIT.md`](docs/ORBIT.md) for architecture, self-hosting, and Cloudflare Workers setup instructions.
+
 ### 🤖 AI Assistant & Neural Audio Engine
 - **Multi-Provider AI Architecture**: Seamlessly switch between **Chat Proxy (Free, no key required)**, **Google Gemini**, **OpenAI (GPT-4o, o3-mini)**, and **Anthropic Claude (Claude 3.5 Sonnet)**.
 - **Dynamic Model Catalogs**: Automatically discovers available models from provider APIs with support for "Random (Auto)" and automatic graceful fallback.

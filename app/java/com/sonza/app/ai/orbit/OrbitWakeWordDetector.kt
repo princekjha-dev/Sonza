@@ -81,6 +81,30 @@ class OrbitWakeWordDetector(
     // Moving average for adaptive ambient noise floor
     private var noiseFloorRms = 400.0
 
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
+    private var isSystemMuted = false
+    private var lastVerificationFailedTimeMs = 0L
+
+    private fun silenceSystemSounds() {
+        try {
+            if (!isSystemMuted && audioManager != null) {
+                audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, android.media.AudioManager.ADJUST_MUTE, 0)
+                audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_SYSTEM, android.media.AudioManager.ADJUST_MUTE, 0)
+                isSystemMuted = true
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun restoreSystemSounds() {
+        try {
+            if (isSystemMuted && audioManager != null) {
+                audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, android.media.AudioManager.ADJUST_UNMUTE, 0)
+                audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_SYSTEM, android.media.AudioManager.ADJUST_UNMUTE, 0)
+                isSystemMuted = false
+            }
+        } catch (_: Exception) {}
+    }
+
     fun hasPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
             context,
@@ -246,7 +270,8 @@ class OrbitWakeWordDetector(
                     val speechThreshold = (noiseFloorRms * 2.2).coerceIn(650.0, 3200.0)
                     val isHumanVocalZcr = zeroCrossings in 15..280
 
-                    if (rms > speechThreshold && isHumanVocalZcr && !isPaused.get()) {
+                    val now = System.currentTimeMillis()
+                    if (rms > speechThreshold && isHumanVocalZcr && !isPaused.get() && (now - lastVerificationFailedTimeMs > 1800L)) {
                         Log.d(TAG, "🗣 Voice activity DETECTED (rms=%.0f, threshold=%.0f, zcr=%d)".format(rms, speechThreshold, zeroCrossings))
                         _state.value = State.VOICE_DETECTED
 
@@ -357,6 +382,8 @@ class OrbitWakeWordDetector(
                     }
 
                     override fun onError(error: Int) {
+                        lastVerificationFailedTimeMs = System.currentTimeMillis()
+                        restoreSystemSounds()
                         val errorName = when (error) {
                             SpeechRecognizer.ERROR_NO_MATCH -> "NO_MATCH"
                             SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "SPEECH_TIMEOUT"
@@ -392,8 +419,9 @@ class OrbitWakeWordDetector(
                 putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
             }
 
+            silenceSystemSounds()
             speechRecognizer?.startListening(intent)
-            Log.d(TAG, "🔍 SpeechRecognizer.startListening() called")
+            Log.d(TAG, "🔍 SpeechRecognizer.startListening() called (silenced)")
 
             // Failsafe timeout — if recognition hangs, force resume
             verificationTimeoutJob?.cancel()
@@ -453,6 +481,8 @@ class OrbitWakeWordDetector(
 
             onWakeWordDetected(command)
         } else {
+            lastVerificationFailedTimeMs = System.currentTimeMillis()
+            restoreSystemSounds()
             Log.d(TAG, "❌ No wake phrase in: \"$rawText\" — resuming VAD")
             // Reset trigger so final results can still match
             hasTriggered.set(false)
@@ -496,6 +526,7 @@ class OrbitWakeWordDetector(
         verificationTimeoutJob = null
         isVerifying.set(false)
         hasTriggered.set(false)
+        restoreSystemSounds()
         destroySpeechRecognizer()
     }
 

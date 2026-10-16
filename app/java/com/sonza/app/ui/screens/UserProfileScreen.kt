@@ -348,7 +348,7 @@ fun UserProfileScreen(
                         Spacer(modifier = Modifier.height(20.dp))
 
                         // 2. Title
-                        val displayName = if (uiState.isLoggedIn && !uiState.userName.isNullOrBlank()) {
+                        val displayName = if (!uiState.userName.isNullOrBlank()) {
                             uiState.userName!!
                         } else {
                             "Sonza Listener"
@@ -370,6 +370,8 @@ fun UserProfileScreen(
                         Text(
                             text = if (uiState.isLoggedIn) {
                                 "Connected to YouTube Music • Cloud & mix sync active"
+                            } else if (!uiState.userName.isNullOrBlank()) {
+                                "Guest session active • Orbit ready"
                             } else {
                                 "Sign in for personalized mixes & cloud playlists"
                             },

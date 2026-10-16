@@ -207,6 +207,20 @@ fun AISettingsScreen(
                     )
                 }
             }
+
+            // 3. Orbit Voice Assistant Configuration Section
+            item {
+                OrbitVoiceAssistantSection(
+                    selectedProvider = uiState.orbitAiProvider,
+                    onSelectProvider = { viewModel.setOrbitAiProvider(it) },
+                    proxyUrl = uiState.orbitProxyBaseUrl,
+                    onProxyUrlChange = { viewModel.setOrbitProxyBaseUrl(it) },
+                    proxyToken = uiState.orbitProxyAuthToken,
+                    onProxyTokenChange = { viewModel.setOrbitProxyAuthToken(it) },
+                    wakeWordEnabled = uiState.orbitWakeWordEnabled,
+                    onWakeWordEnabledChange = { viewModel.setOrbitWakeWordEnabled(it) }
+                )
+            }
         }
     }
 }
@@ -652,6 +666,163 @@ private fun ProviderKeyConfigSection(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+@Composable
+private fun OrbitVoiceAssistantSection(
+    selectedProvider: String,
+    onSelectProvider: (String) -> Unit,
+    proxyUrl: String,
+    onProxyUrlChange: (String) -> Unit,
+    proxyToken: String,
+    onProxyTokenChange: (String) -> Unit,
+    wakeWordEnabled: Boolean,
+    onWakeWordEnabledChange: (Boolean) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = "Orbit Voice Assistant",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Text(
+            text = "Built-in voice assistant with natural conversation, music awareness, and local tool execution.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                // Wake word toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "\"Hey Orbit\" Standby",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Listens for wake phrase even when app is in background",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = wakeWordEnabled,
+                        onCheckedChange = onWakeWordEnabledChange
+                    )
+                }
+
+                M3HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
+
+                Text(
+                    text = "Orbit AI Provider",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                // Provider Options
+                val providers = listOf(
+                    Triple("GROQ", "Groq (Cloud Proxy)", "Ultra-fast voice responses via secure proxy"),
+                    Triple("LOCAL", "Local AI", "100% on-device, fully private, works offline"),
+                    Triple("OPENAI", "OpenAI (Cloud Proxy)", "GPT-4o mini via secure proxy"),
+                    Triple("CUSTOM", "Custom Endpoint", "Self-hosted gateway (Ollama, LocalAI, custom)")
+                )
+
+                providers.forEach { (key, name, desc) ->
+                    val isSelected = selectedProvider.equals(key, ignoreCase = true)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onSelectProvider(key) }
+                            .padding(vertical = 6.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = isSelected,
+                            onClick = { onSelectProvider(key) }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = desc,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                if (!selectedProvider.equals("LOCAL", ignoreCase = true)) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = proxyUrl,
+                        onValueChange = onProxyUrlChange,
+                        label = { Text("Orbit Proxy Base URL") },
+                        placeholder = { Text("https://sonza-orbit-proxy.workers.dev") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = proxyToken,
+                        onValueChange = onProxyTokenChange,
+                        label = { Text("Proxy Client Auth Token (Optional)") },
+                        placeholder = { Text("Bearer token for private proxy") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        visualTransformation = PasswordVisualTransformation()
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Card(
+                        shape = RoundedCornerShape(8.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "🔒 Zero Secrets in App: The Android client never stores your Groq or OpenAI API key. All provider secrets remain strictly on your secure serverless proxy.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(10.dp)
+                        )
+                    }
+                }
+            }
         }
     }
 }

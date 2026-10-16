@@ -87,6 +87,8 @@ sealed interface OrbitIntent {
     data class CorrectionIntent(val correctionText: String) : OrbitIntent
     data class FollowUpIntent(val query: String) : OrbitIntent
     data class SmallTalkIntent(val query: String) : OrbitIntent
+    data class AIQueryIntent(val query: String, val forcedTool: OrbitToolCall? = null) : OrbitIntent
+    data class ToolExecutionIntent(val toolCall: OrbitToolCall) : OrbitIntent
 
     // 1. Play Music / Discovery
     data class PlayTrackIntent(val trackName: String, val artistName: String? = null) : OrbitIntent
@@ -172,6 +174,9 @@ sealed interface OrbitIntent {
 
     // 9. Compound Intent
     data class CompoundIntent(val intents: List<OrbitIntent>) : OrbitIntent
+
+    // Conversational Greeting
+    data class GreetingIntent(val rawGreeting: String) : OrbitIntent
 
     // Fallback
     data class UnknownIntent(val rawQuery: String) : OrbitIntent

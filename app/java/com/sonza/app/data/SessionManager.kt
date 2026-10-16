@@ -43,11 +43,13 @@ import com.sonza.app.core.model.UpdateChannel
 import com.sonza.app.core.model.LyricsAnimationType
 import com.sonza.app.providers.lyrics.LyricsProviderType
 import com.sonza.app.core.model.LyricsTextPosition
+import com.sonza.app.core.model.UserProfile
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -145,6 +147,12 @@ class SessionManager @Inject constructor(
         private val SELECTED_AI_PROVIDER_KEY = stringPreferencesKey("selected_ai_provider")
         private val AUTO_AI_ENABLED_KEY = booleanPreferencesKey("auto_ai_enabled")
         private val PERSISTED_AI_STATE_KEY = stringPreferencesKey("persisted_ai_state")
+
+        // Orbit Assistant Preferences
+        private val ORBIT_AI_PROVIDER_KEY = stringPreferencesKey("orbit_ai_provider")
+        private val ORBIT_PROXY_BASE_URL_KEY = stringPreferencesKey("orbit_proxy_base_url")
+        private val ORBIT_PROXY_AUTH_TOKEN_KEY = stringPreferencesKey("orbit_proxy_auth_token")
+        private val ORBIT_WAKE_WORD_ENABLED_KEY = booleanPreferencesKey("orbit_wake_word_enabled")
 
         // AI EQ Persistence
         private val AI_PROMPT_HISTORY_KEY = stringPreferencesKey("ai_prompt_history")
@@ -941,6 +949,22 @@ class SessionManager @Inject constructor(
     val geminiModelFlow: Flow<String> = context.dataStore.data.map { it[GEMINI_MODEL_KEY] ?: "gemini-1.5-pro" }
     val chatProxyModelFlow: Flow<String> = context.dataStore.data.map { it[CHAT_PROXY_MODEL_KEY] ?: "gpt-5" }
     val selectedAiProviderFlow: Flow<String> = context.dataStore.data.map { it[SELECTED_AI_PROVIDER_KEY] ?: "CHAT_PROXY" }
+    val orbitAiProviderFlow: Flow<String> = context.dataStore.data.map { it[ORBIT_AI_PROVIDER_KEY] ?: "GROQ" }
+    val orbitProxyBaseUrlFlow: Flow<String> = context.dataStore.data.map { it[ORBIT_PROXY_BASE_URL_KEY] ?: "" }
+    val orbitProxyAuthTokenFlow: Flow<String> = context.dataStore.data.map { it[ORBIT_PROXY_AUTH_TOKEN_KEY] ?: "" }
+    val orbitWakeWordEnabledFlow: Flow<Boolean> = context.dataStore.data.map { it[ORBIT_WAKE_WORD_ENABLED_KEY] ?: true }
+
+    suspend fun getOrbitAiProvider(): String = context.dataStore.data.first()[ORBIT_AI_PROVIDER_KEY] ?: "GROQ"
+    suspend fun setOrbitAiProvider(provider: String) = context.dataStore.edit { it[ORBIT_AI_PROVIDER_KEY] = provider }
+
+    suspend fun getOrbitProxyBaseUrl(): String = context.dataStore.data.first()[ORBIT_PROXY_BASE_URL_KEY] ?: ""
+    suspend fun setOrbitProxyBaseUrl(url: String) = context.dataStore.edit { it[ORBIT_PROXY_BASE_URL_KEY] = url }
+
+    suspend fun getOrbitProxyAuthToken(): String = context.dataStore.data.first()[ORBIT_PROXY_AUTH_TOKEN_KEY] ?: ""
+    suspend fun setOrbitProxyAuthToken(token: String) = context.dataStore.edit { it[ORBIT_PROXY_AUTH_TOKEN_KEY] = token }
+
+    suspend fun isOrbitWakeWordEnabled(): Boolean = context.dataStore.data.first()[ORBIT_WAKE_WORD_ENABLED_KEY] ?: true
+    suspend fun setOrbitWakeWordEnabled(enabled: Boolean) = context.dataStore.edit { it[ORBIT_WAKE_WORD_ENABLED_KEY] = enabled }
 
     suspend fun setOpenAiApiKey(apiKey: String) {
         encryptedPrefs.edit().putString(OPENAI_API_KEY_ENC, apiKey).apply()
@@ -2177,6 +2201,31 @@ class SessionManager @Inject constructor(
 
     val userNameFlow: Flow<String?> = context.dataStore.data.map { preferences ->
         preferences[USER_NAME_KEY]
+    }
+
+    fun getUserProfile(): UserProfile {
+        val name = getCachedUserName()
+        val avatar = getCachedUserAvatar()
+        val loggedIn = isLoggedIn()
+        return UserProfile(
+            name = name,
+            avatarUrl = avatar,
+            isGuest = !loggedIn
+        )
+    }
+
+    val userProfileFlow: Flow<UserProfile> = combine(
+        userNameFlow,
+        userAvatarFlow,
+        isLoggedInFlow,
+        preferredLanguagesFlow
+    ) { name: String?, avatar: String?, loggedIn: Boolean, languages: Set<String> ->
+        UserProfile(
+            name = name,
+            avatarUrl = avatar,
+            isGuest = !loggedIn,
+            preferredLanguages = languages
+        )
     }
 
     suspend fun getAuthUserIndex(): Int =

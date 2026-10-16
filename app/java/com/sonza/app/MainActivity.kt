@@ -1666,9 +1666,12 @@ fun SonzaApp(
                     showWelcomeDialog = false
                     navController.navigate(Destination.YouTubeLogin)
                 },
-                onContinueAsGuest = { languages ->
+                onContinueAsGuest = { languages, guestName ->
                     showWelcomeDialog = false
                     scope.launch {
+                        if (!guestName.isNullOrBlank()) {
+                            sessionManager.saveUserName(guestName.trim())
+                        }
                         if (languages.isNotEmpty()) {
                             sessionManager.setPreferredLanguages(languages)
                         }

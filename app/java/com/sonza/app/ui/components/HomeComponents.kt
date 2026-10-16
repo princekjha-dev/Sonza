@@ -67,6 +67,10 @@ fun HomeTopHeader(
     recentlyPlayed: List<com.sonza.app.core.model.RecentlyPlayed> = emptyList(),
     onProfileClick: () -> Unit = {},
     onOrbitClick: (() -> Unit)? = null,
+    orbitState: com.sonza.app.ai.orbit.OrbitState = com.sonza.app.ai.orbit.OrbitState.IDLE,
+    isPlaying: Boolean = false,
+    audioLevel: Float = 0f,
+    musicAudioData: com.sonza.app.ai.orbit.OrbitMusicAudioData? = null,
     modifier: Modifier = Modifier
 ) {
     val dynamicColors = LocalSonzaDynamicColors.current
@@ -113,27 +117,21 @@ fun HomeTopHeader(
                 )
             }
 
-            // Header Right: Voice Input [Mic] Button + User Avatar
+            // Header Right: Orbit Avatar (Canonical voice interaction element) + User Avatar
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(SpacingTokens.SpaceSm)
             ) {
                 if (onOrbitClick != null) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(dynamicColors.accent.copy(alpha = 0.16f))
-                            .bounceClick(scaleDown = MotionTokens.CardTapScale, onClick = onOrbitClick),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Mic,
-                            contentDescription = "Voice Assistant",
-                            tint = dynamicColors.accent,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    com.sonza.app.ai.orbit.OrbitAvatar(
+                        state = orbitState,
+                        size = com.sonza.app.ai.orbit.OrbitAvatarSize.Compact,
+                        isPlaying = isPlaying,
+                        audioLevel = audioLevel,
+                        musicAudioData = musicAudioData,
+                        accentColor = dynamicColors.accent,
+                        onClick = onOrbitClick
+                    )
                 }
 
                 // Profile Avatar with liquid glass framing
@@ -146,18 +144,33 @@ fun HomeTopHeader(
             }
         }
 
-        // Personalized greeting header
-        Text(
-            text = greetingText,
-            style = SonzaTypography.PageTitle.copy(
-                fontSize = 22.sp,
-                lineHeight = 26.sp,
-                fontWeight = FontWeight.Bold
-            ),
-            color = SonzaOnBackground,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+        // Personalized greeting header & acknowledging subtitle
+        Column(
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = greetingText,
+                style = SonzaTypography.PageTitle.copy(
+                    fontSize = 22.sp,
+                    lineHeight = 26.sp,
+                    fontWeight = FontWeight.Bold
+                ),
+                color = SonzaOnBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Text(
+                text = "What would you like to do?",
+                style = SonzaTypography.BodyMedium.copy(
+                    fontSize = 13.5.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.Normal
+                ),
+                color = SonzaOnBackground.copy(alpha = 0.65f),
+                maxLines = 1
+            )
+        }
     }
 }
 

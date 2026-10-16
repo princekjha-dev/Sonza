@@ -105,6 +105,11 @@ object OrbitIntentParser {
     }
 
     private fun parseSingleIntent(q: String, currentSong: Song?, contextMemory: OrbitContextMemory?): OrbitIntent {
+        // --- 0. Conversational Greeting ---
+        if (q in listOf("hello", "hi", "hey", "good morning", "good afternoon", "good evening", "how are you", "whats up", "what's up")) {
+            return OrbitIntent.GreetingIntent(q)
+        }
+
         // --- 1. Playback Controls ---
         if (q in listOf("pause", "pause music", "pause playback", "hold on", "wait", "freeze", "stop the music", "hold it")) {
             return OrbitIntent.PauseIntent
@@ -407,7 +412,58 @@ object OrbitIntentParser {
             return OrbitIntent.SmallTalkIntent(q)
         }
 
-        // --- 13. General Music Play Matching ---
+        // --- 13. Assistant Action Tools & Questions ---
+        // Web Search Tool
+        if (q.startsWith("search the web for") || q.startsWith("search web for") || q.startsWith("search for") || q.startsWith("google") || q.startsWith("look up")) {
+            val terms = q.removePrefix("search the web for").removePrefix("search web for")
+                .removePrefix("search for").removePrefix("google").removePrefix("look up").trim()
+            if (terms.isNotBlank()) {
+                return OrbitIntent.ToolExecutionIntent(OrbitToolCall("web_search", mapOf("query" to terms)))
+            }
+        }
+
+        // Phone Tool
+        if (q.startsWith("call ") || q.startsWith("dial ")) {
+            val contact = q.removePrefix("call ").removePrefix("dial ").trim()
+            if (contact.isNotBlank()) {
+                return OrbitIntent.ToolExecutionIntent(OrbitToolCall("call_phone", mapOf("contact" to contact)))
+            }
+        }
+
+        // App Launch Tool
+        if (q.startsWith("open app ") || q.startsWith("open ") || q.startsWith("launch ")) {
+            val app = q.removePrefix("open app ").removePrefix("launch ").removePrefix("open ").trim()
+            if (app.isNotBlank() && app !in listOf("library", "search", "downloads", "history", "recents", "settings", "profile", "home", "player")) {
+                return OrbitIntent.ToolExecutionIntent(OrbitToolCall("open_app", mapOf("appName" to app)))
+            }
+        }
+
+        // Timer / Sleep Timer Tool
+        if (q.startsWith("set timer") || q.startsWith("set a timer") || q.startsWith("timer for")) {
+            val minutesMatch = Regex("(\\d+)\\s*(?:minute|min)").find(q)
+            val minutes = minutesMatch?.groupValues?.get(1)?.toIntOrNull() ?: 15
+            return OrbitIntent.ToolExecutionIntent(OrbitToolCall("set_timer", mapOf("minutes" to minutes)))
+        }
+
+        // Music Meaning & Natural Contextual Questions
+        if (q.contains("similar songs") || q.contains("similar music") || q.contains("give me similar") || q.contains("more like this") || q.contains("play something similar")) {
+            return OrbitIntent.SimilarMusicIntent
+        }
+
+        if (q.contains("what does it mean") || q.contains("what does this mean") || q.contains("what does this song mean") || q.contains("meaning of this")) {
+            return OrbitIntent.AIQueryIntent(q)
+        }
+
+        if (q.startsWith("who sang ") || q.startsWith("who sings ") || q.startsWith("who is singing ") || q.startsWith("who made ")) {
+            return OrbitIntent.AIQueryIntent(q)
+        }
+
+        // General Interrogatives & AI queries
+        if (q.startsWith("what ") || q.startsWith("who ") || q.startsWith("why ") || q.startsWith("when ") || q.startsWith("where ") || q.startsWith("how ") || q.startsWith("tell me about ")) {
+            return OrbitIntent.AIQueryIntent(q)
+        }
+
+        // --- 14. General Music Play Matching ---
         val playArtistMatch = Regex("(?:play songs by|play songs of|play artist|songs by)\\s*(.+)").find(q)
         if (playArtistMatch != null) {
             val artist = playArtistMatch.groupValues[1].trim()
@@ -454,6 +510,6 @@ object OrbitIntentParser {
             return OrbitIntent.PlayTrackIntent(trackName = q)
         }
 
-        return OrbitIntent.UnknownIntent(q)
+        return OrbitIntent.AIQueryIntent(q)
     }
 }

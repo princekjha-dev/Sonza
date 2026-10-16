@@ -23,6 +23,12 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
 import java.util.UUID
 
+import com.sonza.app.ai.orbit.provider.OrbitAIProviderManager
+import com.sonza.app.ai.orbit.tools.OrbitToolRouter
+import com.sonza.app.ai.orbit.tools.WebSearchTool
+import com.sonza.app.data.SessionManager
+import okhttp3.OkHttpClient
+
 /**
  * Drop-in typealias so all callers map to the authoritative [OrbitResult].
  */
@@ -41,9 +47,38 @@ class OrbitExecutor(
     private val lyricsRepository: LyricsRepository,
     private val sleepTimerManager: SleepTimerManager,
     private val listeningHistoryRepository: ListeningHistoryRepository? = null,
-    private val context: Context
+    private val context: Context,
+    private val providerManager: OrbitAIProviderManager? = null,
+    private val toolRouter: OrbitToolRouter? = null,
+    private val okHttpClient: OkHttpClient? = null,
+    private val sessionManager: SessionManager? = null
 ) {
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+    private val effectiveSessionManager: SessionManager by lazy {
+        sessionManager ?: SessionManager(context)
+    }
+
+    private val effectiveClient: OkHttpClient by lazy {
+        okHttpClient ?: OkHttpClient()
+    }
+
+    val effectiveToolRouter: OrbitToolRouter by lazy {
+        toolRouter ?: OrbitToolRouter(
+            musicPlayer = musicPlayer,
+            youTubeRepository = youTubeRepository,
+            sleepTimerManager = sleepTimerManager,
+            webSearchTool = WebSearchTool(effectiveClient),
+            context = context
+        )
+    }
+
+    val effectiveProviderManager: OrbitAIProviderManager by lazy {
+        providerManager ?: OrbitAIProviderManager(
+            okHttpClient = effectiveClient,
+            sessionManager = effectiveSessionManager
+        )
+    }
 
     suspend fun execute(
         intent: OrbitIntent,
@@ -55,14 +90,22 @@ class OrbitExecutor(
             when (intent) {
                 // --- 0. Conversational Flow & Wake Word ---
                 is OrbitIntent.WakeWordOnlyIntent -> {
+                    val sessionMgr = com.sonza.app.data.SessionManager(context)
+                    val userName = sessionMgr.getCachedUserName()?.trim()
+                    val greeting = if (!userName.isNullOrBlank()) "Yes, $userName?" else "Yes?"
                     OrbitResult(
                         success = true,
                         action = "WAKE_WORD",
-                        spokenResponse = "Yes?",
-                        visualFeedback = "Listening...",
+                        spokenResponse = greeting,
+                        visualFeedback = "I'm listening…",
                         requiresFollowUp = true,
                         updatedContext = OrbitDialogueContext.AwaitingCommand()
                     )
+                }
+
+                is OrbitIntent.GreetingIntent -> {
+                    val sessionMgr = com.sonza.app.data.SessionManager(context)
+                    OrbitResponseEngine.greeting(sessionMgr.getCachedUserName(), intent.rawGreeting)
                 }
 
                 is OrbitIntent.CancelIntent -> {
@@ -476,22 +519,22 @@ class OrbitExecutor(
                 }
 
                 is OrbitIntent.SimilarMusicIntent -> {
-                    if (currentSong != null) {
-                        val similar = youTubeRepository.getRelatedSongs(currentSong.id)
+                    val targetSong = currentSong ?: contextMemory?.currentSong
+                    val seedArtist = targetSong?.artist ?: contextMemory?.currentArtist
+                    if (targetSong != null) {
+                        val similar = youTubeRepository.getRelatedSongs(targetSong.id)
                         if (similar.isNotEmpty()) {
                             withContext(Dispatchers.Main) { musicPlayer.playSong(similar.first(), similar, 0) }
                             OrbitResult(
                                 success = true,
                                 action = "PLAY_SIMILAR",
-                                spokenResponse = "Playing songs similar to ${currentSong.title}."
+                                spokenResponse = "Playing songs similar to ${targetSong.title}."
                             )
                         } else {
-                            OrbitResult(
-                                success = false,
-                                action = "PLAY_SIMILAR",
-                                spokenResponse = "Couldn't find similar songs for ${currentSong.title}."
-                            )
+                            resolveAndPlayTrack("${targetSong.title} radio")
                         }
+                    } else if (!seedArtist.isNullOrBlank()) {
+                        resolveAndPlayTrack("$seedArtist radio")
                     } else {
                         OrbitResult(
                             success = false,
@@ -886,8 +929,53 @@ class OrbitExecutor(
                     lastResult
                 }
 
+                is OrbitIntent.ToolExecutionIntent -> {
+                    effectiveToolRouter.executeTool(intent.toolCall)
+                }
+
+                is OrbitIntent.AIQueryIntent -> {
+                    val musicCtx = contextMemory?.musicContext ?: OrbitMusicContext(
+                        title = currentSong?.title,
+                        artist = currentSong?.artist,
+                        album = currentSong?.album,
+                        durationMs = currentSong?.duration,
+                        isPlaying = musicPlayer.playerState.value.isPlaying,
+                        source = currentSong?.source?.name
+                    )
+                    val history = contextMemory?.conversationHistory ?: emptyList()
+
+                    val aiResp = effectiveProviderManager.processChat(
+                        message = intent.query,
+                        musicContext = musicCtx,
+                        conversationHistory = history
+                    )
+
+                    var toolResult: OrbitResult? = null
+                    for (tc in aiResp.toolCalls) {
+                        toolResult = effectiveToolRouter.executeTool(tc)
+                    }
+
+                    val spoken = when {
+                        aiResp.spokenText.isNotBlank() -> aiResp.spokenText
+                        toolResult != null -> toolResult.spokenResponse
+                        else -> "Understood."
+                    }
+
+                    OrbitResult(
+                        success = aiResp.isSuccess,
+                        action = "AI_QUERY",
+                        spokenResponse = spoken,
+                        actionIndicator = toolResult?.actionIndicator ?: "✨"
+                    )
+                }
+
                 is OrbitIntent.UnknownIntent -> {
-                    OrbitResponseEngine.unknown(intent.rawQuery)
+                    execute(
+                        intent = OrbitIntent.AIQueryIntent(intent.rawQuery),
+                        currentSong = currentSong,
+                        dialogueContext = dialogueContext,
+                        contextMemory = contextMemory
+                    )
                 }
 
                 else -> {

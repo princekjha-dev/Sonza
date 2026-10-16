@@ -138,15 +138,37 @@ private val hiltBridgedModule: Module = module {
         )
     }
     single {
+        com.sonza.app.ai.orbit.tools.WebSearchTool(baseHttpClient = get())
+    }
+    single {
+        com.sonza.app.ai.orbit.tools.OrbitToolRouter(
+            musicPlayer = get(),
+            youTubeRepository = get(),
+            sleepTimerManager = get<com.sonza.app.player.SleepTimerManager>(),
+            webSearchTool = get(),
+            context = androidContext()
+        )
+    }
+    single {
+        com.sonza.app.ai.orbit.provider.OrbitAIProviderManager(
+            okHttpClient = get(),
+            sessionManager = get()
+        )
+    }
+    single {
         com.sonza.app.ai.orbit.OrbitExecutor(
             musicPlayer = get(),
             youTubeRepository = get(),
             libraryRepository = get(),
             downloadRepository = get(),
             lyricsRepository = get(),
-            sleepTimerManager = get(),
+            sleepTimerManager = get<com.sonza.app.player.SleepTimerManager>(),
             listeningHistoryRepository = get(),
-            context = androidContext()
+            context = androidContext(),
+            providerManager = get(),
+            toolRouter = get(),
+            okHttpClient = get(),
+            sessionManager = get()
         )
     }
     single {
@@ -155,6 +177,7 @@ private val hiltBridgedModule: Module = module {
             voiceSynthesizer = get(),
             executor = get(),
             musicPlayer = get(),
+            sessionManager = get(),
             context = androidContext()
         )
     }

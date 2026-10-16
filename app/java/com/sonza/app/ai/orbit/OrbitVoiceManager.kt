@@ -4,8 +4,11 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -21,10 +24,10 @@ import java.util.Locale
  * Implements real-time streaming speech recognition with live RMS audio reactivity for the animated orb,
  * live partial speech transcription, and comprehensive error resilience.
  *
- * MICROPHONE CONTRACT: This class acquires the microphone via SpeechRecognizer when
- * [startListening] is called and releases it when [stopListening] is called or
- * recognition completes/errors. The caller (ViewModel) must ensure the wake-word
- * detector has released the mic BEFORE calling [startListening].
+ * Requirements:
+ * - Completely silences Google Assistant / system recognition sounds (activation bloops, end chimes, error beeps)
+ *   by muting system sonification streams during speech engine start and transition points.
+ * - Idempotent start/stop: prevents duplicate SpeechRecognizer instances or listener leaks.
  */
 class OrbitVoiceManager(
     private val context: Context
@@ -32,6 +35,10 @@ class OrbitVoiceManager(
     companion object {
         private const val TAG = "OrbitVoiceMgr"
     }
+
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var isSystemMuted = false
 
     private var speechRecognizer: SpeechRecognizer? = null
 
@@ -55,6 +62,26 @@ class OrbitVoiceManager(
         ) == PackageManager.PERMISSION_GRANTED
     }
 
+    private fun silenceSystemSounds() {
+        try {
+            if (!isSystemMuted && audioManager != null) {
+                audioManager.adjustStreamVolume(AudioManager.STREAM_NOTIFICATION, AudioManager.ADJUST_MUTE, 0)
+                audioManager.adjustStreamVolume(AudioManager.STREAM_SYSTEM, AudioManager.ADJUST_MUTE, 0)
+                isSystemMuted = true
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun restoreSystemSounds() {
+        try {
+            if (isSystemMuted && audioManager != null) {
+                audioManager.adjustStreamVolume(AudioManager.STREAM_NOTIFICATION, AudioManager.ADJUST_UNMUTE, 0)
+                audioManager.adjustStreamVolume(AudioManager.STREAM_SYSTEM, AudioManager.ADJUST_UNMUTE, 0)
+                isSystemMuted = false
+            }
+        } catch (_: Exception) {}
+    }
+
     fun startListening(
         onPartialResult: ((String) -> Unit)? = null,
         onResult: (String) -> Unit,
@@ -72,6 +99,7 @@ class OrbitVoiceManager(
             return
         }
 
+        // Clean up previous instance cleanly without duplicate callbacks
         stopListening()
 
         onPartialResultCallback = onPartialResult
@@ -82,6 +110,10 @@ class OrbitVoiceManager(
 
         try {
             Log.d(TAG, "▶ Creating SpeechRecognizer for command listening")
+            
+            // Mute system sounds before startListening to eliminate Google Assistant start bloop/chime
+            silenceSystemSounds()
+
             speechRecognizer = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) {
                 SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
             } else {
@@ -91,6 +123,8 @@ class OrbitVoiceManager(
                     override fun onReadyForSpeech(params: Bundle?) {
                         Log.d(TAG, "SpeechRecognizer: ready for speech")
                         _isListening.value = true
+                        // Restore system volume after the start sound window has passed
+                        mainHandler.postDelayed({ restoreSystemSounds() }, 300L)
                     }
 
                     override fun onBeginningOfSpeech() {
@@ -108,11 +142,15 @@ class OrbitVoiceManager(
 
                     override fun onEndOfSpeech() {
                         Log.d(TAG, "SpeechRecognizer: end of speech")
+                        // Mute system sounds to eliminate Google Assistant end chime
+                        silenceSystemSounds()
                         _isListening.value = false
                         _audioLevel.value = 0f
                     }
 
                     override fun onError(error: Int) {
+                        // Mute system sounds to eliminate Google Assistant error beep
+                        silenceSystemSounds()
                         _isListening.value = false
                         _audioLevel.value = 0f
                         val msg = when (error) {
@@ -125,12 +163,14 @@ class OrbitVoiceManager(
                             else -> "Recognition failed ($error)"
                         }
                         Log.w(TAG, "SpeechRecognizer error: $msg (code=$error)")
+                        mainHandler.postDelayed({ restoreSystemSounds() }, 200L)
                         onErrorCallback?.invoke(msg)
                     }
 
                     override fun onResults(results: Bundle?) {
                         _isListening.value = false
                         _audioLevel.value = 0f
+                        mainHandler.postDelayed({ restoreSystemSounds() }, 200L)
                         val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         val text = matches?.firstOrNull()?.trim()
                         if (!text.isNullOrBlank()) {
@@ -167,8 +207,9 @@ class OrbitVoiceManager(
 
             speechRecognizer?.startListening(intent)
             _isListening.value = true
-            Log.d(TAG, "▶ SpeechRecognizer.startListening() called")
+            Log.d(TAG, "▶ SpeechRecognizer.startListening() called (silenced system beeps)")
         } catch (e: Exception) {
+            restoreSystemSounds()
             _isListening.value = false
             Log.e(TAG, "startListening exception: ${e.message}")
             onErrorCallback?.invoke("Could not start speech recognition: ${e.message}")
@@ -186,6 +227,7 @@ class OrbitVoiceManager(
             speechRecognizer = null
             _isListening.value = false
             _audioLevel.value = 0f
+            restoreSystemSounds()
             Log.d(TAG, "⏹ Command listening STOPPED")
         }
     }

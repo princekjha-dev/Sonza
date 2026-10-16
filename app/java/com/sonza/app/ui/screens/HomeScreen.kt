@@ -99,9 +99,13 @@ fun HomeScreen(
     onPlayPause: () -> Unit = {},
     onOrbitClick: () -> Unit = {},
     viewModel: HomeViewModel = koinViewModel(),
-    playlistViewModel: PlaylistManagementViewModel = koinViewModel()
+    playlistViewModel: PlaylistManagementViewModel = koinViewModel(),
+    orbitViewModel: com.sonza.app.ai.orbit.OrbitAssistantViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val orbitState by orbitViewModel.orbitState.collectAsStateWithLifecycle()
+    val audioLevel by orbitViewModel.audioLevel.collectAsStateWithLifecycle()
+    val musicAudioData by orbitViewModel.musicAudioData.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val sessionManager = remember { com.sonza.app.data.SessionManager(context) }
     val animatedBackgroundEnabled by sessionManager.playerAnimatedBackgroundFlow.collectAsStateWithLifecycle(initialValue = true)
@@ -361,6 +365,10 @@ fun HomeScreen(
                                     recentlyPlayed = uiState.recentlyPlayed,
                                     onProfileClick = onProfileClick,
                                     onOrbitClick = onOrbitClick,
+                                    orbitState = orbitState,
+                                    isPlaying = isPlaying,
+                                    audioLevel = audioLevel,
+                                    musicAudioData = musicAudioData,
                                     modifier = Modifier.animateEnter(index = 0)
                                 )
                             }

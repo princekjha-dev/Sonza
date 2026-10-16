@@ -111,6 +111,11 @@ data class SettingsUiState(
     val geminiModel: String = "gemini-1.5-pro",
     val chatProxyModel: String = "gpt-5",
     val selectedAiProvider: String = "CHAT_PROXY",
+    // Orbit Assistant Settings
+    val orbitAiProvider: String = "GROQ",
+    val orbitProxyBaseUrl: String = "",
+    val orbitProxyAuthToken: String = "",
+    val orbitWakeWordEnabled: Boolean = true,
     // AI Dynamic Catalogs & Validation
     val chatProxyModels: List<String> = emptyList(),
     val chatProxyModelsLoading: Boolean = false,
@@ -420,6 +425,18 @@ class SettingsViewModel @Inject constructor(
                     "ANTHROPIC" -> loadAnthropicModels()
                 }
             }
+        }
+        viewModelScope.launch {
+            sessionManager.orbitAiProviderFlow.collect { value -> _uiState.update { it.copy(orbitAiProvider = value) } }
+        }
+        viewModelScope.launch {
+            sessionManager.orbitProxyBaseUrlFlow.collect { value -> _uiState.update { it.copy(orbitProxyBaseUrl = value) } }
+        }
+        viewModelScope.launch {
+            sessionManager.orbitProxyAuthTokenFlow.collect { value -> _uiState.update { it.copy(orbitProxyAuthToken = value) } }
+        }
+        viewModelScope.launch {
+            sessionManager.orbitWakeWordEnabledFlow.collect { value -> _uiState.update { it.copy(orbitWakeWordEnabled = value) } }
         }
 
         viewModelScope.launch {
@@ -770,6 +787,19 @@ class SettingsViewModel @Inject constructor(
     fun setGeminiModel(value: String) = viewModelScope.launch { sessionManager.setGeminiModel(value) }
     fun setChatProxyModel(value: String) = viewModelScope.launch { sessionManager.setChatProxyModel(value) }
     fun setSelectedAiProvider(value: String) = viewModelScope.launch { sessionManager.setSelectedAiProvider(value) }
+
+    fun setOrbitAiProvider(provider: String) = viewModelScope.launch {
+        sessionManager.setOrbitAiProvider(provider)
+    }
+    fun setOrbitProxyBaseUrl(url: String) = viewModelScope.launch {
+        sessionManager.setOrbitProxyBaseUrl(url)
+    }
+    fun setOrbitProxyAuthToken(token: String) = viewModelScope.launch {
+        sessionManager.setOrbitProxyAuthToken(token)
+    }
+    fun setOrbitWakeWordEnabled(enabled: Boolean) = viewModelScope.launch {
+        sessionManager.setOrbitWakeWordEnabled(enabled)
+    }
 
     fun loadChatProxyModels(forceRefresh: Boolean = false) {
         viewModelScope.launch {

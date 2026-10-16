@@ -295,26 +295,15 @@ fun SecondaryPlayerControls(
             )
         }
 
-        // Voice Assistant Button (Microphone button to trigger the single Orbit assistant)
+        // Voice Assistant Button (Orbit Avatar)
         if (onOrbitClick != null) {
-            Box(
-                modifier = Modifier
-                    .size(buttonSize)
-                    .clip(CircleShape)
-                    .background(dominantColors.accent.copy(alpha = 0.14f))
-                    .bounceClick(scaleDown = MotionTokens.CardTapScale) {
-                        haptics.tick()
-                        onOrbitClick()
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Mic,
-                    contentDescription = "Voice Assistant",
-                    tint = dominantColors.accent,
-                    modifier = Modifier.size(iconSize)
-                )
-            }
+            com.sonza.app.ai.orbit.OrbitAvatar(
+                state = if (isPlaying) com.sonza.app.ai.orbit.OrbitState.MUSIC_REACTIVE else com.sonza.app.ai.orbit.OrbitState.IDLE,
+                size = com.sonza.app.ai.orbit.OrbitAvatarSize.Compact,
+                isPlaying = isPlaying,
+                accentColor = dominantColors.accent,
+                onClick = onOrbitClick
+            )
         }
 
         // Devices (Audio output) Button

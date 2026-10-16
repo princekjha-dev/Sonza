@@ -41,7 +41,20 @@ class OrbitContextMemory {
     var conversationTurn: Int = 0
         private set
 
-    fun updatePlayback(song: Song?, queue: List<Song> = emptyList(), playlist: String? = null) {
+    private val _conversationHistory = mutableListOf<OrbitChatMessage>()
+    val conversationHistory: List<OrbitChatMessage> get() = _conversationHistory.toList()
+
+    var musicContext: OrbitMusicContext = OrbitMusicContext()
+        private set
+
+    fun updatePlayback(
+        song: Song?,
+        queue: List<Song> = emptyList(),
+        playlist: String? = null,
+        isPlaying: Boolean = false,
+        durationMs: Long? = null,
+        currentPositionMs: Long? = null
+    ) {
         currentSong = song
         if (song != null) {
             currentArtist = song.artist.takeIf { it.isNotBlank() && it != "<unknown>" }
@@ -53,6 +66,20 @@ class OrbitContextMemory {
         if (!playlist.isNullOrBlank()) {
             currentPlaylist = playlist
         }
+
+        musicContext = OrbitMusicContext(
+            title = song?.title,
+            artist = currentArtist,
+            album = currentAlbum,
+            durationMs = durationMs ?: song?.duration,
+            currentPositionMs = currentPositionMs,
+            isPlaying = isPlaying,
+            source = song?.source?.name
+        )
+    }
+
+    fun updateMusicContext(context: OrbitMusicContext) {
+        musicContext = context
     }
 
     fun recordTurn(
@@ -70,6 +97,15 @@ class OrbitContextMemory {
             lastSearchResults = searchResults
         }
         conversationTurn++
+
+        _conversationHistory.add(OrbitChatMessage(role = "user", content = userUtterance))
+        _conversationHistory.add(OrbitChatMessage(role = "assistant", content = spokenResponse))
+
+        // Keep rolling history of last 10 turns
+        if (_conversationHistory.size > 20) {
+            _conversationHistory.removeAt(0)
+            _conversationHistory.removeAt(0)
+        }
     }
 
     fun setDisambiguation(songs: List<Song>, options: List<String>) {
@@ -96,5 +132,6 @@ class OrbitContextMemory {
         pendingDisambiguation = emptyList()
         disambiguationOptions = emptyList()
         conversationTurn = 0
+        _conversationHistory.clear()
     }
 }

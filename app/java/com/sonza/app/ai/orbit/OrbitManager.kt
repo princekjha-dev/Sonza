@@ -2,9 +2,12 @@ package com.sonza.app.ai.orbit
 
 import android.content.Context
 import com.sonza.app.core.model.Song
+import com.sonza.app.data.SessionManager
 import com.sonza.app.player.MusicPlayer
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import java.util.Calendar
+import java.util.Locale
 
 /**
  * UI Events emitted from the persistent OrbitManager to the hosting Activity/Compose root.
@@ -18,19 +21,21 @@ sealed interface OrbitUiEvent {
 /**
  * Authoritative, persistent, application-level Orbit Assistant Manager.
  *
- * CRITICAL ARCHITECTURAL SEPARATION:
- * 1. Assistant Lifecycle: Persistent application singleton. Survives navigation, closing players,
- *    switching tabs, backgrounding, sheets, and full-screen covers.
- * 2. Visual UI: Can be hidden by pressing 'X' or timed out without affecting the running assistant,
- *    wake-word detection, context memory, or voice pipeline.
- * 3. Music Player Lifecycle: Independent playback engine; Orbit controls it via authoritative services
- *    without being tied to any player view.
+ * Requirements:
+ * - Orbit has its own voice identity: zero generic Google Assistant-style sounds or chimes.
+ * - Idempotent, robust state machine: idle -> wakeDetected -> listening -> processing -> speaking -> idle.
+ *   Prevents duplicate triggers from multiple wake-word callbacks, microphone loops, or view re-renders.
+ * - Interruptible and recoverable: Seamlessly ducks music during voice session and restores volume on completion.
+ * - Continuous conversation: Allows natural follow-up commands without saying "Hey Orbit" repeatedly,
+ *   while respecting privacy timeouts.
+ * - Personalized: Orbit greets the user naturally using their saved name from the single-source-of-truth profile.
  */
 class OrbitManager(
     private val voiceManager: OrbitVoiceManager,
     private val voiceSynthesizer: OrbitVoiceSynthesizer,
     private val executor: OrbitExecutor,
     private val musicPlayer: MusicPlayer,
+    private val sessionManager: SessionManager,
     private val context: Context
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -91,7 +96,13 @@ class OrbitManager(
         scope.launch {
             musicPlayer.playerState.collect { playerState ->
                 audioAnalyzer.setPlaying(playerState.isPlaying)
-                contextMemory.updatePlayback(playerState.currentSong, playerState.queue)
+                contextMemory.updatePlayback(
+                    song = playerState.currentSong,
+                    queue = playerState.queue,
+                    isPlaying = playerState.isPlaying,
+                    durationMs = playerState.duration,
+                    currentPositionMs = playerState.currentPosition
+                )
 
                 if (!_orbitState.value.isVoiceActive) {
                     val targetState = if (playerState.isPlaying) OrbitState.MUSIC_REACTIVE else OrbitState.IDLE
@@ -108,7 +119,7 @@ class OrbitManager(
      * User tapped the Orbit avatar:
      * - If currently speaking, immediately interrupts speech and opens mic for new command.
      * - If currently listening, cancels listening and returns to standby.
-     * - If idle, wakes up and begins listening.
+     * - If idle, wakes up and begins listening directly.
      */
     fun onUserTrigger() {
         autoDismissJob?.cancel()
@@ -131,10 +142,11 @@ class OrbitManager(
 
     /**
      * Triggered when "Hey Orbit" is spoken by the user anywhere in the app or while in background.
+     * Guaranteed single authoritative handler: guards against repeated callbacks, loops, and rapid fire.
      */
     fun onWakeWordDetected(command: String? = null) {
         val now = System.currentTimeMillis()
-        if (now - lastWakeTimeMs < 1000L || _orbitState.value == OrbitState.WAKE_DETECTED || _orbitState.value == OrbitState.ACTIVATING) {
+        if (now - lastWakeTimeMs < 2500L || _orbitState.value.isVoiceActive) {
             return
         }
         lastWakeTimeMs = now
@@ -142,6 +154,10 @@ class OrbitManager(
         triggerWakeSequence(command)
     }
 
+    /**
+     * Orbit Wake Sequence:
+     * Hey Orbit -> Orbit activates -> Orbit responds naturally with voice (no generic assistant chimes).
+     */
     private fun triggerWakeSequence(command: String?) {
         autoDismissJob?.cancel()
         followUpJob?.cancel()
@@ -149,25 +165,60 @@ class OrbitManager(
 
         transitionToState(OrbitState.WAKE_DETECTED)
         _isVisualUiVisible.value = true
-        OrbitSoundManager.playActivation()
 
         scope.launch {
-            delay(100L)
             transitionToState(OrbitState.ACTIVATING)
-            delay(350L) // Settle activation chime before acquiring microphone
+            delay(120L)
 
             if (!command.isNullOrBlank()) {
                 _assistantMessage.value = "“$command”"
                 processUtterance(command)
             } else {
-                startListening()
+                // Natural conversational voice response for standalone wake word
+                val wakeGreeting = getPersonalizedWakeResponse()
+                _dialogueContext.value = OrbitDialogueContext.AwaitingCommand()
+                _assistantMessage.value = "I'm listening…"
+                speakResponse(wakeGreeting, expectsFollowUp = true)
             }
         }
     }
 
+    /**
+     * Generates a warm, natural personalized wake response using the saved profile name.
+     * Rotates greetings to avoid robotic repetition.
+     */
+    fun getPersonalizedWakeResponse(): String {
+        val name = sessionManager.getCachedUserName()?.trim()
+        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+
+        if (name.isNullOrBlank()) {
+            return "Yes?"
+        }
+
+        val options = mutableListOf(
+            "Yes, $name?",
+            "Hey $name, what can I do for you?",
+            "Yes?",
+            "I'm here, $name."
+        )
+
+        val timeGreeting = when (hour) {
+            in 5..11 -> "Good morning, $name."
+            in 12..16 -> "Good afternoon, $name."
+            in 17..21 -> "Good evening, $name."
+            else -> "Hey $name, what would you like to hear?"
+        }
+        options.add(timeGreeting)
+
+        return options.random()
+    }
+
     fun startListening() {
+        if (_orbitState.value == OrbitState.LISTENING || _orbitState.value == OrbitState.TRANSCRIBING) {
+            // Already listening, guard against duplicate starts
+            return
+        }
         autoDismissJob?.cancel()
-        followUpJob?.cancel()
         voiceSynthesizer.stopSpeaking()
 
         if (!voiceSession.hasRecordAudioPermission()) {
@@ -176,7 +227,6 @@ class OrbitManager(
             }
             _assistantMessage.value = "Orbit needs microphone access to hear 'Hey Orbit' and your voice commands."
             transitionToState(OrbitState.ERROR)
-            OrbitSoundManager.playError()
             scheduleSafeReturn(3000L)
             return
         }
@@ -190,34 +240,33 @@ class OrbitManager(
             is OrbitDialogueContext.AwaitingCommand -> "I'm listening…"
             is OrbitDialogueContext.AwaitingDisambiguation -> "Which one would you like?"
             is OrbitDialogueContext.AwaitingConfirmation -> "Say yes or no…"
-            else -> "Listening…"
+            else -> "I'm listening…"
         }
 
         voiceSession.acquireMicForCommand(
             onPartialResult = { partialText ->
                 if (partialText.isNotBlank()) {
+                    followUpJob?.cancel()
                     transitionToState(OrbitState.TRANSCRIBING)
                     _assistantMessage.value = partialText
                     OrbitLogger.transcribing(partialText)
                 }
             },
             onResult = { text ->
-                musicPlayer.restoreVolume()
+                followUpJob?.cancel()
                 _assistantMessage.value = text
                 OrbitLogger.transcript(text)
                 processUtterance(text)
             },
             onError = { errorMsg ->
-                musicPlayer.restoreVolume()
                 OrbitLogger.error("Recognition error: $errorMsg")
 
                 if (errorMsg.contains("timed out", ignoreCase = true) || errorMsg.contains("No speech", ignoreCase = true)) {
                     returnToIdleState()
                 } else {
                     transitionToState(OrbitState.ERROR)
-                    OrbitSoundManager.playError()
                     _assistantMessage.value = errorMsg
-                    scheduleSafeReturn(3000L)
+                    scheduleSafeReturn(2500L)
                 }
             }
         )
@@ -230,7 +279,18 @@ class OrbitManager(
         autoDismissJob?.cancel()
         followUpJob?.cancel()
         voiceSession.releaseMic()
-        musicPlayer.restoreVolume()
+
+        val s = rawInput.trim().lowercase(Locale.ROOT)
+
+        // Check for conversational dismissals in continuous conversation
+        if (s in listOf("thank you", "thanks", "thats all", "that's all", "all done", "goodbye", "bye", "cancel", "close", "never mind", "nevermind", "exit")) {
+            val closingResponse = if (s.contains("thank")) "You're welcome!" else "Alright."
+            _dialogueContext.value = OrbitDialogueContext.Idle
+            contextMemory.resetContext()
+            _assistantMessage.value = closingResponse
+            speakResponse(closingResponse, expectsFollowUp = false)
+            return
+        }
 
         transitionToState(OrbitState.PROCESSING)
         _assistantMessage.value = "Processing…"
@@ -248,8 +308,9 @@ class OrbitManager(
             // Special: Standalone Wake Word prompt
             if (intent is OrbitIntent.WakeWordOnlyIntent) {
                 _dialogueContext.value = OrbitDialogueContext.AwaitingCommand()
-                _assistantMessage.value = "I'm listening"
-                speakResponse("Yes?", expectsFollowUp = true)
+                _assistantMessage.value = "I'm listening…"
+                val wakeGreeting = getPersonalizedWakeResponse()
+                speakResponse(wakeGreeting, expectsFollowUp = true)
                 return@launch
             }
 
@@ -283,9 +344,10 @@ class OrbitManager(
                 _events.emit(OrbitUiEvent.NavigateTo(result.navigationTarget))
             }
 
-            // HARD REQUIREMENT: Every command receives a spoken response
+            // Spoken natural response without generic sound effects
             val speechText = result.spokenResponse.ifBlank { result.message }
-            speakResponse(speechText, expectsFollowUp = result.requiresFollowUp)
+            // In continuous conversation, allow follow-up by default unless command specifically failed or dialogue ended
+            speakResponse(speechText, expectsFollowUp = true)
         }
     }
 
@@ -300,9 +362,8 @@ class OrbitManager(
             },
             onDone = {
                 if (expectsFollowUp) {
-                    transitionToState(OrbitState.WAITING_FOR_FOLLOWUP)
-                    OrbitLogger.state(OrbitState.WAITING_FOR_FOLLOWUP)
-                    startListening()
+                    // Continuous conversation: wait for natural follow-up command with privacy timeout
+                    startContinuousListening(timeoutMs = 5000L)
                 } else {
                     returnToIdleState()
                 }
@@ -311,7 +372,30 @@ class OrbitManager(
     }
 
     /**
-     * Critical Requirement 21:
+     * Continuous Conversation loop:
+     * After Orbit answers a command, it stays receptive for follow-up commands (e.g. "make it louder",
+     * "skip this one", "play something relaxing") without requiring "Hey Orbit" again.
+     * Automatically and gracefully returns to idle/music state if silence timeout expires.
+     */
+    private fun startContinuousListening(timeoutMs: Long = 5000L) {
+        followUpJob?.cancel()
+        transitionToState(OrbitState.WAITING_FOR_FOLLOWUP)
+        OrbitLogger.state(OrbitState.WAITING_FOR_FOLLOWUP)
+        _assistantMessage.value = "I'm listening…"
+
+        startListening()
+
+        followUpJob = scope.launch {
+            delay(timeoutMs)
+            if (_orbitState.value == OrbitState.WAITING_FOR_FOLLOWUP || _orbitState.value == OrbitState.LISTENING) {
+                OrbitLogger.transcript("Continuous conversation window closed after ${timeoutMs}ms silence")
+                returnToIdleState()
+            }
+        }
+    }
+
+    /**
+     * Requirement 21:
      * The X button ONLY hides the visual UI. It does NOT stop Orbit, does NOT unregister listeners,
      * does NOT destroy context, and does NOT kill the wake-word system.
      */
@@ -341,7 +425,7 @@ class OrbitManager(
 
         scope.launch {
             transitionToState(OrbitState.ENDING)
-            delay(250L)
+            delay(200L)
 
             val isNowPlaying = musicPlayer.playerState.value.isPlaying
             val finalState = if (isNowPlaying) OrbitState.MUSIC_REACTIVE else OrbitState.IDLE
@@ -375,7 +459,6 @@ class OrbitManager(
         } else {
             _assistantMessage.value = "Orbit needs microphone access to hear 'Hey Orbit' and your voice commands."
             transitionToState(OrbitState.ERROR)
-            OrbitSoundManager.playError()
             scheduleSafeReturn(3000L)
         }
     }

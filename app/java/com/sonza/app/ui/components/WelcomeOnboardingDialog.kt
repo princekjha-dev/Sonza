@@ -40,6 +40,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -65,16 +67,18 @@ import androidx.compose.ui.unit.sp
  * to guarantee zero leakage of underlying Home elements, mini-players, or navigation bars.
  *
  * Step 1: Minimal, premium brand-forward welcome with YouTube Music connect & guest exploration.
- * Step 2: "Shape your sound" language preference selection with dynamic accent pill chips.
+ * Step 2: "Welcome to Orbit — What should Orbit call you?" guest name onboarding step.
+ * Step 3: "Shape your sound" language preference selection with dynamic accent pill chips.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun WelcomeOnboardingDialog(
     onLoginClick: () -> Unit,
-    onContinueAsGuest: (Set<String>) -> Unit,
+    onContinueAsGuest: (Set<String>, String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var step by remember { mutableIntStateOf(1) }
+    var guestName by remember { mutableStateOf<String?>(null) }
     val selectedLanguages = remember { mutableStateOf(setOf<String>()) }
 
     val dynamicAccent = LocalSonzaDynamicColors.current.accent.takeIf { it != Color.Unspecified }
@@ -82,10 +86,10 @@ fun WelcomeOnboardingDialog(
     val onAccent = LocalSonzaDynamicColors.current.onAccent.takeIf { it != Color.Unspecified }
         ?: MaterialTheme.colorScheme.onPrimary
 
-    // Handle back navigation: Step 2 navigates back to Step 1; Step 1 intercepts back (gate onboarding)
+    // Handle back navigation across the 3 onboarding steps
     BackHandler(enabled = true) {
         if (step > 1) {
-            step = 1
+            step -= 1
         }
     }
 
@@ -123,7 +127,16 @@ fun WelcomeOnboardingDialog(
                     onLoginClick = onLoginClick,
                     onContinueAsGuest = { step = 2 }
                 )
-                2 -> LanguagePreferencesStep(
+                2 -> OrbitGuestOnboardingStep(
+                    accentColor = dynamicAccent,
+                    onAccentColor = onAccent,
+                    initialName = guestName ?: "",
+                    onContinue = { name ->
+                        guestName = name
+                        step = 3
+                    }
+                )
+                3 -> LanguagePreferencesStep(
                     selected = selectedLanguages.value,
                     accentColor = dynamicAccent,
                     onAccentColor = onAccent,
@@ -132,8 +145,8 @@ fun WelcomeOnboardingDialog(
                             if (lang in selectedLanguages.value) selectedLanguages.value - lang
                             else selectedLanguages.value + lang
                     },
-                    onDone = { onContinueAsGuest(selectedLanguages.value) },
-                    onSkip = { onContinueAsGuest(emptySet()) }
+                    onDone = { onContinueAsGuest(selectedLanguages.value, guestName) },
+                    onSkip = { onContinueAsGuest(emptySet(), guestName) }
                 )
             }
         }
@@ -453,3 +466,122 @@ private fun SelectableLanguageChip(
         }
     }
 }
+
+/**
+ * Step 2 of onboarding: Guest name personalization for Orbit.
+ * "Welcome to Orbit — What should Orbit call you?"
+ */
+@Composable
+private fun OrbitGuestOnboardingStep(
+    accentColor: Color,
+    onAccentColor: Color,
+    initialName: String,
+    onContinue: (String?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var nameText by remember { mutableStateOf(initialName) }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 28.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        // Orbit Avatar Hero
+        com.sonza.app.ai.orbit.OrbitAvatar(
+            state = com.sonza.app.ai.orbit.OrbitState.IDLE,
+            size = com.sonza.app.ai.orbit.OrbitAvatarSize.Hero,
+            accentColor = accentColor
+        )
+
+        Spacer(modifier = Modifier.height(28.dp))
+
+        Text(
+            text = "Welcome to Orbit",
+            style = MaterialTheme.typography.headlineMedium.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 28.sp
+            ),
+            color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "What should Orbit call you?",
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+            ),
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        OutlinedTextField(
+            value = nameText,
+            onValueChange = { nameText = it },
+            placeholder = {
+                Text(
+                    text = "Your name",
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
+                )
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(16.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = accentColor,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+                cursorColor = accentColor
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(28.dp))
+
+        Button(
+            onClick = {
+                val clean = nameText.trim()
+                onContinue(if (clean.isNotEmpty()) clean else null)
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = accentColor,
+                contentColor = onAccentColor
+            )
+        ) {
+            Text(
+                text = "Continue",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        TextButton(
+            onClick = { onContinue(null) },
+            modifier = Modifier.height(44.dp)
+        ) {
+            Text(
+                text = "Skip for now",
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.65f)
+                )
+            )
+        }
+    }
+}
+
