@@ -1,0 +1,101 @@
+name: Build & Release SONZA APK
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Validate Gradle Wrapper
+        uses: gradle/actions/wrapper-validation@v5
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Prepare Named APK Artifacts
+        run: |
+          mkdir -p build-apks
+          VERSION_TAG="${{ github.ref_name }}"
+          if [ -z "$VERSION_TAG" ] || [ "$VERSION_TAG" = "main" ]; then
+            VERSION_TAG="v2.6.5.1"
+          fi
+          APK_FILE=$(find app/build/outputs/apk -type f -name "*.apk" | head -n 1)
+          if [ -n "$APK_FILE" ] && [ -f "$APK_FILE" ]; then
+            echo "Found APK at: $APK_FILE"
+            cp "$APK_FILE" "build-apks/SONZA-${VERSION_TAG}.apk"
+            ls -la build-apks/
+          else
+            echo "::error::No APK files found in app/build/outputs/apk"
+            exit 1
+          fi
+
+      - name: Upload Debug APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SONZA-APK
+          path: build-apks/*.apk
+
+      - name: Create Release and Upload APK
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: SONZA ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          body: |
+            ## 🎧 SONZA — Hear Music Differently.
+            
+            ### ✨ What's New in v2.6.5.1:
+            - **Orbit Voice Assistant Integration:** Seamless Cloudflare Worker AI proxy integration (`POST /v1/chat`) with multi-turn conversational intelligence.
+            - **Siri-like Voice Interaction Surface:** Compact, temporary floating glass card with dynamic waveforms, thinking dots, and auto-dismissal.
+            - **Dynamic Music-Reactive Colors:** Live artwork palette derivation with smooth 850ms liquid color morphing across track changes.
+            - **Natural Conversational Error Handling:** Humanized dialogue replaces raw search diagnostics and technical exceptions.
+            - **Persistent Non-Intrusive Avatar:** Compact Orbit character placed permanently in the top-right header without obstructing home content.
+            
+            ### High-Fidelity Audiophile Playback & Modern Experience
+            - Lossless bit-perfect playback (FLAC / 24-bit / 96kHz / 192kHz)
+            - 10-Band Parametric Equalizer (-12dB to +12dB) & DSP curve visualizer
+            - Binaural Spatial Audio & Stereo Expander
+            - Real-time Synchronized Lyrics with word-level highlighting
+            - Dynamic Home header with personalized user greeting & instant profile sync
+            - Consolidated Dynamic Island & Floating Mini Player
+            - ReplayGain Loudness Normalization & anti-clipping limiter
+            - Beat-synchronized musical haptics
+            - Native Android MediaStore local library scanner
+            - Spotify Playlist metadata importer
+            
+            ### 📱 Installation Instructions:
+            1. Download `SONZA-${{ github.ref_name }}.apk` below directly onto your Android phone.
+            2. Tap to install (enable "Install from unknown sources" if prompted).
+            3. Enjoy high-fidelity audio!
+          files: build-apks/SONZA-*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

@@ -1,0 +1,180 @@
+package com.sonza.app.discord
+
+import android.content.Context
+import android.util.Log
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class DiscordManager @Inject constructor(
+    @param:ApplicationContext private val context: Context,
+    private val sessionManager: com.sonza.app.data.SessionManager
+) {
+    private var discordRPC: DiscordRPC? = null
+    private var token: String? = null
+    private var isEnabled: Boolean = false
+    private var useDetails: Boolean = false
+    private var isIncognitoMode: Boolean = false
+    
+    // SupervisorJob so a single failing collector (e.g. the incognito-mode flow)
+    // doesn't cancel the whole scope and silently kill future Discord updates.
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var initializationJob: Job? = null
+    
+    private val _connectionStatus = MutableStateFlow("Disconnected")
+    val connectionStatus: StateFlow<String> = _connectionStatus.asStateFlow()
+
+    fun initialize(userToken: String, enabled: Boolean, details: Boolean) {
+        token = userToken
+        isEnabled = enabled
+        useDetails = details
+        
+        if (isEnabled && !userToken.isBlank()) {
+            connect()
+        } else {
+            disconnect()
+        }
+        
+        initializationJob?.cancel()
+        initializationJob = scope.launch {
+            sessionManager.incognitoModeEnabledFlow.collect { enabled ->
+                isIncognitoMode = enabled
+                if (enabled) {
+                    discordRPC?.updateActivity(name = "Sonza", state = null, details = null)
+                }
+            }
+        }
+    }
+    
+    fun updateSettings(userToken: String, enabled: Boolean, details: Boolean) {
+        val previousToken = token
+        val wasEnabled = isEnabled
+        val wasConnected = discordRPC?.isWebSocketConnected() == true
+
+        token = userToken
+        isEnabled = enabled
+        useDetails = details
+
+        // Only tear down and reconnect when the token or enabled-state actually
+        // changed. Previously this method reconnected unconditionally, so any
+        // unrelated settings save (privacy toggle, RPC details flag, etc.) tore
+        // down the gateway and triggered a Discord reconnect — battery drain
+        // plus visible "Disconnected → Connecting…" flicker for every save.
+        val tokenChanged = previousToken != userToken
+        val enabledChanged = wasEnabled != enabled
+
+        if (!enabled || userToken.isBlank()) {
+            if (wasConnected || discordRPC != null) disconnect()
+            return
+        }
+
+        when {
+            // Just turned on, or instance missing → fresh connect.
+            !wasConnected || discordRPC == null -> connect()
+            // Token swapped → tear down and reconnect with the new token.
+            tokenChanged -> {
+                disconnect()
+                connect()
+            }
+            // Newly enabled but somehow already connected → no-op, keep alive.
+            enabledChanged -> Unit
+            // Nothing meaningful changed (details flag etc.) — leave the gateway alone.
+            else -> Unit
+        }
+    }
+
+    private fun connect() {
+        if (token.isNullOrBlank()) return
+        
+        try {
+            if (discordRPC == null) {
+                discordRPC = DiscordRPC(token!!)
+            }
+            discordRPC?.connect()
+            _connectionStatus.value = "Connecting..."
+        } catch (e: Exception) {
+            Log.e("DiscordManager", "Failed to connect", e)
+            _connectionStatus.value = "Error: ${e.message}"
+        }
+    }
+
+    private fun disconnect() {
+        val rpc = discordRPC
+        discordRPC = null
+        _connectionStatus.value = "Disconnected"
+        scope.launch {
+            rpc?.close()
+        }
+    }
+    
+    fun updatePresence(
+        title: String,
+        artist: String,
+        imageUrl: String?,
+        isPlaying: Boolean,
+        duration: Long,
+        currentPosition: Long
+    ) {
+        if (!isEnabled || discordRPC == null) return
+        if (isIncognitoMode) return 
+        
+        if (isPlaying) {
+             val startTime = System.currentTimeMillis() - currentPosition
+             // val endTime = startTime + duration // Optional, creates a countdown
+            
+            val (finalDetails, finalState) = if (useDetails) {
+                 title to artist
+            } else {
+                 artist to title
+            }
+            
+            val formattedImageUrl = when {
+                imageUrl.isNullOrBlank() -> null
+                imageUrl.startsWith("http") -> imageUrl
+                else -> "https:$imageUrl"
+            }
+
+            discordRPC?.updateActivity(
+                name = "Sonza",
+                state = finalState,
+                details = finalDetails,
+                imageUrl = formattedImageUrl,
+                largeText = "Listening to $title",
+                startTime = startTime,
+                // endTime = if (duration > 0) startTime + duration else null
+            )
+        } else {
+             // Clear activity or show paused?
+             // Usually showing "Paused" or just clearing relative timestamps is enough.
+             
+            val (finalDetails, finalState) = if (useDetails) {
+                 "$title (Paused)" to artist
+            } else {
+                 artist to "$title (Paused)"
+            }
+
+            val formattedImageUrl = when {
+                imageUrl.isNullOrBlank() -> null
+                imageUrl.startsWith("http") -> imageUrl
+                else -> "https:$imageUrl"
+            }
+
+             discordRPC?.updateActivity(
+                name = "Sonza",
+                state = finalState,
+                details = finalDetails,
+                imageUrl = formattedImageUrl,
+                largeText = "Paused: $title"
+            )
+        }
+    }
+}

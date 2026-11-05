@@ -1,0 +1,1072 @@
+package com.sonza.app.ui.screens
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import org.koin.compose.viewmodel.koinViewModel
+import com.sonza.app.data.model.*
+import com.sonza.app.core.model.AudioQuality
+import com.sonza.app.core.model.DownloadQuality
+import com.sonza.app.core.model.HapticsIntensity
+import com.sonza.app.core.model.HapticsMode
+import com.sonza.app.core.model.VideoQuality
+import com.sonza.app.core.model.MusicSource
+import com.sonza.app.ui.components.LanguageSelectionDialog
+import com.sonza.app.ui.viewmodel.SettingsViewModel
+import com.sonza.app.util.MusicHapticsManager
+import com.sonza.app.ui.theme.SquircleShape
+import com.sonza.app.ui.theme.PillShape
+import com.sonza.app.util.dpadFocusable
+import kotlinx.coroutines.launch
+import androidx.compose.material3.HorizontalDivider as M3HorizontalDivider
+import com.sonza.app.ui.components.SettingsCard
+import com.sonza.app.ui.components.SettingsSwitchRow
+
+/**
+ * Playback settings screen with Material 3 Expressive design.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PlaybackSettingsScreen(
+    viewModel: SettingsViewModel = koinViewModel(),
+    onBack: () -> Unit
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    var showWifiAudioQualitySheet by remember { mutableStateOf(false) }
+    var showMobileAudioQualitySheet by remember { mutableStateOf(false) }
+    var showVideoQualitySheet by remember { mutableStateOf(false) }
+    var showDownloadQualitySheet by remember { mutableStateOf(false) }
+    var showMusicSourceSheet by remember { mutableStateOf(false) }
+    var showDoubleTapSeekSheet by remember { mutableStateOf(false) }
+    var showHapticsModeSheet by remember { mutableStateOf(false) }
+    var showHapticsIntensitySheet by remember { mutableStateOf(false) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
+    
+    val sheetState = rememberModalBottomSheetState()
+    val downloadSheetState = rememberModalBottomSheetState()
+    val videoSheetState = rememberModalBottomSheetState()
+    val musicSourceSheetState = rememberModalBottomSheetState()
+    val doubleTapSeekSheetState = rememberModalBottomSheetState()
+    val hapticsModeSheetState = rememberModalBottomSheetState()
+    val hapticsIntensitySheetState = rememberModalBottomSheetState()
+
+    val scope = rememberCoroutineScope()
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Playback", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    Box(
+                        modifier = Modifier
+                            .dpadFocusable(
+                                onClick = onBack,
+                                shape = CircleShape,
+                            )
+                            .padding(8.dp)
+                    ) {
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { paddingValues ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            contentPadding = PaddingValues(bottom = 100.dp)
+        ) {
+            // Music Source
+            item {
+                PlaybackSectionTitle("Music Source")
+                SettingsCard(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    PlaybackNavigationItem(
+                        icon = Icons.Default.MusicNote,
+                        title = "Primary Source",
+                        subtitle = when (uiState.musicSource) {
+                            MusicSource.YOUTUBE -> "YouTube Music (256 kbps)"
+                            MusicSource.REMOTE -> "HQ Audio (320 kbps)"
+                        },
+                        onClick = { showMusicSourceSheet = true }
+                    )
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+
+            // Content Preferences
+            item {
+                PlaybackSectionTitle("Content Preferences")
+                SettingsCard(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    PlaybackNavigationItem(
+                        icon = Icons.Default.Language,
+                        title = "Music Languages",
+                        subtitle = if (uiState.preferredLanguages.isEmpty()) "All languages"
+                                   else uiState.preferredLanguages.joinToString(", "),
+                        onClick = { showLanguageDialog = true }
+                    )
+                    
+                    HorizontalDivider()
+
+                    SettingsSwitchRow(
+                        icon = Icons.Default.History,
+                        title = "Sync with YouTube History",
+                        subtitle = "Add played songs to your YouTube watch history",
+                        checked = uiState.youtubeHistorySyncEnabled,
+                        onCheckedChange = { viewModel.setYouTubeHistorySyncEnabled(it) }
+                    )
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+            
+            // Audio Section
+            item {
+                PlaybackSectionTitle("Audio")
+                SettingsCard(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    PlaybackNavigationItem(
+                        icon = Icons.Default.HighQuality,
+                        title = "Wi-Fi Streaming Quality",
+                        subtitle = getAudioQualityLabel(uiState.wifiAudioQuality, uiState.musicSource),
+                        onClick = { showWifiAudioQualitySheet = true }
+                    )
+
+                    HorizontalDivider()
+
+                    PlaybackNavigationItem(
+                        icon = Icons.Default.HighQuality,
+                        title = "Mobile Streaming Quality",
+                        subtitle = getAudioQualityLabel(uiState.mobileAudioQuality, uiState.musicSource),
+                        onClick = { showMobileAudioQualitySheet = true }
+                    )
+
+                    HorizontalDivider()
+
+                    PlaybackNavigationItem(
+                        icon = Icons.Default.HighQuality,
+                        title = "Video Quality",
+                        subtitle = uiState.videoQuality.label,
+                        onClick = { showVideoQualitySheet = true }
+                    )
+                    
+                    HorizontalDivider()
+
+                    PlaybackNavigationItem(
+                        icon = Icons.Default.Download,
+                        title = "Download Quality",
+                        subtitle = getDownloadQualityLabel(uiState.downloadQuality, uiState.musicSource),
+                        onClick = { showDownloadQualitySheet = true }
+                    )
+
+                    HorizontalDivider()
+
+                    SettingsSwitchRow(
+                        icon = Icons.Default.MusicNote,
+                        title = "Headphone Crossfeed",
+                        subtitle = "More natural stereo imaging for headphones",
+                        checked = uiState.crossfeedEnabled,
+                        onCheckedChange = { viewModel.setCrossfeedEnabled(it) }
+                    )
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+            
+            // Track Transitions
+            item {
+                PlaybackSectionTitle("Track Transitions")
+                SettingsCard(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    SettingsSwitchRow(
+                        icon = Icons.Default.GraphicEq,
+                        title = "Gapless Playback",
+                        subtitle = "Seamlessly transitions between songs without any pause",
+                        checked = uiState.gaplessPlaybackEnabled,
+                        onCheckedChange = { viewModel.setGaplessPlayback(it) }
+                    )
+                    
+                    HorizontalDivider()
+
+                    SettingsSwitchRow(
+                        icon = Icons.Default.FastForward,
+                        title = "Preload Next Song",
+                        subtitle = "Start loading the next song early for instant playback",
+                        checked = uiState.nextSongPreloadingEnabled,
+                        onCheckedChange = { viewModel.setNextSongPreloadingEnabled(it) }
+                    )
+                    
+                    if (uiState.nextSongPreloadingEnabled) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Start Preloading After",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.weight(1f))
+                                Text(
+                                    text = "${uiState.nextSongPreloadDelay}s",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            
+                            Slider(
+                                value = uiState.nextSongPreloadDelay.toFloat(),
+                                onValueChange = { viewModel.setNextSongPreloadDelay(it.toInt()) },
+                                valueRange = 0f..30f,
+                                steps = 29
+                            )
+                        }
+                    }
+                    
+                    HorizontalDivider()
+
+                    SettingsSwitchRow(
+                        icon = Icons.Default.Refresh,
+                        title = "Automix",
+                        subtitle = "Keep the queue playing by adding related songs when autoplay or radio is on",
+                        checked = uiState.automixEnabled,
+                        onCheckedChange = { viewModel.setAutomix(it) }
+                    )
+
+                    HorizontalDivider()
+
+                    // Crossfade
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Crossfade",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            val crossLabel = if (uiState.crossfadeMs <= 0) "Off" else "${uiState.crossfadeMs / 1000f}s"
+                            Text(
+                                text = crossLabel,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Slider(
+                            value = uiState.crossfadeMs.toFloat(),
+                            onValueChange = { viewModel.setCrossfadeMs(it.toInt()) },
+                            valueRange = 0f..12000f,
+                            steps = 23 // 0, 500, 1000, ... 12000
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+
+            // Volume Controls
+            item {
+                PlaybackSectionTitle("Volume")
+                SettingsCard(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    SettingsSwitchRow(
+                        icon = Icons.Default.VolumeUp,
+                        title = "In-App Volume Slider",
+                        subtitle = "Show volume slider overlay when adjusting volume",
+                        checked = uiState.volumeSliderEnabled,
+                        onCheckedChange = { viewModel.setVolumeSliderEnabled(it) }
+                    )
+
+                    HorizontalDivider()
+
+                    SettingsSwitchRow(
+                        icon = Icons.Default.Equalizer,
+                        title = "Volume Normalization",
+                        subtitle = "Evens out loud and quiet tracks so every song plays at a similar volume. Off by default.",
+                        checked = uiState.volumeNormalizationEnabled,
+                        onCheckedChange = { viewModel.setVolumeNormalizationEnabled(it) }
+                    )
+
+                    HorizontalDivider()
+
+                    SettingsSwitchRow(
+                        icon = Icons.Default.MusicNote,
+                        title = "Play During Calls",
+                        subtitle = "Keep music playing during Google Meet or phone calls",
+                        checked = uiState.ignoreAudioFocusDuringCalls,
+                        onCheckedChange = { viewModel.setIgnoreAudioFocusDuringCalls(it) }
+                    )
+
+                    HorizontalDivider()
+
+                    SettingsSwitchRow(
+                        icon = Icons.Default.PhoneCallback,
+                        title = "Auto-resume After Calls",
+                        subtitle = "Automatically resume playback when a call ends",
+                        checked = uiState.autoResumeAfterCall,
+                        onCheckedChange = { viewModel.setAutoResumeAfterCall(it) }
+                    )
+
+                    HorizontalDivider()
+
+                    SettingsSwitchRow(
+                        icon = Icons.Default.VolumeUp,
+                        title = "Volume Boost",
+                        subtitle = "Boost volume beyond 100%. Use with caution.",
+                        checked = uiState.volumeBoostEnabled,
+                        onCheckedChange = { viewModel.setVolumeBoostEnabled(it) }
+                    )
+
+                    if (uiState.volumeBoostEnabled) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Boost Amount",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.weight(1f))
+                                Text(
+                                    text = "+${(uiState.volumeBoostAmount * 0.15).toInt()} dB",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            
+                            Slider(
+                                value = uiState.volumeBoostAmount.toFloat(),
+                                onValueChange = { viewModel.setVolumeBoostAmount(it.toInt()) },
+                                valueRange = 0f..100f,
+                                steps = 19
+                            )
+                        }
+                    }
+
+                    HorizontalDivider()
+
+                    SettingsSwitchRow(
+                        icon = Icons.Default.HighQuality,
+                        title = "Audio Offload",
+                        subtitle = "Use specialized audio hardware for playback. Saves battery.",
+                        checked = uiState.audioOffloadEnabled,
+                        onCheckedChange = { viewModel.setAudioOffloadEnabled(it) }
+                    )
+
+                    HorizontalDivider()
+
+                    SettingsSwitchRow(
+                        icon = Icons.Default.Language,
+                        title = "Spatial Audio (Audio AR)",
+                        subtitle = "Rotate soundstage based on device rotation. Needs headphones.",
+                        checked = uiState.audioArEnabled,
+                        onCheckedChange = { viewModel.setAudioArEnabled(it) }
+                    )
+
+                    if (uiState.audioArEnabled) {
+                        Column(modifier = Modifier.padding(bottom = 8.dp)) {
+                            SettingsSwitchRow(
+                                icon = Icons.Default.Refresh,
+                                title = "Auto-Calibration",
+                                subtitle = "Automatically adjust center point if head is stable",
+                                checked = uiState.audioArAutoCalibrate,
+                                onCheckedChange = { viewModel.setAudioArAutoCalibrate(it) }
+                            )
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp, vertical = 8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Soundstage Depth (Sensitivity)",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    Text(
+                                        text = String.format("%.1fx", uiState.audioArSensitivity),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                
+                                Slider(
+                                    value = uiState.audioArSensitivity,
+                                    onValueChange = { viewModel.setAudioArSensitivity(it) },
+                                    valueRange = 0.5f..2.5f,
+                                    steps = 19
+                                )
+                            }
+
+                            PlaybackNavigationItem(
+                                icon = Icons.Default.Refresh,
+                                title = "Recenter Audio",
+                                subtitle = "Set current direction as front",
+                                onClick = { viewModel.calibrateAudioAr() }
+                            )
+
+                            // Spatial intensity — separate from head-tracking
+                            // sensitivity. Drives the static azimuth sweep
+                            // and crossfeed strength applied by the
+                            // SpatialAudioProcessor, so users on speakers
+                            // or wired headphones (where head tracking
+                            // doesn't apply) still have a knob.
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp, vertical = 8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Spatial Intensity",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    Text(
+                                        text = "${uiState.spatialAudioStrength}%",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Slider(
+                                    value = uiState.spatialAudioStrength.toFloat(),
+                                    onValueChange = { viewModel.setSpatialAudioStrength(it.toInt()) },
+                                    valueRange = 0f..100f,
+                                    steps = 19
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+
+            // Gestures
+            item {
+                PlaybackSectionTitle("Gestures")
+                SettingsCard(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    SettingsSwitchRow(
+                        icon = Icons.Default.Gesture,
+                        title = "Swipe Down to Dismiss",
+                        subtitle = "Swipe down on mini player to stop and close",
+                        checked = uiState.swipeDownToDismissEnabled,
+                        onCheckedChange = { viewModel.setSwipeDownToDismissEnabled(it) }
+                    )
+
+                    HorizontalDivider()
+
+                    PlaybackNavigationItem(
+                        icon = Icons.Default.Gesture,
+                        title = "Double Tap to Seek",
+                        subtitle = "${uiState.doubleTapSeekSeconds} seconds",
+                        onClick = { showDoubleTapSeekSheet = true }
+                    )
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+            
+            // Music Haptics Section
+            item {
+                PlaybackSectionTitle("Music Haptics")
+                SettingsCard(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    SettingsSwitchRow(
+                        icon = Icons.Default.Vibration,
+                        title = "Music Haptics",
+                        subtitle = "Feel the music with taps & vibrations synced to the beat",
+                        checked = uiState.musicHapticsEnabled,
+                        onCheckedChange = { viewModel.setMusicHapticsEnabled(it) }
+                    )
+                    
+                    if (uiState.musicHapticsEnabled) {
+                        Column {
+                            HorizontalDivider()
+                            PlaybackNavigationItem(
+                                icon = Icons.Default.Vibration,
+                                title = "Haptics Mode",
+                                subtitle = when (uiState.hapticsMode) {
+                                    HapticsMode.OFF -> "Disabled"
+                                    HapticsMode.BASIC -> "Basic (Strong beats only)"
+                                    HapticsMode.ADVANCED -> "Advanced (Full analysis)"
+                                    HapticsMode.CUSTOM -> "Custom"
+                                },
+                                onClick = { showHapticsModeSheet = true }
+                            )
+                            
+                            HorizontalDivider()
+                            PlaybackNavigationItem(
+                                icon = Icons.Default.Vibration,
+                                title = "Vibration Intensity",
+                                subtitle = uiState.hapticsIntensity.displayName,
+                                onClick = { showHapticsIntensitySheet = true }
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
+    }
+
+    // Wi-Fi Audio Quality Bottom Sheet
+    if (showWifiAudioQualitySheet) {
+        com.sonza.app.ui.components.glass.GlassModalBottomSheet(
+            onDismissRequest = { showWifiAudioQualitySheet = false },
+            sheetState = sheetState,
+            fallbackContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Text(
+                    text = "Wi-Fi Audio Quality",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp, start = 8.dp)
+                )
+                
+                AudioQuality.entries.forEach { quality ->
+                    ListItem(
+                        headlineContent = { Text(getAudioQualityLabel(quality, uiState.musicSource)) },
+                        leadingContent = {
+                            RadioButton(
+                                selected = uiState.wifiAudioQuality == quality,
+                                onClick = null
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .dpadFocusable(
+                                onClick = {
+                                    viewModel.setWifiAudioQuality(quality)
+                                    scope.launch {
+                                        sheetState.hide()
+                                        showWifiAudioQualitySheet = false
+                                    }
+                                },
+                                shape = SquircleShape
+                            )
+                            .padding(horizontal = 8.dp),
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                }
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
+    }
+
+    // Mobile Audio Quality Bottom Sheet
+    if (showMobileAudioQualitySheet) {
+        com.sonza.app.ui.components.glass.GlassModalBottomSheet(
+            onDismissRequest = { showMobileAudioQualitySheet = false },
+            sheetState = sheetState,
+            fallbackContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Text(
+                    text = "Mobile Audio Quality",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp, start = 8.dp)
+                )
+                
+                AudioQuality.entries.forEach { quality ->
+                    ListItem(
+                        headlineContent = { Text(getAudioQualityLabel(quality, uiState.musicSource)) },
+                        leadingContent = {
+                            RadioButton(
+                                selected = uiState.mobileAudioQuality == quality,
+                                onClick = null
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .dpadFocusable(
+                                onClick = {
+                                    viewModel.setMobileAudioQuality(quality)
+                                    scope.launch {
+                                        sheetState.hide()
+                                        showMobileAudioQualitySheet = false
+                                    }
+                                },
+                                shape = SquircleShape
+                            )
+                            .padding(horizontal = 8.dp),
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                }
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
+    }
+    
+    // Video Quality Bottom Sheet
+    if (showVideoQualitySheet) {
+        com.sonza.app.ui.components.glass.GlassModalBottomSheet(
+            onDismissRequest = { showVideoQualitySheet = false },
+            sheetState = videoSheetState,
+            fallbackContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Text(
+                    text = "Video Quality",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp, start = 8.dp)
+                )
+
+                VideoQuality.entries.forEach { quality ->
+                    ListItem(
+                        headlineContent = { Text(quality.label) },
+                        leadingContent = {
+                            RadioButton(
+                                selected = uiState.videoQuality == quality,
+                                onClick = null
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .dpadFocusable(
+                                onClick = {
+                                    viewModel.setVideoQuality(quality)
+                                    scope.launch {
+                                        videoSheetState.hide()
+                                        showVideoQualitySheet = false
+                                    }
+                                },
+                                shape = SquircleShape
+                            )
+                            .padding(horizontal = 8.dp),
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                }
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
+    }
+
+    if (showDownloadQualitySheet) {
+        com.sonza.app.ui.components.glass.GlassModalBottomSheet(
+            onDismissRequest = { showDownloadQualitySheet = false },
+            sheetState = downloadSheetState,
+            fallbackContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Text(
+                    text = "Download Quality",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp, start = 8.dp)
+                )
+                
+                Text(
+                    text = "Lower quality = smaller file size",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 16.dp, start = 8.dp)
+                )
+                
+                DownloadQuality.entries.forEach { quality ->
+                    ListItem(
+                        headlineContent = { Text(getDownloadQualityLabel(quality, uiState.musicSource)) },
+                        leadingContent = {
+                            RadioButton(
+                                selected = uiState.downloadQuality == quality,
+                                onClick = null
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .dpadFocusable(
+                                onClick = {
+                                    viewModel.setDownloadQuality(quality)
+                                    scope.launch {
+                                        downloadSheetState.hide()
+                                        showDownloadQualitySheet = false
+                                    }
+                                },
+                                shape = SquircleShape
+                            )
+                            .padding(horizontal = 8.dp),
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                }
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
+    }
+
+    // Music Source Bottom Sheet
+    if (showMusicSourceSheet) {
+        com.sonza.app.ui.components.glass.GlassModalBottomSheet(
+            onDismissRequest = { showMusicSourceSheet = false },
+            sheetState = musicSourceSheetState,
+            fallbackContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Text(
+                    text = "Primary Music Source",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp, start = 8.dp)
+                )
+                
+                Text(
+                    text = "Choose where Sonza streams from. HQ Audio (320 kbps) plays everywhere — " +
+                        "home, search, queue and next/previous. If a track has no HQ match, " +
+                        "Sonza tells you and falls back to YouTube automatically.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 16.dp, start = 8.dp)
+                )
+
+                val sourceOptions = buildList {
+                    add(MusicSource.YOUTUBE to "YouTube Music (256 kbps max)")
+                    add(MusicSource.REMOTE to "HQ Audio (320 kbps)")
+                }
+                
+                sourceOptions.forEach { (source, label) ->
+                    ListItem(
+                        headlineContent = { Text(label) },
+                        leadingContent = {
+                            RadioButton(
+                                selected = uiState.musicSource == source,
+                                onClick = null
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .dpadFocusable(
+                                onClick = {
+                                    viewModel.setMusicSource(source)
+                                    scope.launch {
+                                        musicSourceSheetState.hide()
+                                        showMusicSourceSheet = false
+                                    }
+                                },
+                                shape = SquircleShape
+                            )
+                            .padding(horizontal = 8.dp),
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                }
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
+    }
+
+    // Double Tap Seek Sheet
+    if (showDoubleTapSeekSheet) {
+        com.sonza.app.ui.components.glass.GlassModalBottomSheet(
+            onDismissRequest = { showDoubleTapSeekSheet = false },
+            sheetState = doubleTapSeekSheetState,
+            fallbackContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Text(
+                    text = "Double Tap to Seek",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp, start = 8.dp)
+                )
+                
+                val options = listOf(5, 10, 15, 30)
+                
+                options.forEach { seconds ->
+                    ListItem(
+                        headlineContent = { Text("$seconds seconds") },
+                        leadingContent = {
+                            RadioButton(
+                                selected = uiState.doubleTapSeekSeconds == seconds,
+                                onClick = null
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .dpadFocusable(
+                                onClick = {
+                                    viewModel.setDoubleTapSeekSeconds(seconds)
+                                    scope.launch {
+                                        doubleTapSeekSheetState.hide()
+                                        showDoubleTapSeekSheet = false
+                                    }
+                                },
+                                shape = SquircleShape
+                            )
+                            .padding(horizontal = 8.dp),
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                }
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
+    }
+    
+    // Haptics Mode Bottom Sheet
+    if (showHapticsModeSheet) {
+        com.sonza.app.ui.components.glass.GlassModalBottomSheet(
+            onDismissRequest = { showHapticsModeSheet = false },
+            sheetState = hapticsModeSheetState,
+            fallbackContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Text(
+                    text = "Haptics Mode",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp, start = 8.dp)
+                )
+                
+                Text(
+                    text = "Choose how sensitive the haptic feedback should be",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 16.dp, start = 8.dp)
+                )
+                
+                HapticsMode.entries.filter { it != HapticsMode.OFF }.forEach { mode ->
+                    val (label, description) = when (mode) {
+                        HapticsMode.BASIC -> "Basic" to "Responds to strong beats only"
+                        HapticsMode.ADVANCED -> "Advanced" to "Full audio spectrum analysis"
+                        HapticsMode.CUSTOM -> "Custom" to "Fine-tuned for your preference"
+                        else -> "" to ""
+                    }
+                    
+                    ListItem(
+                        headlineContent = { Text(label) },
+                        supportingContent = { Text(description) },
+                        leadingContent = {
+                            RadioButton(
+                                selected = uiState.hapticsMode == mode,
+                                onClick = null
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .dpadFocusable(
+                                onClick = {
+                                    viewModel.setHapticsMode(mode)
+                                    scope.launch {
+                                        hapticsModeSheetState.hide()
+                                        showHapticsModeSheet = false
+                                    }
+                                },
+                                shape = SquircleShape
+                            )
+                            .padding(horizontal = 8.dp),
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                }
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
+    }
+
+    // Haptics Intensity Bottom Sheet
+    if (showHapticsIntensitySheet) {
+        com.sonza.app.ui.components.glass.GlassModalBottomSheet(
+            onDismissRequest = { showHapticsIntensitySheet = false },
+            sheetState = hapticsIntensitySheetState,
+            fallbackContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Text(
+                    text = "Vibration Intensity",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp, start = 8.dp)
+                )
+                
+                Text(
+                    text = "Adjust how strong the vibrations feel",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 16.dp, start = 8.dp)
+                )
+                
+                HapticsIntensity.entries.forEach { intensity ->
+                    ListItem(
+                        headlineContent = { Text(intensity.displayName) },
+                        leadingContent = {
+                            RadioButton(
+                                selected = uiState.hapticsIntensity == intensity,
+                                onClick = null
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .dpadFocusable(
+                                onClick = {
+                                    viewModel.setHapticsIntensity(intensity)
+                                    scope.launch {
+                                        hapticsIntensitySheetState.hide()
+                                        showHapticsIntensitySheet = false
+                                    }
+                                },
+                                shape = SquircleShape
+                            )
+                            .padding(horizontal = 8.dp),
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                }
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
+    }
+
+    if (showLanguageDialog) {
+        LanguageSelectionDialog(
+            initialSelection = uiState.preferredLanguages,
+            onDismiss = { showLanguageDialog = false },
+            onSave = { languages ->
+                viewModel.setPreferredLanguages(languages)
+                showLanguageDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun PlaybackSectionTitle(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+    )
+}
+
+@Composable
+private fun HorizontalDivider() {
+    M3HorizontalDivider(
+        modifier = Modifier.padding(horizontal = 16.dp),
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+    )
+}
+
+@Composable
+private fun PlaybackNavigationItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String? = null,
+    onClick: () -> Unit
+) {
+    ListItem(
+        headlineContent = { Text(title, fontWeight = FontWeight.Medium) },
+        supportingContent = subtitle?.let { { Text(it, maxLines = 1) } },
+        leadingContent = {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(SquircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon, 
+                    contentDescription = null, 
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        },
+        trailingContent = {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                contentDescription = null,
+                modifier = Modifier.size(12.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
+        },
+        modifier = Modifier
+            .dpadFocusable(onClick = onClick, shape = SquircleShape)
+            .clip(SquircleShape),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
+}
+
+private fun getAudioQualityLabel(quality: AudioQuality, source: MusicSource): String {
+    return if (source == MusicSource.REMOTE) {
+        when (quality) {
+            AudioQuality.LOW -> "Low (96 kbps)"
+            AudioQuality.MEDIUM -> "Standard (160 kbps)"
+            AudioQuality.HIGH -> "High (320 kbps)"
+            AudioQuality.AUTO -> "Auto (Adaptive)"
+        }
+    } else {
+        when (quality) {
+            AudioQuality.LOW -> "Low (48 kbps)"
+            AudioQuality.MEDIUM -> "Normal (128 kbps)"
+            AudioQuality.HIGH -> "High (256 kbps)"
+            AudioQuality.AUTO -> "Auto (Adaptive)"
+        }
+    }
+}
+
+private fun getDownloadQualityLabel(quality: DownloadQuality, source: MusicSource): String {
+    return if (source == MusicSource.REMOTE) {
+        when (quality) {
+            DownloadQuality.LOW -> "Low (96 kbps)"
+            DownloadQuality.MEDIUM -> "Standard (160 kbps)"
+            DownloadQuality.HIGH -> "High (320 kbps)"
+        }
+    } else {
+        when (quality) {
+            DownloadQuality.LOW -> "Low (48 kbps) • Saves data"
+            DownloadQuality.MEDIUM -> "Medium (128 kbps)"
+            DownloadQuality.HIGH -> "High (256 kbps)"
+        }
+    }
+}

@@ -1,0 +1,98 @@
+package com.sonza.app.providers.lyrics
+
+import android.content.Context
+import android.net.Uri
+import android.provider.MediaStore
+import com.sonza.app.core.model.Song
+import com.sonza.app.core.model.SongSource
+import dagger.hilt.android.qualifiers.ApplicationContext
+import org.jaudiotagger.audio.AudioFileIO
+import org.jaudiotagger.tag.FieldKey
+import java.io.File
+import javax.inject.Inject
+
+class LocalLyricsProvider @Inject constructor(
+    @param:ApplicationContext private val context: Context
+) {
+    val name = "Local Storage"
+
+    fun getLyrics(song: Song): String? {
+        // 1. Try to resolve the file path of the audio
+        val path = getAudioPath(song)
+        
+        if (path != null) {
+            val audioFile = File(path)
+            if (audioFile.exists()) {
+                // 2. Check for sidecar .lrc file (Priority 1)
+                val lrcFile = File(path.substringBeforeLast(".") + ".lrc")
+                if (lrcFile.exists()) return lrcFile.readText()
+
+                // 3. Check for sidecar .txt file (Priority 2)
+                val txtFile = File(path.substringBeforeLast(".") + ".txt")
+                if (txtFile.exists()) return txtFile.readText()
+
+                // 4. Extract embedded lyrics (Priority 3)
+                try {
+                    val af = AudioFileIO.read(audioFile)
+                    val tag = af.tag
+                    if (tag != null) {
+                        // Try different lyric fields
+                        val lyrics = tag.getFirst(FieldKey.LYRICS)
+                        if (!lyrics.isNullOrBlank()) return lyrics
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+        
+        // 5. Fallback: Check internal app storage for manually added lyrics
+        // Path: /Android/data/com.package/files/lyrics/{songId}.lrc
+        val baseDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val internalDir = File(baseDir, "lyrics")
+        if (internalDir.exists()) {
+            val internalLrc = File(internalDir, "${song.id}.lrc")
+            if (internalLrc.exists()) return internalLrc.readText()
+
+            val internalTxt = File(internalDir, "${song.id}.txt")
+            if (internalTxt.exists()) return internalTxt.readText()
+        }
+
+        return null
+    }
+
+    /**
+     * Helper to save manually added lyrics
+     */
+    fun saveLyrics(songId: String, content: String) {
+        val baseDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val internalDir = File(baseDir, "lyrics")
+        if (!internalDir.exists()) internalDir.mkdirs()
+
+        val file = File(internalDir, "$songId.lrc")
+        file.writeText(content)
+    }
+
+    private fun getAudioPath(song: Song): String? {
+        try {
+            val uri = song.localUri?.let { android.net.Uri.parse(it) } ?: return null
+            
+            if (uri.scheme == "file") {
+                return uri.path
+            }
+            
+            if (uri.scheme == "content") {
+                val projection = arrayOf(MediaStore.Audio.Media.DATA)
+                context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                         val idx = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
+                         if (idx != -1) return cursor.getString(idx)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return null
+    }
+}

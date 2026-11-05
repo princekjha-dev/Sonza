@@ -1,0 +1,414 @@
+package com.sonza.app.ui.components
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Copyright
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import org.koin.compose.viewmodel.koinViewModel
+import coil3.compose.AsyncImage
+import com.sonza.app.core.model.ArtistCreditInfo
+import com.sonza.app.core.model.Song
+import com.sonza.app.core.model.SongSource
+import com.sonza.app.ui.viewmodel.SongInfoViewModel
+
+/**
+ * YT Music inspired but unique Song Info screen.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SongInfoSheet(
+    song: Song,
+    isVisible: Boolean,
+    onDismiss: () -> Unit,
+    onArtistClick: (String) -> Unit = {},
+    audioCodec: String? = null,
+    audioBitrate: Int? = null,
+    dominantColors: DominantColors? = null,
+    isDarkTheme: Boolean = isSystemInDarkTheme(),
+    viewModel: SongInfoViewModel = koinViewModel()
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val artistCredits by viewModel.artistCredits.collectAsState()
+    val releaseDate by viewModel.releaseDate.collectAsState()
+    val remoteAudioMetadata by viewModel.remoteAudioMetadata.collectAsState()
+    val matchedRemoteId by viewModel.matchedRemoteId.collectAsState()
+    
+    // Get high resolution thumbnail URL
+    val highResThumbnail = remember(song.thumbnailUrl, song.id) {
+        getHighResThumbnailUrl(song.thumbnailUrl, song.id)
+    }
+    
+    // Extract dominant colors
+    val finalDominantColors = dominantColors ?: rememberDominantColors(highResThumbnail, isDarkTheme)
+    
+    LaunchedEffect(isVisible, song.artist, song.id) {
+        if (isVisible) {
+            val matchedId = viewModel.getMatchedRemoteId(song.id)
+            val effectiveSource = if (matchedId != null) SongSource.REMOTE else song.source
+            
+            // First fetch basic artist credits (will be overridden if detailed metadata is found)
+            if (artistCredits.isEmpty() || song.artist != (viewModel.artistCredits.value.firstOrNull()?.name ?: "")) {
+                viewModel.fetchArtistCredits(song.artist, effectiveSource)
+            }
+            viewModel.fetchSongDetails(song.id, song.source, song.originalSource)
+        }
+    }
+    
+    if (isVisible) {
+        // Frosts against the now-playing artwork when opened from the player.
+        com.sonza.app.ui.components.glass.ArtGlassSheet(
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            fallbackContainerColor = if (isDarkTheme) Color.Black.copy(alpha = 0.95f) else MaterialTheme.colorScheme.surface,
+            contentColor = finalDominantColors.onBackground,
+            showDragHandle = true,
+            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+        ) {
+            // The sheet's own tint gradient ends opaque, which would paint over the
+            // frosted backdrop — so it only runs when there is no glass artwork behind.
+            val hasGlassBackdrop =
+                !com.sonza.app.ui.components.glass.LocalGlassArtwork.current?.artworkUrl.isNullOrBlank()
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(
+                        if (hasGlassBackdrop) Modifier else Modifier.background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    finalDominantColors.primary.copy(alpha = if (isDarkTheme) 0.15f else 0.1f),
+                                    if (isDarkTheme) Color.Black else MaterialTheme.colorScheme.surface
+                                )
+                            )
+                        )
+                    )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        // Keep content clear of the status bar when the sheet grows tall —
+                        // contentWindowInsets is zeroed above, so without this the header
+                        // ran under / disturbed the status bar.
+                        .statusBarsPadding()
+                        .verticalScroll(rememberScrollState())
+                        .navigationBarsPadding()
+                        .padding(bottom = 32.dp)
+                ) {
+                    // Header Section
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AsyncImage(
+                            model = highResThumbnail,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .shadow(if (isDarkTheme) 8.dp else 4.dp),
+                            contentScale = ContentScale.Crop
+                        )
+                        
+                        Spacer(modifier = Modifier.width(20.dp))
+                        
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = song.title,
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Black,
+                                    letterSpacing = (-0.5).sp
+                                ),
+                                color = if (isDarkTheme) Color.White else Color.Black,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            
+                            Spacer(modifier = Modifier.height(4.dp))
+                            
+                            Text(
+                                text = song.artist,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = finalDominantColors.accent,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.clickable {
+                                    val id = song.artistId ?: artistCredits.firstOrNull()?.artistId
+                                    id?.let { onArtistClick(it) }
+                                }
+                            )
+                            
+                            if (!song.album.isNullOrBlank()) {
+                                Text(
+                                    text = song.album!!,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = (if (isDarkTheme) Color.White else Color.Black).copy(alpha = 0.5f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+
+                    // TECHNICAL STATS
+                    SectionHeader("TECHNICAL STATS", finalDominantColors.accent)
+                    
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                        color = (if (isDarkTheme) Color.White else Color.Black).copy(alpha = 0.05f),
+                        shape = RoundedCornerShape(20.dp),
+                        border = BorderStroke(1.dp, (if (isDarkTheme) Color.White else Color.Black).copy(alpha = 0.05f))
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            val stats = remember(song.id, song.source, audioCodec, audioBitrate, song.duration, remoteAudioMetadata, matchedRemoteId) {
+                                val displayId = matchedRemoteId ?: song.id
+                                val displaySource = if (matchedRemoteId != null) "HQ Audio Source" else song.source.name
+                                val list = mutableListOf(
+                                    "Content ID" to displayId,
+                                    "Source" to displaySource,
+                                    "Codec" to (audioCodec ?: "Opus"),
+                                    "Bitrate" to (audioBitrate?.let { "${it} kbps" } ?: "Variable"),
+                                    "Duration" to formatDurationForCredits(song.duration)
+                                )
+                                
+                                remoteAudioMetadata?.let { meta ->
+                                    meta.playCount?.let { list.add("Play Count" to String.format("%,d", it)) }
+                                    meta.language?.let { list.add("Language" to it.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }) }
+                                    meta.label?.let { list.add("Label" to it) }
+                                }
+                                list
+                            }
+                            
+                            stats.forEach { (label, value) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 6.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = (if (isDarkTheme) Color.White else Color.Black).copy(alpha = 0.5f)
+                                    )
+                                    Text(
+                                        text = value,
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                        ),
+                                        color = finalDominantColors.accent
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // ARTISTS
+                    SectionHeader("ARTISTS", finalDominantColors.accent)
+                    
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        artistCredits.forEach { artist ->
+                            ArtistRow(
+                                artist = artist,
+                                onArtistClick = onArtistClick,
+                                accentColor = finalDominantColors.accent,
+                                isDarkTheme = isDarkTheme
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // RELEASE INFO
+                    SectionHeader("RELEASE INFO", finalDominantColors.accent)
+                    
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                        color = (if (isDarkTheme) Color.White else Color.Black).copy(alpha = 0.05f),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            InfoRow(Icons.Default.CalendarMonth, "Released", song.releaseDate ?: releaseDate ?: "Unknown", isDarkTheme)
+                            
+                            remoteAudioMetadata?.explicitContent?.let { isExplicit ->
+                                if (isExplicit) {
+                                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = (if (isDarkTheme) Color.White else Color.Black).copy(alpha = 0.05f))
+                                    InfoRow(Icons.Default.Album, "Content", "Explicit Content", isDarkTheme)
+                                }
+                            }
+
+                            if (!song.album.isNullOrBlank()) {
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = (if (isDarkTheme) Color.White else Color.Black).copy(alpha = 0.05f))
+                                InfoRow(Icons.Default.Album, "Album", song.album!!, isDarkTheme)
+                            }
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = (if (isDarkTheme) Color.White else Color.Black).copy(alpha = 0.05f))
+                            InfoRow(Icons.Default.Copyright, "Copyright", remoteAudioMetadata?.copyright ?: "© ${song.artist}", isDarkTheme)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(48.dp))
+                    
+                    Text(
+                        text = "Sonza Premium Metadata Engine",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            letterSpacing = 1.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = (if (isDarkTheme) Color.White else Color.Black).copy(alpha = 0.3f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionHeader(text: String, color: Color) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge.copy(
+            fontWeight = FontWeight.Black,
+            letterSpacing = 2.sp
+        ),
+        color = color.copy(alpha = 0.8f),
+        modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+    )
+}
+
+@Composable
+private fun ArtistRow(
+    artist: ArtistCreditInfo,
+    onArtistClick: (String) -> Unit,
+    accentColor: Color,
+    isDarkTheme: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background((if (isDarkTheme) Color.White else Color.Black).copy(alpha = 0.05f))
+            .clickable(enabled = artist.artistId != null) { artist.artistId?.let { onArtistClick(it) } }
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AsyncImage(
+            model = artist.thumbnailUrl,
+            contentDescription = null,
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape),
+            contentScale = ContentScale.Crop
+        )
+        
+        Spacer(modifier = Modifier.width(16.dp))
+        
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = artist.name,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                color = if (isDarkTheme) Color.White else Color.Black
+            )
+            Text(
+                text = artist.role,
+                style = MaterialTheme.typography.labelMedium,
+                color = (if (isDarkTheme) Color.White else Color.Black).copy(alpha = 0.5f)
+            )
+        }
+        
+        if (artist.artistId != null) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                tint = accentColor.copy(alpha = 0.6f),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun InfoRow(icon: ImageVector, label: String, value: String, isDarkTheme: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = (if (isDarkTheme) Color.White else Color.Black).copy(alpha = 0.4f),
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column {
+            Text(text = label, style = MaterialTheme.typography.labelSmall, color = (if (isDarkTheme) Color.White else Color.Black).copy(alpha = 0.4f))
+            Text(text = value, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = if (isDarkTheme) Color.White else Color.Black)
+        }
+    }
+}
+
+private fun formatDurationForCredits(duration: Long): String {
+    if (duration <= 0) return "Unknown"
+    val totalSeconds = duration / 1000
+    if (totalSeconds <= 0) return "Unknown"
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "${minutes}m ${seconds}s"
+}
+
+private fun getHighResThumbnailUrl(originalUrl: String?, videoId: String): String {
+    if (originalUrl.isNullOrBlank()) {
+        return "https://img.youtube.com/vi/$videoId/maxresdefault.jpg"
+    }
+    
+    if (originalUrl.contains("lh3.googleusercontent.com") || originalUrl.contains("yt3.ggpht.com")) {
+        return originalUrl.replace(Regex("=w\\d+-h\\d+.*"), "=w544-h544")
+            .replace(Regex("=s\\d+.*"), "=s544")
+    }
+    
+    if (originalUrl.contains("ytimg.com") || originalUrl.contains("youtube.com")) {
+        val ytVideoId = when {
+            originalUrl.contains("/vi/") -> {
+                originalUrl.substringAfter("/vi/").substringBefore("/")
+            }
+            else -> videoId
+        }
+        return "https://img.youtube.com/vi/$ytVideoId/hqdefault.jpg"
+    }
+    
+    return originalUrl
+}

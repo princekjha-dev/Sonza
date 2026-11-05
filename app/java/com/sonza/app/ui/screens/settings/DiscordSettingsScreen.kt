@@ -1,0 +1,439 @@
+package com.sonza.app.ui.screens.settings
+
+import android.graphics.Bitmap
+import android.os.Build
+import android.webkit.CookieManager
+import android.webkit.JsResult
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import org.koin.compose.viewmodel.koinViewModel
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import com.sonza.app.R
+import com.sonza.app.ui.viewmodel.SettingsViewModel
+import com.sonza.app.ui.components.SettingsSwitchRow
+import com.sonza.app.ui.components.SettingsRowStyle
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DiscordSettingsScreen(
+    viewModel: SettingsViewModel = koinViewModel(),
+    onBack: () -> Unit
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    var showTokenDialog by remember { mutableStateOf(false) }
+    var showWebLogin by remember { mutableStateOf(false) }
+
+    // Background Gradient
+    val backgroundBrush = Brush.verticalGradient(
+        colors = listOf(
+            MaterialTheme.colorScheme.surface,
+            MaterialTheme.colorScheme.surfaceContainer,
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    )
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Discord RPC") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+            )
+        },
+        containerColor = Color.Transparent
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(backgroundBrush)
+                .padding(paddingValues)
+        ) {
+            LazyColumn(
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                // Connection Status
+                item {
+                    DiscordSectionTitle("Account")
+                    DiscordCard {
+                        if (uiState.discordToken.isNotBlank()) {
+                            ListItem(
+                                headlineContent = { Text("Connected") },
+                                supportingContent = { Text("Token is set") },
+                                leadingContent = {
+                                    Icon(Icons.Default.CheckCircle, null, tint = MaterialTheme.colorScheme.primary)
+                                },
+                                trailingContent = {
+                                    Button(
+                                        onClick = { 
+                                            viewModel.setDiscordToken("") 
+                                            viewModel.setDiscordRpcEnabled(false)
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer)
+                                    ) {
+                                        Text("Logout")
+                                    }
+                                },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                            )
+                        } else {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Text("Connect Discord to display your music status.", style = MaterialTheme.typography.bodyMedium)
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Button(onClick = { showWebLogin = true }) {
+                                        Text("Log In via Discord")
+                                    }
+                                    OutlinedButton(onClick = { showTokenDialog = true }) {
+                                        Text("Use Token")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    DiscordSectionTitle("Rich Presence")
+                    DiscordCard {
+                        val isEnabled = uiState.discordToken.isNotBlank()
+                        
+                        SettingsSwitchRow(
+                            style = SettingsRowStyle.Plain,
+                            icon = Icons.Default.Settings,
+                            title = "Enable Rich Presence",
+                            subtitle = if (!isEnabled) "Log in to enable" else "Show status on Discord",
+                            checked = uiState.discordRpcEnabled,
+                            enabled = isEnabled,
+                            onCheckedChange = { viewModel.setDiscordRpcEnabled(it) }
+                        )
+                        
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+
+                        SettingsSwitchRow(
+                            style = SettingsRowStyle.Plain,
+                            icon = Icons.Default.Code,
+                            title = "Swap Details & State",
+                            subtitle = "Show song title prominently instead of artist",
+                            checked = uiState.discordUseDetails,
+                            enabled = isEnabled && uiState.discordRpcEnabled,
+                            onCheckedChange = { viewModel.setDiscordUseDetails(it) }
+                        )
+                    }
+                }
+
+                // Preview Card
+                item {
+                    DiscordSectionTitle("Preview")
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                         DiscordPreviewCard(
+                             useDetails = uiState.discordUseDetails,
+                             enabled = uiState.discordRpcEnabled && uiState.discordToken.isNotBlank()
+                         )
+                    }
+                }
+            }
+        }
+    }
+
+    // Token Dialog
+    if (showTokenDialog) {
+        var token by remember { mutableStateOf("") }
+        var passwordVisible by remember { mutableStateOf(false) }
+
+        AlertDialog(
+            onDismissRequest = { showTokenDialog = false },
+            title = { Text("Enter Discord Token") },
+            text = {
+                Column {
+                    Text("Enter your user token manually. This is stored locally on your device.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = token,
+                        onValueChange = { token = it },
+                        label = { Text("Token") },
+                        singleLine = true,
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(image, "Toggle visibility")
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.setDiscordToken(token)
+                        showTokenDialog = false
+                    },
+                    enabled = token.isNotBlank()
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTokenDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    // Web Login View
+    if (showWebLogin) {
+        Dialog(
+            onDismissRequest = { showWebLogin = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.fillMaxSize().padding(16.dp)
+            ) {
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Discord Login", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 8.dp))
+                        IconButton(onClick = { showWebLogin = false }) {
+                            Icon(Icons.Default.Close, "Close") 
+                        }
+                    }
+                    
+                    AndroidView(
+                        factory = { ctx ->
+                            WebView(ctx).apply {
+                                layoutParams = android.view.ViewGroup.LayoutParams(
+                                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                    android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                                )
+                                // JS is required for Discord login. Harden the rest of the
+                                // WebView surface so a compromised page or MITM has the
+                                // smallest possible blast radius.
+                                settings.javaScriptEnabled = true
+                                settings.domStorageEnabled = true
+                                settings.databaseEnabled = true
+                                settings.useWideViewPort = true
+                                settings.loadWithOverviewMode = true
+                                settings.allowFileAccess = false
+                                settings.allowContentAccess = false
+                                @Suppress("DEPRECATION")
+                                settings.allowFileAccessFromFileURLs = false
+                                @Suppress("DEPRECATION")
+                                settings.allowUniversalAccessFromFileURLs = false
+                                settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                                settings.javaScriptCanOpenWindowsAutomatically = false
+                                settings.setSupportMultipleWindows(false)
+
+                                val jsSnippet = "javascript:(function()%7Bvar%20i%3Ddocument.createElement('iframe')%3Bdocument.body.appendChild(i)%3Balert(i.contentWindow.localStorage.token.slice(1,-1))%7D)()"
+                                val motorola = "motorola"
+                                val samsungUserAgent = "Mozilla/5.0 (Linux; Android 14; SM-S921U; Build/UP1A.231005.007) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36"
+
+                                if (Build.MANUFACTURER.equals(motorola, ignoreCase = true)) {
+                                    settings.userAgentString = samsungUserAgent
+                                } else {
+                                    settings.userAgentString = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+                                }
+
+                                CookieManager.getInstance().setAcceptCookie(true)
+                                CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+
+                                // Track the current host so we only run the token-extraction
+                                // JS when the page that just loaded is actually Discord.
+                                // A captive portal / MITM redirect to an attacker page is
+                                // now incapable of triggering our localStorage reader.
+                                var currentHost: String? = null
+
+                                webChromeClient = object : WebChromeClient() {
+                                    override fun onJsAlert(view: WebView?, url: String?, message: String?, result: JsResult?): Boolean {
+                                        val origin = android.net.Uri.parse(url ?: "").host?.lowercase() ?: ""
+                                        val isDiscordOrigin = origin == "discord.com" || origin.endsWith(".discord.com")
+                                        val candidate = message?.trim()
+                                        // Discord user tokens have 3 base64url-ish segments
+                                        // separated by dots and are long. Reject anything that
+                                        // doesn't match, so an alert('hello') on a compromised
+                                        // page can't be mis-stored as a token.
+                                        val looksLikeToken = candidate != null &&
+                                            candidate.length in 50..120 &&
+                                            candidate.matches(Regex("^[A-Za-z0-9_\\-]+\\.[A-Za-z0-9_\\-]+\\.[A-Za-z0-9_\\-]+$"))
+                                        if (isDiscordOrigin && looksLikeToken && candidate != null) {
+                                            viewModel.setDiscordToken(candidate)
+                                            showWebLogin = false
+                                        }
+                                        result?.confirm()
+                                        return true
+                                    }
+                                }
+
+                                webViewClient = object : WebViewClient() {
+                                    override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                                        currentHost = android.net.Uri.parse(url ?: "").host?.lowercase()
+                                        super.onPageStarted(view, url, favicon)
+                                    }
+
+                                    private fun isDiscordApp(urlStr: String?): Boolean {
+                                        val u = android.net.Uri.parse(urlStr ?: "")
+                                        val host = u.host?.lowercase() ?: return false
+                                        val onDiscord = host == "discord.com" || host.endsWith(".discord.com")
+                                        return onDiscord && (urlStr!!.endsWith("/app") || urlStr.contains("/channels/"))
+                                    }
+
+                                    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                                        val url = request?.url?.toString() ?: return false
+                                        if (isDiscordApp(url)) {
+                                            view?.stopLoading()
+                                            view?.loadUrl(jsSnippet)
+                                            return true
+                                        }
+                                        return false
+                                    }
+
+                                    @Deprecated("Deprecated in Java")
+                                    override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                                        if (isDiscordApp(url)) {
+                                            view?.stopLoading()
+                                            view?.loadUrl(jsSnippet)
+                                            return true
+                                        }
+                                        return false
+                                    }
+                                }
+                                loadUrl("https://discord.com/login")
+                            }
+                        },
+                        modifier = Modifier.weight(1f).fillMaxWidth()
+                    )
+                }
+            }
+        }
+    }
+}
+
+// --- Local Components ---
+
+@Composable
+private fun DiscordSectionTitle(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+    )
+}
+
+@Composable
+private fun DiscordCard(content: @Composable () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+        ),
+        tonalElevation = 0.dp
+    ) {
+        Column(modifier = Modifier.padding(vertical = 8.dp)) {
+            content()
+        }
+    }
+}
+
+@Composable
+fun DiscordPreviewCard(useDetails: Boolean, enabled: Boolean) {
+    val backgroundColor = Color(0xFF5865F2) // Discord Blurple
+    val cardColor = Color(0xFF23272A) // Discord Dark
+    
+    Card(
+        modifier = Modifier.width(320.dp),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text("PLAYING A GAME", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Large Image (Album Art)
+                Box(modifier = Modifier.size(60.dp)) {
+                     Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color.DarkGray
+                    ) {
+                        // Placeholder for Album Art
+                        Icon(Icons.Default.Code, null, tint = Color.LightGray, modifier = Modifier.padding(12.dp))
+                    }
+                }
+                
+                Spacer(Modifier.width(12.dp))
+                
+                Column {
+                    Text("Sonza", style = MaterialTheme.typography.titleSmall, color = Color.White, fontWeight = FontWeight.Bold)
+                    
+                    if (enabled) {
+                        val line1 = if (useDetails) "Song Title" else "Artist Name"
+                        val line2 = if (useDetails) "Artist Name" else "Song Title"
+                        
+                        Text(line1, style = MaterialTheme.typography.bodySmall, color = Color.White)
+                        Text(line2, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.7f))
+                        Text("02:30 left", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.7f))
+                    } else {
+                         Text("Not Playing", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.5f))
+                    }
+                }
+            }
+        }
+    }
+}

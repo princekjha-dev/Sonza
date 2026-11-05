@@ -1,0 +1,186 @@
+package com.sonza.app.ui.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.sonza.app.core.model.Song
+import com.sonza.app.data.repository.DownloadRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+class DownloadsViewModel @Inject constructor(
+    private val downloadRepository: DownloadRepository
+) : ViewModel() {
+    
+    private val _pendingIntent = MutableStateFlow<android.app.PendingIntent?>(null)
+    val pendingIntent = _pendingIntent.asStateFlow()
+
+    fun consumePendingIntent() {
+        _pendingIntent.value = null
+    }
+    
+    val downloadedSongs: StateFlow<List<Song>> = downloadRepository.downloadedSongs
+    val queueState: StateFlow<List<Song>> = downloadRepository.queueState
+    val downloadingIds: StateFlow<Set<String>> = downloadRepository.downloadingIds
+    val downloadProgress: StateFlow<Map<String, Float>> = downloadRepository.downloadProgress
+    val downloadFailures: StateFlow<Map<String, com.sonza.app.data.repository.DownloadFailure>> =
+        downloadRepository.downloadFailures
+
+    fun retryDownload(songId: String) {
+        downloadRepository.retryDownload(songId)
+    }
+
+    fun dismissFailure(songId: String) {
+        downloadRepository.clearFailure(songId)
+    }
+
+    /** Audio-only downloads (isVideo == false) shown in the Songs tab. */
+    val downloadedAudioSongs: StateFlow<List<Song>> = downloadedSongs
+        .map { list -> list.filter { !it.isVideo } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Video downloads (isVideo == true) shown in the Videos tab. */
+    val downloadedVideos: StateFlow<List<Song>> = downloadedSongs
+        .map { list -> list.filter { it.isVideo } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val downloadItems: StateFlow<List<DownloadItem>> = kotlinx.coroutines.flow.combine(
+        downloadedSongs,
+        queueState,
+        downloadingIds,
+        downloadProgress,
+        downloadFailures
+    ) { downloaded, queued, downloading, progressMap, failures ->
+        // Failed songs are off the queue and not downloaded, so they'd disappear from
+        // this list entirely — include them so the user can see and retry them.
+        val allSongs = (downloaded + queued + failures.values.map { it.song }).distinctBy { it.id }
+
+        val collections = allSongs.filter { it.collectionId != null }
+            .groupBy { it.collectionId.orEmpty() }
+            .map { (id, groupSongs) ->
+                val first = groupSongs.first()
+                DownloadItem.CollectionItem(
+                    id = id,
+                    title = first.collectionName ?: "Unknown Collection",
+                    thumbnailUrl = first.thumbnailUrl,
+                    songs = groupSongs.map { song ->
+                        val isDownloading = downloading.contains(song.id)
+                        val progress = progressMap[song.id] ?: if (downloaded.any { it.id == song.id }) 1.0f else 0.0f
+                        SongStatus(song, isDownloading, progress, failures[song.id]?.reason)
+                    }
+                )
+            }
+        
+        val singles = allSongs.filter { it.collectionId == null }
+            .map { song ->
+                val isDownloading = downloading.contains(song.id)
+                val progress = progressMap[song.id] ?: if (downloaded.any { it.id == song.id }) 1.0f else 0.0f
+                DownloadItem.SongItem(song, isDownloading, progress, failures[song.id]?.reason)
+            }
+            
+        (collections + singles).sortedBy { 
+            when(it) {
+                is DownloadItem.CollectionItem -> it.title
+                is DownloadItem.SongItem -> it.song.title
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    
+    private val _selectedSongIds = MutableStateFlow<Set<String>>(emptySet())
+    val selectedSongIds: StateFlow<Set<String>> = _selectedSongIds
+    
+    val isSelectionMode = _selectedSongIds.map { it.isNotEmpty() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    
+    fun deleteDownload(songId: String) {
+        viewModelScope.launch {
+            try {
+                downloadRepository.deleteDownload(songId)
+                // If deleted song was selected, remove it from selection
+                _selectedSongIds.value = _selectedSongIds.value - songId
+            } catch (e: com.sonza.app.util.FileOperationException.FilePermissionException) {
+                _pendingIntent.value = e.pendingIntent
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+    
+    fun toggleSelection(songId: String) {
+        val currentSelection = _selectedSongIds.value
+        if (currentSelection.contains(songId)) {
+            _selectedSongIds.value = currentSelection - songId
+        } else {
+            _selectedSongIds.value = currentSelection + songId
+        }
+    }
+    
+    fun selectAll() {
+        val allIds = downloadedSongs.value.map { it.id }.toSet()
+        _selectedSongIds.value = allIds
+    }
+    
+    fun clearSelection() {
+        _selectedSongIds.value = emptySet()
+    }
+    
+    fun deleteSelected() {
+        viewModelScope.launch {
+            try {
+                val idsToDelete = _selectedSongIds.value.toList()
+                downloadRepository.deleteDownloads(idsToDelete)
+                clearSelection()
+            } catch (e: com.sonza.app.util.FileOperationException.FilePermissionException) {
+                _pendingIntent.value = e.pendingIntent
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+    
+    fun deleteAll() {
+        viewModelScope.launch {
+            try {
+                downloadRepository.deleteAllDownloads()
+                clearSelection()
+            } catch (e: com.sonza.app.util.FileOperationException.FilePermissionException) {
+                _pendingIntent.value = e.pendingIntent
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+    
+    fun refreshDownloads() {
+        downloadRepository.refreshDownloads()
+    }
+}
+
+data class SongStatus(
+    val song: Song,
+    val isDownloading: Boolean,
+    val progress: Float,
+    val failureReason: String? = null
+)
+
+sealed class DownloadItem {
+    data class SongItem(
+        val song: Song,
+        val isDownloading: Boolean = false,
+        val progress: Float = 1.0f,
+        val failureReason: String? = null
+    ) : DownloadItem()
+    
+    data class CollectionItem(
+        val id: String,
+        val title: String,
+        val thumbnailUrl: String?,
+        val songs: List<SongStatus>
+    ) : DownloadItem()
+}

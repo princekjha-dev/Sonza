@@ -1,0 +1,29 @@
+pluginManagement {
+    repositories {
+        google()
+        maven { url = uri("https://maven-central.storage-download.googleapis.com/maven2/") }
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+        maven { url = uri("https://central.sonatype.com/repository/maven-snapshots/") }
+    }
+}
+
+rootProject.name = "Sonza"
+include(":app")
+include(":updater")
+include(":media-source")
+include(":scrobbler")
+include(":lyric-lrclib")
+include(":lyric-kugou")
+include(":core:model")
+include(":core:data")
+include(":core:domain")
+include(":core:db")
+include(":composeApp")
