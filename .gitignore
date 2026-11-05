@@ -19,6 +19,7 @@ __pycache__/
 *secret*.json
 
 # Secrets & Environment
+.kotlin/
 .env
 .env.*
 *.secret
