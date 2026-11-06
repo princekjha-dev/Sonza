@@ -79,39 +79,39 @@ compose.desktop {
     application {
         mainClass = "com.sonza.app.composeapp.MainKt"
 
-        // ProGuard disabled for the desktop release. Reasons:
-        // 1. jsoup optionally references com.google.re2j (not on classpath)
-        //    — ProGuard treats this as a fatal unresolved-reference error.
-        // 2. VLCJ's JNA bindings, Mozilla Rhino's JS interop, and NewPipe
-        //    Extractor all rely on runtime reflection that ProGuard would
-        //    need extensive -keep rules to preserve. Wrong rule = silent
-        //    runtime crash deep inside playback or extraction.
-        // 3. The unminified MSI is ~80 MB vs ~50 MB minified — acceptable
-        //    cost given the alternative is hours of ProGuard rule tuning
-        //    for every transitive dep.
-        // Re-enable in a future chunk if MSI size becomes a real problem;
-        // would need a curated -dontwarn + -keep rules file.
         buildTypes.release.proguard {
             isEnabled.set(false)
         }
 
         nativeDistributions {
-            targetFormats(TargetFormat.Msi, TargetFormat.Exe)
+            targetFormats(
+                TargetFormat.Deb,
+                TargetFormat.Rpm,
+                TargetFormat.Msi,
+                TargetFormat.Exe,
+                TargetFormat.Dmg
+            )
             packageName = "Sonza"
-            // Tracks app/build.gradle.kts versionName (2.6.5.0) — kept in sync so
-            // Windows MSI upgrade chains see new builds as upgrades. MSI versions
-            // are major.minor.patch only (the 4th app field is ignored by Windows
-            // Installer anyway), so the meaningful prefix is mirrored here.
-            packageVersion = "2.6.5"
-            description = "Sonza Desktop"
-            vendor = "Prince Kumar Jha"
+            packageVersion = "1.0.0"
+            description = "Sonza Desktop — High Fidelity Audiophile Music Player"
+            vendor = "Sonza"
+            copyright = "Copyright (c) 2026 Sonza. All rights reserved."
+            licenseFile.set(rootProject.file("LICENSE"))
+
+            linux {
+                iconFile.set(project.file("src/desktopMain/resources/icons/icon.png"))
+            }
 
             windows {
                 menu = true
                 shortcut = true
-                // Stable UUID — keep this constant across releases so Windows treats
-                // new MSIs as upgrades, not parallel installs. Generated once.
                 upgradeUuid = "9F8D2C1A-4B7E-4F3D-9A6C-3E2B1A8D5C7F"
+                iconFile.set(project.file("src/desktopMain/resources/icons/icon.ico"))
+            }
+
+            macOS {
+                bundleID = "com.sonza.app"
+                iconFile.set(project.file("src/desktopMain/resources/icons/icon.icns"))
             }
         }
     }

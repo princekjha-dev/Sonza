@@ -15,12 +15,39 @@ android {
         applicationId = "com.sonza.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2651
-        versionName = "2.6.5.1"
+        versionCode = 10000
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+    }
+
+    signingConfigs {
+        create("release") {
+            val keystorePath = System.getenv("SONZA_KEYSTORE_PATH")
+                ?: project.findProperty("SONZA_KEYSTORE_PATH")?.toString()
+                ?: "${rootProject.projectDir}/release.keystore"
+            val releaseStorePass = System.getenv("SONZA_STORE_PASSWORD")
+                ?: project.findProperty("SONZA_STORE_PASSWORD")?.toString()
+                ?: "sonza123"
+            val releaseKeyAlias = System.getenv("SONZA_KEY_ALIAS")
+                ?: project.findProperty("SONZA_KEY_ALIAS")?.toString()
+                ?: "sonza"
+            val releaseKeyPass = System.getenv("SONZA_KEY_PASSWORD")
+                ?: project.findProperty("SONZA_KEY_PASSWORD")?.toString()
+                ?: "sonza123"
+
+            val keystoreFile = file(keystorePath)
+            if (keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = releaseStorePass
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPass
+            } else {
+                initWith(signingConfigs.getByName("debug"))
+            }
         }
     }
 
@@ -36,7 +63,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

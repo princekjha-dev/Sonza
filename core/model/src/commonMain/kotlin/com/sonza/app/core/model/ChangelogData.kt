@@ -9,10 +9,11 @@ data class ChangelogEntry(
 
 object ChangelogData {
     val latestEntry = ChangelogEntry(
-        version = "2.6.5.0",
-        date = "August 21, 2026",
+        version = "1.0.0",
+        date = "November 2026",
         isLatest = true,
         changes = listOf(
+            "Sonza v1.0.0 Stable Release: Unified multi-platform release across Android, Linux, and Windows.",
             "Real-Time Profile & Header: Instant authenticated user name and avatar synchronization on login, with dynamic time-of-day home greetings.",
             "Consolidated Dynamic Island & Mini Player: Streamlined floating playback overlay and unified gesture interactions for audio and video.",
             "Architecture Streamlining: Removed legacy Listen Together network protocols and protobuf dependencies for faster, leaner app performance.",
